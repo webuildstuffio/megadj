@@ -4,8 +4,9 @@
  * so the schema, split, and metric math are pinned before any
  * annotations exist.
  */
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { tempDir } from "../../test-support/testutil";
 import { join } from "node:path";
 import {
   GOLD_SCHEMA_VERSION,
@@ -90,8 +91,11 @@ describe("goldSchemaError", () => {
   });
 });
 
+const t = tempDir("megadj-gold-").rippable();
+afterAll(() => t.rippleAll());
+
 describe("loadGoldSet", () => {
-  const dir = mkdtempSync("/tmp/megadj-gold-");
+  const dir = t.dir();
 
   test("missing dir → empty set, no throw", () => {
     const s = loadGoldSet("/tmp/does-not-exist-gold");
@@ -117,7 +121,6 @@ describe("loadGoldSet", () => {
       "c.json",
     ]);
     expect(s.issues[0]!.error).toBeTruthy();
-    rmSync(dir, { recursive: true, force: true });
   });
 
   test("goldDir honors MEGADJ_GOLD_DIR override", () => {
@@ -287,13 +290,12 @@ describe("aggregateScores", () => {
 
 describe("loader round-trip with mkdir", () => {
   test("a fresh _gold dir integrates with the loader", () => {
-    const dir = join(mkdtempSync("/tmp/megadj-goldint-"), "_gold");
+    const dir = join(t.dir(), "_gold");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "one.json"), JSON.stringify(valid));
     const s = loadGoldSet(dir);
     expect(s.annotations).toHaveLength(1);
     expect(s.issues).toHaveLength(0);
     expect(s.annotations[0]!.phraseBars).toEqual([1, 33, 65, 97]);
-    rmSync(join(dir, ".."), { recursive: true, force: true });
   });
 });

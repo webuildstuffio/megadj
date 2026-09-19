@@ -3,13 +3,17 @@
  * (tested there); these cover the COMMAND: ledger-to-scorer wiring,
  * the phrase-bar projection, and the P1 --json contract on the real CLI.
  */
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../archive/state";
 import { goldReport, predictedPhraseBars } from "./gold-report";
 import { GOLD_SCHEMA_VERSION, type GoldAnnotation } from "./gold";
 import { runCli, cliEnv } from "../test-support/cli-run";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-goldrep-").rippable();
+afterAll(() => t.rippleAll());
 
 /**
  * A valid annotation used to exercise the corrupt/valid loader split in
@@ -45,7 +49,7 @@ describe("predictedPhraseBars", () => {
 
 describe("goldReport command", () => {
   test("empty gold dir → ok:false with the GA-00 pointer (never a fake pass)", async () => {
-    const dir = mkdtempSync("/tmp/megadj-goldrep-");
+    const dir = t.dir();
     const state = makeState(dir);
     try {
       const r = await goldReport({
@@ -61,7 +65,7 @@ describe("goldReport command", () => {
   });
 
   test("corrupt annotation files are surfaced by name; valid ones still load", async () => {
-    const dir = mkdtempSync("/tmp/megadj-goldrep2-");
+    const dir = t.dir();
     const gdir = join(dir, "_gold");
     mkdirSync(gdir);
     writeFileSync(join(gdir, "bad.json"), "{nope");
@@ -78,7 +82,7 @@ describe("goldReport command", () => {
 });
 
 describe("P1: gold-report --json on the real CLI", () => {
-  const dir = mkdtempSync("/tmp/megadj-goldcli-");
+  const dir = t.dir();
   const env = cliEnv(dir);
 
   test("one parseable summary object; exit 1 with no annotations", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { tempDir } from "./test-support/testutil";
 import { runCli, cliEnv } from "./test-support/cli-run";
 
 /**
@@ -12,7 +12,7 @@ import { runCli, cliEnv } from "./test-support/cli-run";
  */
 
 describe("numeric option validation: invalid input aborts, never runs", () => {
-  const dir = mkdtempSync("/tmp/megadj-numopt-test-");
+  const dir = tempDir("megadj-numopt-test--").dir();
   const env = cliEnv(dir);
 
   for (const bad of ["abc", "-5", "10o", ""]) {

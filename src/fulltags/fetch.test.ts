@@ -1,9 +1,16 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { describe, expect, test, beforeEach } from "bun:test";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { auditArchive, fetchAllArgs } from "./fetch/fetch";
 import { writeFakeAudio, ffmpegTone } from "../test-support/audio-fixtures";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-audit-test-").rippable();
+
+let dir: string;
+
+beforeEach(() => {
+  dir = t.dir();
+});
 
 /**
  * GetDat regression tests for the fetch/audit surface:
@@ -12,16 +19,6 @@ import { writeFakeAudio, ffmpegTone } from "../test-support/audio-fixtures";
  *  - fetch() must forward --art/--genres/--tags/--years/--jobs/--dry-run to
  *    the fetch pipeline (they were parsed then silently dropped)
  */
-
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "megadj-audit-test-"));
-});
-
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
 
 /** Minimal fake m4a: groundTruth just needs a readable file; fields will
  * read false, which is exactly what we assert on. */

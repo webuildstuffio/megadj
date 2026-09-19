@@ -1,10 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
-import { $ } from "bun";
-import { mkdtempSync, readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { convertArchive } from "./convert";
 import { makeWav } from "../../test-support/audio-fixtures";
+import { tempDir } from "../../test-support/testutil";
 
 /**
  * megadj convert — archive-wide wav→aiff (legacy WAVs have no art on the
@@ -12,11 +12,12 @@ import { makeWav } from "../../test-support/audio-fixtures";
  * keep DB paths in sync, and leave the source WAV only on failure.
  */
 
-const DB_DIR = mkdtempSync("/tmp/megadj-convert-");
+const t = tempDir("megadj-convert-").rippable();
+const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
 
-afterAll(async () => {
-  await $`rm -rf ${DB_DIR}`.quiet().nothrow();
+afterAll(() => {
+  t.rippleAll();
 });
 
 describe("convertArchive", () => {

@@ -1,39 +1,29 @@
-import { describe, expect, test, afterEach } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
 import {
   chmodSync,
   existsSync,
-  mkdtempSync,
   readFileSync,
   readdirSync,
-  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import {
   atomicReplace,
   tempSiblingPath,
   withTempSiblingSync,
 } from "./atomic-file";
+import { tempDir } from "../test-support/testutil";
 
-// Leak guard (#236 pattern): scratch dirs are removed when each test
-// ends — 1,312 megadj-atomic-* dirs were left in tmpdir by this suite
-// before the guard (measured Sep 18).
-const createdDirs: string[] = [];
+// Leak guard (#236 pattern → #248 seam): every scratch() dir lands on
+// the rippled handle and is removed at suite end — 1,312 megadj-atomic-*
+// dirs were left in tmpdir by this suite before the guard (Sep 18).
+const t = tempDir("megadj-atomic-").rippable();
+afterAll(() => t.rippleAll());
 
 function scratch(): string {
-  const dir = mkdtempSync(join(tmpdir(), "megadj-atomic-"));
-  createdDirs.push(dir);
-  return dir;
+  return t.dir();
 }
-
-afterEach(() => {
-  while (createdDirs.length > 0) {
-    const dir = createdDirs.pop();
-    if (dir) rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 describe("atomic-file seam (#162)", () => {
   test("atomicReplace swaps content and leaves zero residue", () => {

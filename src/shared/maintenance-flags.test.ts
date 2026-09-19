@@ -9,16 +9,16 @@
  * (P1: parse errors exit 2 with a clear stderr line, zero work).
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildAnlz } from "../fulltags/anlz";
 import { runCli } from "../test-support/cli-run";
+import { tempDir } from "../test-support/testutil";
 
-const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-maintenance-test-"));
-const TEST_SPIKE_DIR = join(TEST_ROOT, "spike");
+const TEST_ROOT = tempDir("megadj-maintenance-test-").rippable();
+const TEST_SPIKE_DIR = join(TEST_ROOT.dir(), "spike");
 
-afterAll(() => rmSync(TEST_ROOT, { recursive: true, force: true }));
+afterAll(() => TEST_ROOT.rippleAll());
 
 const beats = (n: number, startMs = 0) => {
   const step = 60000 / 128;
@@ -30,7 +30,7 @@ const beats = (n: number, startMs = 0) => {
 };
 
 function fakeMount(): string {
-  const mount = mkdtempSync(join(TEST_ROOT, "mount-"));
+  const mount = TEST_ROOT.dir();
   const anlzDir = join(mount, "PIONEER", "Master", "share", "ANLZ");
   mkdirSync(anlzDir, { recursive: true });
   writeFileSync(
@@ -121,7 +121,7 @@ describe("rb-grid-triage flag forms (P1)", () => {
     // attached — the env override makes the fixture independent of the
     // operator's hardware). The point of the regression: the command
     // must NOT succeed while doing zero work.
-    const noDb = join(mkdtempSync(join(TEST_ROOT, "missing-db-")), "absent.db");
+    const noDb = join(TEST_ROOT.dir(), "absent.db");
     const a = await run(["rb-grid-triage", "--limit", "20", "--json"], {
       MEGADJ_RB_MASTER: noDb,
     });

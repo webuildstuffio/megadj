@@ -12,16 +12,17 @@
  */
 import { describe, expect, test, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { tempDir } from "../../test-support/testutil";
 import {
   runCli,
   lastJsonLine,
   cliEnv,
 } from "../../../src/test-support/cli-run";
 
-const dir = mkdtempSync(join(tmpdir(), "megadj-genre-why-"));
+const t = tempDir("megadj-genre-why-").rippable();
+const dir = t.dir();
 const env = cliEnv(dir);
 mkdirSync(join(dir, "music"), { recursive: true });
 
@@ -63,7 +64,7 @@ db.query(
 );
 db.close();
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => t.rippleAll());
 
 describe("#215 genre-why: the vote breakdown's production reader", () => {
   test("voted track: one JSON object, re-elected winner, per-rung breakdown", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, lastJsonLine, cliEnv } from "./test-support/cli-run";
+import { tempDir } from "./test-support/testutil";
 
 /**
  * P1 regression guard: every mutating/summary command must emit exactly one
@@ -11,7 +11,7 @@ import { runCli, lastJsonLine, cliEnv } from "./test-support/cli-run";
  */
 
 describe("principles P1: --json on every command", () => {
-  const dir = mkdtempSync("/tmp/megadj-json-test-");
+  const dir = tempDir("megadj-json-test--").dir();
   const env = cliEnv(dir);
 
   test("status --json stays parseable (baseline)", async () => {

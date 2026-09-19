@@ -3,17 +3,20 @@
 // step lines must carry the #106 Phase D handoff windows (same evidence
 // the web hover cards and M3U8 #EXTREM comments show), and the cueless
 // path must print the honest "no cue windows" marker.
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { ArchiveState } from "../archive/state";
 import { cliEnv, runCli } from "../test-support/cli-run";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-megaset-cli-").rippable();
+afterAll(() => t.rippleAll());
 
 describe("megadj megaset CLI step rendering", () => {
   test("step lines carry mix-in/mix-out windows; cueless tracks say so", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-megaset-cli-"));
+    const dir = t.dir();
     const dbPath = join(dir, "archive.db");
     // bootstrap the REAL schema (ArchiveState's migration) so the CLI's
     // startup never trips on a missing column, then layer the fixtures
@@ -62,21 +65,17 @@ describe("megadj megaset CLI step rendering", () => {
     }
     db.close();
 
-    try {
-      const run = await runCli(
-        ["megaset", "--preset", "warmup", "--minutes", "5"],
-        { ...cliEnv(dir), MEGADJ_DB: dbPath },
-      );
-      const out = `${run.stdout}\n${run.stderr}`;
-      // the cued track's line carries the derived windows (45 s target →
-      // bar 25 @ 45.1); the cueless track is honestly marked
-      expect(out).toContain("Cued Track");
-      expect(out).toContain("in 45s/bar 25");
-      expect(out).toContain("no cue windows");
-      // the proposal header (the pinned human log schema) still shows
-      expect(out).toContain("-track warmup proposal");
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    const run = await runCli(
+      ["megaset", "--preset", "warmup", "--minutes", "5"],
+      { ...cliEnv(dir), MEGADJ_DB: dbPath },
+    );
+    const out = `${run.stdout}\n${run.stderr}`;
+    // the cued track's line carries the derived windows (45 s target →
+    // bar 25 @ 45.1); the cueless track is honestly marked
+    expect(out).toContain("Cued Track");
+    expect(out).toContain("in 45s/bar 25");
+    expect(out).toContain("no cue windows");
+    // the proposal header (the pinned human log schema) still shows
+    expect(out).toContain("-track warmup proposal");
   });
 });

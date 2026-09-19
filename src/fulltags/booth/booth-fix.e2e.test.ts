@@ -1,13 +1,15 @@
 import { describe, expect, test, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, readdirSync } from "node:fs";
+import { mkdirSync, readdirSync } from "node:fs";
 import { writeFakeAudio } from "../../test-support/audio-fixtures";
 import { join } from "node:path";
 import { boothFix } from "./booth-fix";
 import { setBoothFleet } from "./player-compat";
 import { ArchiveState } from "../../archive/state";
+import { tempDir } from "../../test-support/testutil";
 
 // ---- fixture: a tiny fake archive -------------------------------------------
-const tmp = mkdtempSync("/tmp/boothfix-e2e-");
+const t = tempDir("megadj-boothfix-e2e-").rippable();
+const tmp = t.dir();
 const musicDir = join(tmp, "music");
 mkdirSync(musicDir, { recursive: true });
 
@@ -21,7 +23,7 @@ writeFakeAudio(join(musicDir, "bad ;name .aiff"), Buffer.alloc(64));
 writeFakeAudio(join(musicDir, "track 🔥.aiff"), Buffer.alloc(64));
 
 afterAll(() => {
-  rmSync(tmp, { recursive: true, force: true });
+  t.rippleAll();
   // never leave process.exitCode sticky (AGENTS.md bun-test rule)
   process.exitCode = 0;
 });

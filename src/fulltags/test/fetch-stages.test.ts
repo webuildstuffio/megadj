@@ -20,13 +20,14 @@
  * archive.db — the child-process seam keeps every scenario isolated.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { tempDir } from "../../../src/test-support/testutil";
 
 const REPO = join(import.meta.dir, "..", "..", ".."); // #193; re-leveled Sep 17
-const SCENARIO_DIR = mkdtempSync(join(tmpdir(), "megadj-fetch-stages-"));
-afterAll(() => rmSync(SCENARIO_DIR, { recursive: true, force: true }));
+const t = tempDir("megadj-fetch-stages-").rippable();
+const SCENARIO_DIR = t.dir();
+afterAll(() => t.rippleAll());
 
 interface ScenarioResult {
   stats: Record<string, number>;

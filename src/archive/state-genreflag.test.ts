@@ -4,16 +4,15 @@
 // resolution. SQLite-specific, so it runs against a throwaway DB file.
 import { afterAll, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArchiveState } from "./state";
+import { tempDir } from "../test-support/testutil";
 
-const DIR = mkdtempSync(join(tmpdir(), "megadj-flagnote-"));
-afterAll(() => rmSync(DIR, { recursive: true, force: true }));
+const t = tempDir("megadj-flagnote-").rippable();
+afterAll(() => t.rippleAll());
 
 function makeState(): { state: ArchiveState; db: Database } {
-  const dbPath = join(DIR, `${crypto.randomUUID()}.db`);
+  const dbPath = join(t.dir(), `${crypto.randomUUID()}.db`);
   const state = new ArchiveState(dbPath);
   return { state, db: new Database(dbPath, { readonly: true }) };
 }

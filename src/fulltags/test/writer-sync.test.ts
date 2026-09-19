@@ -1,18 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
 import { $ } from "bun";
-import {
-  copyFileSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { copyFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { embedArt, groundTruth, writePatchSync } from "../index-all";
 import type { WriterAtomicOps } from "../write/writer";
+import { tempDir } from "../../test-support/testutil";
 
-const DIR = `/tmp/fulltags-wsync-test-${process.pid}`;
+const t = tempDir("megadj-fulltags-wsync-").rippable();
+afterAll(() => t.rippleAll());
+const DIR = t.dir();
 
 async function makeFile(ext: string): Promise<string> {
   await $`mkdir -p ${DIR}`.quiet();
@@ -32,11 +28,11 @@ describe("writePatchSync", () => {
         year: 2024,
       }),
     ).toBe(true);
-    const t = groundTruth(p);
-    expect(t.title).toBe("Sync Song");
-    expect(t.artist).toBe("Sync Artist");
-    expect(t.genre).toBe("House");
-    expect(t.year).toBe("2024");
+    const gt = groundTruth(p);
+    expect(gt.title).toBe("Sync Song");
+    expect(gt.artist).toBe("Sync Artist");
+    expect(gt.genre).toBe("House");
+    expect(gt.year).toBe("2024");
     // Regression guard: the old nested `bun -e` bridge measured
     // 124 ms/write (6.4× the direct path's 19 ms). The bound below is
     // deliberately about the BRIDGE cost, not the machine's spawn cost:
@@ -57,7 +53,6 @@ describe("writePatchSync", () => {
     // the cheapest possible bridge write (bun -e ~80 ms + ffmpeg ~120 ms).
     // If the sync path ever regresses to the bridge, this fails hard.
     expect(perWrite).toBeLessThan(200);
-    rmSync(p);
   });
 
   test("m4a round-trip", async () => {
@@ -65,10 +60,9 @@ describe("writePatchSync", () => {
     expect(
       writePatchSync(p, { title: "M4a Sync", artist: "A", year: 2021 }),
     ).toBe(true);
-    const t = groundTruth(p);
-    expect(t.title).toBe("M4a Sync");
-    expect(t.year).toBe("2021");
-    rmSync(p);
+    const gt = groundTruth(p);
+    expect(gt.title).toBe("M4a Sync");
+    expect(gt.year).toBe("2021");
   });
 
   test("aiff sync path via mutagen (incl albumArtist/grouping/energy/bpm)", async () => {
@@ -84,18 +78,17 @@ describe("writePatchSync", () => {
         year: 2023,
       }),
     ).toBe(true);
-    const t = groundTruth(p);
-    expect(t.title).toBe("AIFF Sync");
-    expect(t.year).toBe("2023");
+    const gt = groundTruth(p);
+    expect(gt.title).toBe("AIFF Sync");
+    expect(gt.year).toBe("2023");
     // Full readback of every field this patch carries — the TPE2/TIT1
     // statements used to be droppable without failing this test (the
     // write still succeeded, the fields silently vanished). groundTruth
     // now reads both frames, so a dropped statement fails here.
-    expect(t.albumArtist).toBe("AA");
-    expect(t.grouping).toBe("Deep House");
-    expect(t.energy).toBe(7);
-    expect(t.bpm).toBe(128);
-    rmSync(p);
+    expect(gt.albumArtist).toBe("AA");
+    expect(gt.grouping).toBe("Deep House");
+    expect(gt.energy).toBe(7);
+    expect(gt.bpm).toBe(128);
   });
 
   test("wav sync path via mutagen", async () => {
@@ -103,23 +96,19 @@ describe("writePatchSync", () => {
     expect(writePatchSync(p, { title: "WAV Sync", genre: "Techno" })).toBe(
       true,
     );
-    const t = groundTruth(p);
-    expect(t.title).toBe("WAV Sync");
-    expect(t.genre).toBe("Techno");
-    rmSync(p);
+    const gt = groundTruth(p);
+    expect(gt.title).toBe("WAV Sync");
+    expect(gt.genre).toBe("Techno");
   });
 
   test("returns false (not throw) on missing file", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "ft-"));
-    const p = join(dir, "nope.mp3");
+    const p = join(DIR, "nope.mp3");
     expect(writePatchSync(p, { title: "x" })).toBe(false);
-    rmSync(dir, { recursive: true, force: true });
   });
 
   test("empty patch is a no-op success", async () => {
     const p = await makeFile(".mp3");
     expect(writePatchSync(p, {})).toBe(true);
-    rmSync(p);
   });
 
   for (const ext of [".wav", ".aiff", ".m4a"]) {

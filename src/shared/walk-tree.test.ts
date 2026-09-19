@@ -1,16 +1,14 @@
-import { describe, expect, test } from "bun:test";
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { walkTree } from "./walk-tree";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-walk-tree-").rippable();
+afterAll(() => t.rippleAll());
 
 function makeTree(files: Record<string, string>): string {
-  const root = mkdtempSync("/tmp/megadj-walk-tree-");
+  const root = t.dir();
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel);
     mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
@@ -34,7 +32,6 @@ describe("walkTree — the one directory walker (#69)", () => {
       .entries.map((e) => e.rel)
       .toSorted();
     expect(found).toEqual(["Artist/live.opus", "Artist/song.mp3"]);
-    rmSync(dir, { recursive: true, force: true });
   });
 
   test("every entry carries bytes + mtime from one stat (no re-stat)", () => {
@@ -43,7 +40,6 @@ describe("walkTree — the one directory walker (#69)", () => {
     expect(e.bytes).toBe(5);
     expect(e.mtimeMs).toBeGreaterThan(0);
     expect(e.abs).toBe(join(dir, "a.mp3"));
-    rmSync(dir, { recursive: true, force: true });
   });
 
   test("relRoot: rel computed against the landing root, not the walk root", () => {
@@ -60,7 +56,6 @@ describe("walkTree — the one directory walker (#69)", () => {
       "PIONEER REC/rec1.wav",
       join("PIONEER REC", "sub", "rec2.wav"),
     ]);
-    rmSync(vol, { recursive: true, force: true });
   });
 
   test("flat: rel is the bare basename (trash flat-landing)", () => {
@@ -71,7 +66,6 @@ describe("walkTree — the one directory walker (#69)", () => {
       flat: true,
     });
     expect(entries.map((e) => e.rel)).toEqual(["a.mp3"]);
-    rmSync(vol, { recursive: true, force: true });
   });
 
   test("unreadable dirs are surfaced, never silent; walk continues", () => {
@@ -91,7 +85,6 @@ describe("walkTree — the one directory walker (#69)", () => {
       expect(res.entries.map((e) => e.rel)).toEqual(["keep/a.mp3"]);
     } finally {
       chmodSync(join(dir, "locked"), 0o755);
-      rmSync(dir, { recursive: true, force: true });
     }
   });
 
@@ -115,7 +108,6 @@ describe("walkTree — the one directory walker (#69)", () => {
       "batch/a.mp3",
       "sub/c.mp3",
     ]);
-    rmSync(dir, { recursive: true, force: true });
   });
 
   test("skip callback distinguishes files from dirs", () => {
@@ -131,6 +123,5 @@ describe("walkTree — the one directory walker (#69)", () => {
         isDir && (name === "USBANLZ" || name === "ARTWORK"),
     });
     expect(entries.map((e) => e.rel)).toEqual(["Artist/z.mp3"]);
-    rmSync(dir, { recursive: true, force: true });
   });
 });

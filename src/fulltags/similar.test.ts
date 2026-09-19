@@ -1,22 +1,16 @@
 // similar.test.ts — I49 "sounds like": embeddings ledger + cosine kNN.
 // Covers the pure engine (cosineSimilarity/similarTracks) and the DB
 // round-trip (setEmbeddingRecord → embeddingCorpus → similarTracks).
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { afterAll, describe, expect, test } from "bun:test";
-import {
-  ArchiveState,
-  cosineSimilarity,
-  similarTracks,
-} from "../archive/state";
+import { tempState } from "../test-support/testutil";
+import { cosineSimilarity, similarTracks } from "../archive/state";
 
-const dir = mkdtempSync(join(tmpdir(), "megadj-similar-"));
-const state = new ArchiveState(join(dir, "archive.db"));
+const ts = tempState("megadj-similar-");
+const { dir, state } = ts.next();
 afterAll(() => {
-  state.close();
-  rmSync(dir, { recursive: true, force: true });
+  ts.done({ dir, state });
 });
 
 function track(id: string, title: string): void {

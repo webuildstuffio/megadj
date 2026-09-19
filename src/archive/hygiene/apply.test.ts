@@ -1,12 +1,16 @@
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, readFileSync } from "node:fs";
 import { writeFakeAudio } from "../../test-support/audio-fixtures";
 import { join } from "node:path";
 import { applyFinding, quarantineDest, validateFinding } from "./apply";
 import type { CheckCtx, Finding } from "./types";
+import { tempDir } from "../../test-support/testutil";
+
+const t = tempDir("megadj-hygiene-apply-").rippable();
+afterAll(() => t.rippleAll());
 
 function vol(): string {
-  const v = mkdtempSync("/tmp/megadj-hygiene-apply-");
+  const v = t.dir();
   return v;
 }
 

@@ -40,36 +40,16 @@ const ALLOWED = new Set<string>([
   // rekordbox: FULLY MIGRATED to tempDir (#248 second pass, Sep 18) —
   // all 10 grid/ANLZ/playlist suites; entries kept out on purpose so a
   // regression re-adding mkdtempSync fails the first test above.
-  // shared: hash/flags/volume/atomic/walk-tree unit seams
-  "src/shared/maintenance-flags.test.ts",
-  "src/shared/hash.test.ts",
-  "src/shared/drop.test.ts",
-  "src/shared/walk-tree.test.ts",
-  "src/shared/atomic-file.test.ts",
-  "src/shared/volume.test.ts",
-  // archive hygiene walk/apply exercise the walker over synthetic trees
-  "src/archive/hygiene/walk.test.ts",
-  "src/archive/hygiene/apply.test.ts",
-  "src/archive/state-genreflag.test.ts",
-  // fulltags: e2e/write shapes with ffmpeg artifacts
-  "src/fulltags/write/convert.test.ts",
-  "src/fulltags/booth/booth-fix.e2e.test.ts",
-  "src/fulltags/similar.test.ts",
-  "src/fulltags/genre/genre-why.test.ts",
-  "src/fulltags/megaset-cli.test.ts",
-  "src/fulltags/fetch.test.ts",
-  "src/fulltags/gold-report.test.ts",
-  "src/fulltags/test/gold-set.test.ts",
-  "src/fulltags/test/verify-key.test.ts",
-  "src/fulltags/test/fetch-stages.test.ts",
-  "src/fulltags/test/writer-sync.test.ts",
-  // getdat: FULLY MIGRATED to tempDir (#248 first pass, Sep 18) — the
-  // nine files below were the original stragglers; entries are kept out
-  // of this set on purpose so a regression re-adding mkdtempSync fails
-  // the first test above.
-  // host-kit census set at src root
-  "src/json-summary.test.ts",
-  "src/numeric-options.test.ts",
+  // shared + host-kit: FULLY MIGRATED to tempDir (#248 third pass,
+  // Sep 18) — hash, drop, walk-tree, atomic-file, volume,
+  // maintenance-flags, json-summary, numeric-options all ride the seam;
+  // entries kept out on purpose so a regression fails the first test.
+  // fulltags + archive: FULLY MIGRATED to tempDir/tempState (#248
+  // third pass, Sep 18) — all 11 fulltags suites + 3 archive suites;
+  // entries kept out on purpose so a regression fails the first test.
+  // getdat + host-kit census set at src root: FULLY MIGRATED (the nine
+  // getdat files in pass 1, json-summary/numeric-options in pass 3) —
+  // kept out of this set so a regression re-adding mkdtempSync fails.
   // cratedeck: pool/guard/security suites build volume trees
   "cratedeck/test/archive-megaset-pool.test.ts",
   "cratedeck/test/guard.test.ts",

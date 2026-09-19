@@ -1,16 +1,19 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { configuredMasterDrive, volumePath } from "./volume";
+import { tempDir } from "../test-support/testutil";
 
-const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-volume-cfg-"));
-afterAll(() => rmSync(TEST_ROOT, { recursive: true, force: true }));
+const TEST_ROOT = tempDir("megadj-volume-cfg-").rippable();
+afterAll(() => TEST_ROOT.rippleAll());
 
 /** config.toml sits at <CRATEDECK_ROOT>/config.toml (loadConfig joins
  *  root + "config.toml") — each case gets a fresh root dir. */
 function withConfig(toml: string): string {
-  const root = join(TEST_ROOT, `root-${Math.random().toString(36).slice(2)}`);
+  const root = join(
+    TEST_ROOT.dir(),
+    `root-${Math.random().toString(36).slice(2)}`,
+  );
   mkdirSync(root, { recursive: true });
   writeFileSync(join(root, "config.toml"), toml);
   return root;

@@ -1,11 +1,15 @@
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { walkShelf } from "./walk";
 import { walkTokenFor } from "./types";
+import { tempDir } from "../../test-support/testutil";
+
+const t = tempDir("megadj-hygiene-walk-").rippable();
+afterAll(() => t.rippleAll());
 
 function shelf(files: Record<string, string | number>): string {
-  const vol = mkdtempSync("/tmp/megadj-hygiene-walk-");
+  const vol = t.dir();
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(vol, "Contents", rel);
     mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
