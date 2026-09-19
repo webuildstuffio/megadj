@@ -25,10 +25,15 @@ import {
   cmdRadar,
   cmdRedundancy,
 } from "./deckctl_fleet";
-import { cmdPrep } from "./deckctl_prep";
+import {
+  baseHooks,
+  cmdPrep,
+  errOut,
+  flushStdout,
+  log,
+} from "./deckctl_runtime";
 import { cmdExplain } from "./deckctl_explain";
 import { KIND_DOCS } from "./deckctl_docs";
-import { baseHooks, errOut, flushStdout, log } from "./deckctl_runtime";
 import { errMessage } from "../../src/shared/leaf/fmt";
 
 const PRE_SERVER_VERBS = ["help"] as const;

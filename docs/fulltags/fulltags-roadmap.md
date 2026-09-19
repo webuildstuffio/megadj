@@ -187,10 +187,11 @@ rb-import was the last hand-rolled `MEGADJ_RB_MASTER ?? join(...)`
 **#67 shipped**: `src/shared/name-key.ts` is the ONE NFC+casefold key —
 shelf-sync's NFC-only index keys (case still split) plus rb-adopt/
 rb-fix-paths/grid-triage/rb-unmatched inline variants all migrated;
-**#82 shipped**: `src/shared/error-text.ts` replaces all 50 inlined
-`instanceof Error ? … : String(…)` sites. Census tests re-pinned (JSON
-58→59 audited, Number 42→44/13→18 sanctioned) with an extra UI rung
-phrase (bandcamp) for the art-rung census. 1450 tests green._
+**#82 shipped**: `src/shared/leaf/fmt.ts` `errMessage` (the src
+`errorText` alias; the 9L re-export shim merged away per #221) replaces
+all 50 inlined `instanceof Error ? … : String(…)` sites. Census tests
+re-pinned (JSON 58→59 audited, Number 42→44/13→18 sanctioned) with an
+extra UI rung phrase (bandcamp) for the art-rung census. 1450 tests green._
 
 _Rev 7.7, 2026-09-15: **two Phase-0 genre correctness fixes shipped.**
 (1) W2 SC hard artist gate — `scoreScHits` (art-sources.ts) drops any
