@@ -70,7 +70,11 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - stdout is a boundary: JSON via the awaited seams (`emitJson` deckctl,
   `writeJson` megadj CLI) — never raw `console.log(JSON.stringify)` (pipe-EOF
   truncation) or `Bun.write(Bun.stdout, "")`; drain with
-  `process.stdout.write("")`.
+  `process.stdout.write("")`. Big payloads on a PIPE wedge `Bun.write`
+  forever (the promise never resolves, drainStdout is never reached):
+  `intake-status --json | head -c 400` hung minutes until writeJson moved
+  to the bounded `process.stdout.write` writer with an EPIPE guard
+  (`cli-output.test.ts` pins the topology).
 - Strict TS: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
   `noUncheckedSideEffectImports`, `allowUnreachableCode:false`. Never run
   repo-wide `oxlint --fix`/sed rewriters unattended (they corrupted template

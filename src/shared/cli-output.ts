@@ -1,5 +1,13 @@
-/** Reliable machine-readable CLI output. Test callers may replace console.log
- * to capture reports; real CLI exits use the awaited stdout stream. */
+/** Bun.write(Bun.stdout, text) wedges FOREVER on a stuck pipe: the write
+ *  promise never resolves when the consumer stops draining (`head -c N`
+ *  on a 700 KB --json payload hung the CLI >2 min, live 2026-09-19), and
+ *  a released promise does NOT unwind the wedged internal op — bun's
+ *  exit-time flush then blocks too. So write via the Node-compatible
+ *  process.stdout seam instead: write() returns false on backpressure,
+ *  'drain' resumes it, and the deadline caps the wait so a dead consumer
+ *  can never hold the CLI hostage. A healthy pipe (even a slow full
+ *  reader like `wc -c`) finishes far inside the deadline. */
+const STDOUT_WRITE_DEADLINE_MS = 5_000;
 const nativeConsoleLog = console.log;
 export async function writeJson(payload: unknown): Promise<void> {
   const serialized = JSON.stringify(payload);
@@ -7,21 +15,68 @@ export async function writeJson(payload: unknown): Promise<void> {
     console.log(serialized);
     return;
   }
-  await Bun.write(Bun.stdout, `${serialized}\n`);
+  await writeStdoutBounded(`${serialized}\n`);
 }
 
 export async function writeJsonText(payload: string): Promise<void> {
-  await Bun.write(Bun.stdout, `${payload}\n`);
+  await writeStdoutBounded(`${payload}\n`);
+}
+
+/** process.stdout.write(text) with backpressure handling and a hard
+ *  wall-clock bound. Loses the race ONLY when the consumer stopped
+ *  consuming — exactly when blocking forever is the wrong behavior. */
+function writeStdoutBounded(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        stdout.off("drain", onDrain);
+        stdout.off("error", onError);
+        resolve();
+      }
+    };
+    const stdout = process.stdout;
+    const timer = setTimeout(finish, STDOUT_WRITE_DEADLINE_MS);
+    const onError = () => finish(); // async EPIPE: consumer gone; done.
+    const onDrain = () => {
+      if (!settled && stdout.writableLength === 0) finish();
+    };
+    stdout.on("drain", onDrain);
+    stdout.on("error", onError);
+    try {
+      const backpressured = !stdout.write(text);
+      if (!backpressured) finish();
+    } catch {
+      finish(); // EPIPE-class sync throw: the consumer is gone; done.
+    }
+  });
 }
 
 /** Flush pending stdout writes before process exit. MUST NOT be
  *  Bun.write(Bun.stdout, "") — an empty Bun.write to a piped/file stdout
  *  TRUNCATES it (verified Bun 1.3.14: `write(fd,"")` discards everything
  *  already buffered, which silently deleted --json output for every piped
- *  run). process.stdout.write("") with a callback is the harmless flush. */
+ *  run). process.stdout.write("") with a callback is the harmless flush.
+ *  The flush races a short deadline: a consumer that closed the pipe
+ *  early (`head -c N` on a multi-hundred-KB --json payload) never drains
+ *  its buffer, the write callback never fires, and the CLI wedged forever
+ *  on exit (live: intake-status --json | head -c 400 hung >2 min). A
+ *  truncated consumer already has its bytes — exiting on deadline is the
+ *  correct terminal state, and a healthy pipe flushes in <10 ms. */
 export function drainStdout(): Promise<void> {
   return new Promise((resolve) => {
-    process.stdout.write("", () => resolve());
+    let settled = false;
+    const finish = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      }
+    };
+    const timer = setTimeout(finish, 250);
+    process.stdout.write("", finish);
   });
 }
 
