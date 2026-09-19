@@ -38,6 +38,15 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   catch the twin (`maintenance-verbs.test.ts` dupes check); (5) after ANY
   foreign commit lands mid-flight, re-run the touched censuses before your
   own commit — a torn read is the other agent's landed rename, not your bug.
+- One file-naming convention repo-wide (#240, kebab-case):
+  `src/census/naming-convention-census.test.ts` fails when a snake_case
+  `.ts`/`.tsx` basename appears outside node_modules — module AND test files
+  alike (the Sep-2026 pass renamed the 77-file snake majority in
+  cratedeck/src plus the src/archive, fulltags, and cratedeck/shared
+  strays). New files are kebab; a rename moves code+docs+census pins in the
+  SAME commit via `git mv` + specifier rewrites (`cratedeck/shared/check-matrix.ts`
+  is pinned by name in this file). Python keeps snake_case (PEP 8,
+  exempt by the *.py exclusion).
 - No bare `catch {}` / `.catch(() => {})`. Boundary `JSON.parse` uses a guarded
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep
