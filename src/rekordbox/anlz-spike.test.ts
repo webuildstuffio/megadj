@@ -7,7 +7,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { anlzSpike } from "./anlz-spike";
-import { buildAnlz } from "../fulltags/anlz";
+import { buildAnlz, parseAnlzGrid, parseAnlzInventory } from "../fulltags/anlz";
 import { tempDir } from "../test-support/testutil";
 
 const t = tempDir("megadj-anlz-spike-test-").rippable();
@@ -194,5 +194,179 @@ describe("anlzSpike", () => {
     expect(c.changed).toHaveLength(1);
     expect(c.changed![0]!.file).toBe("usb/P001/0000000A/ANLZ0000.DAT");
     expect(c.identical).toBe(2);
+  });
+});
+
+describe("anlzSpike set-grid (#147 Q4 armament)", () => {
+  test("dry run: reports the edit, writes NOTHING, keeps the grid", () => {
+    const mount = fakeMount();
+    const sidecar = join(
+      mount,
+      "PIONEER",
+      "Master",
+      "share",
+      "ANLZ",
+      "ANLZ0000.DAT",
+    );
+    writeSidecar(
+      mount,
+      "ANLZ0000.DAT",
+      buildAnlz({ path: "/a", beats: beats(16) }),
+    );
+    const before = new Uint8Array(readFileSync(sidecar));
+
+    const r = runSpike({
+      mount,
+      tag: "q4",
+      mode: "set-grid",
+      file: "collection/ANLZ0000.DAT",
+      beats: beats(16, 500), // shifted phase, same count
+      log: () => {},
+    });
+    expect(r.ok).toBe(true);
+    expect(r.edited).toBe("collection/ANLZ0000.DAT");
+    expect(r.backupPath).toBeUndefined(); // nothing written → no backup
+    // byte-for-byte unchanged on disk
+    expect([...new Uint8Array(readFileSync(sidecar))]).toEqual([...before]);
+  });
+
+  test("apply: writes the new grid, keeps a pre-edit backup, re-verifies", () => {
+    const mount = fakeMount();
+    const sidecar = join(
+      mount,
+      "PIONEER",
+      "Master",
+      "share",
+      "ANLZ",
+      "ANLZ0000.DAT",
+    );
+    writeSidecar(
+      mount,
+      "ANLZ0000.DAT",
+      buildAnlz({ path: "/a", beats: beats(16) }),
+    );
+
+    const newBeats = beats(16, 500);
+    const r = runSpike({
+      mount,
+      tag: "q4apply",
+      mode: "set-grid",
+      file: "collection/ANLZ0000.DAT",
+      beats: newBeats,
+      apply: true,
+      log: () => {},
+    });
+    expect(r.ok).toBe(true);
+    expect(r.backupPath).toBeDefined();
+    // the backup holds the ORIGINAL bytes
+    const backup = new Uint8Array(readFileSync(r.backupPath!));
+    expect([...backup]).toEqual([
+      ...buildAnlz({ path: "/a", beats: beats(16) }),
+    ]);
+    // the live file now decodes to EXACTLY the requested grid
+    const written = new Uint8Array(readFileSync(sidecar));
+    const g = parseAnlzGrid(written);
+    expect(g!.beats).toEqual(newBeats);
+    // and non-PQTZ section sizes survived
+    const inv = parseAnlzInventory(written)!.sections;
+    expect(inv.find((s) => s.tag === "PQTZ")!.bytes).toBe(24 + 16 * 8);
+    expect(r.wasHash).not.toBeUndefined();
+  });
+
+  test("apply on a sidecar whose PQTZ shrinks keeps later sections intact", () => {
+    const mount = fakeMount();
+    writeSidecar(
+      mount,
+      "ANLZ0000.DAT",
+      buildAnlz({
+        path: "/a",
+        beats: beats(16),
+        extraSections: [{ tag: "PWAV", bytes: 400 }],
+      }),
+    );
+    const r = runSpike({
+      mount,
+      tag: "q4shrink",
+      mode: "set-grid",
+      file: "collection/ANLZ0000.DAT",
+      beats: beats(8),
+      apply: true,
+      log: () => {},
+    });
+    expect(r.ok).toBe(true);
+    const sidecar = join(
+      mount,
+      "PIONEER",
+      "Master",
+      "share",
+      "ANLZ",
+      "ANLZ0000.DAT",
+    );
+    const inv = parseAnlzInventory(
+      new Uint8Array(readFileSync(sidecar)),
+    )!.sections;
+    expect(inv.find((s) => s.tag === "PQTZ")!.bytes).toBe(24 + 8 * 8);
+    expect(inv.find((s) => s.tag === "PWAV")!.bytes).toBe(400);
+  });
+
+  test("refuses a file that escapes the mount (path traversal)", () => {
+    const mount = fakeMount();
+    const r = runSpike({
+      mount,
+      tag: "q4esc",
+      mode: "set-grid",
+      file: "../../etc/passwd",
+      beats: beats(4),
+      apply: true,
+      log: () => {},
+    });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/escapes the mount/u);
+  });
+
+  test("refuses a sidecar with no decodable grid (zero writes)", () => {
+    const mount = fakeMount();
+    const junk = join(
+      mount,
+      "PIONEER",
+      "Master",
+      "share",
+      "ANLZ",
+      "ANLZ0000.DAT",
+    );
+    writeFileSync(junk, new TextEncoder().encode("not an anlz"));
+    const r = runSpike({
+      mount,
+      tag: "q4junk",
+      mode: "set-grid",
+      file: "collection/ANLZ0000.DAT",
+      beats: beats(4),
+      apply: true,
+      log: () => {},
+    });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/no decodable PQTZ/u);
+  });
+
+  test("missing --file or --beats fails with zero work", () => {
+    const mount = fakeMount();
+    const noFile = runSpike({
+      mount,
+      tag: "q4nof",
+      mode: "set-grid",
+      beats: beats(4),
+      log: () => {},
+    });
+    expect(noFile.ok).toBe(false);
+    expect(noFile.error).toMatch(/--file/u);
+    const noBeats = runSpike({
+      mount,
+      tag: "q4nob",
+      mode: "set-grid",
+      file: "collection/ANLZ0000.DAT",
+      log: () => {},
+    });
+    expect(noBeats.ok).toBe(false);
+    expect(noBeats.error).toMatch(/--beats/u);
   });
 });

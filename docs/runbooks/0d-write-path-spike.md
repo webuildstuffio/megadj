@@ -1,7 +1,8 @@
 # Runbook 0d — Write-path spike (GA-07)
 
-**Status:** 🟡 BLOCKED — harness shipped; four rekordbox/hardware observations
-remain before the repair route can be selected.
+**Status:** 🟡 BLOCKED — harness shipped (incl. Q4's `set-grid` writer,
+2026-09-18); four rekordbox/hardware observations remain before the
+repair route can be selected.
 
 Settle where rekordbox grids truly live and which write route repairs
 them. This decides `GA-06`'s implementation — nothing in Part A repairs
@@ -97,36 +98,51 @@ megadj rb-anlz-spike compare --tag q2   # did anything change?
 
 ## Q4 — Direct ANLZ grid edit (only if Q3 failed)
 
-Uses the `src/fulltags/anlz.ts` decoder (validated against the
-crate-digger/djl-analysis/fourfour specs) plus the rbox writer claim.
-Work on ONE sacrificial track; keep the pre-edit copy.
+**Armament shipped (2026-09-18): `rb-anlz-spike set-grid`** — the direct
+PQTZ rewrite, built on `src/fulltags/anlz.ts`'s `rewriteAnlzGrid`
+(container walk stays byte-exact; only the grid span differs). Safety
+pattern = rb-fix-paths: **dry-run by default**, pre-edit backup kept
+automatically, whole-file re-verify after write (decode-back must equal
+the requested beats AND non-PQTZ section sizes must survive, or the
+file is restored from the backup). Works on the compare-style key
+(`collection/ANLZ0000.DAT`, `usb/P001/<hash>/ANLZ0000.DAT`), a
+mount-relative path, or an absolute path inside the mount.
 
 ```sh
-# pick the track's sidecar from the Q2 diff (that's the one whose PQTZ moved)
-CP=/tmp/anlz-backup; mkdir -p $CP
-cp /Volumes/SHELF1/PIONEER/Master/share/ANLZ/ANLZ0000.DAT $CP/
-# (identify the right DAT via megadj rb-grid-triage --json first)
-# … rbox / rekordcrate grid rewrite goes here — first person to run this
-#   step writes the exact commands back into this runbook …
+# 1. pick the track's sidecar from the Q2 diff (that's the one whose
+#    PQTZ moved) and read its current grid:
+megadj rb-grid-triage --limit 20 --json
+# 2. DRY RUN — prints the planned edit, writes nothing:
+megadj rb-anlz-spike /Volumes/SHELF1 set-grid --tag q4 \
+  --file 'collection/ANLZ0000.DAT' \
+  --beats '[{"num":1,"bpmx100":12800,"timeMs":0},{"num":2,"bpmx100":12800,"timeMs":469}]'
+# 3. WRITE — automatic pre-edit backup + whole-file re-verify:
+megadj rb-anlz-spike /Volumes/SHELF1 set-grid --tag q4 --apply --yes \
+  --file 'collection/ANLZ0000.DAT' --beats '...'
+#    (beats rows: num 1..4 = beat index in the bar, bpmx100 = BPM×100,
+#     timeMs = absolute time in ms; generate rows from a fitted grid
+#     with jq or the beat-this ledger export)
+# 4. verify from the OTHER side — the spike sees the edit as a hash change:
+megadj rb-anlz-spike /Volumes/SHELF1 compare --tag q4
 # rekordbox: reopen, load the track — does the corrected grid show?
 # CDJ: export to a stick, load — does the corrected grid show?
 ```
 
-- **Verdict YES**: direct ANLZ edit is the GA-06 route, behind the
-  rb-fix-paths safety pattern (backup, dry-run, --apply --yes, re-verify
-  EVERY file).
+- **Verdict YES**: direct ANLZ edit is the GA-06 route — the writer is
+  already behind the safety pattern (backup, dry-run, `--apply --yes`,
+  re-verify EVERY file).
 - **Verdict NO**: grids are write-protected end-to-end; GA-06 collapses
   to "re-anchor via rekordbox UI + scripted verification only". Document
   and stop.
 
 ## Execution log
 
-| Date | Question            | Verdict                 | Evidence                              |
-| ---- | ------------------- | ----------------------- | ------------------------------------- |
-| —    | Q1 re-export stable | open                    | run the commands above, write the row |
-| —    | Q2 nudge storage    | open                    |                                       |
-| —    | Q3 XML overwrite    | open                    |                                       |
-| —    | Q4 direct ANLZ edit | open (only if Q3 fails) |                                       |
+| Date | Question            | Verdict                                    | Evidence                                 |
+| ---- | ------------------- | ------------------------------------------ | ---------------------------------------- |
+| —    | Q1 re-export stable | open                                       | run the commands above, write the row    |
+| —    | Q2 nudge storage    | open                                       |                                          |
+| —    | Q3 XML overwrite    | open                                       |                                          |
+| —    | Q4 direct ANLZ edit | armed (`set-grid` built, unrun vs live RB) | docs/runbooks/0d-write-path-spike.md §Q4 |
 
 Write the verdict into `docs/fulltags/grid-audit-plan.md` §GA-07 and GA-06's
 route line in the same edit. "Open but armed" is a valid state when the

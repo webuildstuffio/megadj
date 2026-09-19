@@ -27,6 +27,7 @@
  */
 
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -37,19 +38,35 @@ import {
 import { makeFail, printResult } from "./rb-command-kit.js";
 import { commandLog } from "../shared/progress";
 import { errorText } from "../shared/error-text";
-import { join, basename } from "node:path";
+import { join, basename, resolve as resolvePath } from "node:path";
 import { createHash } from "node:crypto";
-import { parseAnlzInventory } from "../fulltags/anlz";
+import {
+  parseAnlzGrid,
+  parseAnlzInventory,
+  rewriteAnlzGrid,
+  type AnlzBeat,
+} from "../fulltags/anlz";
 
-export type AnlzSpikeMode = "snapshot" | "compare";
+export type AnlzSpikeMode = "snapshot" | "compare" | "set-grid";
+
+export type { AnlzBeat } from "../fulltags/anlz";
 
 export interface SpikeOptions {
   mount: string;
   tag: string;
-  /** "snapshot" writes the baseline; "compare" diffs against it. */
+  /** "snapshot" writes the baseline; "compare" diffs against it;
+   * "set-grid" rewrites one sidecar's PQTZ (Q4 armament). */
   mode: AnlzSpikeMode;
   /** Override the persistent baseline directory (tests and isolated probes). */
   spikeDir?: string;
+  /** set-grid only: the sidecar to rewrite (relative key as compare
+   * prints it, e.g. "usb/P001/001AB2C3/ANLZ0000.DAT" — or an absolute
+   * path inside the mount). */
+  file?: string;
+  /** set-grid only: beats written as the new PQTZ. */
+  beats?: AnlzBeat[];
+  /** set-grid only: with --apply --yes, actually write (default dry-run). */
+  apply?: boolean;
   json?: boolean;
   log?: (s: string) => void;
 }
@@ -74,6 +91,10 @@ export interface SpikeSnapshot {
   undecodable: number;
   /** compare mode only. */
   identical?: number;
+  /** set-grid only: the sidecar that was rewritten + its pre-edit hash. */
+  edited?: string;
+  backupPath?: string;
+  wasHash?: string;
   changed?: {
     file: string;
     was: string;
@@ -204,6 +225,10 @@ export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
   if (!existsSync(mount)) return fail(`not mounted: ${mount}`);
   if (!opts.tag.trim()) return fail("--tag is required");
 
+  if (opts.mode === "set-grid") {
+    return setGrid(mount, opts, log, fail);
+  }
+
   if (opts.mode === "snapshot") {
     const { recs, scanned, undecodable } = measure(mount);
     const snap: SpikeSnapshot = {
@@ -303,6 +328,115 @@ function logChangedRows(
   }
 }
 
+/**
+ * setGrid — GA-07 Q4's runner: rewrite ONE sidecar's PQTZ behind the
+ * rb-fix-paths safety pattern (pre-edit backup next to the file, dry-run
+ * by default, write + re-verify EVERY byte with --apply). The re-verify
+ * is the point: the written bytes are decoded back through
+ * parseAnlzGrid and must equal the requested beats exactly, or the edit
+ * reports failure — a half-written grid is worse than no repair.
+ *
+ * Refuses (exit-1 snapshot, zero writes):
+ *   - file outside the mount (path escape — same rule as rb-fix-paths)
+ *   - missing/undecodable/gridless sidecar (nothing to edit)
+ *   - new grid not parseable back to exactly the requested beats
+ */
+function setGrid(
+  mount: string,
+  opts: SpikeOptions & { file?: string; beats?: AnlzBeat[] },
+  log: (s: string) => void,
+  fail: (msg: string) => SpikeSnapshot,
+): SpikeSnapshot {
+  const done = (over: Partial<SpikeSnapshot>): SpikeSnapshot => ({
+    command: "rb-anlz-spike",
+    mode: "set-grid",
+    mount,
+    tag: opts.tag,
+    scanned: 1,
+    tracked: 1,
+    undecodable: 0,
+    ok: true,
+    ...over,
+  });
+  if (!opts.file) return fail("set-grid: --file=<sidecar key> is required");
+  if (!opts.beats || opts.beats.length === 0)
+    return fail("set-grid: --beats are required (JSON array of grid rows)");
+  // three accepted spellings: the compare-style key
+  // ("collection/ANLZ0000.DAT" / "usb/P001/<hash>/ANLZ0000.DAT"), a raw
+  // mount-relative path, or an absolute path inside the mount.
+  const rooted = SPIKE_ROOTS.some((r) => opts.file!.startsWith(`${r.name}/`))
+    ? resolveSidecar(mount, opts.file)
+    : resolvePath(mount, opts.file);
+  const abs = rooted;
+  const mountAbs = resolvePath(mount);
+  if (!(abs === mountAbs || abs.startsWith(`${mountAbs}/`)))
+    return fail(`set-grid: ${opts.file} escapes the mount — refused`);
+  if (!existsSync(abs)) return fail(`no such sidecar: ${opts.file}`);
+
+  const bytes = new Uint8Array(readFileSync(abs));
+  const before = parseAnlzGrid(bytes);
+  if (!before) return fail(`${opts.file} has no decodable PQTZ grid`);
+  const inv = parseAnlzInventory(bytes)!;
+
+  const rewritten = rewriteAnlzGrid(bytes, opts.beats);
+  if (!rewritten) return fail(`rewrite produced nothing (layout changed?)`);
+  const verify = parseAnlzGrid(rewritten);
+  if (!verify || JSON.stringify(verify.beats) !== JSON.stringify(opts.beats))
+    return fail(
+      "pre-write verification failed — rewritten grid does not decode back to the requested beats; nothing written",
+    );
+  const newHash = sha256(rewritten);
+  const oldHash = sha256(bytes);
+
+  if (!opts.apply) {
+    const beatDelta = opts.beats.length - before.beats.length;
+    log(
+      `DRY RUN ${opts.file}: ${before.beats.length} beats (${inv.sections.find((s) => s.tag === "PQTZ")?.bytes ?? 0}B PQTZ) → ${opts.beats.length} beats (${24 + opts.beats.length * 8}B PQTZ, ${beatDelta >= 0 ? "+" : ""}${beatDelta}); hash ${oldHash.slice(0, 12)} → ${newHash.slice(0, 12)}`,
+    );
+    log(
+      `next: re-run with --apply --yes to write (a pre-edit backup is kept automatically)`,
+    );
+    return done({ edited: opts.file, wasHash: oldHash });
+  }
+
+  const backup = `${abs}.pre-grid-${opts.tag.replace(/[^A-Za-z0-9_-]/gu, "_")}`;
+  copyFileSync(abs, backup);
+  writeFileSync(abs, rewritten);
+
+  // the WHOLE-FILE re-read: the written bytes must decode to the exact
+  // requested grid AND keep the section inventory's non-PQTZ entries
+  const reread = new Uint8Array(readFileSync(abs));
+  const ok = (() => {
+    if (sha256(reread) !== newHash) return false;
+    const g = parseAnlzGrid(reread);
+    if (!g || JSON.stringify(g.beats) !== JSON.stringify(opts.beats))
+      return false;
+    const invNow = parseAnlzInventory(reread);
+    if (!invNow) return false;
+    const was = new Map(inv.sections.map((s) => [s.tag, s.bytes] as const));
+    const now = new Map(invNow.sections.map((s) => [s.tag, s.bytes] as const));
+    for (const [tag, wasBytes] of was) {
+      if (tag === "PQTZ") continue;
+      if (now.get(tag) !== wasBytes) return false;
+    }
+    return true;
+  })();
+  if (!ok) {
+    copyFileSync(backup, abs); // restore — one bad write never stays
+    return fail(
+      `post-write verification failed — ${opts.file} restored from ${backup}`,
+    );
+  }
+  log(
+    `set-grid ${opts.file}: ${before.beats.length} → ${opts.beats.length} beats written; backup ${backup}; re-verified OK`,
+  );
+  return done({
+    edited: opts.file,
+    backupPath: backup,
+    wasHash: oldHash,
+  });
+}
+
 /** Human report (non-json mode) — thin over the log lines. */
 export function printSpikeReport(
   r: SpikeSnapshot,
@@ -315,6 +449,13 @@ export function printSpikeReport(
       );
       log(
         `next: do the rekordbox experiment, then rb-anlz-spike ${body.mount} compare --tag=${body.tag}`,
+      );
+      return;
+    }
+    if (body.mode === "set-grid") {
+      if (!body.ok) return; // the error line is already printed
+      log(
+        `set-grid "${body.tag}": ${body.edited}${body.backupPath ? ` · backup ${body.backupPath}` : " · DRY RUN (nothing written)"}`,
       );
       return;
     }

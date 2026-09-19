@@ -36,7 +36,8 @@ import {
   volumePath,
 } from "./volume";
 import { finishCommandError, setExit, writeJson } from "./cli-output";
-import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
+import type { AnlzBeat, AnlzSpikeMode } from "../rekordbox/anlz-spike";
+import { errorText } from "./error-text";
 
 /** Commands handled by this module; cli.ts and the parity census share it. */
 export const MAINTENANCE_VERBS = [
@@ -485,21 +486,62 @@ const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
 
 // ---- analysis/harness tier ----------------------------------------------
 
+/** Type guard for one --beats row: {num:1..4, bpmx100:int>0, timeMs:int>=0}. */
+function isBeatRow(b: unknown): boolean {
+  if (typeof b !== "object" || b === null) return false;
+  const r = b as Record<string, unknown>;
+  return (
+    typeof r.num === "number" &&
+    Number.isInteger(r.num) &&
+    r.num >= 1 &&
+    r.num <= 4 &&
+    typeof r.bpmx100 === "number" &&
+    Number.isInteger(r.bpmx100) &&
+    r.bpmx100 > 0 &&
+    typeof r.timeMs === "number" &&
+    Number.isInteger(r.timeMs) &&
+    r.timeMs >= 0
+  );
+}
+
 const rbAnlzSpikeCmd: MaintenanceHandler = async (rest) => {
   // GA-07 harness: snapshot/compare ANLZ sidecars around a manual
-  // rekordbox experiment (re-export, grid nudge). Read-only on the
-  // drive; the baseline lives in ~/.local/state/megadj/spike/.
-  const flags = parseFlags(rest, ["tag"], ["json"]);
-  // Two positionals: mount (first) + mode word (snapshot|compare).
-  // Order-free per usage: `[drive] snapshot|compare`.
-  const args = positionalArgs(rest, ["tag"]);
-  const modeWord = args.find((a) => a === "snapshot" || a === "compare");
-  const mountPos = args.find((a) => a !== "snapshot" && a !== "compare");
-  const mode: AnlzSpikeMode = modeWord === "compare" ? "compare" : "snapshot";
-  if (args.some((a) => a !== "snapshot" && a !== "compare" && a !== mountPos)) {
+  // rekordbox experiment (re-export, grid nudge), plus set-grid —
+  // Q4's direct PQTZ rewrite (dry-run by default; --apply --yes writes
+  // with an automatic pre-edit backup + whole-file re-verify). The
+  // baseline lives in ~/.local/state/megadj/spike/.
+  const flags = parseFlags(
+    rest,
+    ["tag", "file", "beats"],
+    ["json", "apply", "yes"],
+  );
+  // Two positionals: mount (first) + mode word (snapshot|compare|set-grid).
+  // Order-free per usage: `[drive] snapshot|compare|set-grid`.
+  const args = positionalArgs(rest, ["tag", "file", "beats"]);
+  const modeWord = args.find(
+    (a) => a === "snapshot" || a === "compare" || a === "set-grid",
+  );
+  const mountPos = args.find(
+    (a) => a !== "snapshot" && a !== "compare" && a !== "set-grid",
+  );
+  const mode: AnlzSpikeMode =
+    modeWord === "compare"
+      ? "compare"
+      : modeWord === "set-grid"
+        ? "set-grid"
+        : "snapshot";
+  if (
+    args.some(
+      (a) =>
+        a !== "snapshot" &&
+        a !== "compare" &&
+        a !== "set-grid" &&
+        a !== mountPos,
+    )
+  ) {
     await finishCommandError({
       command: "rb-anlz-spike",
-      error: "too many arguments (usage: [drive] snapshot|compare)",
+      error: "too many arguments (usage: [drive] snapshot|compare|set-grid)",
       exitCode: 2,
     });
     return;
@@ -507,7 +549,7 @@ const rbAnlzSpikeCmd: MaintenanceHandler = async (rest) => {
   if (modeWord === undefined) {
     await finishCommandError({
       command: "rb-anlz-spike",
-      error: "mode is required (snapshot|compare)",
+      error: "mode is required (snapshot|compare|set-grid)",
       exitCode: 2,
     });
     return;
@@ -525,10 +567,49 @@ const rbAnlzSpikeCmd: MaintenanceHandler = async (rest) => {
   const json = jsonFlag(flags);
   const { anlzSpike, printSpikeReport } =
     await import("../rekordbox/anlz-spike");
+
+  // set-grid: the beats JSON must parse BEFORE anything touches the
+  // drive — bad JSON is exit 2 with zero work (the nonNegOpt contract).
+  // Guarded parse: a malformed --beats is a usage error, not a crash.
+  let beats: AnlzBeat[] | undefined;
+  const beatsRaw = flags.strings.get("beats");
+  if (mode === "set-grid" && beatsRaw !== undefined) {
+    // the console.error is the census's visible-failure shape (boundary-
+    // json guard) AND the honest UX: the user sees WHY their beats JSON
+    // was rejected, on stderr, before the exit-2 usage error.
+    let parseFailed = false;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(beatsRaw) as unknown;
+    } catch (e) {
+      console.error(`rb-anlz-spike: malformed --beats JSON: ${errorText(e)}`);
+      parseFailed = true;
+    }
+    if (
+      parseFailed ||
+      !Array.isArray(parsed) ||
+      parsed.length === 0 ||
+      !parsed.every(isBeatRow)
+    ) {
+      await finishCommandError({
+        command: "rb-anlz-spike",
+        error:
+          "--beats must be a JSON array of {num:1..4, bpmx100:int, timeMs:int} rows",
+        exitCode: 2,
+      });
+      return;
+    }
+    beats = parsed as AnlzBeat[];
+  }
+
+  const file = flags.strings.get("file");
   const r = anlzSpike({
     mount,
     tag,
     mode,
+    ...(file !== undefined ? { file } : {}),
+    ...(beats !== undefined ? { beats } : {}),
+    apply: flags.bools.has("apply") && flags.bools.has("yes"),
     ...jsonOpts(json),
   });
   await emitResult(json, r, printSpikeReport);

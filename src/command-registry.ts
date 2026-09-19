@@ -521,11 +521,13 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "rb-anlz-spike",
     group: "fulltags",
     block: [
-      "  megadj rb-anlz-spike [drive] snapshot|compare --tag T [--json]",
-      "                                               GA-07 write-path spike harness: hash +",
-      "                                               inventory sidecars before/after a manual",
-      "                                               rekordbox experiment (re-export, grid",
-      "                                               nudge) — proves exactly what changes",
+      "  megadj rb-anlz-spike [drive] snapshot|compare|set-grid --tag T",
+      "                                               [--file KEY --beats JSON --apply --yes] [--json]",
+      "                                               GA-07 write-path spike: hash + inventory",
+      "                                               sidecars before/after a manual rekordbox",
+      "                                               experiment; set-grid = Q4's direct PQTZ",
+      "                                               rewrite (dry-run default, backup +",
+      "                                               re-verify on --apply --yes)",
     ],
   },
   // cratedeck family — doctor/init are real dispatch verbs

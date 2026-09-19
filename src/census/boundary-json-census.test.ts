@@ -122,8 +122,12 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // (/fetch/start body, 400-with-error catch) and job_legs.ts's
     // safeJsonParse; sanctioned 17→18 (safeJsonParse joins
     // EXPLICIT_NULL: a malformed feed line is skipped, never thrown).
-    audited: 64,
-    guarded: 46,
+    // Sep 18 (#147 Q4 armament): audited 64→65 / guarded 46→47 —
+    // rb-anlz-spike set-grid's --beats parse joins the census as a
+    // GUARDED parse (console.error catch + exit-2 usage error; a
+    // malformed beats JSON can never crash the arm).
+    audited: 65,
+    guarded: 47,
     sanctioned: 18,
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
@@ -137,7 +141,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // input re-rooted; same calls, same guards, counts unchanged).
     // Sep 18 (#220 write/ slice): file re-homes moved owners again (same
     // calls, same guards, counts unchanged) — digest shifted: acd7abc3.
-    digest: "acd7abc386ecfe2ae6ffdf267184b4f2487dbdf23a0c850201c19a9f88b286c9",
+    digest: "d1d416c319ba24301f23beb74c3c5975a12d6efa8c49133b243c40267fc947a6",
   });
 });
 

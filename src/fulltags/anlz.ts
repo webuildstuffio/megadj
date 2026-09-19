@@ -147,6 +147,56 @@ function utf16be(s: string): Uint8Array {
 }
 
 /**
+ * rewriteAnlzGrid — GA-07 Q4's armament: replace the PQTZ beat grid
+ * inside an ANLZ container WITHOUT touching any other section byte.
+ *
+ * The container walk (PMAI → sections) stays byte-exact: every section
+ * before and after the PQTZ is copied verbatim, so PWAV/PCOB/PSDN
+ * waveforms and artwork survive untouched — only the grid's byte span
+ * differs, and only when the beat count changed (same count = same
+ * length, beat entries rewritten in place).
+ *
+ * Invariants (all pinned in anlz.test.ts):
+ *   - output parses back through `parseAnlzGrid` to exactly `beats`
+ *   - `parseAnlzInventory` is unchanged unless the beat count changed
+ *   - sections outside PQTZ are byte-identical to the input
+ *   - no PQTZ section in the input → null (nothing to edit; callers
+ *     must NOT fabricate one — a grid without the track's real section
+ *     layout is a corruption vector)
+ */
+export function rewriteAnlzGrid(
+  data: Uint8Array,
+  beats: AnlzBeat[],
+): Uint8Array | null {
+  const c = walkContainer(data);
+  if (!c) return null;
+  const pq = c.sections.find((s) => s.tag === "PQTZ");
+  if (!pq) return null;
+
+  const total = 24 + beats.length * 8;
+  const grid = new Uint8Array(total);
+  const dv = new DataView(grid.buffer);
+  grid.set([0x50, 0x51, 0x54, 0x5a], 0); // PQTZ
+  dv.setUint32(4, 24, false);
+  dv.setUint32(8, total, false);
+  dv.setUint32(12, 0, false); // unknown1 (kept as buildAnlz writes it)
+  dv.setUint32(16, 0x00080000, false); // unknown2 — the constant
+  dv.setUint32(20, beats.length, false);
+  beats.forEach((be, i) => {
+    const e = 24 + i * 8;
+    dv.setUint16(e, be.num, false);
+    dv.setUint16(e + 2, be.bpmx100, false);
+    dv.setUint32(e + 4, be.timeMs, false);
+  });
+
+  const out = new Uint8Array(data.length - pq.total + total);
+  out.set(data.subarray(0, pq.off), 0);
+  out.set(grid, pq.off);
+  out.set(data.subarray(pq.off + pq.total), pq.off + total);
+  return out;
+}
+
+/**
  * Build ANLZ bytes from parts — the test-fixture seam AND the spike
  * tooling's writer if it ever needs one. Deterministic; round-trips
  * through `parseAnlzGrid`/`parseAnlzInventory`.
