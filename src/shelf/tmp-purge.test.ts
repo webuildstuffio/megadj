@@ -5,7 +5,7 @@
  *   1. the newest backup per DB stem is ALWAYS kept (lineage snapshot)
  *   2. the live `archive.db` matches no backup class — unreachable
  *   3. sidecars of an OPEN db are never swept (lsof guard)
- *   4. spike artifacts are age-gated >24h
+ *   4. spike artifacts are load-bearing and never swept
  *   5. read-only by default: zero removals without --apply
  *
  * The sweep root is fixed at ~/.local/state/megadj (the production
@@ -14,13 +14,15 @@
  * is exercised by the dry-run/applied counter contract, not by
  * deleting real backups in a test.
  */
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import {
   existsSync,
   mkdirSync,
   realpathSync,
   rmSync,
+  statSync,
   utimesSync,
+  writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -30,6 +32,31 @@ import {
   statePurge,
   tmpPurgeSweep,
 } from "./tmp-purge";
+import { tempDir } from "../test-support/testutil";
+
+const stateFixtures = tempDir("megadj-tmp-purge-state-").rippable();
+afterAll(() => stateFixtures.rippleAll());
+
+function fixtureStateRoot(): string {
+  const root = stateFixtures.dir();
+  writeFileSync(join(root, "archive.db"), "live");
+  writeFileSync(join(root, "archive.db-wal"), "wal");
+  writeFileSync(join(root, "archive.db-shm"), "shm");
+  writeFileSync(join(root, "archive.db.bak-20260910-010101"), "old");
+  writeFileSync(join(root, "archive.db.bak-20260911-010101"), "new");
+  mkdirSync(join(root, "spike"));
+  writeFileSync(join(root, "spike", "baseline.json"), "baseline");
+  writeFileSync(join(root, "spike-ledger.json"), "baseline");
+  return root;
+}
+
+const stateOpts = (apply: boolean, all = true) => ({
+  apply,
+  all,
+  json: true,
+  state: true,
+  log: () => {},
+});
 
 /** Aged fixture dir factory (hoisted: captures nothing from any test's
  *  scope, so it lives at module level — unicorn/function-scoping). */
@@ -37,7 +64,7 @@ function mk(root: string, name: string, ageDays: number): string {
   const dir = join(root, `megadj-${name}`);
   mkdirSync(dir, { recursive: true });
   const past = Date.now() - ageDays * 24 * 60 * 60 * 1000;
-  utimesSync(dir, past, past);
+  utimesSync(dir, new Date(past), new Date(past));
   return dir;
 }
 
@@ -102,7 +129,7 @@ describe("state tier: dry-run contract on the real state dir", () => {
     expect(r.eligible).toBeLessThanOrEqual(r.scanned);
   });
 
-  test("--all lifts the spike gate but applied still honors dry-run", () => {
+  test("--all stays read-only without making spike artifacts sweepable", () => {
     const r = statePurge({
       apply: false,
       all: true,
@@ -112,6 +139,71 @@ describe("state tier: dry-run contract on the real state dir", () => {
     });
     expect(r.ok).toBe(true);
     expect(r.applied).toBe(0);
+  });
+});
+
+describe("state tier: destructive safety (#265)", () => {
+  test("unknown open-file state aborts before touching WAL/SHM", () => {
+    const root = fixtureStateRoot();
+    const result = statePurge(stateOpts(true), { root, openPaths: () => null });
+    expect(result.ok).toBe(false);
+    expect(result.applied).toBe(0);
+    expect(result.freedBytes).toBe(0);
+    expect(existsSync(join(root, "archive.db-wal"))).toBe(true);
+    expect(existsSync(join(root, "archive.db-shm"))).toBe(true);
+  });
+
+  for (const all of [false, true]) {
+    test(`spike baselines survive all=${all}`, () => {
+      const root = fixtureStateRoot();
+      const result = statePurge(stateOpts(true, all), {
+        root,
+        openPaths: () => new Set(),
+        remove: () => undefined,
+      });
+      expect(result.ok).toBe(true);
+      expect(result.families.some((family) => family.prefix === "spike")).toBe(
+        false,
+      );
+      expect(existsSync(join(root, "spike", "baseline.json"))).toBe(true);
+      expect(existsSync(join(root, "spike-ledger.json"))).toBe(true);
+    });
+  }
+
+  test("failed removals do not claim freed bytes", () => {
+    const root = fixtureStateRoot();
+    const result = statePurge(stateOpts(true), {
+      root,
+      openPaths: () => new Set(),
+      remove: () => {
+        throw new Error("denied");
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.applied).toBe(0);
+    expect(result.freedBytes).toBe(0);
+    expect(existsSync(join(root, "spike", "baseline.json"))).toBe(true);
+    expect(existsSync(join(root, "spike-ledger.json"))).toBe(true);
+  });
+
+  test("closed sidecars are removed while an open database retains its sidecars", () => {
+    const closed = fixtureStateRoot();
+    const closedResult = statePurge(stateOpts(true), {
+      root: closed,
+      openPaths: () => new Set(),
+    });
+    expect(closedResult.ok).toBe(true);
+    expect(existsSync(join(closed, "archive.db-wal"))).toBe(false);
+    expect(existsSync(join(closed, "archive.db-shm"))).toBe(false);
+
+    const open = fixtureStateRoot();
+    const openResult = statePurge(stateOpts(true), {
+      root: open,
+      openPaths: () => new Set([join(open, "archive.db")]),
+    });
+    expect(openResult.ok).toBe(true);
+    expect(existsSync(join(open, "archive.db-wal"))).toBe(true);
+    expect(existsSync(join(open, "archive.db-shm"))).toBe(true);
   });
 });
 
@@ -145,36 +237,32 @@ describe("tmp sweep: multi-root scan (#254)", () => {
   });
 
   test("both roots age fixtures identically (an old fixture is eligible, a fresh one is not)", () => {
-    // Real fixture dirs at BOTH roots, one aged one fresh, dry-run only.
-    const platformRoot = realpathSync(tmpdir());
-    const fallbackRoot = realpathSync("/tmp");
+    // Dedicated roots avoid host temp cleanup racing this age-gate fixture.
+    const platformRoot = join(stateFixtures.dir(), "254-root-a");
+    const fallbackRoot = join(stateFixtures.dir(), "254-root-b");
+    mkdirSync(platformRoot);
+    mkdirSync(fallbackRoot);
     const created: string[] = [];
     const oldAtPlatform = mk(platformRoot, "254-old-platform", 3);
     created.push(oldAtPlatform);
-    const oldAtFallback =
-      fallbackRoot === platformRoot
-        ? null
-        : mk(fallbackRoot, "254-old-fallback", 3);
-    if (oldAtFallback) created.push(oldAtFallback);
-    const freshAtFallback =
-      fallbackRoot === platformRoot
-        ? null
-        : mk(fallbackRoot, "254-fresh-fallback", 0);
-    if (freshAtFallback) created.push(freshAtFallback);
+    const oldAtFallback = mk(fallbackRoot, "254-old-fallback", 3);
+    created.push(oldAtFallback);
+    const freshAtFallback = mk(fallbackRoot, "254-fresh-fallback", 0);
+    created.push(freshAtFallback);
     try {
+      expect(statSync(oldAtPlatform).mtimeMs).toBeLessThanOrEqual(
+        Date.now() - 24 * 60 * 60 * 1000,
+      );
       const before = tmpPurgeSweep({
         apply: false,
         all: false,
         json: true,
         log: () => {},
+        roots: [platformRoot, fallbackRoot],
       });
-      const rootsWithOld = before.roots!.filter(
-        (root) =>
-          root === platformRoot ||
-          (oldAtFallback !== null && root === fallbackRoot),
-      );
       // The aged fixtures at every root are eligible in the aggregate.
-      expect(before.eligible).toBeGreaterThanOrEqual(created.length - 1);
+      expect(before.scanned).toBe(3);
+      expect(before.eligible).toBe(2);
       expect(before.applied).toBe(0);
       // Fresh fixture at the second root is NOT eligible (age gate applies
       // per root — #254's "age into eligibility identically").
@@ -183,8 +271,9 @@ describe("tmp sweep: multi-root scan (#254)", () => {
         all: false,
         json: true,
         log: () => {},
+        roots: [platformRoot, fallbackRoot],
       });
-      expect(r2.eligible).toBeGreaterThanOrEqual(rootsWithOld.length);
+      expect(r2.eligible).toBe(2);
     } finally {
       for (const dir of created) rmSync(dir, { recursive: true, force: true });
     }

@@ -11,8 +11,9 @@
 //     test gate is known-quiet)
 //   - `--state` sweeps ~/.local/state/megadj instead: superseded dated
 //     backups (newest lineage snapshot per DB stem is KEPT), orphan
-//     -shm/-wal sidecars of DBs that are not open (lsof-verified), and
-//     age-gated spike/ artifacts. The live DB never matches a backup
+//     -shm/-wal sidecars of DBs that are not open (lsof-verified). Spike
+//     baselines are load-bearing and are never purge candidates. The live DB
+//     never matches a backup
 //     pattern, so it is unreachable by construction.
 //   - per-family counts + bytes in the report; `--json` contract
 //
@@ -40,6 +41,8 @@ export interface TmpPurgeOptions {
   /** Sweep the state dir (~/.local/state/megadj) instead of the tmpdir. */
   state?: boolean;
   log: (message: string) => void;
+  /** Test seam: explicit roots make multi-root fixture coverage hermetic. */
+  roots?: string[];
 }
 
 export interface TmpPurgeFamily {
@@ -63,6 +66,13 @@ export interface TmpPurgeResult {
   kept?: string[];
 }
 
+/** Injectable filesystem boundary for hermetic state-tier tests. */
+export interface StatePurgeDeps {
+  root?: string;
+  openPaths?: (root: string) => Set<string> | null;
+  remove?: (path: string) => void;
+}
+
 /** Recursive byte size (a dir's own stat is not its content size). */
 function treeBytes(path: string): number {
   let total = 0;
@@ -82,10 +92,15 @@ export function tmpPurge(opts: TmpPurgeOptions): TmpPurgeResult {
   return opts.state ? statePurge(opts) : tmpPurgeSweep(opts);
 }
 
-/** PIDs holding any file under `dir` open (lsof +D), or null on failure.
- *  A nonzero/blocked lsof must never widen the sweep — we treat unknown
- *  as "in use" and skip deletion of sidecars only (backups are still
- *  name-gated). */
+function commandOutput(value: unknown): string {
+  return typeof value === "string"
+    ? value
+    : value instanceof Uint8Array
+      ? new TextDecoder().decode(value)
+      : "";
+}
+
+/** PIDs holding any file under `dir` open (lsof +D), or null on failure. */
 function openPathsUnder(dir: string): Set<string> | null {
   try {
     const out = execFileSync("/usr/sbin/lsof", ["+D", dir], {
@@ -98,7 +113,21 @@ function openPathsUnder(dir: string): Set<string> | null {
       if (path.startsWith("/")) held.add(path);
     }
     return held;
-  } catch {
+  } catch (e) {
+    // macOS lsof exits 1 with completely empty output when no files match.
+    // Any diagnostic output or other status is an unknown safety state.
+    const failure = e as {
+      status?: unknown;
+      stdout?: unknown;
+      stderr?: unknown;
+    };
+    if (
+      failure.status === 1 &&
+      commandOutput(failure.stdout).trim() === "" &&
+      commandOutput(failure.stderr).trim() === ""
+    ) {
+      return new Set();
+    }
     return null;
   }
 }
@@ -114,23 +143,36 @@ function openPathsUnder(dir: string): Set<string> | null {
  * The newest member per stem is ALWAYS kept; the live `archive.db`
  * itself matches no class and is unreachable.
  */
-export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
-  const root = join(homedir(), ".local", "state", "megadj");
+export function statePurge(
+  opts: TmpPurgeOptions,
+  deps: StatePurgeDeps = {},
+): TmpPurgeResult {
+  const root = deps.root ?? join(homedir(), ".local", "state", "megadj");
+  const remove =
+    deps.remove ?? ((path: string) => rmSync(path, { force: true }));
   const byFamily = new Map<string, TmpPurgeFamily>();
   const kept: string[] = [];
-  const add = (prefix: string, name: string, bytes: number, del: boolean) => {
+  let removeFailed = false;
+  const add = (
+    prefix: string,
+    name: string,
+    bytes: number,
+    del: boolean,
+  ): boolean => {
     const fam = byFamily.get(prefix) ?? { prefix, dirs: 0, bytes: 0 };
     fam.dirs++;
     fam.bytes += bytes;
     byFamily.set(prefix, fam);
     if (del && opts.apply) {
       try {
-        rmSync(join(root, name), { force: true });
+        remove(join(root, name));
       } catch (e) {
         opts.log(`  ! could not remove ${name}: ${(e as Error).message}`);
-        return;
+        removeFailed = true;
+        return false;
       }
     }
+    return true;
   };
 
   let names: string[];
@@ -150,7 +192,22 @@ export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
     };
   }
 
-  const held = opts.apply ? openPathsUnder(root) : null;
+  const held = opts.apply ? (deps.openPaths ?? openPathsUnder)(root) : null;
+  if (opts.apply && held === null) {
+    opts.log(
+      "tmp-purge --state: open-file check unavailable; refusing --apply",
+    );
+    return {
+      ok: false,
+      root,
+      scanned: 0,
+      eligible: 0,
+      applied: 0,
+      freedBytes: 0,
+      families: [],
+      appliedMode: true,
+    };
+  }
 
   // ---- pass 1: classify + find the newest backup per stem ----
   interface Cand {
@@ -158,22 +215,20 @@ export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
     stem: string;
     stamp: number;
     bytes: number;
-    kind: "backup" | "sidecar" | "spike";
+    kind: "backup" | "sidecar";
   }
   const cands: Cand[] = [];
   const newestByStem = new Map<string, number>();
   let scanned = 0;
 
   for (const name of names) {
-    // Superseded dated backups (never the live `archive.db` itself).
+    // Superseded dated backups (never the live `archive.db` itself). ANLZ
+    // compare baselines are evidence, never cleanup candidates.
+    if (name.startsWith("spike")) continue;
     const backupStem = backupClass(name);
     // Orphan SQLite sidecars: -shm/-wal whose DB is not currently open.
     const sidecarOf = sidecarClass(name);
-    if (
-      backupStem === null &&
-      sidecarOf === null &&
-      !name.startsWith("spike")
-    ) {
+    if (backupStem === null && sidecarOf === null) {
       continue;
     }
     scanned++;
@@ -205,18 +260,6 @@ export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
         bytes,
         kind: "sidecar",
       });
-    } else {
-      // spike/ artifacts: the rb-anlz-spike baselines. Age-gated like
-      // tmp fixtures (>24h) — a just-written baseline is never swept.
-      const fresh = Date.now() - mtime < 24 * 60 * 60 * 1000;
-      if (!opts.all && fresh) continue;
-      cands.push({
-        name,
-        stem: "spike",
-        stamp: mtime,
-        bytes,
-        kind: "spike",
-      });
     }
   }
 
@@ -234,8 +277,8 @@ export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
       continue; // DB is open — its sidecars are live WAL/SHM state
     }
     eligible++;
-    add(c.kind, c.name, c.bytes, true);
-    if (opts.apply) {
+    const removed = add(c.kind, c.name, c.bytes, true);
+    if (opts.apply && removed) {
       applied++;
       freedBytes += c.bytes;
     }
@@ -243,7 +286,7 @@ export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
 
   const families = [...byFamily.values()].toSorted((a, b) => b.dirs - a.dirs);
   return {
-    ok: true,
+    ok: !removeFailed,
     root,
     roots: [root],
     scanned,
@@ -351,8 +394,10 @@ export function tmpPurgeSweep(opts: TmpPurgeOptions): TmpPurgeResult {
   // identical age gating.
   const primary = tmpdir();
   const fallback = "/tmp";
-  const roots = new Set<string>([realpathSync(primary)]);
-  if (realpathSync(fallback) !== realpathSync(primary)) {
+  const roots = opts.roots
+    ? new Set(opts.roots.map((root) => realpathSync(root)))
+    : new Set<string>([realpathSync(primary)]);
+  if (!opts.roots && realpathSync(fallback) !== realpathSync(primary)) {
     roots.add(realpathSync(fallback));
   }
 
