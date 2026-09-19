@@ -40,7 +40,11 @@ export const SC_GENRE_CANON: Record<string, string> = {
   house: "House",
   "deep house": "Deep House",
   "tech house": "Tech House",
-  "bass house": "Bass House",
+  techhouse: "Tech House",
+  deephouse: "Deep House",
+  afrohouse: "Afro House",
+  basshouse: "Bass House",
+  proghouse: "Progressive House",
   "progressive house": "Progressive House",
   techno: "Techno",
   "techno trance": "Trance",
@@ -58,10 +62,17 @@ export const SC_GENRE_CANON: Record<string, string> = {
 
 /** Canonicalize a source claim (SC genre, MB folksonomy tag, BP store
  *  genre): strip hashtag prefixes, collapse the canon map, title-case
- *  unknown labels. */
+ *  unknown labels. Space-insensitive lookup (Sep 19): "techhouse" must
+ *  land in the same folder as "tech house" — the no-space spelling came
+ *  off a live SC tag and minted a lowercase case-twin genre folder. */
 export function canonicalizeClaim(g: string): string {
   const key = g.replace(/^#/, "").toLowerCase().trim();
-  return SC_GENRE_CANON[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+  const squeezed = key.replace(/\s+/g, "");
+  return (
+    SC_GENRE_CANON[key] ??
+    SC_GENRE_CANON[squeezed] ??
+    key.charAt(0).toUpperCase() + key.slice(1)
+  );
 }
 
 // ---------- free-text guessing (download-time) ----------

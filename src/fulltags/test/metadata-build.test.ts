@@ -173,3 +173,31 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
     expect(twice).toStrictEqual(once);
   });
 });
+
+describe("junk-genre guard (Sep 19 organize audit)", () => {
+  test("URL-shaped 'genres' are honest nulls — they minted garbage folders", () => {
+    expect(buildMetadata({ genre: "https://djsoundtop.com" }).genre).toBeNull();
+    expect(
+      buildMetadata({ genre: "http://electronicfresh.com" }).genre,
+    ).toBeNull();
+  });
+
+  test("JSON-blob genres (the thumbnails-array row) are nulls", () => {
+    expect(
+      buildMetadata({ genre: "[{'id': 'mini', 'url': 'https://…'}]" }).genre,
+    ).toBeNull();
+    expect(buildMetadata({ genre: '{"a":1}' }).genre).toBeNull();
+  });
+
+  test("overlong tag-soup and control bytes are nulls", () => {
+    expect(buildMetadata({ genre: "x".repeat(61) }).genre).toBeNull();
+    expect(buildMetadata({ genre: "Tech\u0000House" }).genre).toBeNull();
+  });
+
+  test("real genres still pass — the guard only kills junk (guess may refine)", () => {
+    // "Tech House" passes the guard; guessFromFreeText may coarsen it to a
+    // family bucket ("House") — that's the pre-existing inference policy,
+    // not the junk guard. Kuduro isn't in the table and passes through raw.
+    expect(buildMetadata({ genre: "Kuduro" }).genre).toBe("Kuduro");
+  });
+});

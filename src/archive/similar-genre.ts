@@ -41,6 +41,30 @@ export interface GenreVote {
   agreement: number;
 }
 
+/** The vote's neighbour pool: family-usable, same-dimension seeds in
+ * cosine order (ties alphabetical), k-sliced. One selection SSOT for the
+ * vote AND the LOO top-2 diagnostic — the diagnostic previously sliced
+ * from ALL seeds, covering more neighbours than the vote did when
+ * null-family seeds were present (#266, diagnostics-skew fix). */
+function voteNeighbours(
+  seeds: GenreSeed[],
+  queryVec: number[],
+  k: number,
+  familyOf: (genre: string) => string | null,
+): { label: string; score: number }[] {
+  const usable = seeds
+    .map((s) => ({ ...s, family: familyOf(s.genre) }))
+    .filter((s) => s.family !== null);
+  return usable
+    .filter((s) => s.vec.length === queryVec.length)
+    .map((s) => ({
+      label: s.family!,
+      score: cosineSimilarity(queryVec, s.vec),
+    }))
+    .toSorted((a, b) => b.score - a.score || a.label.localeCompare(b.label))
+    .slice(0, Math.min(Math.max(k, 1), usable.length));
+}
+
 /** kNN genre-family vote for one query vector. Neighbours with a usable
  * seed family vote; the plurality family wins ONLY at ≥ `minAgreement`
  * (0.6 default). Deterministic: ties break alphabetically. `familyOf`
@@ -55,19 +79,13 @@ export function inferGenre(
   minAgreement = 0.6,
   familyOf: (genre: string) => string | null = genreFamily,
 ): GenreVote {
-  const usable = seeds
-    .map((s) => ({ ...s, family: familyOf(s.genre) }))
-    .filter((s) => s.family !== null);
-  if (!usable.length || queryVec.length === 0)
+  const nn = voteNeighbours(seeds, queryVec, k, familyOf);
+  // No usable label or no same-dimension neighbour survived (empty seeds,
+  // zero-dim query, or one legacy-dimension/corrupt embedding row after a
+  // model change): abstain — unusable rows read as ABSENT, never crash the
+  // run (#266; the artist-disjoint twin already guarded this).
+  if (queryVec.length === 0 || nn.length === 0)
     return { genre: "", inferred: null, agreement: 0 };
-  const nn = usable
-    .filter((s) => s.vec.length === queryVec.length)
-    .map((s) => ({
-      label: s.family!,
-      score: cosineSimilarity(queryVec, s.vec),
-    }))
-    .toSorted((a, b) => b.score - a.score || a.label.localeCompare(b.label))
-    .slice(0, Math.min(Math.max(k, 1), usable.length));
   const tally = new Map<string, number>();
   for (const n of nn) tally.set(n.label, (tally.get(n.label) ?? 0) + 1);
   const best = [...tally.entries()].toSorted(
@@ -115,16 +133,10 @@ export function evalLeaveOneOut(
     // ungated twin: plain plurality, no gate
     if (vote.genre === family) ungatedAgree++;
     // per-row outcome (top-2 = the two largest tally buckets, ties
-    // alphabetical — deterministic). Recompute the tally cheaply: k
-    // neighbours, families only.
-    const nn = rest
-      .filter((s) => s.vec.length === held.vec.length)
-      .map((s) => ({
-        label: familyOf(s.genre) ?? "",
-        score: cosineSimilarity(held.vec, s.vec),
-      }))
-      .toSorted((a, b) => b.score - a.score || a.label.localeCompare(b.label))
-      .slice(0, Math.min(Math.max(k, 1), rest.length));
+    // alphabetical — deterministic). Same pool as the vote (#266): the
+    // diagnostic previously sliced from ALL same-dimension seeds, so with
+    // null-family seeds present it covered more neighbours than voted.
+    const nn = voteNeighbours(rest, held.vec, k, familyOf);
     const tally = new Map<string, number>();
     for (const n of nn)
       if (n.label) tally.set(n.label, (tally.get(n.label) ?? 0) + 1);

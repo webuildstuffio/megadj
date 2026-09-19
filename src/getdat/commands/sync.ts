@@ -35,6 +35,7 @@ export type { SyncSource as PlaylistSource } from "../soundcloud";
 import { commandLog, ProgressBar } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
 import { probeFile } from "../../fulltags/media-probe";
+import { organize } from "./organize";
 import {
   buildMetadata,
   scInfoToYtdlpInfo,
@@ -736,5 +737,18 @@ export async function sync(opts: SyncOptions): Promise<void> {
 
   const totals = newTotals();
   await processQueue(opts, log, queue, downloader, isDry, totals);
+  // Post-run organize (Sep 19 audit, "loose files" incident): downloads
+  // used to sit loose at the music root forever — `drop` runs organize as
+  // a pipeline stage, `sync` never did (9 of 17 paro rips, 157 root
+  // files overall). Same moves-only, no-clobber engine, scoped to THIS
+  // run's landed files by the moved counter; dry runs never move.
+  if (totals.downloaded > 0 && !isDry) {
+    await organize({
+      state: opts.state,
+      musicDir: opts.musicDir,
+      dryRun: false,
+      json: false,
+    });
+  }
   await finishRun(opts, log, runId, totals);
 }

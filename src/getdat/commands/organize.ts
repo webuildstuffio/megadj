@@ -43,6 +43,9 @@ interface OrganizeCounters {
   skipped: number;
   missing: number;
   movedFailed: number;
+  /** Rows whose file lives outside musicDir (shelf mirrors etc.) — not
+   *  this command's scope, never a move candidate (Sep 19 audit). */
+  outside: number;
 }
 
 /** Byte-identical check for the F5 merge path: size first (cheap), then
@@ -69,6 +72,15 @@ async function organizeOne(
 ): Promise<void> {
   const filePath = track.file_path;
   if (!filePath) return;
+  // Scope guard (Sep 19 audit): organize owns the LOCAL music dir only.
+  // Rows pointing at other volumes (shelf mirrors, intake dumps) are not
+  // this command's business — counting them "missing" lied in every run's
+  // summary (3,656 phantom-missing while every file sat safe on SHELF1).
+  // Outside-scope is its own honest bucket, never a move candidate.
+  if (!filePath.startsWith(`${opts.musicDir}/`)) {
+    counters.outside++;
+    return;
+  }
   // F5 stray rule: existence checks are CASE-INSENSITIVE in effect — on a
   // case-insensitive volume a case-variant spelling of the row's path
   // IS the same file. `Bun.file(p).exists()` already resolves that way
@@ -183,17 +195,18 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
     skipped: 0,
     missing: 0,
     movedFailed: 0,
+    outside: 0,
   };
 
   for (const track of tracks) {
     await organizeOne(opts, log, track, counters);
   }
 
-  const { moved, merged, skipped, missing, movedFailed } = counters;
+  const { moved, merged, skipped, missing, movedFailed, outside } = counters;
   log(
     `\norganize complete: ${moved} moved, ${merged} merged, ${skipped} already organized, ${missing} missing${
       movedFailed > 0 ? `, ${movedFailed} move-failed` : ""
-    }`,
+    }${outside > 0 ? `, ${outside} outside ${opts.musicDir} (skipped)` : ""}`,
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
@@ -206,6 +219,7 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
       alreadyOrganized: skipped,
       missing,
       moveFailed: movedFailed,
+      outsideScope: outside,
     });
   }
 }

@@ -69,7 +69,10 @@ export function runCanonGenreCases(): void {
   });
 
   test("title-cases unknown labels", () => {
-    expect(canonicalizeClaim("afro house")).toBe("Afro house");
+    // "afro house" is IN the canon now (space-insensitive lookup, Sep 19 —
+    // canonical spelling wins over raw title-case); only truly unknown
+    // labels get the title-case fallback.
+    expect(canonicalizeClaim("afro house")).toBe("Afro House");
     expect(canonicalizeClaim("Baltimore club")).toBe("Baltimore club");
   });
 

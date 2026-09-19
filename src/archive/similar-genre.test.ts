@@ -214,6 +214,29 @@ describe("inferGenre (pure kNN vote)", () => {
     expect(inferGenre([], houseVec).inferred).toBeNull();
     expect(inferGenre(seeds, [], 5).inferred).toBeNull();
   });
+
+  test("dimension-mismatched neighbours abstain, never throw (#266)", () => {
+    // one legacy-dimension/corrupt embedding row must not poison (crash)
+    // the run — corrupt rows read as ABSENT, matching parseEmbeddingVector
+    // and the artist-disjoint twin's guard.
+    const legacy: GenreSeed[] = [
+      seed("a", "Deep House", [1, 2, 3]),
+      seed("b", "techno", [1, 2, 3]),
+    ];
+    expect(inferGenre(legacy, [1, 1, 1, 1, 1, 1, 1, 1], 5, 0.6)).toEqual({
+      genre: "",
+      inferred: null,
+      agreement: 0,
+    });
+    // mixed pool: only the same-dimension row votes
+    const mixed: GenreSeed[] = [
+      seed("a", "Deep House", [1, 0, 0]),
+      seed("b", "techno", [1, 2, 3, 4]),
+    ];
+    const v = inferGenre(mixed, houseVec, 5, 0.6);
+    expect(v.genre).toBe("house");
+    expect(v.inferred).toBe("house");
+  });
 });
 
 describe("evalLeaveOneOut (the genre --eval harness)", () => {

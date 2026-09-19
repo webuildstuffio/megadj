@@ -88,6 +88,20 @@ export function cleanTitle(raw: string | null | undefined): string | null {
     .trim();
 }
 
+/** A genre is a short label — not a URL ("https://djsoundtop.com"), not
+ *  a scraped JSON blob (a thumbnails array once rode into `genre`), not
+ *  tag-soup with control bytes. Those minted garbage genre FOLDERS on
+ *  organize; null is the honest value and lands them in the one
+ *  recoverable bucket. Module scope: pure, no closures (lint). */
+function plausibleGenre(candidate: string): boolean {
+  if (/https?:\/\//i.test(candidate)) return false;
+  if (candidate.startsWith("[") || candidate.startsWith("{")) return false;
+  if (candidate.length > 60) return false;
+  // eslint-disable-next-line no-control-regex -- control bytes are exactly the junk being guarded
+  if (/[\u0000-\u001f]/.test(candidate)) return false;
+  return true;
+}
+
 export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   const title = cleanTitle(info.title) ?? info.title ?? null;
   const artist = info.artist?.trim() || null;
@@ -103,11 +117,20 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   // rows invisible to genreSeeds AND inference (#61). A non-"Music" raw
   // genre from yt-dlp passes through untouched — the regex table can miss
   // real genres ("Kuduro"), and replacing them with "Music" was strictly
-  // worse than keeping them.
+  // worse than keeping them. The junk guard (Sep 19 organize audit) sits
+  // in front: URLs / JSON blobs / control-byte soup are NOT genres —
+  // they minted garbage genre FOLDERS on organize; null is honest.
   const rawGenre =
-    info.genre && info.genre.toLowerCase() !== "music" ? info.genre : null;
+    info.genre &&
+    info.genre.toLowerCase() !== "music" &&
+    plausibleGenre(info.genre)
+      ? info.genre
+      : null;
+  // A junk `genre` is also poisoned as an INFERENCE INPUT (the \u0000 blob
+  // still regex-matched "house" and minted a folder via the guess path) —
+  // only plausible genre text may feed the guesser.
   const genre =
-    guessFromFreeText([info.genre, info.artist, info.album, info.title]) ??
+    guessFromFreeText([rawGenre, info.artist, info.album, info.title]) ??
     rawGenre;
   const albumArtist = artist && album ? artist : null;
 

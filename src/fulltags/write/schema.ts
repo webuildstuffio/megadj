@@ -168,6 +168,13 @@ export function sanitizeGenreFolder(genre: string | null): string {
     .trim();
   if (!cleaned || /^\d+$/.test(cleaned) || /^music$/i.test(cleaned))
     return "Unknown Genre";
+  // Case-fold canon lookup (Sep 19): "house"/"House"/"HOUSE" are ONE
+  // folder — a raw lowercase tag must not mint a case-twin directory
+  // beside the canonical one (the techhouse incident).
+  const canon =
+    SC_GENRE_CANON[cleaned.toLowerCase()] ??
+    SC_GENRE_CANON[cleaned.toLowerCase().replace(/\s+/g, "")];
+  if (canon) return canon;
   return cleaned;
 }
 
@@ -180,3 +187,7 @@ export {
   canonicalizeClaim as canonGenre,
   SC_GENRE_CANON,
 } from "../genre/genre-vocab";
+// Value import (same module as the re-exports): sanitizeGenreFolder's
+// case-fold canon lookup reads the map directly (Sep 19 techhouse
+// case-twin folder incident).
+import { SC_GENRE_CANON } from "../genre/genre-vocab";

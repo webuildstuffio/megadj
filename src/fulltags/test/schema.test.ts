@@ -27,7 +27,9 @@ describe("schema: guessFromFreeText + sanitize", () => {
   });
 
   test("sanitizeGenreFolder is filesystem-safe", () => {
-    expect(sanitizeGenreFolder("R&B / Soul")).toBe("R&B Soul");
+    // "R&B / Soul" now canonicalizes to the canon name "R&B" (Sep 19
+    // case-fold lookup — one genre, one folder, not a spelling twin).
+    expect(sanitizeGenreFolder("R&B / Soul")).toBe("R&B");
     expect(sanitizeGenreFolder("Hip-Hop:")).toBe("Hip-Hop");
   });
 });

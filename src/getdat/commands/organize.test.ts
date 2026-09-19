@@ -44,7 +44,10 @@ describe("organize (move-failure honesty)", () => {
     // so force the mv itself to fail: a read-only TARGET dir (exists() still
     // works, writes fail) — exactly like EXDEV/permission failures in prod.
     mkdirSync(join(musicDir), { recursive: true });
-    const src = join(dir, "Track X.m4a");
+    // Loose at the MUSIC ROOT (the real "unorganized download" shape) —
+    // earlier this sat in the temp dir OUTSIDE musicDir; the Sep 19 scope
+    // guard rightly skips outside-scope rows, so the fixture moved inside.
+    const src = join(musicDir, "Track X.m4a");
     seedDownloaded("v2", "Track X", src);
     const { chmodSync } = await import("node:fs");
     chmodSync(musicDir, 0o555); // read-only target: mv inside it fails
@@ -70,7 +73,7 @@ describe("organize (move-failure honesty)", () => {
   }, 20_000);
 
   test("successful move updates the DB path and lands in the genre folder", async () => {
-    const src = join(dir, "Track Y.m4a");
+    const src = join(musicDir, "Track Y.m4a");
     seedDownloaded("v3", "Track Y", src);
     await organize({ state, musicDir, onProgress: () => {} });
 
@@ -87,8 +90,8 @@ describe("organize F5 move-or-merge", () => {
     writeFakeAudio(join(destDir, "Track M.m4a"), "same-bytes");
     // a second row whose loose root copy has IDENTICAL bytes (the
     // case-variant download twin the merge exists for)
-    const src = join(dir, "loose", "track m.m4a");
-    mkdirSync(join(dir, "loose"), { recursive: true });
+    const src = join(musicDir, "loose", "track m.m4a");
+    mkdirSync(join(musicDir, "loose"), { recursive: true });
     writeFakeAudio(src, "same-bytes");
     state.upsertTrackFromPlaylist("vm", 0, "Track M");
     state.markDownloaded("vm", {
@@ -125,8 +128,8 @@ describe("organize F5 move-or-merge", () => {
     const destDir = join(musicDir, "House");
     mkdirSync(destDir, { recursive: true });
     writeFakeAudio(join(destDir, "Track D.m4a"), "the-organized-rip");
-    const src = join(dir, "loose2", "Track D.m4a");
-    mkdirSync(join(dir, "loose2"), { recursive: true });
+    const src = join(musicDir, "loose2", "Track D.m4a");
+    mkdirSync(join(musicDir, "loose2"), { recursive: true });
     writeFakeAudio(src, "a-different-rip");
     state.upsertTrackFromPlaylist("vd", 0, "Track D");
     state.markDownloaded("vd", {
