@@ -283,6 +283,18 @@ describe("purchase_url enrichment (#256-followup, Sep 19)", () => {
     expect(mergeScRawLinks(base, null)).toStrictEqual(base);
   });
 
+  test("scRawTrackLinks carries title + user for identity backfill (#258-followup)", () => {
+    // Set/user fan-out rows enter the ledger with title:null — a row that
+    // goes straight to gone/link_surfaced must still learn its identity
+    // from the raw object (title, user.username).
+    const merged = mergeScRawLinks(
+      { id: "2334007955" },
+      { title: "P!NK", user: "SLAMM" },
+    );
+    expect(merged.title).toBe("P!NK");
+    expect(merged.user).toBe("SLAMM");
+  });
+
   test("mergeScRawLinks tolerates an empty yt-dlp null field", () => {
     const merged = mergeScRawLinks<{ id: string; purchase_url?: string }>(
       { id: "1" },
