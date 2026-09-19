@@ -5,6 +5,7 @@ import { RateLimiter, TrackGoneError } from "../ratelimit";
 import { Downloader } from "../downloader";
 import {
   parsePlaylistOutput,
+  setScSourceQueueImpl,
   statSizeSafe,
   sync,
   type SyncOptions,
@@ -196,4 +197,56 @@ describe("sync --sc-url validation (#255)", () => {
     ]);
     expect(r.status !== null && [0, 1].includes(r.status)).toBe(true);
   });
+
+  test("a run's queue is scoped to its own sources (the 2026-09-19 paro incident)", async () => {
+    // The incident: a `--sc-url <set>` run attempted the 1,100 PRE-EXISTING
+    // YT pending rows first — the unfiltered pendingTracks() queue ignored
+    // which sources the run named. Their YT probes burned the backoff
+    // ladder and marked 3 rows failed. The queue must filter to the run's
+    // ledger-source labels.
+    state.upsertTrackFromPlaylist("ytPending1", 0, null, "liked");
+    state.upsertTrackFromPlaylist("ytPending2", 1, null, "liked-videos");
+    state.upsertTrackFromPlaylist(
+      "2278172975",
+      0,
+      null,
+      "soundcloud:summer-2026",
+    );
+    state.upsertTrackFromPlaylist(
+      "2291593025",
+      1,
+      null,
+      "soundcloud:summer-2026",
+    );
+    const restore = setScSourceQueueImpl(async () => [
+      { id: "2278172975", title: null, label: `soundcloud:summer-2026` },
+      { id: "2291593025", title: null, label: `soundcloud:summer-2026` },
+    ]);
+    try {
+      await sync(
+        baseOpts(state, {
+          sources: [
+            {
+              kind: "sc-set",
+              url: "https://soundcloud.com/x/sets/summer-2026",
+              label: "soundcloud",
+            },
+          ],
+          json: true,
+        }),
+      );
+    } finally {
+      restore();
+    }
+    // Every ATTEMPTED row must be an SC row. The dead-binary probe marks
+    // the two SC rows failed; the YT rows must remain untouched pending.
+    const attempted = state
+      .allTracks()
+      .filter((t) => t.attempts > 0)
+      .map((t) => t.video_id)
+      .toSorted();
+    expect(attempted).toStrictEqual(["2278172975", "2291593025"]);
+    expect(state.trackById("ytPending1")?.status).toBe("pending");
+    expect(state.trackById("ytPending2")?.status).toBe("pending");
+  }, 60_000);
 });

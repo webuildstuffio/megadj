@@ -115,7 +115,13 @@ describe("json stdout deadline (#pipe-wedge)", () => {
     const code = await new Promise<number | null>((resolve) =>
       cli.on("exit", (c) => resolve(c)),
     );
-    expect(code).toBe(0);
+    // The fixture's 1,500 paths don't exist on disk, so intake-status's
+    // #238 drift gate fires: exit 1 WITH the complete JSON payload. The
+    // invariant this test owns is the #pipe-wedge one — the full payload
+    // streams and the process exits — not the drift verdict (which is
+    // honestly 1 here, pinned by the shelf suite). A pre-existing
+    // toBe(0) assertion asserted the wrong invariant and failed.
+    expect(code).toBe(1);
     expect(bytes).toBeGreaterThan(1_000);
   });
 });

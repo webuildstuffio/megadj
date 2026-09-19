@@ -144,6 +144,19 @@ export interface SyncTotals {
  *  payload is a queue of one (#255/#257). Each SC entry becomes a ledger
  *  row keyed by its NUMERIC SC track id; the source column carries
  *  provenance ("soundcloud" / "soundcloud:<label-slug>" for sets). */
+/** The injectable SC-queue seam (mirrors sc-search's scSearchImpl): tests
+ *  install a canned impl so the gate never touches the SC network. */
+export let scSourceQueueImpl: typeof scSourceQueue = scSourceQueue;
+
+/** Install a canned SC-queue impl; returns the restore function. */
+export function setScSourceQueueImpl(impl: typeof scSourceQueue): () => void {
+  const prev = scSourceQueueImpl;
+  scSourceQueueImpl = impl;
+  return () => {
+    scSourceQueueImpl = prev;
+  };
+}
+
 async function scSourceQueue(
   source: SyncSource,
   opts: SyncOptions,
@@ -265,6 +278,20 @@ async function prepareQueue(
   const sources: SyncSource[] = opts.sources ?? [
     { kind: "ytm-playlist", id: "LM", label: "liked" },
   ];
+  // The run's ledger-source scope (see the queue filter below): YT arms
+  // write label as `tracks.source`; SC set arms write "soundcloud:<slug>"
+  // and plain "soundcloud" for singles/likes/user pages — include both
+  // shapes for the SC kinds so set rows and re-keyed rows all match.
+  const sourceLabels = new Set<string>();
+  for (const source of sources) {
+    sourceLabels.add(source.label);
+    if (source.kind !== "ytm-playlist") {
+      sourceLabels.add(SC_SOURCE);
+      if (source.kind === "sc-set") {
+        sourceLabels.add(`${SC_SOURCE}:${scSlug(scUrlOf(source))}`);
+      }
+    }
+  }
   const pendingPreview: {
     video_id: string;
     title: string | null;
@@ -308,7 +335,7 @@ async function prepareQueue(
     }
     // SC sources (#255/#257): single track / set / user page.
     log(`fetching soundcloud ${source.kind} (${source.label})…`);
-    const entries = await scSourceQueue(source, opts);
+    const entries = await scSourceQueueImpl(source, opts);
     log(`  ${entries.length} track(s)`);
     entries.forEach((entry, index) => {
       if (!isDry) {
@@ -331,9 +358,16 @@ async function prepareQueue(
   // Cross-source dedupe: a video already downloaded from one source stays put.
   // A dry run previews playlist entries in memory (nothing was upserted, so
   // the DB queue is blind to them); a real run reads only the DB queue.
+  // #255-fix (Sep 19, paro-sets incident): the queue is FILTERED TO THIS
+  // RUN'S SOURCES — the unfiltered pendingTracks() made a `--sc-url <set>`
+  // run attempt all 1,100 pre-existing YT pending rows (their YT probes
+  // burned the backoff ladder and marked 3 rows failed) before ever
+  // reaching the SC set. Rows carry their source label in `tracks.source`
+  // (YT arms: the playlist label; SC arms: "soundcloud"[:slug]), so the
+  // label set IS the run's scope.
   let queue: { video_id: string; title: string | null }[] = isDry
     ? pendingPreview
-    : opts.state.pendingTracks();
+    : opts.state.pendingTracks().filter((row) => sourceLabels.has(row.source));
   // --limit 0 must mean "attempt nothing" (0 is falsy — the old check
   // silently treated it as unlimited); negative was already rejected by the CLI.
   if (opts.limit !== undefined && opts.limit >= 0) {
