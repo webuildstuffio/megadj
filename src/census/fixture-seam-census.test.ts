@@ -14,7 +14,7 @@
  *     reason; migrations DELETE entries, never add.
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, type Dirent } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..");
@@ -51,7 +51,7 @@ const SEAM = "src/test-support/testutil.ts";
 
 function walk(dir: string): string[] {
   const out: string[] = [];
-  let entries;
+  let entries: Dirent[];
   try {
     entries = readdirSync(dir, { withFileTypes: true });
   } catch {
@@ -109,7 +109,7 @@ describe("fixture-seam census (#248 ratchet)", () => {
   test("the seam module itself is the only non-test mkdtemp in src/", () => {
     const offenders: string[] = [];
     const scan = (dir: string): void => {
-      let entries;
+      let entries: Dirent[];
       try {
         entries = readdirSync(dir, { withFileTypes: true });
       } catch {

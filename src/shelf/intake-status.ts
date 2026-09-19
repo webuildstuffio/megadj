@@ -17,7 +17,7 @@
 // Read-only: this command never moves, writes, or deletes anything.
 // (`organize` remains the mover; its move-or-merge + row-update contract
 // and the case-insensitive stray check live there and in intake paths.)
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { join } from "node:path";
 // The #69 SSOT (subset check lives in the shared module) — never a
 // hand-rolled twin (audio-ext-drift-census pins this).
@@ -92,7 +92,7 @@ export function walkAudioFiles(musicDir: string): DiskFile[] {
     }
     for (const name of entries) {
       const full = join(dir, name);
-      let st;
+      let st: Stats;
       try {
         st = statSync(full);
       } catch {
