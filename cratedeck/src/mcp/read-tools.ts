@@ -1,4 +1,4 @@
-// mcp_read_tools.ts — the READ-ONLY half of the deck_* MCP handlers,
+// mcp/read-tools.ts — the READ-ONLY half of the deck_* MCP handlers,
 // extracted from mcp.ts under the file-length guard (same pattern as
 // archive_tools.ts / getdat_tools.ts).
 //
@@ -6,7 +6,7 @@
 // status, drive listing/report, fleet coverage/redundancy/diff, job list,
 // explain/preflight/players/booth(read)/notes/search/help/prep. Mutating
 // verbs (run/cancel/note/rename/dismiss) and the action families
-// (hygiene/fixes) stay in mcp_action_tools.ts; mcp.ts owns assembly.
+// (hygiene/fixes) stay in mcp/action-tools.ts; mcp.ts owns assembly.
 
 import {
   str,
@@ -18,13 +18,13 @@ import {
   sEnum,
   n,
   type Prop,
-} from "./mcp-params";
-import { apiGetJson, apiGetJsonT, resolveDrive } from "./deckapi";
-import { KIND_DOCS } from "./deckctl-docs";
-import { VERIFY_HELP } from "./verify-help";
-import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
-import type { CoverageResponse, RedundancyResult } from "../shared/types";
-import type { ToolDef } from "./mcp-server";
+} from "./params";
+import { apiGetJson, apiGetJsonT, resolveDrive } from "../deckapi";
+import { KIND_DOCS } from "../deckctl-docs";
+import { VERIFY_HELP } from "../verify-help";
+import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../../shared/help";
+import type { CoverageResponse, RedundancyResult } from "../../shared/types";
+import type { ToolDef } from "./server";
 
 /** The optional `drive` selector shared by every drive-scoped tool schema. */
 export const DRIVE_PARAM = (omitNote: string): Prop => ({
@@ -245,7 +245,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
       // same fetch-and-render seam as deckctl cmdPrep (one implementation,
       // two spokes — surface-parity.md GAP-2 closed)
       const { fetchWeeklyPrepInput, renderWeeklyPrep } =
-        await import("./weekly-prep");
+        await import("../weekly-prep");
       const input = await fetchWeeklyPrepInput(apiGetJsonT);
       return { markdown: renderWeeklyPrep(input) };
     },

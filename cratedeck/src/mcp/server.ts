@@ -1,11 +1,11 @@
-// mcp_server.ts — the JSON-RPC plumbing + stdio server loop, extracted
+// mcp/server.ts — the JSON-RPC plumbing + stdio server loop, extracted
 // from mcp.ts (which holds only the tool table). mcp.ts hit the repo's
 // 800-line guard when the archive grid-audit tool text grew; the loop and
 // the protocol handling are the mechanically separable half. Exports the
 // handle loop parameterised over a tool table so the tool definitions stay
 // the single concern of mcp.ts.
-import { str, RpcParamError } from "./mcp-params";
-import { errMessage as errorText } from "../../src/shared/leaf/fmt";
+import { str, RpcParamError } from "./params";
+import { errMessage as errorText } from "../../../src/shared/leaf/fmt";
 
 /** One MCP tool: description, JSON-schema, and the run function. */
 export interface ToolDef {

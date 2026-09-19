@@ -58,9 +58,9 @@ describe("KIND_DOCS covers every job kind (the explain census)", () => {
   });
 
   test("the deck_explain schema enum derives from KIND_DOCS (not a literal)", () => {
-    // #89 split: the explain handler lives in mcp_read_tools.ts
+    // #89 split: the explain handler lives in mcp/read-tools.ts
     const mcp = readFileSync(
-      join(ROOT, "cratedeck/src/mcp-read-tools.ts"),
+      join(ROOT, "cratedeck/src/mcp/read-tools.ts"),
       "utf8",
     );
     expect(mcp).toContain('["verify", ...Object.keys(KIND_DOCS)]');

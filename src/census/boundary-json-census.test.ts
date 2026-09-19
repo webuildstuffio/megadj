@@ -156,7 +156,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // input re-rooted; same calls, same guards, counts unchanged).
     // Sep 18 (#220 write/ slice): file re-homes moved owners again (same
     // calls, same guards, counts unchanged) — digest shifted: acd7abc3.
-    digest: "d139df24e5665934ac909f2092e6d89400fb4136d1fd62f5e23d9887ed305bb8",
+    digest: "1ee05962a26d721a2bdb9bce42d581c73cd5a972ac1ca0f9fe85e33bac4ca67c",
   });
 });
 

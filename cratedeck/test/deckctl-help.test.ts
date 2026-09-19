@@ -1,7 +1,7 @@
 // deckctl-help.test.ts — the `help` verb + `--help` flag contract.
 //
 // Drives the REAL deckctl over a spawned process with CRATEDECK_PORT
-// pointed at an unreachable port (same harness as mcp-protocol.test.ts):
+// pointed at an unreachable port (same harness as mcp.test.ts):
 // `deckctl help` reads the shared/help.ts SSOT directly, so it must work
 // with the server DOWN — that's the point of an agent asking "what does
 // Ghost mean" from a cold machine. Bugs this pins:

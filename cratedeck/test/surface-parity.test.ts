@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { JOB_KINDS } from "../shared/types";
-import { DECK_MCP_SURFACES } from "../src/mcp-surfaces";
+import { DECK_MCP_SURFACES } from "../src/mcp/surfaces";
 
 /**
  * Surface-parity regression guard (docs/surface-parity.md).
@@ -567,14 +567,14 @@ describe("surface parity (docs/surface-parity.md)", () => {
     );
     for (const f of [
       "cratedeck/src/deckctl.ts",
-      "cratedeck/src/mcp-action-tools.ts",
+      "cratedeck/src/mcp/action-tools.ts",
     ]) {
       const src = read(f).join("\n");
       // must name the SSOT symbol itself, not just import anything from
       // the module (deckctl already imports other types — a bare module
       // match would pass vacuously; mutation-verified)
       expect(src, `${f} must derive job kinds from the shared SSOT`).toMatch(
-        /import \{[^}]*\b(JOB_KINDS|DRIVE_JOB_KINDS)\b[^}]*\} from "\.\.\/shared\/types"/,
+        /import \{[^}]*\b(JOB_KINDS|DRIVE_JOB_KINDS)\b[^}]*\} from "\.\.(?:\/\.\.)?\/shared\/types"/,
       );
     }
     // the old hand-copied lists must NOT come back — in ANY shape. A
@@ -584,7 +584,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // literal AND a 6-kind re-twin.
     for (const f of [
       "cratedeck/src/deckctl.ts",
-      "cratedeck/src/mcp-action-tools.ts",
+      "cratedeck/src/mcp/action-tools.ts",
     ]) {
       const src = read(f).join("\n");
       // enumerate ≥3 JOB kinds in a validation position (kinds = [...],
@@ -604,9 +604,9 @@ describe("surface parity (docs/surface-parity.md)", () => {
   });
 
   test("mutating MCP tools are flagged destructive + interlock-guarded", () => {
-    // #89 split: the mutating handler table lives in mcp_action_tools.ts
+    // #89 split: the mutating handler table lives in mcp/action-tools.ts
     const src = readFileSync(
-      join(ROOT, "cratedeck/src/mcp-action-tools.ts"),
+      join(ROOT, "cratedeck/src/mcp/action-tools.ts"),
       "utf8",
     );
     for (const tool of [
@@ -652,9 +652,9 @@ describe("surface parity (docs/surface-parity.md)", () => {
       "utf8",
     );
     expect(deckctlHelp).toContain('../shared/help"');
-    // #89 split: the help handler lives in mcp_read_tools.ts
+    // #89 split: the help handler lives in mcp/read-tools.ts
     const mcp = readFileSync(
-      join(ROOT, "cratedeck/src/mcp-read-tools.ts"),
+      join(ROOT, "cratedeck/src/mcp/read-tools.ts"),
       "utf8",
     );
     expect(mcp).toContain('../shared/help"');

@@ -98,7 +98,7 @@ function mcpTools(): string[] {
     }
   }
   const surfacesFile = [
-    "cratedeck/src/mcp-surfaces.ts",
+    "cratedeck/src/mcp/surfaces.ts",
     "cratedeck/src/mcp.ts",
   ].find((f) => existsSync(join(ROOT, f)));
   if (surfacesFile) {

@@ -185,19 +185,21 @@ function walkWebTargets(dir: string, out: ClientTarget[]): void {
  *  must ALSO resolve: a deckctl-only route that 404s is the same bug. */
 function deckctlTargets(): ClientTarget[] {
   const out: ClientTarget[] = [];
-  for (const f of readdirSync(join(ROOT, "cratedeck/src"))) {
+  const clientFiles = readdirSync(join(ROOT, "cratedeck/src"))
     // deckctl.ts itself (the stop arm) scans beside the deckctl_* legs;
     // image-store.ts is the drive-images producer whose entries carry a
     // /api URL the web client renders verbatim (`src={img.url}`).
-    // #240: the kebab rename re-homed archive_tools→archive-tools and
-    // mcp_read_tools→mcp-read-tools — the scan regex follows BOTH spellings.
-    if (
-      !/^(deckctl|deckctl_|deckctl-|archive_tools|archive-tools|mcp_read_tools|mcp-read-tools|deckapi|image-store)/.test(
+    .filter((f) =>
+      /^(deckctl|deckctl_|deckctl-|archive_tools|archive-tools|deckapi|image-store)/.test(
         f,
-      )
+      ),
     )
-      continue;
-    const rel = `cratedeck/src/${f}`;
+    .map((f) => `cratedeck/src/${f}`);
+  // MCP read handlers are now a prefix-domain leaf. Keep this explicit
+  // client input: a root-only scan would silently stop checking its API
+  // targets after the #214 layout move.
+  clientFiles.push("cratedeck/src/mcp/read-tools.ts");
+  for (const rel of clientFiles) {
     const src = read(rel);
     // helper-call shapes — the opening quote stays for firstLiteral
     // (longest names first so apiGetJson isn't cut at apiGet).
@@ -250,7 +252,7 @@ function familyMatchesRoute(family: string, route: string): boolean {
 
 const SERVER_ONLY_ROUTES: Readonly<Record<string, string>> = {
   "/status":
-    "front-page aggregate = the wire twin of `deckctl status --json` output; both clients compose it from /interlock + /drives + /jobs (cmdStatus, mcp_read_tools status) — the aggregate exists for curl/human parity checks",
+    "front-page aggregate = the wire twin of `deckctl status --json` output; both clients compose it from /interlock + /drives + /jobs (cmdStatus, mcp/read-tools status) — the aggregate exists for curl/human parity checks",
   "/help":
     "in-app help SSOT over HTTP: serves the SAME shared/help.ts content the web bundles at build time (surface-parity pins the twin); kept reachable for curl/agent parity reads",
   "/help/jobs":

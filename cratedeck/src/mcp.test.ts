@@ -1,4 +1,4 @@
-// mcp-protocol.test.ts — regression guards for the MCP stdio server's
+// mcp.test.ts — regression guards for the MCP stdio server's
 // JSON-RPC contract (newline-delimited), run against the REAL server via a
 // spawned `bun run src/mcp.ts` with CRATEDECK_PORT pointed at an unreachable
 // port (the suite must not depend on a live cratedeck server; the MCP layer
@@ -11,7 +11,7 @@
 // parameterized tool failed with "drive is required".
 import { describe, it, expect, afterAll } from "bun:test";
 import { join } from "node:path";
-import { DECK_MCP_SURFACES } from "../src/mcp-surfaces";
+import { DECK_MCP_SURFACES } from "./mcp/surfaces";
 
 // Use the module-level functions where possible by importing is not possible
 // (mcp.ts runs main() at import), so drive the real process over stdio.

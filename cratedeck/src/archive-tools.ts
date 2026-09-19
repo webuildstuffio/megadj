@@ -7,7 +7,7 @@
 // of hand-written JSON-Schema boilerplate.
 
 import { apiGet } from "./deckapi";
-import type { ToolDef } from "./mcp-server";
+import type { ToolDef } from "./mcp/server";
 import { parseMegasetQuery } from "./megaset";
 import {
   clampMegasetPool,
@@ -26,7 +26,7 @@ import {
   noArgs,
   s,
   n,
-} from "./mcp-params";
+} from "./mcp/params";
 import { isSimilarSpace } from "../../src/shared/leaf/vector-space";
 
 /** The archive_* + megaset/getdat-adjacent tool table (O82b: readonly

@@ -7,8 +7,8 @@
 import { loadConfig } from "./config";
 import { drain } from "./jobs";
 import { runCliJob } from "./cli-job-leg";
-import { str, RpcParamError, obj, s, b } from "./mcp-params";
-import type { ToolDef } from "./mcp-server";
+import { str, RpcParamError, obj, s, b } from "./mcp/params";
+import type { ToolDef } from "./mcp/server";
 
 /** Run a GetDat CLI command through the same async spawn/drain/summary seam
  * used by the server's long-running CLI job legs. MCP stdout is reserved for

@@ -11,8 +11,8 @@
  *
  * This file owns ASSEMBLY ONLY (the #89 file-length guard — same split
  * pattern as archive_tools.ts / getdat_tools.ts):
- *   mcp_read_tools.ts    read-only deck_* handlers (status/report/fleet/…)
- *   mcp_action_tools.ts  mutating deck_* handlers (run/cancel/hygiene/…)
+ *   mcp/read-tools.ts    read-only deck_* handlers (status/report/fleet/…)
+ *   mcp/action-tools.ts  mutating deck_* handlers (run/cancel/hygiene/…)
  *   archive_tools.ts     the archive_* half (megadj's own DB, readonly)
  *   getdat_tools.ts      GetDat intake/conversion
  *
@@ -57,20 +57,20 @@
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
 import { archiveTools } from "./archive-tools";
-import { deriveDeckTools, type DeckMcpVerb } from "./mcp-surfaces";
+import { deriveDeckTools, type DeckMcpVerb } from "./mcp/surfaces";
 import { ensureServer } from "./deckapi";
 export { jobTerminal } from "./deckapi";
-import { serveMcp, type ToolDef } from "./mcp-server";
+import { serveMcp, type ToolDef } from "./mcp/server";
 import { getdatTools } from "./getdat-tools";
 import { DumpReader } from "./dump-reader";
-import { DECK_READ_HANDLERS } from "./mcp-read-tools";
-import { DECK_ACTION_HANDLERS } from "./mcp-action-tools";
+import { DECK_READ_HANDLERS } from "./mcp/read-tools";
+import { DECK_ACTION_HANDLERS } from "./mcp/action-tools";
 
 // re-exported for tests (deckapi's terminal-status predicate)
-export type { ToolDef } from "./mcp-server";
+export type { ToolDef } from "./mcp/server";
 
 // ---- tool assembly ----------------------------------------------------------
-// ToolDef lives in mcp_server.ts (the JSON-RPC half); the handler TABLES
+// ToolDef lives in mcp/server.ts (the JSON-RPC half); the handler TABLES
 // live in the per-concern modules. `Record<DeckMcpVerb, ToolDef>` makes a
 // verb missing from either half a compile error, not a runtime surprise.
 const DECK_HANDLERS: Record<DeckMcpVerb, ToolDef> = {
@@ -96,7 +96,7 @@ const TOOLS: Record<string, ToolDef> = {
   ...archiveTools(),
 };
 
-// ---- server loop (plumbing lives in mcp_server.ts) --------------------------
+// ---- server loop (plumbing lives in mcp/server.ts) --------------------------
 async function main(): Promise<void> {
   // Offline harnesses set CRATEDECK_OFFLINE=1: never probe, never spawn —
   // the stdio server serves immediately and backend-backed tools get a

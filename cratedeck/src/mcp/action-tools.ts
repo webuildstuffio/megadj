@@ -1,4 +1,4 @@
-// mcp_action_tools.ts — the MUTATING half of the deck_* MCP handlers,
+// mcp/action-tools.ts — the MUTATING half of the deck_* MCP handlers,
 // extracted from mcp.ts under the file-length guard (same pattern as
 // archive_tools.ts / getdat_tools.ts).
 //
@@ -6,24 +6,14 @@
 // `destructive: true` + the rekordbox interlock guard — job
 // enqueue/cancel (run/cancel), the hygiene and fixes action families,
 // drive notes (note/dismiss) and rename. Read-only verbs live in
-// mcp_read_tools.ts; mcp.ts owns assembly.
+// mcp/read-tools.ts; mcp.ts owns assembly.
 
-import {
-  str,
-  num,
-  RpcParamError,
-  obj,
-  s,
-  sEnum,
-  sArr,
-  n,
-  b,
-} from "./mcp-params";
-import { apiGetJson, apiPost, PORT, waitForJob, type Job } from "./deckapi";
-import { JOB_KINDS } from "../shared/types";
-import type { ToolDef } from "./mcp-server";
-import { DRIVE_PARAM, needDrive } from "./mcp-read-tools";
-import { errMessage } from "../../src/shared/leaf/fmt";
+import { str, num, RpcParamError, obj, s, sEnum, sArr, n, b } from "./params";
+import { apiGetJson, apiPost, PORT, waitForJob, type Job } from "../deckapi";
+import { JOB_KINDS } from "../../shared/types";
+import type { ToolDef } from "./server";
+import { DRIVE_PARAM, needDrive } from "./read-tools";
+import { errMessage } from "../../../src/shared/leaf/fmt";
 
 // DERIVED from the canonical JobKind union in shared/types.ts (`as const
 // satisfies` there type-checks the array against the union) — a kind added
