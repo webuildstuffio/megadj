@@ -66,6 +66,34 @@ describe("deck service SSOT (#247)", () => {
     expect(defaultPort).not.toContain("CRATEDECK_PORT");
   });
 
+  test.each([7742, 59997])(
+    "plist parser preserves special path characters on port %i",
+    (port) => {
+      const opts = {
+        repoRoot: `/repo & <mixes>/${String.fromCharCode(36)}{BUN_PATH}`,
+        bunPath: "/bun $&/bin/bun",
+        stateDir: "/state",
+        port,
+        defaultPort: 7742,
+      };
+      for (const [key, value] of [
+        ["WorkingDirectory", opts.repoRoot],
+        ["ProgramArguments.0", opts.bunPath],
+        ["StandardOutPath", `${opts.stateDir}/deck.log`],
+        ["StandardErrorPath", `${opts.stateDir}/deck.log`],
+      ] as const) {
+        const parsed = Bun.spawnSync(
+          ["plutil", "-extract", key, "raw", "-o", "-", "--", "-"],
+          {
+            stdin: Buffer.from(renderPlist(opts)),
+          },
+        );
+        expect(parsed.exitCode).toBe(0);
+        expect(new TextDecoder().decode(parsed.stdout).trimEnd()).toBe(value);
+      }
+    },
+  );
+
   test("classifier: the four states with honest fix hints", () => {
     const healthy = classifyDeckService({
       serviceLoaded: true,

@@ -254,7 +254,9 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   03e5ed2, Sep 17). Since #247 the deck server installs as launchd
   `com.nick.megadj-deck` (`ops/deck-service.ts`, doctor `deck-service`
   check probes pid + `/api/interlock`) — restart via launchctl, not bare
-  background processes.
+  background processes. Render launchd filesystem paths with XML escaping and
+  single-pass callback substitution; native `plutil` round-trip tests must
+  preserve metacharacters and literal template tokens.
 
 ## CrateDeck
 

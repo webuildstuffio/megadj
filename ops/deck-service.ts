@@ -78,19 +78,26 @@ export function renderPlist(opts: {
     opts.port !== undefined && opts.port !== opts.defaultPort
       ? `    <key>EnvironmentVariables</key>\n    <dict>\n        <key>CRATEDECK_PORT</key>\n        <string>${opts.port}</string>\n    </dict>\n    `
       : "";
-  // The env block (when present) slots between WorkingDirectory and
-  // RunAtLoad — splice it in place of a marker line. The placeholders are
-  // intentional literal `${...}` tokens in the template (rendered by
-  // replaceAll below), so they are built by CHAR concatenation to keep
-  // the linter's no-template-curly-in-string from flagging deliberate
-  // tokens.
   const runAtLoadKey = "    <key>RunAtLoad</key>";
-  const dollar = String.fromCharCode(36); // "$"
-  const marker = (name: string): string => `${dollar}{${name}}`;
-  return PLIST_TEMPLATE.replace(runAtLoadKey, `${portEnv}${runAtLoadKey}`)
-    .replaceAll(marker("REPO_ROOT"), opts.repoRoot)
-    .replaceAll(marker("BUN_PATH"), opts.bunPath)
-    .replaceAll(marker("STATE_DIR"), opts.stateDir);
+  // Substitute once: paths may contain XML characters, $&, or template tokens.
+  return PLIST_TEMPLATE.replace(
+    runAtLoadKey,
+    `${portEnv}${runAtLoadKey}`,
+  ).replace(
+    /\$\{(REPO_ROOT|BUN_PATH|STATE_DIR)\}/g,
+    (_token: string, key: string) => {
+      const path =
+        key === "REPO_ROOT"
+          ? opts.repoRoot
+          : key === "BUN_PATH"
+            ? opts.bunPath
+            : opts.stateDir;
+      return path
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    },
+  );
 }
 
 /** The four observable states of the deck server, and the one fix hint
