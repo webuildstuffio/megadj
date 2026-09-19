@@ -201,6 +201,67 @@ describe("HygieneStore", () => {
     expect(s.get(a.id)?.paths[0]).toBe("/V/Contents/A/empty1.mp3");
   });
 
+  test("schema rejects a concurrent duplicate singleton natural key", () => {
+    const raw = new Database(":memory:");
+    const s = new HygieneStore(raw);
+    const singleton = finding({
+      kind: "zero-byte",
+      severity: "likely",
+      autoSafe: false,
+      paths: ["/V/Contents/A/empty.mp3"],
+      bytes: [0],
+      md5s: [null],
+      keeperPath: null,
+      proposedAction: { type: "delete-corrupt" },
+    });
+    s.upsert([singleton]);
+    expect(() =>
+      raw.exec(`INSERT INTO hygiene_findings
+        (id, kind, severity, status, paths, bytes, proposed_action,
+         keeper_path, walk_token, auto_safe, created_at)
+       VALUES ('raw-duplicate', 'zero-byte', 'likely', 'open',
+        '["/V/Contents/A/empty.mp3"]', '[0]', '{"type":"delete-corrupt"}',
+        NULL, 'tok', 0, 'now')`),
+    ).toThrow();
+    expect(s.list({ kind: "zero-byte" })).toHaveLength(1);
+  });
+
+  test("migrates old singleton duplicates without discarding a decision", () => {
+    const raw = new Database(":memory:");
+    const initial = new HygieneStore(raw);
+    expect(initial.list()).toHaveLength(0);
+    raw.exec(`DROP INDEX idx_hygiene_natural;
+      CREATE UNIQUE INDEX idx_hygiene_natural
+        ON hygiene_findings(kind, json_extract(paths, '$[0]'), json_extract(paths, '$[1]'));
+      INSERT INTO hygiene_findings
+        (id, kind, severity, status, paths, bytes, proposed_action,
+         keeper_path, walk_token, auto_safe, created_at, decided_at)
+       VALUES
+        ('decided', 'zero-byte', 'likely', 'confirmed',
+         '["/V/Contents/A/empty.mp3"]', '[0]', '{"type":"delete-corrupt"}',
+         NULL, 'tok', 0, '2026-09-01', '2026-09-02'),
+        ('duplicate', 'zero-byte', 'likely', 'open',
+         '["/V/Contents/A/empty.mp3"]', '[0]', '{"type":"delete-corrupt"}',
+         NULL, 'tok', 0, '2026-09-03', NULL);`);
+    const migrated = new HygieneStore(raw);
+    expect(migrated.list({ kind: "zero-byte" })).toHaveLength(2);
+    const rows = raw
+      .query("SELECT id, status FROM hygiene_findings ORDER BY id")
+      .all() as { id: string; status: string }[];
+    expect(rows).toEqual([
+      { id: "decided", status: "confirmed" },
+      { id: "duplicate", status: "archived" },
+    ]);
+    expect(() =>
+      raw.exec(`INSERT INTO hygiene_findings
+        (id, kind, severity, status, paths, bytes, proposed_action,
+         keeper_path, walk_token, auto_safe, created_at)
+       VALUES ('new-duplicate', 'zero-byte', 'likely', 'open',
+        '["/V/Contents/A/empty.mp3"]', '[0]', '{"type":"delete-corrupt"}',
+        NULL, 'tok', 0, 'now')`),
+    ).toThrow();
+  });
+
   test("list filters by status/kind/severity", () => {
     const s = store();
     s.upsert([

@@ -49,6 +49,16 @@ const HYGIENE_INSERT_COLUMNS = [
   "validation",
 ] as const;
 
+const NATURAL_INDEX_MARKER = "coalesce(json_extract(paths, '$[1]'), char(0))";
+const NATURAL_INDEX_SQL = `
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_hygiene_natural
+    ON hygiene_findings(
+      kind,
+      json_extract(paths, '$[0]'),
+      coalesce(json_extract(paths, '$[1]'), char(0))
+    )
+    WHERE status <> 'archived'`;
+
 export class HygieneStore {
   private readonly db: Database;
 
@@ -89,21 +99,35 @@ export class HygieneStore {
       -- singleton of a kind onto ONE arbitrary row — a confirm on file A
       -- silently absorbed file B's evidence on the next scan (#9-class
       -- status bleed).
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_hygiene_natural
-        ON hygiene_findings(kind, json_extract(paths, '$[0]'), json_extract(paths, '$[1]'));
+      ${NATURAL_INDEX_SQL};
     `);
-    // DBs created by the old engine carry the collapsed keeper-only key;
-    // rebuild it in place when found (the old columns are a subset of the
-    // new key's — the rebuild can never hit a unique violation).
+    // Migrate the nullable second path to a NUL sentinel (not a valid file
+    // path). SQLite permits duplicate NULLs in unique indexes, so the old
+    // index admitted concurrent singleton findings. Keep one active row per
+    // key, favoring the most final decision; archive the remaining evidence.
     const idx = db
       .query(
         "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_hygiene_natural'",
       )
       .get() as { sql: string | null } | null;
-    if (!idx?.sql?.includes("json_extract(paths, '$[0]')")) {
+    if (!idx?.sql?.includes(NATURAL_INDEX_MARKER)) {
       db.exec("DROP INDEX IF EXISTS idx_hygiene_natural");
-      db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_hygiene_natural
-        ON hygiene_findings(kind, json_extract(paths, '$[0]'), json_extract(paths, '$[1]'))`);
+      db.exec(`
+        WITH ranked AS (
+          SELECT id, ROW_NUMBER() OVER (
+            PARTITION BY kind, json_extract(paths, '$[0]'),
+              coalesce(json_extract(paths, '$[1]'), char(0))
+            ORDER BY CASE status
+              WHEN 'applied' THEN 5 WHEN 'failed' THEN 4
+              WHEN 'confirmed' THEN 3 WHEN 'dismissed' THEN 2 ELSE 1 END DESC,
+              created_at, id
+          ) AS rank
+          FROM hygiene_findings WHERE status <> 'archived'
+        )
+        UPDATE hygiene_findings SET status = 'archived'
+        WHERE id IN (SELECT id FROM ranked WHERE rank > 1);
+      `);
+      db.exec(NATURAL_INDEX_SQL);
     }
   }
 
@@ -231,7 +255,9 @@ export class HygieneStore {
     // their one file; pair kinds on keeper + first loser).
     const selectFull = this.db.query(
       `SELECT * FROM hygiene_findings
-       WHERE kind = ? AND json_extract(paths, '$[0]') IS ? AND json_extract(paths, '$[1]') IS ?`,
+       WHERE kind = ? AND json_extract(paths, '$[0]') IS ?
+         AND coalesce(json_extract(paths, '$[1]'), char(0)) = coalesce(?, char(0))
+         AND status <> 'archived'`,
     );
     const insert = this.db.query(
       `INSERT INTO hygiene_findings
