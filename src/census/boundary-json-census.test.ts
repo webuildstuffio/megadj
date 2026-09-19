@@ -56,8 +56,6 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
-    'src/shared/doctor-state.ts::runStateProbe::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
-    'src/shared/doctor-state.ts::runStateProbe::JSON.parse(rx.stdout.trim().split("\\n").pop() ?? "{}")',
   ]),
 };
 
@@ -126,9 +124,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // rb-anlz-spike set-grid's --beats parse joins the census as a
     // GUARDED parse (console.error catch + exit-2 usage error; a
     // malformed beats JSON can never crash the arm).
+    // Sep 19 (fallback-slop audit R2): audited unchanged 65; guarded
+    // 47→49 / sanctioned 18→16 — doctor-state's runStateProbe parses
+    // (main probe + XML twin) gained real catch guards: a malformed
+    // probe payload now reads as a probe ERROR, never a zero-shaped
+    // "healthy" pass. The two CHECKED_SUBPROCESS sanctions retired.
     audited: 65,
-    guarded: 47,
-    sanctioned: 18,
+    guarded: 49,
+    sanctioned: 16,
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
     // unchanged) — digest shifted.
@@ -141,7 +144,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // input re-rooted; same calls, same guards, counts unchanged).
     // Sep 18 (#220 write/ slice): file re-homes moved owners again (same
     // calls, same guards, counts unchanged) — digest shifted: acd7abc3.
-    digest: "d1d416c319ba24301f23beb74c3c5975a12d6efa8c49133b243c40267fc947a6",
+    digest: "e79cd2d831e13f78bd8fe1669e8834b79ccc782c775c95e4557aefff24fe7bca",
   });
 });
 

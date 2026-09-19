@@ -16,7 +16,8 @@ import {
   type FetchFeedWire,
   type Job,
 } from "../../../shared/types";
-import { api, apiPost } from "../../ui/toast";
+import { api, apiPost, toast } from "../../ui/toast";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { Card, ListHead } from "../../ui/data";
 import { SectionHead, Verdict } from "../shared";
 import { Icon } from "../../ui/icons";
@@ -106,6 +107,11 @@ export function GenreRunTab() {
         setJob(j);
         cursor.current = 0;
         setFeed({ entries: [], next: 0 });
+      })
+      .catch((e: unknown) => {
+        // quiet + caller-owned surface: a refused start (interlock, busy)
+        // must reach the DJ, not vanish into the poll loop.
+        toast(`genre run refused: ${errMessage(e)}`, "err");
       })
       .finally(() => setStarting(false));
   };

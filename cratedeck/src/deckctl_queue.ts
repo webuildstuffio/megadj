@@ -5,6 +5,7 @@
 // cheapest to guarantee when the spokes share seams, not copies).
 import { apiPost, pollJob, jobTerminal, type Job } from "./deckapi";
 import { emitJson } from "./deckctl_runtime";
+import { errMessage } from "../../src/shared/leaf/fmt";
 
 /** Output hooks — the same shape deckctl_hygiene/deckctl_fixes already
  *  receive from deckctl.ts's baseHooks(). */
@@ -33,10 +34,22 @@ export async function enqueueAndFollow(
   const polled = (await pollJob(job.id)) as Job;
   if (jobTerminal(polled.status)) {
     if (polled.status === "done") {
-      const result = JSON.parse(polled.result_json ?? "{}") as Record<
-        string,
-        unknown
-      >;
+      // A "done" job with junk result_json is a server contract breach, not
+      // an empty result — `?? "{}"` would stream a zero-shaped success and
+      // lie to both the JSON consumer and the human (fallback-slop S1/S10).
+      let result: Record<string, unknown>;
+      try {
+        result = JSON.parse(polled.result_json ?? "{}") as Record<
+          string,
+          unknown
+        >;
+      } catch (error) {
+        h.errOut(
+          `${family} job result was not valid JSON: ${errMessage(error)}`,
+        );
+        h.exit(1);
+        return null;
+      }
       if (h.jsonMode) await emitJson(result);
       return result;
     }

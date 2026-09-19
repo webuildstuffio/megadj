@@ -121,8 +121,11 @@ export function useDriveActions(props: {
         ),
       );
     } catch (error) {
+      // null = "not loaded" (the tab's tri-state contract) — a load failure
+      // must NOT read as "no images on the drive", which the tab renders
+      // as a fact. Degrade to null so the section stays silent + logged.
       console.error(`drive-images load for ${props.driveId} failed`, error);
-      setDriveImages([]);
+      setDriveImages(null);
     }
   }, [props.driveId, props.mounted]);
 

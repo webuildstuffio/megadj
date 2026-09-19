@@ -20,6 +20,8 @@ import type { CheckResult } from "./doctor";
 import { rekordboxRunning } from "../rekordbox/guard";
 import { incidentCuePredicatePython } from "../rekordbox/cue-incident";
 import { masterDbPath } from "../rekordbox/master-path";
+import { errMessage } from "../shared/leaf/fmt";
+import { isRecord } from "../shared/leaf/guards";
 
 interface StateProbe {
   ran: boolean;
@@ -143,7 +145,21 @@ function runStateProbe(dbPath: string): StateProbe {
   );
   if (r.status !== 0 || !r.stdout)
     return { ...empty, error: `probe failed: ${(r.stderr ?? "").slice(-160)}` };
-  const p = JSON.parse(r.stdout.trim().split("\n").pop() ?? "{}") as Omit<
+  // A zero-exit probe still owes us well-formed JSON. "{}" on a parse miss
+  // would mask the breach as kindZero=0 "healthy" state — fail the probe
+  // visibly instead (fallback-slop S1/S7: never default a boundary payload).
+  let probeJson: unknown;
+  try {
+    probeJson = JSON.parse(r.stdout.trim().split("\n").pop() ?? "");
+  } catch (error) {
+    return {
+      ...empty,
+      error: `probe returned malformed JSON: ${errMessage(error)}`,
+    };
+  }
+  if (!isRecord(probeJson))
+    return { ...empty, error: "probe returned a non-object payload" };
+  const p = probeJson as unknown as Omit<
     StateProbe,
     "ran" | "error" | "playlistsMissingXml"
   >;
@@ -169,10 +185,22 @@ function runStateProbe(dbPath: string): StateProbe {
       { encoding: "utf8", timeout: 180_000 },
     );
     if (rx.status === 0 && rx.stdout) {
-      const px = JSON.parse(rx.stdout.trim().split("\n").pop() ?? "{}") as {
-        missing: number;
-      };
-      missingXml = px.missing;
+      // Same rule as the main probe: junk JSON must read as "XML check
+      // unusable" (missing = unknown → surfaced via the count), never as
+      // a silent 0-missing pass.
+      try {
+        const px = JSON.parse(rx.stdout.trim().split("\n").pop() ?? "") as {
+          missing?: number;
+        };
+        missingXml = typeof px.missing === "number" ? px.missing : 0;
+      } catch (error) {
+        console.error(
+          `playlist XML probe returned malformed JSON: ${errMessage(error)}`,
+        );
+        missingXml = -1;
+      }
+    } else {
+      missingXml = -1; // probe did not answer — unknown, not zero
     }
   }
   return { ...p, ran: true, playlistsMissingXml: missingXml };
@@ -256,16 +284,24 @@ export function checkPlaylistXml(dbPath?: string): CheckResult {
     };
   }
   const ok = p.playlistsMissingXml === 0;
+  const unknownXml = p.playlistsMissingXml < 0;
   return {
     id: "playlist-xml",
     label: "playlist XML twins (F7 gate)",
     required: false,
-    ok,
-    detail: ok
-      ? `all named playlists have XML NODEs (${p.playlistRows} rows)`
-      : `${p.playlistsMissingXml} playlist(s) missing XML NODEs. fix: megadj rb-playlist reconcile <drive> --apply --yes`,
-    fix: ok
-      ? undefined
-      : "run: megadj rb-playlist reconcile <drive> --apply --yes (rekordbox quit)",
+    // A negative count is the probe's "unknown" — report it honestly
+    // instead of reading it as a 0-missing pass.
+    ok: ok && !unknownXml,
+    detail: unknownXml
+      ? "XML twin probe did not answer — missing-node count UNKNOWN (rerun doctor)"
+      : ok
+        ? `all named playlists have XML NODEs (${p.playlistRows} rows)`
+        : `${p.playlistsMissingXml} playlist(s) missing XML NODEs. fix: megadj rb-playlist reconcile <drive> --apply --yes`,
+    fix:
+      ok && !unknownXml
+        ? undefined
+        : unknownXml
+          ? undefined
+          : "run: megadj rb-playlist reconcile <drive> --apply --yes (rekordbox quit)",
   };
 }
