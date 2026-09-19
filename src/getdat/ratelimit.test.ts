@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { RateLimiter, withRetry } from "./ratelimit";
+import { RateLimiter, TrackGoneError, withRetry } from "./ratelimit";
 
 const noSleep = async () => {};
 
@@ -100,7 +100,7 @@ describe("withRetry", () => {
         rl,
         () => {
           calls++;
-          return Promise.reject(new Error("GONE"));
+          return Promise.reject(new TrackGoneError());
         },
         {
           maxRetries: 3,
@@ -111,7 +111,7 @@ describe("withRetry", () => {
       );
       expect.unreachable();
     } catch (e) {
-      expect((e as Error).message).toBe("GONE");
+      expect(e instanceof TrackGoneError).toBe(true);
     }
     expect(calls).toBe(1);
     expect(sawGone).toBe(true);

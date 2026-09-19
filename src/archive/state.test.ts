@@ -339,57 +339,57 @@ describe("ArchiveState", () => {
 });
 
 describe("link_surfaced ledger state (#256)", () => {
-  let dir: string;
-  let state: ArchiveState;
-  const ts = tempState("megadj-sc-state-test-");
+  let scDir: string;
+  let scState: ArchiveState;
+  const scTs = tempState("megadj-sc-state-test-");
 
   beforeEach(() => {
-    ({ dir, state } = ts.next());
+    ({ dir: scDir, state: scState } = scTs.next());
   });
 
   afterEach(() => {
-    ts.done({ dir, state });
+    scTs.done({ dir: scDir, state: scState });
   });
 
   test("markLinkSurfaced parks the row with its links; counts + reads work", () => {
-    state.upsertTrackFromPlaylist("270000000", 0, "Shelter", "soundcloud");
+    scState.upsertTrackFromPlaylist("270000000", 0, "Shelter", "soundcloud");
     const links = JSON.stringify([
       { kind: "purchase_url", url: "https://fanlink.to/shelter" },
     ]);
-    state.markLinkSurfaced(
+    scState.markLinkSurfaced(
       "270000000",
       links,
       "purchase_url: https://fanlink.to/shelter",
     );
 
-    const row = state.trackById("270000000");
+    const row = scState.trackById("270000000");
     expect(row?.status).toBe("link_surfaced");
     expect(row?.source_links).toBe(links);
     expect(JSON.parse(row?.source_links ?? "[]")).toStrictEqual([
       { kind: "purchase_url", url: "https://fanlink.to/shelter" },
     ]);
-    expect(state.linkSurfacedCount()).toBe(1);
-    expect(state.linkSurfacedTracks().map((t) => t.video_id)).toStrictEqual([
+    expect(scState.linkSurfacedCount()).toBe(1);
+    expect(scState.linkSurfacedTracks().map((t) => t.video_id)).toStrictEqual([
       "270000000",
     ]);
     // The honesty rule: a surfaced row is NOT in the downloaded cohort.
-    expect(state.downloadedCount()).toBe(0);
+    expect(scState.downloadedCount()).toBe(0);
   });
 
   test("markForcedRip keeps the decision without changing status", () => {
-    state.upsertTrackFromPlaylist("270000001", 0, "Track", "soundcloud");
-    state.markForcedRip(
+    scState.upsertTrackFromPlaylist("270000001", 0, "Track", "soundcloud");
+    scState.markForcedRip(
       "270000001",
       JSON.stringify([{ kind: "smart_link", url: "https://lnk.to/x" }]),
     );
-    const row = state.trackById("270000001");
+    const row = scState.trackById("270000001");
     expect(row?.status).toBe("pending");
     expect(row?.source_links).toContain("lnk.to");
   });
 
   test("a row without links reads null", () => {
-    state.upsertTrackFromPlaylist("270000002", 0, "Track", "liked");
-    expect(state.sourceLinks("270000002")).toBeNull();
-    expect(state.trackById("270000002")?.status).toBe("pending");
+    scState.upsertTrackFromPlaylist("270000002", 0, "Track", "liked");
+    expect(scState.sourceLinks("270000002")).toBeNull();
+    expect(scState.trackById("270000002")?.status).toBe("pending");
   });
 });

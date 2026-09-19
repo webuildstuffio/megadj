@@ -102,6 +102,16 @@ export class RateLimiter {
   }
 }
 
+/** The track is gone from the source (404 / terminated account): the
+ *  fail-fast signal for withRetry and the sync loop. Matched by
+ *  instanceof — never by the message string. */
+export class TrackGoneError extends Error {
+  constructor(message = "track gone from source") {
+    super(message);
+    this.name = "TrackGoneError";
+  }
+}
+
 /**
  * Runs fn through the limiter with bounded retries. Distinct error
  * classes get distinct handling:
@@ -126,7 +136,7 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error;
       const err = error as Error;
-      if (err.message === "GONE") {
+      if (err instanceof TrackGoneError) {
         opts.onGone?.(err);
         throw err;
       }

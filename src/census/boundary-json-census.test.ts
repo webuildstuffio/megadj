@@ -56,11 +56,6 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
-    // #20 SoundCloud sources: yt-dlp --flat-playlist -J; the exit-code
-    // gate + classifyScFailure above already surfaced real failures,
-    // and the isRecord/isUnknownArray guards reject a malformed body
-    // below — a non-JSON body cannot pass as entries.
-    "src/getdat/commands/sync.ts::scSourceQueue::JSON.parse(stdout)",
   ]),
 };
 
@@ -143,9 +138,12 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // parse (parsePlaylistOutput) and one sanctioned
     // CHECKED_SUBPROCESS parse (scSourceQueue: exit-code gate +
     // classifyScFailure above, isRecord/isUnknownArray guards below).
+    // Sep 19 (#240-review follow-through): scSourceQueue's raw parse is
+    // now GUARDED (try/catch with cause, same contract as
+    // parsePlaylistOutput) — the sanction retires; sanctioned 17→16.
     audited: 68,
-    guarded: 51,
-    sanctioned: 17,
+    guarded: 52,
+    sanctioned: 16,
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
     // unchanged) — digest shifted.

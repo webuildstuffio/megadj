@@ -7,6 +7,7 @@
 import { $ } from "bun";
 import { sanitizeGenreFolder } from "../fulltags/write/schema";
 import type { YtdlpInfo } from "../fulltags/write/metadata-build";
+import { TrackGoneError } from "./ratelimit";
 import {
   SC_FORMAT,
   SC_SOURCE,
@@ -89,18 +90,6 @@ export class ScPermanentError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ScPermanentError";
-  }
-}
-
-/** The track is gone from the source (404 / terminated account): thrown
- *  by the probe and download legs, matched by instanceof — never by the
- *  message string. The retry ladder skips it (a 404 never heals), and
- *  the sync loop parks the row as gone. Replaces the bare "GONE"
- *  string-sentinel contract. */
-export class TrackGoneError extends Error {
-  constructor(message = "track gone from source") {
-    super(message);
-    this.name = "TrackGoneError";
   }
 }
 

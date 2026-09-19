@@ -1,7 +1,7 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { join } from "node:path";
 import type { ArchiveState } from "../../archive/state";
-import { RateLimiter } from "../ratelimit";
+import { RateLimiter, TrackGoneError } from "../ratelimit";
 import { Downloader } from "../downloader";
 import {
   parsePlaylistOutput,
@@ -140,8 +140,8 @@ describe("sync (GetDat pipeline)", () => {
       await d.probe("abc123");
       expect.unreachable();
     } catch (e) {
-      // Failure surfaces as a retryable error, not the permanent GONE mark.
-      expect((e as Error).message).not.toBe("GONE");
+      // Failure surfaces as a retryable error, not the permanent TrackGoneError.
+      expect(e instanceof TrackGoneError).toBe(false);
     }
   }, 60_000);
 });
@@ -152,7 +152,11 @@ describe("sync --sc-url validation (#255)", () => {
       cmd: string,
       args: string[],
       opts: Record<string, unknown>,
-    ) => { status: number | null; stdout: string | null; stderr: string | null };
+    ) => {
+      status: number | null;
+      stdout: string | null;
+      stderr: string | null;
+    };
   };
   const CLI = join(import.meta.dir, "../../cli.ts");
   const runCli = (args: string[]) => {
