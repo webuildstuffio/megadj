@@ -200,7 +200,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   OneLibrary master. Green master ≠ hardware sees it: re-export after
   imports/relocations. Shelf-tier empty `PIONEER/rekordbox/` is correct — do
   not export to the shelf; role-aware checks come only from
-  `cratedeck/shared/check_matrix.ts`. CrateDeck reads scratch copies and
+  `cratedeck/shared/check-matrix.ts`. CrateDeck reads scratch copies and
   refuses while RB runs.
 - RB auto-writes are `rb-import`'s job only (closed, dated backup, whole-table
   verify); `Write to master.db` tool calls refuse while RB runs. Rekordbox is
