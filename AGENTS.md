@@ -25,6 +25,19 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   nonzero exit code is masked by the pipe and a hooked block looks landed
   (redirect to a file, then read it). Oversized commits need
   `GIT_ALLOW_LARGE_COMMIT=1` (42-file diet split d02eb55).
+- Concurrent agents — the working contract (Sep 19, after two same-day
+  collision rounds): (1) before picking an issue, run `git status` +
+  `git log --oneline -5` and treat a hot file (recent commit OR uncommitted
+  diff by another agent) as CLAIMED — pick a different tree, don't "help";
+  (2) `git reset --hard`/`checkout .` on a SHARED worktree destroys other
+  agents' unstaged work — never run them; restore single paths instead;
+  (3) stage your own files AS YOU EDIT (`git add <paths>`): an unstaged
+  append can be eaten by another agent's reset and the loss is invisible;
+  (4) two agents refactoring the SAME verb/subject = dedup to ONE arm, the
+  richer contract (json-safe epilogue + emit seams) wins; the census pins
+  catch the twin (`maintenance-verbs.test.ts` dupes check); (5) after ANY
+  foreign commit lands mid-flight, re-run the touched censuses before your
+  own commit — a torn read is the other agent's landed rename, not your bug.
 - No bare `catch {}` / `.catch(() => {})`. Boundary `JSON.parse` uses a guarded
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep
