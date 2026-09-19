@@ -1,4 +1,4 @@
-import { fetchFeedPush, fetchFeedReset } from "./fetch-feed";
+import { fetchFeedPush, fetchFeedReset } from "../fetch-feed";
 import {
   fetchArgs,
   finiteOf,
@@ -8,7 +8,7 @@ import {
   parseFetchTask,
   safeJsonParse,
 } from "./job-legs-fetch-protocol";
-import { megadjCliPath, splitIntakeStdout } from "./intake-run";
+import { megadjCliPath, splitIntakeStdout } from "../intake-run";
 import { drain, type JobLog, type JobTick } from "./job-runtime";
 import type { LegArgs } from "./job-legs-types";
 

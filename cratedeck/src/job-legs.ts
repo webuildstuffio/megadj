@@ -1,14 +1,14 @@
 /** Compatibility facade for job execution legs. JobEngine owns queueing and
  * lifecycle; cohesive leaves own subprocess and in-process execution. */
-export type { LegArgs } from "./job-legs-types";
-export { runScan, runVerify, runMirror } from "./job-legs-drive";
-export { runIngest } from "./job-legs-intake";
-export { runFetchJob } from "./job-legs-fetch";
+export type { LegArgs } from "./jobs/job-legs-types";
+export { runScan, runVerify, runMirror } from "./jobs/job-legs-drive";
+export { runIngest } from "./jobs/job-legs-intake";
+export { runFetchJob } from "./jobs/job-legs-fetch";
 export {
   fetchArgs,
   parseFetchStart,
   parseFetchTask,
-} from "./job-legs-fetch-protocol";
+} from "./jobs/job-legs-fetch-protocol";
 export {
   runBenchmark,
   runChecksum,
@@ -16,11 +16,11 @@ export {
   runGridHealth,
   runHygiene,
   runFixes,
-} from "./job-legs-maintenance";
+} from "./jobs/job-legs-maintenance";
 export {
   finiteJobNumber,
   parseIngestSummary,
   parseAuditSummary,
   lastFinalLine,
   requireSuccessfulExit,
-} from "./job-legs-parse";
+} from "./jobs/job-legs-parse";

@@ -1,15 +1,11 @@
-// megaset-search.ts — the set-builder's SELECTION family (#89 diet
+// megaset/search.ts — the set-builder's SELECTION family (#89 diet
 // extraction): greedy and beam-search chain builders over scored
 // candidates. Pure functions, deterministic (ties break by (score,
 // videoId), never pool row order), no I/O. buildMegaset (pool filter,
 // opener pick, commit loop, wire assembly) stays in megaset.ts and
 // imports from here — the dependency arrow runs one way.
-import { MEGASET_BEAM_WIDTH } from "../shared/types";
-import {
-  transitionScore,
-  type SetCandidate,
-  type SetPreset,
-} from "./megaset-scoring";
+import { MEGASET_BEAM_WIDTH } from "../../shared/types";
+import { transitionScore, type SetCandidate, type SetPreset } from "./scoring";
 
 /** One committed proposal slot: the candidate plus the transition score
  *  INTO it (null for the opener). Selection functions return these; the

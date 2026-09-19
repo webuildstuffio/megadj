@@ -5,8 +5,8 @@ import {
   parseAuditSummary,
   parseIngestSummary,
   requireSuccessfulExit,
-} from "../src/job-legs";
-import { INTAKE_COUNTER_KEYS } from "../shared/types";
+} from "../job-legs";
+import { INTAKE_COUNTER_KEYS } from "../../shared/types";
 
 describe("job subprocess completion", () => {
   it("uses the last FINAL line when a verifier prints retries", () => {

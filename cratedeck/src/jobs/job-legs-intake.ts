@@ -1,7 +1,7 @@
-import type { IntakeResult } from "../shared/types";
-import { errMessage as errorText } from "../../src/shared/leaf/fmt";
+import type { IntakeResult } from "../../shared/types";
+import { errMessage as errorText } from "../../../src/shared/leaf/fmt";
 import { parseAuditSummary, parseIngestSummary } from "./job-legs-parse";
-import type { CrateConfig } from "./config";
+import type { CrateConfig } from "../config";
 import {
   INTAKE_FILE_LINE,
   INTAKE_PHASES,
@@ -9,7 +9,7 @@ import {
   intakePhaseFor,
   megadjCliPath,
   splitIntakeStdout,
-} from "./intake-run";
+} from "../intake-run";
 import {
   drain,
   type JobLog,

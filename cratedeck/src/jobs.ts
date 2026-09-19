@@ -6,7 +6,7 @@ import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Guard } from "./guard";
 import type { Job, JobKind, VerifyReport } from "../shared/types";
-import { executeJob } from "./job-execution";
+import { executeJob } from "./jobs/job-execution";
 import {
   createEtaEstimator,
   type JobLog,
@@ -14,7 +14,7 @@ import {
   recordProgressIncrease,
   type RunHandle,
   withJobBudget,
-} from "./job-runtime";
+} from "./jobs/job-runtime";
 import { progressFromLine, rekordboxRunning } from "./rb";
 import { verifyDeltas } from "./verify-report";
 
@@ -406,7 +406,7 @@ export class JobEngine {
   }
 }
 
-export { createEtaEstimator, drain, verifyPhase } from "./job-runtime";
+export { createEtaEstimator, drain, verifyPhase } from "./jobs/job-runtime";
 
 export { sanitizeVerifyReport, verifyDeltas } from "./verify-report";
 export { parseVerifyReport } from "./verify-parse";

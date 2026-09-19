@@ -24,7 +24,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // malformed event line returns null and the feed simply skips it (the
   // run's stdout summary is the authoritative payload; the feed is
   // advisory). Never a throw into the job leg.
-  "cratedeck/src/job-legs-fetch-protocol.ts::safeJsonParse::JSON.parse(line)":
+  "cratedeck/src/jobs/job-legs-fetch-protocol.ts::safeJsonParse::JSON.parse(line)":
     EXPLICIT_NULL_REASON,
   ...reviewed(HYGIENE_ROW_REASON, [
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)",
@@ -166,7 +166,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // moved under db/; their failure contracts and counts are unchanged.
     // Sep 19 (#214 archive slice): the overview and tag-compare readers
     // moved under archive/; their failure contracts and counts are unchanged.
-    digest: "ab69aabf6be684f8d6e795898139706028afa967ddd20e8c5487d1895c2d9623",
+    digest: "8652d54da6fde62c0ef3eb4ee298b87200d3a9ba1c58a2e4813b3a83308f8537",
   });
 });
 

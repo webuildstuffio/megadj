@@ -10,7 +10,7 @@
 // Same shape as fleet.ts: pure functions in, plain data out, no I/O —
 // the API route / MCP tool / UI feed it and render it.
 // The SCORING family (key/tempo compatibility, arc envelopes, anchor
-// drift budget, transitionScore) lives in megaset-scoring.ts (#89/#90
+// drift budget, transitionScore) lives in megaset/scoring.ts (#89/#90
 // item 2); this module owns the query parse, the candidate model, and
 // the chain/search family (greedy vs beam + the commit loop).
 export { camelotOf } from "../shared/camelot";
@@ -39,14 +39,14 @@ import {
 // bpmScore/keyScore/withinAnchorBudget are the public scoring surface
 // (test + spoke imports). mixableBpm/transitionScore have no external
 // consumer — they stay internal to the two engine modules (knip-pinned);
-// megaset-scoring.ts is the import point for any new caller.
-export { bpmScore, keyScore, withinAnchorBudget } from "./megaset-scoring";
-// SetCandidate — canonically DEFINED in ./megaset-scoring (the scoring
+// megaset/scoring.ts is the import point for any new caller.
+export { bpmScore, keyScore, withinAnchorBudget } from "./megaset/scoring";
+// SetCandidate — canonically DEFINED in ./megaset/scoring (the scoring
 // family owns the row shape it scores; #173 madge pass moved it here so
 // scoring's type-only back-edge into this file stops being a cycle).
 // Re-exported for every existing consumer — same symbol, never a twin.
-import { mixableBpm, type SetCandidate } from "./megaset-scoring";
-export type { SetCandidate } from "./megaset-scoring";
+import { mixableBpm, type SetCandidate } from "./megaset/scoring";
+export type { SetCandidate } from "./megaset/scoring";
 
 // N80 energy-arc presets — DERIVED from the shared registry
 // (shared/types.ts MEGASET_PRESET_DEFS), never hand-copied: the route, the UI
@@ -163,9 +163,9 @@ const minutesAt = (seconds: number): number =>
   Math.round((seconds / 60) * 10) / 10;
 
 // The SELECTION family (greedy/beam chain builders + their types) lives
-// in ./megaset-search (#89 diet extraction) — this module owns the pool
+// in ./megaset/search (#89 diet extraction) — this module owns the pool
 // filter, opener pick, and the single commit loop.
-import { beamChain, greedyChain } from "./megaset-search";
+import { beamChain, greedyChain } from "./megaset/search";
 
 export function buildMegaset(input: MegasetInput): MegasetResult {
   const { candidates, preset, minutes } = input;

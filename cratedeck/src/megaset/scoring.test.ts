@@ -1,16 +1,16 @@
-// megaset-similarity.test.ts — #171: the embeddings similarity prior in
+// megaset/scoring.test.ts — #171: the embeddings similarity prior in
 // transitionScore. Contract: pure bonus over the weighted core, capped at
 // MEGASET_SIMILARITY_WEIGHT (0.1); missing embeddings = identical scores
 // to the pre-prior engine (honest gap, never a penalty); the tempo/key/
 // anchor gates keep precedence (a clash never gets rescued by timbre).
 import { describe, expect, test } from "bun:test";
-import { similarityScore, transitionScore } from "../src/megaset-scoring";
-import { SET_PRESETS, type SetCandidate } from "../src/megaset";
+import { similarityScore, transitionScore, type SetCandidate } from "./scoring";
 import {
   MEGASET_SIMILARITY_WEIGHT,
   MEGASET_TRANSITION_WEIGHTS,
   MEGASET_ANCHOR_WEIGHT,
-} from "../shared/types";
+  MEGASET_PRESET_DEFS,
+} from "../../shared/types";
 
 const W = MEGASET_TRANSITION_WEIGHTS;
 
@@ -29,7 +29,8 @@ const base = (over: Partial<SetCandidate>): SetCandidate => ({
   ...over,
 });
 
-const preset = SET_PRESETS.warmup;
+const preset = MEGASET_PRESET_DEFS.find((p) => p.id === "warmup");
+if (!preset) throw new Error("warmup preset missing");
 
 describe("similarityScore (#171)", () => {
   test("missing embedding on either side → 0 (no bonus, never a penalty)", () => {

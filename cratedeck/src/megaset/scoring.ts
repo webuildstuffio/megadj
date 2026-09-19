@@ -1,10 +1,10 @@
-// megaset-scoring.ts — the set-builder's scoring family (#89/#90 item 2
+// megaset/scoring.ts — the set-builder's scoring family (#89/#90 item 2
 // extraction): key/tempo compatibility, arc envelopes, the B2 anchor
 // drift budget, and the B3 segment-direction gate that transitionScore
 // composes. Pure functions over SetCandidate/preset data — same shape as
 // the engine itself: rows in, scores out, no I/O. buildMegaset (the
 // chain/search family) lives in megaset.ts and imports from here.
-import { camelotOf, keyCompatScore } from "../shared/camelot";
+import { camelotOf, keyCompatScore } from "../../shared/camelot";
 import {
   MEGASET_ANCHOR_WEIGHT,
   MEGASET_AROUSAL_EPSILON,
@@ -15,8 +15,8 @@ import {
   MEGASET_TEMPO_WINDOW,
   MEGASET_TRANSITION_WEIGHTS,
   type MegasetPresetDef,
-} from "../shared/types";
-import { cosineSimilarity } from "../../src/shared/leaf/vector-space";
+} from "../../shared/types";
+import { cosineSimilarity } from "../../../src/shared/leaf/vector-space";
 
 /** The pool row the whole set-builder scores and chains (#171 madge
  *  pass: canonically lives HERE — the scoring family owns the shape it
