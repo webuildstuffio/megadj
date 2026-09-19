@@ -9,8 +9,7 @@ import type { Registry } from "./registry";
 import type { ImageService } from "./image-store";
 import type { CrateConfig } from "./config";
 import { freeBytes } from "./scan";
-import { driveBadgesView } from "./badges_view";
-import { parseSnapshotJson } from "../shared/badges";
+import { driveBadges, parseSnapshotJson, syncBadge } from "../shared/badges";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
 import { exportDossier, reportInput, type ReportDeps } from "./report_inputs";
@@ -21,7 +20,31 @@ import {
   dismissAgentNote,
   agentNotes,
 } from "./notes";
-import type { Drive, NoteSeverity } from "../shared/types";
+import type { Drive, NoteSeverity, SnapshotData } from "../shared/types";
+
+/** Server-side badge computation glue (#221: was badges_view.ts, 26L —
+ *  merged into its only consumer; shared rules live in shared/badges.ts,
+ *  this adapts DB state to them). */
+function driveBadgesView(
+  db: DB,
+  drive: Drive,
+  _snaps: Map<string, SnapshotData>,
+  _masterDriveName: string,
+  _mirrorDriveName: string,
+) {
+  // parseSnapshotJson (not bare JSON.parse): a corrupt master blob must
+  // surface as a badge, never 500 the /drives list it rides on.
+  const master = db.masterDrive();
+  const masterSnap = master
+    ? parseSnapshotJson(master.last_snapshot_json).snap
+    : null;
+  const badges = driveBadges(drive, {
+    latestVerify: db.latestVerify(drive.id),
+  });
+  const sync = syncBadge(drive, masterSnap);
+  if (sync) badges.push(sync);
+  return badges;
+}
 
 /** The player-catalog provider shape (index.ts passes its players.ts binding). */
 type ExtraPlayers = () => Parameters<typeof driveCompatibility>[1];

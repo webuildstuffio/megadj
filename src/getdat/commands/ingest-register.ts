@@ -12,8 +12,7 @@ import { createHash } from "node:crypto";
 import { stat, copyFile, mkdir, rename } from "node:fs/promises";
 import { join, basename } from "node:path";
 import type { Record_ } from "./ingest-probe";
-import type { ArtworkOutcome } from "./ingest-art";
-import type { QueueEntry } from "./queue";
+import type { ArtworkOutcome, QueueEntry } from "./ingest-art";
 import type { RemixInfo } from "../../fulltags/sources/remix";
 import type { MarkDownloadedInfo } from "../../archive/state-types";
 import {

@@ -10,12 +10,11 @@ import type {
   ReportSummary,
   SyncVerdict,
 } from "../shared/types";
-import { BUILDERS } from "./report_checks";
-import type { ReportInput } from "./report_types";
+import { BUILDERS, type ReportInput } from "./report_checks";
 
-// ReportInput is canonically defined in the leaf report_types.ts; re-export
-// keeps every existing `from "./report"` import working unchanged.
-export type { ReportInput } from "./report_types";
+// ReportInput is canonically defined in report_checks.ts (#221 merge);
+// the re-export keeps every existing `from "./report"` import working.
+export type { ReportInput } from "./report_checks";
 
 export function buildChecks(input: ReportInput): HealthCheck[] {
   return BUILDERS.flatMap((build) => build(input) ?? []);

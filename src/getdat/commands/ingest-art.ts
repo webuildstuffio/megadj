@@ -11,11 +11,36 @@ import {
   soundcloudArtwork,
   soundcloudUrlInTags,
 } from "../../fulltags/sources/art-sources";
-import { appendQueueEntries, type QueueEntry } from "./queue";
 // ARTWORK_EXTS is DERIVED from the #69 SSOT (subset by art support), not
 // hand-listed — a new SSOT extension never silently misses art again
 // (issue #200 class). .wav is excluded on purpose: RB ignores WAV art.
 import { AUDIO_EXTS } from "../../shared/audio-exts";
+
+export interface QueueEntry {
+  path: string;
+  title: string;
+  artist?: string | null;
+  album?: string | null;
+  reason: string;
+  remixOf?: string | null;
+  sourceUrl?: string | null;
+}
+
+export async function appendQueueEntries(
+  dbDir: string,
+  entries: QueueEntry[],
+): Promise<string> {
+  const { appendFile, mkdir } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  await mkdir(dbDir, { recursive: true });
+  const queuePath = join(dbDir, "artwork-queue.jsonl");
+  await appendFile(
+    queuePath,
+    `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`,
+    "utf8",
+  );
+  return queuePath;
+}
 
 /** Containers that reliably hold embedded artwork: every audio ext the
  *  scanners know, minus the formats that can't carry art. */

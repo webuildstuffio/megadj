@@ -48,8 +48,8 @@ import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,
   type ArtworkOutcome,
+  type QueueEntry,
 } from "./ingest-art";
-import type { QueueEntry } from "./queue";
 // copyIntoArchive / queueArtworkFallback / registerAndMove (the archive-
 // landing half of Phase D) live in ingest-register.ts with narrow param
 // types — this module never imported back keeps madge at zero cycles.

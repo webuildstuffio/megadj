@@ -1,11 +1,31 @@
-// report_checks.ts — the individual health-check builders for report.ts.
+// report_checks.ts — the ReportInput contract + individual health-check
+// builders for report.ts.
 // Split from report.ts for the file-length guard; each helper owns one
 // check and returns its row(s), or null when not applicable. Pure
 // functions: takes DB state + latest snapshot, returns verdicts. No I/O.
-import type { HealthCheck } from "../shared/types";
+import type { Drive, HealthCheck, SnapshotData } from "../shared/types";
 import { checkApplies } from "../shared/check_matrix";
 import { fmtBytes, fmtPct } from "../../src/shared/leaf/fmt";
-import type { ReportInput } from "./report_types";
+
+// report_types.ts content (#221 merge): the ReportInput contract both
+// halves of the report stack depend on. Kept in report_checks.ts (not
+// report.ts) so the graph stays one-directional: report.ts ->
+// report_checks.ts; a type in report.ts would re-create the madge
+// cycle the Sep 9 sweep removed.
+/** Everything a check builder / aggregator needs to judge one drive. */
+export interface ReportInput {
+  drive: Drive;
+  snapshot: SnapshotData | null;
+  latestVerify: { ran_at: number; ok: boolean } | null;
+  bench: { ran_at: number; seq_mbps: number }[];
+  ledgerFiles: number;
+  ledgerStaleDays: number | null;
+  masterSnapshot: SnapshotData | null;
+  masterName: string;
+  isMirror: boolean;
+  /** Newest checksum job verdict. null = never run (≠ a clean 0). */
+  latestChecksum: { ran_at: number; changed: number } | null;
+}
 
 const DAY = 86_400_000;
 

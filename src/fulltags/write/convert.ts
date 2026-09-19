@@ -21,8 +21,8 @@ import { wavToAiff } from "./convert-aiff";
 import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,
+  type QueueEntry,
 } from "../../getdat/commands/ingest-art";
-import type { QueueEntry } from "../../getdat/commands/queue";
 import { commandLog } from "../../shared/progress";
 import type { ArchiveState } from "../../archive/state";
 
