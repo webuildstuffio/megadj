@@ -326,12 +326,26 @@ honest, in order of strength:
    - every `archive_*` tool source keeps the `readonly` DB handle;
    - census numbers match this doc's §1 table (the doc and the code
      can't drift apart silently).
-2. **API-first design rule** (architectural, enforced by review): a new
+2. **`cratedeck/test/api-parity-census.test.ts` (#249, shipped
+   2026-09-19).** The client↔server contract pin that closes what
+   surface-parity's G4 pass approximated: the server leg derives from
+   the producers (slice-table return keys, delegator literals,
+   drive-subroute literals, fleet literals, and the archive family from
+   `archiveHandlers()`'s real keys — imported, not parsed), and the
+   client leg walks `cratedeck/web` + the deckctl/MCP legs (including
+   `src={`-shaped media fetches, nested-generic `api<...>` calls, and
+   the `enqueueAndFollow` call-site families). Both directions are
+   pinned: a client target with no server route is red (the genre-why
+   Sep-17 class), and a server route no client reaches must carry a
+   reasoned allowlist row in the test (the dead-endpoint #231 class). A
+   route rename now fails the census in the same run that breaks the
+   UI.
+3. **API-first design rule** (architectural, enforced by review): a new
    capability lands as an `/api/...` route + spoke wrappers in the same
    PR, or it lands with an exemption row here. The parity test's census
    makes "forgot the MCP twin" a red build, not a discovery six weeks
    later.
-3. **This doc is the exemption registry.** Adding an exemption = edit
+4. **This doc is the exemption registry.** Adding an exemption = edit
    §4 + the test's exemption list in the same commit. Both or neither.
 
 **Why this shape:** P1 says "if a feature can't be expressed as a
