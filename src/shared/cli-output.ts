@@ -67,3 +67,38 @@ export function finishCommandErrorSync(opts: {
 export function setExit(code: number): void {
   process.exitCode = code;
 }
+/** The common `--json` flag read shared by command arms. #235: rehomed
+ *  from maintenance-cmds — output-channel concerns belong beside the
+ *  output seams. */
+export function jsonFlag(flags: { bools: Set<string> }): boolean {
+  return flags.bools.has("json");
+}
+
+/** Option-object fragment: `json` + the matching quiet progress log.
+ *  Pairs with emitResult so an arm's json/quiet plumbing is one spread. */
+export function jsonOpts(json: boolean): {
+  json: boolean;
+  log: (message: string) => void;
+} {
+  return { json, log: progressLog(json) };
+}
+
+/** Keep progress messages off stdout when --json owns that channel. */
+export function progressLog(json: boolean): (message: string) => void {
+  return (message) => {
+    if (!json) console.log(message);
+  };
+}
+
+/** Emit a command result (the #88 shared seam): `--json` writes exactly
+ *  one stdout object through the awaited `writeJson` seam; otherwise
+ *  render the human report. The old 10× hand-written if/else was where
+ *  report/json parity drifted. #235: rehomed from maintenance-cmds. */
+export async function emitResult<T>(
+  json: boolean,
+  result: T,
+  printReport: (result: T, log: (message: string) => void) => void,
+): Promise<void> {
+  if (json) await writeJson(result);
+  else printReport(result, console.log);
+}

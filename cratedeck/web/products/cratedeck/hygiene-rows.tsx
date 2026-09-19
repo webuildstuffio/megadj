@@ -5,6 +5,7 @@
 import type {
   Finding,
   HygienePayload,
+  QuarantineCensus,
 } from "../../../../cratedeck/shared/hygiene";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
@@ -366,8 +367,12 @@ export function ActionBar(props: {
   );
 }
 
-/** One settled row: status pill, body, validation receipt flag. */
-function DoneRow({ f }: { f: Finding }) {
+/** One settled row: status pill, body, validation receipt flag + the
+ *  failed-row revert affordance (#35: a failed apply keeps its row for
+ *  inspection; Restore undoes the move through the engine lease). */
+function DoneRow(props: { f: Finding; onRestore?: (id: string) => void }) {
+  const { f, onRestore } = props;
+  const failed = f.status === "failed";
   return (
     <div class="check muted">
       <span class={`pill ${f.status === "applied" ? "ok" : ""}`}>
@@ -385,22 +390,91 @@ function DoneRow({ f }: { f: Finding }) {
       {f.validation && !f.validation.ok && (
         <span class="pill warn">receipt</span>
       )}
+      {failed && onRestore && (
+        <button
+          type="button"
+          class="btn sm"
+          onClick={() => onRestore(f.id)}
+          title="Move the quarantined copy back to its original path (MD5-verified)"
+        >
+          Revert
+        </button>
+      )}
     </div>
   );
 }
 
-/** The settled tail: recently applied & dismissed findings (capped). */
-export function SettledSection({ rows }: { rows: Finding[] }) {
+/** The settled tail: recently applied & dismissed findings (capped).
+ *  Failed rows surface the one-click revert (#35 §5 Phase 4). */
+export function SettledSection(props: {
+  rows: Finding[];
+  onRestoreFailed?: (id: string) => void;
+}) {
   return (
     <>
       <h3 class="sect">
         <Icon name="history" /> Settled — applied & dismissed
       </h3>
       <div class="checks">
-        {rows.slice(0, 30).map((f) => (
-          <DoneRow key={f.id} f={f} />
+        {props.rows.slice(0, 30).map((f) => (
+          <DoneRow
+            key={f.id}
+            f={f}
+            {...(props.onRestoreFailed
+              ? { onRestore: props.onRestoreFailed }
+              : {})}
+          />
         ))}
       </div>
     </>
+  );
+}
+
+/** The quarantine strip (#36): N files / X GB of recoverable copies +
+ *  restore-all + the double-confirmed empty. Zero state of its own —
+ *  census fetch + handlers injected from HygieneTab. */
+export function QuarantinePanel(props: {
+  census: QuarantineCensus | null;
+  busy: boolean;
+  onRestoreAll: () => void;
+  onEmpty: () => void;
+}) {
+  const { census, busy } = props;
+  if (!census) return null;
+  if (census.error)
+    return (
+      <div class="bucketstrip">
+        <span class="check-detail">
+          quarantine census unavailable: {census.error}
+        </span>
+      </div>
+    );
+  if (census.files === 0 && census.stale === 0) return null;
+  return (
+    <div class="bucketstrip">
+      <InfoTip
+        title="Quarantine"
+        body={`${census.files} file(s), ${(census.bytes / 1e9).toFixed(2)} GB of recoverable copies.${census.stale > 0 ? ` ${census.stale} ledger row(s) whose copy already vanished.` : ""} Restore puts a copy back; Empty deletes them all and closes the undo window.`}
+        why="Deletion is never automated: quarantine is reversible until you empty it."
+      />
+      <button
+        type="button"
+        class="btn sm"
+        disabled={busy}
+        onClick={props.onRestoreAll}
+        title="Restore every applied finding's copy to its original path (MD5-verified, per-row)"
+      >
+        Restore all
+      </button>
+      <button
+        type="button"
+        class="btn sm ghostbtn"
+        disabled={busy}
+        onClick={props.onEmpty}
+        title="Delete every recoverable copy — typed confirmation required (the undo window closes)"
+      >
+        Empty quarantine ({(census.bytes / 1e9).toFixed(2)} GB)
+      </button>
+    </div>
   );
 }

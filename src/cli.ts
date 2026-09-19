@@ -5,10 +5,6 @@ export { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 import { dispatchCommand } from "./cli-dispatch";
 import { drainStdout, finishCommandError } from "./shared/cli-output";
 import { errMessage as errorText } from "./shared/leaf/fmt";
-import {
-  MAINTENANCE_VERBS,
-  runMaintenanceCommand,
-} from "./shared/maintenance-cmds";
 import { printHelp as printHelpImpl } from "./usage";
 
 export {
@@ -76,10 +72,8 @@ async function main(): Promise<void> {
 
   const state = new ArchiveState(DB_PATH);
   try {
-    if ((MAINTENANCE_VERBS as readonly string[]).includes(command)) {
-      await runMaintenanceCommand(command, rest);
-      return;
-    }
+    // #235: the maintenance branch is gone — every verb (including the
+    // rb-* and shelf-hygiene arms) routes through the ONE dispatch table.
     const handled = await dispatchCommand(command, rest, {
       state,
       musicDir: MUSIC_DIR,

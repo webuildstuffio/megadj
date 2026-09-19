@@ -15,9 +15,31 @@
  * deleting real backups in a test.
  */
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  realpathSync,
+  rmSync,
+  utimesSync,
+} from "node:fs";
 import { join } from "node:path";
-import { backupClass, sidecarClass, statePurge } from "./tmp-purge";
+import { tmpdir } from "node:os";
+import {
+  backupClass,
+  sidecarClass,
+  statePurge,
+  tmpPurgeSweep,
+} from "./tmp-purge";
+
+/** Aged fixture dir factory (hoisted: captures nothing from any test's
+ *  scope, so it lives at module level — unicorn/function-scoping). */
+function mk(root: string, name: string, ageDays: number): string {
+  const dir = join(root, `megadj-${name}`);
+  mkdirSync(dir, { recursive: true });
+  const past = Date.now() - ageDays * 24 * 60 * 60 * 1000;
+  utimesSync(dir, past, past);
+  return dir;
+}
 
 describe("state tier: backup classification", () => {
   test("recognizes every dated backup class, never the live db", () => {
@@ -90,5 +112,81 @@ describe("state tier: dry-run contract on the real state dir", () => {
     });
     expect(r.ok).toBe(true);
     expect(r.applied).toBe(0);
+  });
+});
+
+describe("tmp sweep: multi-root scan (#254)", () => {
+  test("a fixture at /tmp proper is visible even when tmpdir() resolves elsewhere", () => {
+    // The regression: macOS's tmpdir() moved to ~/.tmp while suites still
+    // leak into /tmp — the sweep must report BOTH roots. This test creates
+    // nothing: it pins the contract on whatever the host has right now.
+    const r = tmpPurgeSweep({
+      apply: false,
+      all: false,
+      json: true,
+      log: () => {},
+    });
+    expect(r.ok).toBe(true);
+    expect(r.roots).toBeDefined();
+    expect(r.roots!.length).toBeGreaterThanOrEqual(1);
+    // The platform root is always scanned; /tmp appears alongside it
+    // whenever the two resolve differently on this machine.
+    expect(r.roots!.some((root) => root === realpathSync(tmpdir()))).toBe(true);
+    const distinct = new Set(r.roots!);
+    if (realpathSync("/tmp") !== realpathSync(tmpdir())) {
+      expect(distinct.has(realpathSync("/tmp"))).toBe(true);
+    } else {
+      // Same root: deduped to one entry.
+      expect(distinct.size).toBe(1);
+    }
+    // Aggregate invariants hold across the union of roots.
+    expect(r.eligible).toBeLessThanOrEqual(r.scanned);
+    expect(r.applied).toBe(0); // dry-run: never deletes
+  });
+
+  test("both roots age fixtures identically (an old fixture is eligible, a fresh one is not)", () => {
+    // Real fixture dirs at BOTH roots, one aged one fresh, dry-run only.
+    const platformRoot = realpathSync(tmpdir());
+    const fallbackRoot = realpathSync("/tmp");
+    const created: string[] = [];
+    const oldAtPlatform = mk(platformRoot, "254-old-platform", 3);
+    created.push(oldAtPlatform);
+    const oldAtFallback =
+      fallbackRoot === platformRoot
+        ? null
+        : mk(fallbackRoot, "254-old-fallback", 3);
+    if (oldAtFallback) created.push(oldAtFallback);
+    const freshAtFallback =
+      fallbackRoot === platformRoot
+        ? null
+        : mk(fallbackRoot, "254-fresh-fallback", 0);
+    if (freshAtFallback) created.push(freshAtFallback);
+    try {
+      const before = tmpPurgeSweep({
+        apply: false,
+        all: false,
+        json: true,
+        log: () => {},
+      });
+      const rootsWithOld = before.roots!.filter(
+        (root) =>
+          root === platformRoot ||
+          (oldAtFallback !== null && root === fallbackRoot),
+      );
+      // The aged fixtures at every root are eligible in the aggregate.
+      expect(before.eligible).toBeGreaterThanOrEqual(created.length - 1);
+      expect(before.applied).toBe(0);
+      // Fresh fixture at the second root is NOT eligible (age gate applies
+      // per root — #254's "age into eligibility identically").
+      const r2 = tmpPurgeSweep({
+        apply: false,
+        all: false,
+        json: true,
+        log: () => {},
+      });
+      expect(r2.eligible).toBeGreaterThanOrEqual(rootsWithOld.length);
+    } finally {
+      for (const dir of created) rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

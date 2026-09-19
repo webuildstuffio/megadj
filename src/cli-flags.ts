@@ -54,7 +54,7 @@ export function parseFlags(
  *  VALUE of a space-form string flag (`--min-duration 30 /x` → ["/x"]).
  *  Same consumption rule as parseFlags — one seam so a positional can
  *  never be mistaken for the preceding flag's value (the ingest
- *  `--min-duration 30 <folder>` class; maintenance-cmds hand-rolled this
+ *  `--min-duration 30 <folder>` class; the maintenance arms hand-rolled this
  *  correctly first — promoted here so every command shares it). */
 export function positionalArgs(args: string[], stringOpts: string[]): string[] {
   const isFlagValue = new Set<number>();
@@ -139,4 +139,14 @@ export function nonNegOptInvalid(
   return (
     flags.strings.has(key) && nonNegOpt(flags, key, cmd, json) === undefined
   );
+}
+/** Repeatable `--key=value` string options (shelf-hygiene's
+ *  confirm/dismiss lists, rb-unmatched's --ext list). #235: rehomed
+ *  from maintenance-cmds so both domain command files share one
+ *  multi-value parser instead of a second copy. */
+export function manyOf(rest: string[], key: string): string[] {
+  return rest
+    .filter((a) => a.startsWith(`--${key}=`))
+    .map((a) => a.slice(key.length + 3))
+    .filter((v): v is string => v.length > 0);
 }

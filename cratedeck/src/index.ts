@@ -13,6 +13,7 @@ import { JobEngine } from "./jobs";
 import { ImageService } from "./image-store";
 import { ShelfSweepReader } from "./shelf_sweep_reader";
 import { HygieneReader } from "./hygiene_reader";
+import { DumpReader } from "./dump_reader";
 import { makeHygieneRoutes } from "./hygiene_routes";
 import { makeFixesRoutes } from "./fixes_routes";
 import { makeGridHealthRoutes } from "./grid_health_routes";
@@ -47,6 +48,9 @@ const archive = new ArchiveReader(
 const shelfSweeps = new ShelfSweepReader(cfg.archiveDbPath);
 /** Read-only window into the megadj hygiene_findings ledger (§5 P2). */
 const hygiene = new HygieneReader(cfg.archiveDbPath);
+/** Read-only window into the intake_dumps ledger (#20: one dump = one
+ *  dated batch folder, written by ingest itself). */
+const dumpReader = new DumpReader(cfg.archiveDbPath);
 // N75: vendor matrix + user-added players from config.toml [players.players]
 const extraPlayers = () => playersFromConfig(cfg.extraPlayers);
 
@@ -196,6 +200,43 @@ const hygieneApi = makeHygieneRoutes({
     const code = await proc.exited;
     return { code, stderr };
   },
+  // quarantine census (#36): the engine (megadj CLI) owns the layout
+  // math — index.ts just binds the call; stdout is the one JSON object.
+  quarantineCensus: async () => {
+    const proc = Bun.spawn(
+      ["bun", megadjCliPath(cfg.root), "shelf-quarantine", "--json"],
+      { stdout: "pipe", stderr: "pipe", cwd: cfg.root },
+    );
+    const stdout = await new Response(proc.stdout).text();
+    const stderr = await new Response(proc.stderr).text();
+    const code = await proc.exited;
+    if (code !== 0)
+      return {
+        files: 0,
+        bytes: 0,
+        stale: 0,
+        error: stderr.slice(-300) || `shelf-quarantine exit ${code}`,
+      };
+    try {
+      const parsed = JSON.parse(stdout.trimEnd()) as {
+        files?: number;
+        bytes?: number;
+        stale?: number;
+      };
+      return {
+        files: parsed.files ?? 0,
+        bytes: parsed.bytes ?? 0,
+        stale: parsed.stale ?? 0,
+      };
+    } catch {
+      return {
+        files: 0,
+        bytes: 0,
+        stale: 0,
+        error: "shelf-quarantine printed no JSON summary",
+      };
+    }
+  },
   json,
 });
 
@@ -300,6 +341,7 @@ const apiRouter = makeApiRouter({
   images,
   archive,
   reportDeps,
+  dumpReader,
   hygieneApi,
   fixesApi,
   gridHealthApi,

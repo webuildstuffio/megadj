@@ -164,6 +164,48 @@ function copyVerified(match: RestoreMatch): { error: string } | null {
 export async function shelfRestore(
   opts: ShelfRestoreOptions,
 ): Promise<ShelfRestoreResult> {
+  return await restoreOne(opts, false);
+}
+
+/** Restore EVERY applied finding's loser (#36 restore-all). Per-row
+ *  failures are reported, never fatal — one bad row never kills the
+ *  batch (the same rule apply runs under). `results` carries every
+ *  row's outcome so the API/UI can show per-row state, not a bare ok. */
+export async function shelfRestoreAll(
+  opts: Omit<ShelfRestoreOptions, "input">,
+): Promise<{
+  command: "restore-all";
+  ok: boolean;
+  restored: number;
+  failed: { findingId: string | null; error: string }[];
+  results: ShelfRestoreResult[];
+}> {
+  const restored: ShelfRestoreResult[] = [];
+  const failed: { findingId: string | null; error: string }[] = [];
+  const dbPath =
+    opts.dbPath ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
+  const store = new HygieneStore(openLedger(dbPath));
+  for (const f of store.list({ status: "applied" })) {
+    const r = await restoreOne({ ...opts, input: f.id }, true);
+    restored.push(r);
+    if (!r.ok)
+      failed.push({ findingId: r.findingId, error: r.error ?? "unknown" });
+  }
+  return {
+    command: "restore-all",
+    ok: failed.length === 0,
+    restored: restored.filter((r) => r.ok).length,
+    failed,
+    results: restored,
+  };
+}
+
+/** Shared body of restore-one / restore-all. `quiet` suppresses the
+ *  per-row human log under restore-all (the batch summary reports). */
+async function restoreOne(
+  opts: ShelfRestoreOptions,
+  quiet: boolean,
+): Promise<ShelfRestoreResult> {
   const shelfVolume = resolveShelfVolume(opts.shelfVolume);
   const dbPath =
     opts.dbPath ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
@@ -172,8 +214,9 @@ export async function shelfRestore(
     value: ShelfRestoreResult,
   ): Promise<ShelfRestoreResult> => {
     if (opts.json) await writeJson(value);
-    else if (!value.ok) log(`restore: ${value.error ?? "restore failed"}`);
-    else log(`restore: restored ${value.source} → ${value.destination}`);
+    else if (value.ok)
+      log(`restore: restored ${value.source} → ${value.destination}`);
+    else if (!quiet) log(`restore: ${value.error ?? "restore failed"}`);
     return value;
   };
 

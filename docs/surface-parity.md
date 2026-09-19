@@ -11,6 +11,7 @@ fails the build on it.
 
 ## Revision history
 
+- rev-43 (2026-09-19): #35/#36/#20 — hygiene quarantine closes its loop + dumps get a ledger. NEW CLI verbs: `shelf-restore-all`, `shelf-quarantine` (N files/X GB census), `shelf-quarantine-empty --yes` (deletes recoverable copies, flips applied → archived; receipt kept). NEW routes: `POST /api/hygiene/restore`, `POST /api/hygiene/restore-all`, `GET /api/hygiene/quarantine`, `POST /api/hygiene/quarantine/empty` (literal `{confirm:"DELETE"}` gate), `GET /api/intake/dumps`. NEW MCP tool: `getdat_intake {action?,folder?,dry_run?}` (dump census / process). NEW UI: QuarantinePanel (census + restore-all + typed-confirmed empty) + failed-row Revert in the Hygiene tab; IntakeDumps strip in GetDat ⌗ Intake. §4-R1 retired — restore/empty are now first-class surfaces (engine-owned CLI, web is a remote control). Dump ledger = `intake_dumps` in archive.db, written by ingest itself (one dump = one dated batch folder, #20 acceptance: same-day dumps stay distinct, a partial 17/18 outcome is representable). 48 → 51 commands, 43 → 44 tools, 73 → 78 routes.
 - rev-25 (2026-09-15): MegaSet rename — verb/route/tool renamed (`megadj megaset`, `/api/archive/megaset`, `megaset_propose`); census unchanged.
 - rev-26 (2026-09-16): #42 split — `/api` dispatch moved to `api_routes.ts` (census reads its exact-table keys); `/events/` trailing-slash spelling restored + 406 negotiation pinned by e2e. 63 → 64 routes (the restored alias).
 - rev-27 (2026-09-16): #143 registry — megadj help/census SSOT is `src/command-registry.ts` (`COMMAND_DOCS`); `usage.ts` renders from it; census + help cross-check off the one table. 45 commands unchanged (the stale duplicate `rb-comment-sync --limit` help block — a flag the arm never parsed — is the one removed line).
@@ -52,11 +53,11 @@ deliberate exemptions are in §4. Historical repair details belong in
 
 | Surface    | Entry points                                                      | Count                  |
 | ---------- | ----------------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 48 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 51 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                         | 24 verbs               |
-| MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 43 tools               |
-| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 73 routes              |
-| Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, 56 UI calls   |
+| MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 44 tools               |
+| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 78 routes              |
+| Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, 61 UI calls   |
 
 The server's HTTP API is the **fourth surface** and the seam everything
 converges on: deckctl and MCP are HTTP clients of it, and the UI talks to
@@ -153,7 +154,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Shelf fingerprint dupescan                        | `megadj shelf-dupescan [--quarantine --yes]` ✅                                                                                                                                           | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
 | Archive dedupe (DJ-Imports)                       | `megadj dedupe-archive [--apply --yes]` ✅                                                                                                                                                | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
 | Hygiene sweep + confirm/dismiss + apply           | `megadj shelf-hygiene [--confirm/--dismiss/--bucket/--apply --yes]` ✅                                                                                                                    | `deck_hygiene {action?}` ✅ (CrateDeck tier)              | Drive ⌗ Hygiene tab ✅ (listen-first checks refuse remote batch-confirm)   | —                                                                             |
-| Quarantine restore                                | `megadj shelf-restore <finding-id\|path>` ✅                                                                                                                                              | ⛔ §4-R1                                                  | ⛔ §4-R1                                                                   | —                                                                             |
+| Quarantine restore (one / all) + census + empty   | `megadj shelf-restore <finding-id\|path>` ✅ · `megadj shelf-restore-all` ✅ · `megadj shelf-quarantine [--json]` ✅ · `megadj shelf-quarantine-empty --yes` ✅ (rev-43: rows flip applied → archived, receipt kept) | via `/api/hygiene/restore\|restore-all\|quarantine[/empty]` ✅ (engine-owned CLI, web remote-controls it) | Drive ⌗ Hygiene tab — QuarantinePanel ✅ (typed-confirmed empty)           | —                                                                             |
 | Drive→shelf archive sweep                         | `megadj shelf-archive [volumes] [--into F] [--trashes] [--deep]` ✅                                                                                                                       | ⛔ §4-A1 (bulk file moves stay CLI)                       | ⛔ §4-A1 (CrateDeck records sweeps, never drives them)                     | —                                                                             |
 | Sweep ledger (drive→shelf history)                | `megadj shelf-sweeps [--json]` ✅                                                                                                                                                         | `archive_sweep` ✅ (sweep census rides the archive reads) | Fleet ⌗ Prep (digest section) ✅                                           | —                                                                             |
 | Shelf sync (archive→sticks)                       | `megadj shelf-sync [--dry-run]` ✅                                                                                                                                                        | ⛔ §4-A1 (stick writes stay CLI; drives are user-staged)  | ⛔ §4-A1                                                                   | — (AGENTS: agents never write the playing USB)                                |
@@ -170,6 +171,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | ANLZ write-path spike (GA-07)                     | `megadj rb-anlz-spike [drive] snapshot\|compare\|set-grid --tag T [--file KEY --beats JSON --apply --yes]` ✅ (set-grid = Q4's direct PQTZ rewrite, shipped 2026-09-18, unrun vs live RB) | ⛔ §4-A1 (drive-side harness stays CLI)                   | ⛔ §4-A1                                                                   | —                                                                             |
 | Stale test-fixture sweep (host tmpdir)            | `megadj tmp-purge [--state] [--apply] [--all] [--json]` ✅ (--state: the state-dir backup/sidecar/spike tier)                                                                             | ⛔ §4-A1 (host filesystem hygiene stays CLI)              | ⛔ §4-A1                                                                   | —                                                                             |
 | Intake census (files ↔ archive.db, F5)            | `megadj intake-status [drive] [--json]` ✅ (NFC+casefold compare; drift = exit 1)                                                                                                         | ⛔ §4-A1 (the count SSOT stays CLI)                       | ⛔ §4-A1 (GetDat ⌗ Pipeline renders the same ledger buckets)               | —                                                                             |
+| Dump ledger (one ingest batch = one unit, #20)    | ingest writes it; `megadj intake-status` renders the census ✅                                                                                                                             | `getdat_intake` ✅ (bare call = the census)               | GetDat ⌗ Intake — dumps strip ✅ (`GET /api/intake/dumps`)                 | — (rev-43)                                                                    |
 
 Every §2d CLI cell resolves to one of three verdicts: **A1** (mutating
 pipeline arm — CLI-only by exemption), **A2** (host setup), or the
@@ -260,8 +262,11 @@ this table AND the enforcement test together (that's the point).
 - **G2 — CLOSED.** The Fleet ⌗ Prep tab renders the
   digest.
 - **A1 — archive mutation stays CLI-shaped.** The mutating pipeline
-  arms — every verb in `src/shared/maintenance-cmds.ts`'s
-  `MAINTENANCE_VERBS` plus `genre`/`drop`/`upgrade` — are long-running,
+  arms — every verb in the domain command records
+  (`src/rekordbox/cli-commands.ts`'s rb-* table +
+  `src/shelf/cli-commands.ts`'s shelf-hygiene/restore, intake-status,
+  tmp-purge arms — the dissolved maintenance grab-bag, #235) plus
+  `genre`/`drop`/`upgrade` — are long-running,
   file- and DB-mutating stages; MCP's archive half is **readonly by
   design** (`readonly: true` sqlite handle — a bug there cannot corrupt
   archive state). The UI does not re-implement pipeline logic — the
@@ -270,19 +275,22 @@ this table AND the enforcement test together (that's the point).
   remote control, not a second engine). Agents still drive archive work
   through `megadj` CLI + skills, which is the P1 contract (`--json`
   everywhere). The verb list is derived, not copied: the parity test
-  reads `MAINTENANCE_VERBS` + the registry (no hand twin — the hand
-  list this row replaced had already drifted by construction).
+  reads the domain command records + the registry (no hand twin — the
+  hand list this row replaced had already drifted by construction).
 - **A2 — doctor/init are host setup**, not library operations; they
   scaffold config and check the local machine. No UI/MCP sense.
 - **A3 — CLOSED.** The Fleet ⌗ Archive tab serves the
   read tools' data (ingest status, mood profile, LOWQ, grid
   cross-check); ⌘K covers track search.
-- **R1 — hygiene quarantine restore is CLI-only.** `shelf-restore`
-  copies only a source owned by an applied `hygiene_findings` ledger row,
-  verifies MD5 before and after the copy, refuses an existing destination,
-  and shares the hygiene mutation lease with `shelf-hygiene --apply`. A
-  remote/UI restore surface would need an explicit target-volume picker and
-  the same local-volume safety controls; until then, agents use the CLI.
+- **R1 — RETIRED (rev-43, #35/#36).** Hygiene quarantine restore was
+  CLI-only because a remote surface lacked a target-volume picker and the
+  safety story. Closed without one: restore/restore-all target the
+  LEDGER-RECORDED original path only (never a free-form destination), MD5
+  is verified before and after every copy, the empty requires the literal
+  `{confirm:"DELETE"}` + the engine lease, and the whole family runs
+  through megadj's CLI — the web tab is a remote control, exactly like
+  scan/apply/decide. Rows emptied from quarantine flip to `archived`
+  (receipt kept; the ledger keeps the audit trail).
 - **L1 — cross-tier twin registry (the "same job, two packages" list).**
   These are structural twins that are deliberately NOT merged — the
   packages stay decoupled — with their alignment owned here instead:

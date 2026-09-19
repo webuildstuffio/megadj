@@ -9,12 +9,13 @@
 // hygiene-compare.tsx; the presentational rows (queue row, bucket strip,
 // action bar, settled tail) live in hygiene-rows.tsx. This file owns the
 // state, the decision wiring, and the layout.
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import type {
   Finding,
   HygienePayload,
+  QuarantineCensus,
 } from "../../../../cratedeck/shared/hygiene";
-import { apiPost, toast } from "../../ui/toast";
+import { apiPost, api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { Verdict, useScanApply, ScanApplyGate } from "../shared";
 import { fetchSideStats, type CompareState } from "./hygiene-compare";
@@ -22,6 +23,7 @@ import {
   BucketStrip,
   FindingRow,
   SettledSection,
+  QuarantinePanel,
   ActionBar,
   hygieneBanner,
   rank,
@@ -97,6 +99,74 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
     );
   };
 
+  // ---- quarantine (#35/#36): census + restore/restore-all/empty -----
+  const [quarCensus, setQuarCensus] = useState<QuarantineCensus | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api<QuarantineCensus>("/api/hygiene/quarantine", { quiet: true })
+      .then((c) => alive && setQuarCensus(c))
+      .catch(() => undefined); // degraded panel is fine (missing dir etc.)
+    return () => {
+      alive = false;
+    };
+  }, [payload]);
+
+  const refreshQuar = () => {
+    api<QuarantineCensus>("/api/hygiene/quarantine", { quiet: true })
+      .then((c) => setQuarCensus(c))
+      .catch(() => undefined);
+  };
+
+  /** Revert ONE failed apply (and restore-all): both POST through the
+   *  engine SSOT, then refresh census + findings. */
+  const restoreOne = async (id: string) => {
+    await runAction(`restore:${id}`, async () => {
+      const r = await apiPost<{ ok: boolean; error?: string }>(
+        "/api/hygiene/restore",
+        { id },
+      );
+      toast(
+        r.ok
+          ? "Copy restored to its original path"
+          : `restore failed: ${r.error ?? "unknown"}`,
+        r.ok ? "ok" : "err",
+      );
+      refreshQuar();
+    });
+  };
+  const restoreAll = async () => {
+    await runAction("restore-all", async () => {
+      await apiPost("/api/hygiene/restore-all", {});
+      toast("Restore-all queued through the engine — copies move back", "ok");
+      refreshQuar();
+    });
+  };
+  /** The double-confirmed empty: typed "DELETE" gate lives server-side;
+   *  the browser confirm() here is the human beat before it. */
+  const emptyQuarantine = async () => {
+    if (
+      !window.confirm(
+        "Delete EVERY recoverable copy? The undo window closes. Type DELETE to confirm.",
+      )
+    )
+      return;
+    const typed = window.prompt("Type DELETE to confirm");
+    if (typed !== "DELETE") return;
+    await runAction("empty", async () => {
+      const r = await apiPost<{ ok: boolean; error?: string }>(
+        "/api/hygiene/quarantine/empty",
+        { confirm: typed },
+      );
+      toast(
+        r.ok
+          ? "Quarantine emptied — receipts kept in the ledger"
+          : `empty failed: ${r.error ?? "unknown"}`,
+        r.ok ? "ok" : "err",
+      );
+      refreshQuar();
+    });
+  };
+
   const scanned = payload as HygienePayload | null | undefined;
   const { findings, counts } = scanned ?? {
     findings: [],
@@ -140,6 +210,13 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
     >
       <Verdict cls={banner.cls} text={banner.text} />
 
+      <QuarantinePanel
+        census={quarCensus}
+        busy={busy !== null}
+        onRestoreAll={restoreAll}
+        onEmpty={emptyQuarantine}
+      />
+
       <ActionBar
         busy={busy}
         applyDisabled={counts.confirmed === 0}
@@ -181,7 +258,9 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
         </>
       )}
 
-      {doneRows.length > 0 && <SettledSection rows={doneRows} />}
+      {doneRows.length > 0 && (
+        <SettledSection rows={doneRows} onRestoreFailed={restoreOne} />
+      )}
     </ScanApplyGate>
   );
 }

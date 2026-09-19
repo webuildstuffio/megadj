@@ -67,3 +67,26 @@ export interface IntakeFoldersResponse {
   watch: string;
   candidates: IntakeCandidate[];
 }
+
+/** One dump unit (#20): a dated batch folder with its run tallies.
+ *  Mirrors src/archive/dump-ledger.ts (the writer) — derived consumers
+ *  on the wire import THIS side (shared/intake.ts), never a hand twin. */
+export interface DumpRecord {
+  /** the dated batch folder name ("2026-09-09 new dump") — the key */
+  folder: string;
+  sourceFolder: string;
+  status: "partial" | "done";
+  ingested: number;
+  duplicates: number;
+  /** broken/tag-write/skip tail — a re-run resumes these */
+  pending: number;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Wire shape of GET /api/intake/dumps — the dumps strip's census. */
+export interface IntakeDumpsResponse {
+  dumps: DumpRecord[];
+  counts: { total: number; partial: number; done: number; pending: number };
+}

@@ -17,7 +17,7 @@
 //   - per-family counts + bytes in the report; `--json` contract
 //
 // Read-only by default: pass --apply to delete.
-import { readdirSync, rmSync, statSync } from "node:fs";
+import { readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -51,6 +51,8 @@ export interface TmpPurgeFamily {
 export interface TmpPurgeResult {
   ok: boolean;
   root: string;
+  /** All roots scanned when tmpdir() and /tmp differ (one entry each). */
+  roots?: string[];
   scanned: number;
   eligible: number;
   applied: number;
@@ -243,6 +245,7 @@ export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
   return {
     ok: true,
     root,
+    roots: [root],
     scanned,
     eligible,
     applied,
@@ -276,8 +279,83 @@ export function sidecarClass(name: string): string | null {
   return m?.[1] ?? null;
 }
 
-function tmpPurgeSweep(opts: TmpPurgeOptions): TmpPurgeResult {
-  const root = tmpdir();
+/** One root scan: every fixture-prefixed entry, classified + age-gated.
+ *  Shared by the multi-root sweep (#254) so both roots age identically. */
+interface RootTally {
+  scanned: number;
+  eligible: number;
+  applied: number;
+  freedBytes: number;
+}
+
+function scanOneTmpRoot(
+  root: string,
+  cutoffMs: number,
+  apply: boolean,
+  log: (message: string) => void,
+  byFamily: Map<string, TmpPurgeFamily>,
+): RootTally {
+  const tally: RootTally = {
+    scanned: 0,
+    eligible: 0,
+    applied: 0,
+    freedBytes: 0,
+  };
+
+  let entries: string[];
+  try {
+    entries = readdirSync(root);
+  } catch (e) {
+    log(`tmp-purge: cannot read ${root}: ${(e as Error).message}`);
+    return tally;
+  }
+
+  for (const name of entries) {
+    const prefix = FIXTURE_PREFIXES.find((p) => name.startsWith(p));
+    if (!prefix) continue;
+    tally.scanned++;
+    const full = join(root, name);
+    let ageOk = false;
+    try {
+      ageOk = statSync(full).mtimeMs <= cutoffMs;
+    } catch {
+      continue;
+    }
+    if (!ageOk) continue;
+    tally.eligible++;
+    const bytes = treeBytes(full);
+    const fam = byFamily.get(prefix) ?? { prefix, dirs: 0, bytes: 0 };
+    fam.dirs++;
+    fam.bytes += bytes;
+    byFamily.set(prefix, fam);
+    if (apply) {
+      try {
+        rmSync(full, { recursive: true, force: true });
+        tally.applied++;
+        tally.freedBytes += bytes;
+      } catch (e) {
+        log(`  ! could not remove ${full}: ${(e as Error).message}`);
+      }
+    }
+  }
+  return tally;
+}
+
+/** The tmpdir tier (#254: scans BOTH tmpdir() and /tmp when they differ,
+ *  deduped by realpath — the two roots leak independently). Exported for
+ *  the multi-root pin test; the CLI rides tmpPurge(). */
+export function tmpPurgeSweep(opts: TmpPurgeOptions): TmpPurgeResult {
+  // #254: macOS moved the default tmpdir to ~/.tmp while real suites
+  // still leak into /tmp proper — the two roots exist and leak
+  // independently, so BOTH are scanned (deduped by realpath) with
+  // identical age gating.
+  const primary = tmpdir();
+  const fallback = "/tmp";
+  const roots = new Set<string>([realpathSync(primary)]);
+  if (realpathSync(fallback) !== realpathSync(primary)) {
+    roots.add(realpathSync(fallback));
+  }
+
   const cutoffMs = opts.all
     ? Number.POSITIVE_INFINITY
     : Date.now() - 24 * 60 * 60 * 1000;
@@ -288,56 +366,19 @@ function tmpPurgeSweep(opts: TmpPurgeOptions): TmpPurgeResult {
   let applied = 0;
   let freedBytes = 0;
 
-  let entries: string[];
-  try {
-    entries = readdirSync(root);
-  } catch (e) {
-    opts.log(`tmp-purge: cannot read ${root}: ${(e as Error).message}`);
-    return {
-      ok: false,
-      root,
-      scanned: 0,
-      eligible: 0,
-      applied: 0,
-      freedBytes: 0,
-      families: [],
-      appliedMode: opts.apply,
-    };
-  }
-
-  for (const name of entries) {
-    const prefix = FIXTURE_PREFIXES.find((p) => name.startsWith(p));
-    if (!prefix) continue;
-    scanned++;
-    const full = join(root, name);
-    let ageOk = false;
-    try {
-      ageOk = statSync(full).mtimeMs <= cutoffMs;
-    } catch {
-      continue;
-    }
-    if (!ageOk) continue;
-    eligible++;
-    const bytes = treeBytes(full);
-    const fam = byFamily.get(prefix) ?? { prefix, dirs: 0, bytes: 0 };
-    fam.dirs++;
-    fam.bytes += bytes;
-    byFamily.set(prefix, fam);
-    if (opts.apply) {
-      try {
-        rmSync(full, { recursive: true, force: true });
-        applied++;
-        freedBytes += bytes;
-      } catch (e) {
-        opts.log(`  ! could not remove ${name}: ${(e as Error).message}`);
-      }
-    }
+  for (const root of roots) {
+    const t = scanOneTmpRoot(root, cutoffMs, opts.apply, opts.log, byFamily);
+    scanned += t.scanned;
+    eligible += t.eligible;
+    applied += t.applied;
+    freedBytes += t.freedBytes;
   }
 
   const families = [...byFamily.values()].toSorted((a, b) => b.dirs - a.dirs);
   return {
     ok: true,
-    root,
+    root: primary,
+    roots: [...roots].toSorted(),
     scanned,
     eligible,
     applied,
@@ -351,10 +392,15 @@ export function printTmpPurgeReport(
   r: TmpPurgeResult,
   log: (message: string) => void,
 ): void {
+  // #254: every scanned root is listed (tmp sweep scans both tmpdir()
+  // and /tmp when they differ; the state tier has exactly one).
   log(`megadj tmp-purge — root: ${r.root}${r.kept ? " (state tier)" : ""}`);
   if (!r.ok) {
     log("  scan failed (see above)");
     return;
+  }
+  if (r.roots && r.roots.length > 1) {
+    for (const root of r.roots) log(`  also scanning: ${root}`);
   }
   if (r.kept) {
     for (const k of r.kept) log(`  kept (newest lineage): ${k}`);

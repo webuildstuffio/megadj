@@ -22,3 +22,11 @@ export function configuredMasterDrive(): string {
     process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
   return loadConfig(root).masterDrive;
 }
+/** The mount argument → drive path: explicit positional wins, else the
+ *  shelf volume. #235: rehomed from maintenance-cmds — this is volume
+ *  naming, and the rb-* + shelf-* command arms all mean the same thing
+ *  by "[drive] positional absent = shelf". */
+export function mountFrom(positional: string | undefined): string {
+  if (positional) return volumePath(positional);
+  return resolveShelfVolume();
+}

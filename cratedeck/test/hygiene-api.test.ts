@@ -135,6 +135,7 @@ test("reader: missing archive DB answers empty, never throws", () => {
     reader: r,
     enqueue: () => ({ id: "j0" }),
     megadjCli: async () => ({ code: 0, stderr: "" }),
+    quarantineCensus: async () => ({ files: 0, bytes: 0, stale: 0 }),
     shelfRoot: "/tmp",
     json,
   });
@@ -206,6 +207,7 @@ function harness(reader: HygieneReader): {
       cap.cli.push(args);
       return { code: 0, stderr: "" };
     },
+    quarantineCensus: async () => ({ files: 0, bytes: 0, stale: 0 }),
     json,
   });
   return { api, cap };
@@ -335,6 +337,7 @@ test("routes: decide rejects empty body; CLI failure surfaces 409 + stderr", asy
         ? { code: 1, stderr: "walk token mismatch: shelf changed under us" }
         : { code: 0, stderr: "" };
     },
+    quarantineCensus: async () => ({ files: 0, bytes: 0, stale: 0 }),
     json,
   });
   const bad = await api.decide(
@@ -352,6 +355,107 @@ test("routes: decide rejects empty body; CLI failure surfaces 409 + stderr", asy
   expect(err.status).toBe(409);
   const payload = (await err.json()) as { stderr: string };
   expect(payload.stderr).toContain("walk token");
+});
+
+// ---- #35/#36: restore / restore-all / quarantine census + empty ----------
+
+test("routes: restore requires an id and delegates to the engine CLI", async () => {
+  const { api, cap } = harness(new HygieneReader(join(dir, "empty.db")));
+  const noId = await api.restore(
+    new Request("http://x", { method: "POST", body: "{}" }),
+  );
+  expect(noId.status).toBe(400);
+  expect(cap.cli.length).toBe(0);
+
+  const ok = await api.restore(
+    new Request("http://x", {
+      method: "POST",
+      body: JSON.stringify({ id: "abc" }),
+    }),
+  );
+  expect(ok.status).toBe(200);
+  expect(cap.cli[0]).toEqual(["shelf-restore", "abc", "--json"]);
+
+  // engine failure → 409 with the tail
+  const failing = makeHygieneRoutes({
+    reader: new HygieneReader(join(dir, "empty.db")),
+    enqueue: () => ({ id: "j" }),
+    shelfRoot: "/tmp",
+    megadjCli: async () => ({ code: 1, stderr: "source MD5 differs" }),
+    quarantineCensus: async () => ({ files: 0, bytes: 0, stale: 0 }),
+    json,
+  });
+  const bad = await failing.restore(
+    new Request("http://x", {
+      method: "POST",
+      body: JSON.stringify({ id: "abc" }),
+    }),
+  );
+  expect(bad.status).toBe(409);
+  const body = (await bad.json()) as { error?: string };
+  expect(body.error).toContain("MD5");
+});
+
+test("routes: restore-all runs the engine batch and 409s on total failure", async () => {
+  const { api, cap } = harness(new HygieneReader(join(dir, "empty.db")));
+  const ok = await api.restoreAll();
+  expect(ok.status).toBe(200);
+  expect(cap.cli[0]).toEqual(["shelf-restore-all", "--json"]);
+
+  const failing = makeHygieneRoutes({
+    reader: new HygieneReader(join(dir, "empty.db")),
+    enqueue: () => ({ id: "j" }),
+    shelfRoot: "/tmp",
+    megadjCli: async () => ({ code: 1, stderr: "boom" }),
+    quarantineCensus: async () => ({ files: 0, bytes: 0, stale: 0 }),
+    json,
+  });
+  expect((await failing.restoreAll()).status).toBe(409);
+});
+
+test("routes: quarantine census reads the injected census; empty requires DELETE literal", async () => {
+  let censusCalls = 0;
+  const api = makeHygieneRoutes({
+    reader: new HygieneReader(join(dir, "empty.db")),
+    enqueue: () => ({ id: "j" }),
+    shelfRoot: "/tmp",
+    megadjCli: async (args) => {
+      expect(args[0]).toBe("shelf-quarantine-empty");
+      return { code: 0, stderr: "" };
+    },
+    quarantineCensus: async () => {
+      censusCalls++;
+      return { files: 3, bytes: 35_000_000_000, stale: 1 };
+    },
+    json,
+  });
+  const q = await api.quarantine();
+  expect(q.status).toBe(200);
+  const qBody = (await q.json()) as { files: number; stale: number };
+  expect(qBody.files).toBe(3);
+  expect(qBody.stale).toBe(1);
+  expect(censusCalls).toBe(1);
+
+  // empty without the literal confirm → 400, engine never invoked
+  const noConfirm = await api.quarantineEmpty(
+    new Request("http://x", {
+      method: "POST",
+      body: JSON.stringify({ confirm: "yes" }),
+    }),
+  );
+  expect(noConfirm.status).toBe(400);
+  const wrong = await api.quarantineEmpty(
+    new Request("http://x", { method: "POST", body: "not json" }),
+  );
+  expect(wrong.status).toBe(400);
+
+  const ok = await api.quarantineEmpty(
+    new Request("http://x", {
+      method: "POST",
+      body: JSON.stringify({ confirm: "DELETE" }),
+    }),
+  );
+  expect(ok.status).toBe(200);
 });
 
 beforeAll(() => {

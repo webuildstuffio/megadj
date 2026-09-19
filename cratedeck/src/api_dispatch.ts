@@ -76,6 +76,13 @@ export async function hygieneFixesDispatch(
     return await deps.hygieneApi.decide(req);
   if (route === "/hygiene/bucket-confirm" && post)
     return await deps.hygieneApi.bucketConfirm(req);
+  if (route === "/hygiene/restore" && post)
+    return await deps.hygieneApi.restore(req);
+  if (route === "/hygiene/restore-all" && post)
+    return await deps.hygieneApi.restoreAll();
+  if (route === "/hygiene/quarantine") return deps.hygieneApi.quarantine();
+  if (route === "/hygiene/quarantine/empty" && post)
+    return await deps.hygieneApi.quarantineEmpty(req);
   if (route === "/hygiene/audio") return deps.hygieneApi.audio(url);
   if (route === "/hygiene/stats") return deps.hygieneApi.stats(url);
   // ---- booth fixes (Fleet → Booth fleet drives these checks) --------

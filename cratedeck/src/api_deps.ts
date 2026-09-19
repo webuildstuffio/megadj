@@ -15,6 +15,7 @@ import type { makeFixesRoutes } from "./fixes_routes";
 import type { makeHygieneRoutes } from "./hygiene_routes";
 import type { makeGridHealthRoutes } from "./grid_health_routes";
 import type { ReportDeps } from "./report_inputs";
+import type { DumpReader } from "./dump_reader";
 
 /** The HTTP API's dependency bundle: built once in index.ts, threaded
  *  through every route family and the dynamic dispatch tail. */
@@ -26,6 +27,8 @@ export interface ApiDeps {
   images: ImageService;
   archive: ArchiveReader;
   reportDeps: ReportDeps;
+  /** the intake_dumps ledger reader (#20) — GET /intake/dumps */
+  dumpReader: DumpReader;
   hygieneApi: ReturnType<typeof makeHygieneRoutes>;
   fixesApi: ReturnType<typeof makeFixesRoutes>;
   gridHealthApi: ReturnType<typeof makeGridHealthRoutes>;

@@ -350,4 +350,17 @@ export class HygieneStore {
       .query("DELETE FROM hygiene_operation_lock WHERE id = 1 AND owner = ?")
       .run(owner);
   }
+
+  /** applied → archived (#36): the terminal state. The row keeps its
+   *  receipt; only the recoverable byte copy is gone. Returns false for
+   *  rows not in `applied` (the status machine has no other exit). */
+  markArchived(id: string): boolean {
+    const cur = this.get(id);
+    if (!cur) return false;
+    if (cur.status !== "applied") return false;
+    this.db
+      .query("UPDATE hygiene_findings SET status = 'archived' WHERE id = ?")
+      .run(id);
+    return true;
+  }
 }

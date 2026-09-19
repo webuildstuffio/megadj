@@ -10,11 +10,14 @@
  * usage.ts renders from it, and the surface-parity census derives the
  * megadj verb set from the registry's `name:` rows (no second hand list).
  *
- * Handlers stay in the domain dirs — {getdat,shelf,fulltags}/cli-commands.ts
- * + shared/maintenance-cmds.ts (file caps + dynamic-import discipline);
- * src/shared/maintenance-verbs.test.ts pins MAINTENANCE_VERBS to the
- * dispatch table, and this registry's names are cross-checked against
- * that union by the census tests — two lists, one test-guaranteed set.
+ * Handlers stay in the domain dirs —
+ * {getdat,shelf,fulltags,rekordbox}/cli-commands.ts (file caps +
+ * dynamic-import discipline). #235 dissolved shared/maintenance-cmds:
+ * the rb-* arms live in rekordbox/cli-commands.ts, the shelf-hygiene
+ * family in shelf/cli-commands.ts. maintenance-verbs.test.ts pins the
+ * former maintenance verbs to those records, and this registry's names
+ * are cross-checked against them by the census tests — two lists, one
+ * test-guaranteed set.
  *
  * `block` lines are VERBATIM help bytes (wrapped usage + description).
  * Renderer contract: byte-identical output, --help stdout / exit 0.
@@ -374,6 +377,36 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
       "  megadj shelf-restore <finding-id|path> [--into F] [--json]",
       "                                               restore an applied ledger-owned quarantine",
       "                                               source; MD5-verified, never overwrites",
+    ],
+  },
+  {
+    name: "shelf-restore-all",
+    group: "fulltags",
+    block: [
+      "  megadj shelf-restore-all [--into F] [--json]",
+      "                                               restore EVERY applied finding's quarantine",
+      "                                               copy (per-row failures report, never fatal)",
+    ],
+  },
+  {
+    name: "shelf-quarantine",
+    group: "fulltags",
+    block: [
+      "  megadj shelf-quarantine [--shelf V] [--json]",
+      "                                               quarantine census: N files / X GB of",
+      "                                               recoverable copies (read-only; --shelf",
+      "                                               names the shelf volume to scan)",
+    ],
+  },
+  {
+    name: "shelf-quarantine-empty",
+    group: "fulltags",
+    block: [
+      "  megadj shelf-quarantine-empty [--shelf V] --yes [--json]",
+      "                                               delete every recoverable copy and flip the",
+      "                                               rows to archived — the undo window closes",
+      "                                               (--yes required; --shelf names the volume;",
+      "                                               never touches keepers)",
     ],
   },
   {

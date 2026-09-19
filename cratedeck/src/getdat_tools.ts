@@ -40,8 +40,44 @@ async function runGetDatCli(
 }
 
 /** The GetDat intake + conversion tools (mutating; async CLI job seam). */
-export function getdatTools(): Record<string, ToolDef> {
+export function getdatTools(deps?: {
+  /** dump census reader (#20) — injected by mcp.ts assembly so the MCP
+   *  twin answers "what dumps are pending?" without shelling out */
+  dumpCensus?: (() => unknown) | undefined;
+}): Record<string, ToolDef> {
   return {
+    getdat_intake: {
+      description:
+        "GetDat intake ledger (#20): census of ingest dumps — one unit per dated batch folder, each with status (done | partial), ingested/duplicates/pending counts, and its last error. Bare call = the census. action=process runs megadj ingest <folder> --json through the async CLI job seam (folder required). Re-ingesting a dump resumes its pending tail instead of re-downloading.",
+      destructive: true,
+      inputSchema: obj(
+        {
+          action: s('omit for the census, or "process"'),
+          folder: s("source folder (required when action=process)"),
+          dry_run: b("process without writing (default false)"),
+        },
+        [],
+      ),
+      run: async (args) => {
+        const action = str(args, "action");
+        if (!action || action === "census") {
+          if (deps?.dumpCensus) return deps.dumpCensus();
+          throw new RpcParamError("dump census unavailable on this server");
+        }
+        if (action === "process") {
+          const folder = str(args, "folder")?.trim();
+          if (!folder) throw new RpcParamError("folder is required");
+          const dryRun = args["dry_run"] === true;
+          return runGetDatCli(
+            "ingest",
+            [folder, ...(dryRun ? ["--dry-run"] : []), "--json"],
+            dryRun,
+          );
+        }
+        throw new RpcParamError(`unknown action "${action}"`);
+      },
+    },
+
     getdat_ingest: {
       description:
         "GetDat intake (mutating): runs megadj ingest <folder> --json through the async CLI job seam and returns the CLI's own summary, including tagged, artwork, dedupe, conversion, and compatibility counts. dry_run defaults false. The call is bounded by the configured job timeout.",

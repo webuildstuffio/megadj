@@ -58,11 +58,20 @@ function megadjCommands(): string[] {
   for (const match of registry.matchAll(/name: "([a-z][a-z-]+)"/g)) {
     if (match[1]) verbs.push(match[1]);
   }
-  const maintenance = read("src/shared/maintenance-cmds.ts").join("\n");
-  const family = maintenance
-    .match(/export const MAINTENANCE_VERBS = \[([\s\S]*?)\] as const/)?.[1]
-    ?.matchAll(/"([a-z-]+)"/g);
-  if (family) for (const match of family) if (match[1]) verbs.push(match[1]);
+  // #235: the MAINTENANCE_VERBS list dissolved into the domain records —
+  // the rb-*/shelf-hygiene verbs derive from those tables now.
+  for (const f of [
+    "src/shelf/cli-commands.ts",
+    "src/rekordbox/cli-commands.ts",
+  ]) {
+    const src = read(f).join("\n");
+    for (const tbl of src.matchAll(
+      /export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g,
+    )) {
+      for (const match of (tbl[0] ?? "").matchAll(/"([a-z-]+)":/g))
+        if (match[1]) verbs.push(match[1]);
+    }
+  }
   return [...new Set(verbs)].toSorted();
 }
 
@@ -429,8 +438,8 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
     const a1 = doc.split("**A1 —")[1]?.split(/\n- \*\*[A-Z]/)[0] ?? "";
     expect(a1.length).toBeGreaterThan(0);
-    expect(a1).toContain("MAINTENANCE_VERBS");
-    expect(a1).toContain("src/shared/maintenance-cmds.ts");
+    expect(a1).toContain("cli-commands.ts");
+    expect(a1).toMatch(/rekordbox\/cli-commands|shelf\/cli-commands/);
     // the old hand list's signature: a slash-chained enumeration of the
     // pipeline verbs inside the A1 row — any return of that shape fails
     const handList = a1.match(/`sync`\/`ingest`\/`fetch`|sync\/ingest\/fetch/);

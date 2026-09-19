@@ -2,11 +2,14 @@
 // from index.ts (file-length guard); deps injected as plain params so the
 // handlers stay pure orchestration over the real reader + job engine.
 //
-// Heavy work (scan/apply) NEVER runs in the request leg — it enqueues a
-// job; the only synchronous writes are one-row decisions (decide/confirm)
-// which go through megadj's CLI (the engine SSOT) and are fast.
+// Heavy work (scan/apply/restore-all/empty) NEVER runs in the request
+// leg — scan/apply enqueue a job; restore/restore-all/empty run through
+// megadj's CLI (the engine SSOT) so the web never writes the shelf or
+// the archive itself. The only route-leg write here is NONE: every
+// mutation delegates to the engine process.
 import type { HygieneReader } from "./hygiene_reader";
 import type { JobKind } from "../shared/types";
+import type { QuarantineCensus } from "../shared/hygiene";
 import {
   servableAudioPath,
   audioStats,
@@ -31,6 +34,10 @@ export function makeHygieneRoutes(deps: {
   /** megadj CLI path for the sync decision writes (the engine is the
    *  SSOT for status transitions — cratedeck never writes the archive) */
   megadjCli: (args: string[]) => Promise<{ code: number; stderr: string }>;
+  /** the quarantine census (GET /api/hygiene/quarantine) — injected so
+   *  the route stays pure; index.ts binds it to the megadj CLI call
+   *  (`shelf-quarantine` — engine owns the layout math) */
+  quarantineCensus: () => Promise<QuarantineCensus>;
   /** the shelf volume mount — the audio/stats routes serve ONLY paths
    *  under it (the A/B compare rail) */
   shelfRoot: string;
@@ -133,6 +140,74 @@ export function makeHygieneRoutes(deps: {
     return json(enqueue("hygiene-apply"));
   }
 
+  /** POST /api/hygiene/restore {id} — restore ONE applied finding's
+   *  loser (quarantine → original path, MD5-verified). Through the CLI:
+   *  shelf-restore owns the guard ladder + lease (#36). */
+  async function restore(req: Request): Promise<Response> {
+    const body = (await req.json().catch(() => null)) as {
+      id?: string;
+    } | null;
+    const id = body?.id;
+    if (!id || typeof id !== "string")
+      return json({ error: "id is required" }, 400);
+    const r = await megadjCli(["shelf-restore", id, "--json"]);
+    if (r.code !== 0)
+      return json(
+        { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
+        409,
+      );
+    // the CLI prints one JSON summary on stdout — parse the LAST line
+    // (guarded boundary parse; engine logs stay on stderr)
+    const line = r.stderr;
+    return json({ ok: true, id, raw: line.slice(-200) });
+  }
+
+  /** POST /api/hygiene/restore-all — restore EVERY applied finding's
+   *  loser. Per-row failures report, never fatal (the CLI owns the
+   *  batch); 409s only when nothing could be restored at all. */
+  async function restoreAll(): Promise<Response> {
+    const r = await megadjCli(["shelf-restore-all", "--json"]);
+    if (r.code !== 0)
+      return json(
+        { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
+        409,
+      );
+    return json({ ok: true });
+  }
+
+  /** GET /api/hygiene/quarantine — N files / X GB census over applied
+   *  findings' recoverable copies (the QuarantinePanel header). Through
+   *  the CLI: the quarantine LAYOUT (flattened names, suffixes) is the
+   *  engine's knowledge — cratedeck never re-derives it (#36). */
+  async function quarantine(): Promise<Response> {
+    return json(await deps.quarantineCensus());
+  }
+
+  /** POST /api/hygiene/quarantine/empty — delete every applied finding's
+   *  recoverable copy. Requires the literal {confirm: "DELETE"} (type-
+   *  to-confirm in the UI); runs through the CLI so the lease + ledger
+   *  flips stay engine-owned (#36 — the 35 GB reclaim path). */
+  async function quarantineEmpty(req: Request): Promise<Response> {
+    const body = (await req.json().catch(() => null)) as {
+      confirm?: string;
+    } | null;
+    if (body?.confirm !== "DELETE")
+      return json(
+        {
+          error:
+            'confirm must be the literal "DELETE" — this closes the undo window',
+        },
+        400,
+      );
+    const r = await megadjCli(["shelf-quarantine-empty", "--yes", "--json"]);
+    if (r.code !== 0)
+      return json(
+        { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
+        409,
+      );
+    return json({ ok: true });
+  }
+
   /** GET /api/hygiene/audio?path=… — stream one shelf audio file for the
    *  A/B compare player. Guarded: shelf-root-only, audio-extension-only,
    *  no traversal, must be a regular file. */
@@ -151,5 +226,17 @@ export function makeHygieneRoutes(deps: {
     return json(audioStats(p));
   }
 
-  return { list, decide, scan, bucketConfirm, apply, audio, stats };
+  return {
+    list,
+    decide,
+    scan,
+    bucketConfirm,
+    apply,
+    restore,
+    restoreAll,
+    quarantine,
+    quarantineEmpty,
+    audio,
+    stats,
+  };
 }

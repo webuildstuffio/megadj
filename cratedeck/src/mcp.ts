@@ -53,6 +53,7 @@
  *   deck_dismiss {drive,note_id} retire an agent note from the active feed (mutating)
  *   archive_sweep               D30 bitrot/truncation sweep (readonly)
  *   getdat_ingest {folder,dry_run?}  run megadj ingest and return its JSON summary
+ *   getdat_intake {action?,folder?,dry_run?}  dump census (#20) / process a dump
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
 import { archiveTools } from "./archive_tools";
@@ -61,6 +62,7 @@ import { ensureServer } from "./deckapi";
 export { jobTerminal } from "./deckapi";
 import { serveMcp, type ToolDef } from "./mcp_server";
 import { getdatTools } from "./getdat_tools";
+import { DumpReader } from "./dump_reader";
 import { DECK_READ_HANDLERS } from "./mcp_read_tools";
 import { DECK_ACTION_HANDLERS } from "./mcp_action_tools";
 
@@ -79,8 +81,16 @@ const DECK_HANDLERS: Record<DeckMcpVerb, ToolDef> = {
 const TOOLS: Record<string, ToolDef> = {
   ...deriveDeckTools(DECK_HANDLERS),
   // ---- GetDat intake/conversion (mutating, async CLI seam) --------------
-  // Derived from getdat_tools.ts (#47): mcp.ts owns assembly only.
-  ...getdatTools(),
+  // Derived from getdat_tools.ts (#47): mcp.ts owns assembly only. The
+  // dump census (#20) reads megadj's archive DB readonly (same path the
+  // server's readers use — MEGADJ_DB / the state default).
+  ...getdatTools({
+    dumpCensus: () =>
+      new DumpReader(
+        process.env.MEGADJ_DB ??
+          `${process.env.HOME}/.local/state/megadj/archive.db`,
+      ).census(),
+  }),
 
   // ---- O82b: the archive half (megadj's own DB, readonly) -------------------
   ...archiveTools(),

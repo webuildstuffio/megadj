@@ -23,6 +23,7 @@ import { TabIntro } from "../../ui/InfoTip";
 import { SectionHead } from "../shared";
 import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { IntakeRun, IntakeVerdict } from "./IntakeRun";
+import { IntakeDumps } from "./IntakeDumps";
 export { IntakeRun, IntakeVerdict, isIntakeResult } from "./IntakeRun";
 
 export function IntakeTab() {
@@ -154,6 +155,8 @@ export function IntakeTab() {
       {job && (
         <IntakeRun job={job} folder={jobStatusFolder(job)} onDone={() => {}} />
       )}
+
+      <IntakeDumps />
 
       {!job && (
         <div class="card">

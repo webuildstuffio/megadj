@@ -66,9 +66,9 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
   "src/rekordbox/rb-scripts-census.test.ts":
     "#214: census over rb-scripts corpus",
   "src/shared/maintenance-flags.test.ts":
-    "#235: subject maintenance-cmds flag parsing",
+    "#235: subject (dissolved maintenance arms) flag parsing — CLI-level",
   "src/shared/maintenance-verbs.test.ts":
-    "#235: subject maintenance-cmds verb dispatch",
+    "#235: subject (dissolved maintenance arms) dispatch pin — CLI-level",
   "src/shelf/ext-drift.test.ts": "#214: subject dupescan ext-drift arm",
   "src/getdat/commands/ingest-fingerprint.test.ts":
     "#220: subject ingest.ts fingerprint arm",

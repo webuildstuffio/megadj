@@ -29,13 +29,14 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
 
-/** verb → dispatch source file. The three domain command records + the
- *  maintenance table + the shelf runners (exported fns, no table). */
+/** verb → dispatch source file. The four domain command records (#235:
+ *  rekordbox joined from the dissolved maintenance table) + the shelf
+ *  runners (exported fns, no table). */
 const DISPATCH_FILES = [
   "src/getdat/cli-commands.ts",
   "src/shelf/cli-commands.ts",
   "src/fulltags/cli-commands.ts",
-  "src/shared/maintenance-cmds.ts",
+  "src/rekordbox/cli-commands.ts",
   "src/shelf/cli-cmds.ts",
 ];
 
@@ -128,7 +129,7 @@ function flagsFromBody(body: string, into: ArmFlags): void {
 const SHARED_OPT_HELPERS: Readonly<
   Record<string, { strings: readonly string[]; bools: readonly string[] }>
 > = {
-  // maintenance-cmds rbWriteOpts: the playlist+group+apply/yes+json block
+  // rbWriteOpts (rekordbox/cli-commands.ts): the playlist+group+apply/yes+json block
   rbWriteOpts: {
     strings: ["playlist", "group"],
     bools: ["apply", "yes", "json"],

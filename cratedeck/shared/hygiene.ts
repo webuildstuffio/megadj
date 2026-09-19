@@ -23,13 +23,15 @@ export type Severity = "safe" | "likely" | "review" | "info";
 
 /** The finding status machine: open → confirmed → applied | failed, or
  *  open → dismissed. A re-run with CHANGED evidence re-opens a dismissed
- *  finding; identical evidence never re-surfaces it. */
+ *  finding; identical evidence never re-surfaces it. `archived` is the
+ *  terminal state after a quarantine empty (receipt kept, copy gone). */
 export type FindingStatus =
   | "open" // detected, undecided
   | "confirmed" // user said yes (pending apply)
   | "dismissed" // user said no — stays down unless evidence changes
   | "applied" // executed (moved to quarantine)
-  | "failed"; // apply attempted, errored (kept for inspection)
+  | "failed" // apply attempted, errored (kept for inspection)
+  | "archived"; // quarantine copy emptied — undo window closed (#36)
 
 /** What the apply step would do. Quarantine/clean are the only auto-safe
  *  actions; everything else is a human-gated operation. */
@@ -170,6 +172,18 @@ export interface HygienePayload {
     bySub: Record<string, number>;
   };
   walkToken: string | null;
+}
+
+/** GET /api/hygiene/quarantine — the QuarantinePanel header (#36): how
+ *  many recoverable copies sit in the quarantine (N files / X bytes),
+ *  plus `stale` applied rows whose copy already vanished (only in the
+ *  ledger — never counted as reclaimable). `error` = the engine/CLI was
+ *  unreachable; the panel degrades to the explainer, never a fake zero. */
+export interface QuarantineCensus {
+  files: number;
+  bytes: number;
+  stale: number;
+  error?: string | undefined;
 }
 
 /** Per-shelf-drive hygiene badge (driveListPayload `hygiene` field). */

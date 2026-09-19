@@ -129,8 +129,12 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // (main probe + XML twin) gained real catch guards: a malformed
     // probe payload now reads as a probe ERROR, never a zero-shaped
     // "healthy" pass. The two CHECKED_SUBPROCESS sanctions retired.
-    audited: 65,
-    guarded: 49,
+    // Sep 19 (#235): audited 65→66 / guarded 49→50 — the rb-anlz-spike
+    // arm moved from shared/maintenance-cmds.ts to
+    // rekordbox/cli-commands.ts (same guarded --beats parse, new file
+    // path in the digest input).
+    audited: 66,
+    guarded: 50,
     sanctioned: 16,
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
@@ -144,7 +148,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // input re-rooted; same calls, same guards, counts unchanged).
     // Sep 18 (#220 write/ slice): file re-homes moved owners again (same
     // calls, same guards, counts unchanged) — digest shifted: acd7abc3.
-    digest: "e79cd2d831e13f78bd8fe1669e8834b79ccc782c775c95e4557aefff24fe7bca",
+    digest: "d726406f069e29e0f7156720da346ea5bfddb800a8e88b2761ab06f024565da9",
   });
 });
 

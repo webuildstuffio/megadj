@@ -24,6 +24,7 @@ import { join } from "node:path";
 import { isAudioFile } from "../shared/audio-exts";
 
 import type { ArchiveState, TrackRow } from "../archive/state";
+import { DumpLedger, type DumpCensus } from "../archive/dump-ledger";
 
 /** NFC + casefold: the path identity for every compare in this census. */
 export function pathKey(p: string): string {
@@ -67,6 +68,9 @@ export interface IntakeStatusResult {
   filesWithoutDbRow: number;
   caseCollisions: CaseCollision[];
   mismatches: DbRowMismatch[];
+  /** Dump ledger census (#20): every ingest batch as one unit, newest
+   *  first. Read from the same archive DB — present even when empty. */
+  dumps: DumpCensus;
   masterDb: {
     available: boolean;
     mount: string | undefined;
@@ -195,6 +199,7 @@ export function intakeStatus(opts: IntakeStatusOptions): IntakeStatusResult {
     filesWithoutDbRow: orphanFiles.length,
     caseCollisions,
     mismatches,
+    dumps: new DumpLedger(state.db).census(),
     masterDb,
   };
   return result;
@@ -220,6 +225,16 @@ export function printIntakeStatus(
     }
   }
   log(`  master.db leg:        ${r.masterDb.note}`);
+  if (r.dumps.counts.total > 0) {
+    const c = r.dumps.counts;
+    log(
+      `  dumps:                ${c.total} (${c.done} done, ${c.partial} partial, ${c.pending} file(s) pending)`,
+    );
+    for (const d of r.dumps.dumps.slice(0, 5))
+      log(
+        `    ${d.folder} — ${d.status}, ${d.ingested} in, ${d.pending} pending`,
+      );
+  }
   const reconciled =
     r.rowsMissingOnDisk === 0 &&
     r.filesWithoutDbRow === 0 &&

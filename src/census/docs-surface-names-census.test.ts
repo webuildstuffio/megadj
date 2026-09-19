@@ -38,12 +38,20 @@ function megadjVerbs(): string[] {
     const v = m[1];
     if (v) verbs.push(v);
   }
-  const maint = read("src/shared/maintenance-cmds.ts");
-  const block = maint.match(/export const MAINTENANCE_VERBS = \[([^\]]*)\]/);
-  if (block && block[1]) {
-    for (const m of block[1].matchAll(/"([a-z-]+)"/g)) {
-      const v = m[1];
-      if (v) verbs.push(v);
+  // #235: the maintenance verb list is gone — the rb-*/shelf-hygiene
+  // verbs derive from the domain command records like every other family.
+  for (const f of [
+    "src/shelf/cli-commands.ts",
+    "src/rekordbox/cli-commands.ts",
+  ]) {
+    const src = read(f);
+    for (const tbl of src.matchAll(
+      /export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g,
+    )) {
+      for (const m of (tbl[0] ?? "").matchAll(/"([a-z-]+)":/g)) {
+        const v = m[1];
+        if (v) verbs.push(v);
+      }
     }
   }
   return [...new Set(verbs)].toSorted();

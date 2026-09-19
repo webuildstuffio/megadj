@@ -39,6 +39,8 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   // same class) — #225A folds or re-homes these
   "cratedeck/shared/types": "#225A shared-only fold (declared leaf)",
   "cratedeck/shared/hygiene": "#225A shared-only fold",
+  "cratedeck/shared/dump":
+    "#225A shared-only fold (dump contract, used by src/archive/dump-ledger)",
   "cratedeck/shared/ledger-freshness": "#225A shared-only fold",
   // ---- cratedeck → src seams: fulltags readers/fleet/grid/vote/name-key/
   // audio-exts + test-support; #225A or #214 folds these trees

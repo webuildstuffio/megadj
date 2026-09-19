@@ -55,7 +55,7 @@ describe("#143: help renders byte-identical from COMMAND_DOCS", () => {
   test("the stale twin is dead: exactly one rb-comment-sync usage line", () => {
     // The drift this issue shipped with: usage.ts carried TWO
     // rb-comment-sync blocks, the second documenting `--limit N` — a
-    // flag the command arm never parsed (maintenance-cmds.ts parses
+    // flag the command arm never parsed (rekordbox/cli-commands.ts parses
     // --batch only). The registry holds ONE block; this pins it.
     const help = renderHelp();
     const lines = help

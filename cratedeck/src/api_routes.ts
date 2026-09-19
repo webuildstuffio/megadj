@@ -257,6 +257,9 @@ function intakeRoutes(deps: ApiDeps): Record<string, Handler> {
         watch: intakeWatchDir(cfg),
         candidates: intakeCandidateDirs(cfg),
       }),
+    // dump ledger census (#20): every ingest batch as one unit — the
+    // GetDat dumps strip + the MCP twin read this one route.
+    "/intake/dumps": () => json(deps.dumpReader.census()),
     "/intake/start": async (req) => {
       if (req.method !== "POST") return json({ error: "not found" }, 404);
       let body: { folder?: string };

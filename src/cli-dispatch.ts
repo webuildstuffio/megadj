@@ -1,7 +1,9 @@
 // cli-dispatch.ts — the megadj verb→handler seam: the CliContext /
 // CliCommandHandler contract (#221: was cli-command.ts, 14L — the types
 // live with the one dispatch table they type) plus the spread of the
-// three domain command records (getdat/shelf/fulltags cli-commands.ts).
+// domain command records (#235: getdat/shelf/fulltags/rekordbox
+// cli-commands.ts — the separate maintenance branch in cli.ts is gone;
+// every verb routes through this ONE table).
 import type { ArchiveState } from "./archive/state";
 
 export interface CliContext {
@@ -20,11 +22,13 @@ export type CliCommandHandler = (
 import { GETDAT_COMMANDS } from "./getdat/cli-commands";
 import { SHELF_COMMANDS } from "./shelf/cli-commands";
 import { FULLTAGS_COMMANDS } from "./fulltags/cli-commands";
+import { REKORDBOX_COMMANDS } from "./rekordbox/cli-commands";
 
 const COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   ...GETDAT_COMMANDS,
   ...SHELF_COMMANDS,
   ...FULLTAGS_COMMANDS,
+  ...REKORDBOX_COMMANDS,
 };
 
 export async function dispatchCommand(
