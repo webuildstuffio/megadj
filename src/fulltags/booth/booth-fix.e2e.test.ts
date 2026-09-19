@@ -4,8 +4,7 @@ import { writeFakeAudio } from "../../test-support/audio-fixtures";
 import { join } from "node:path";
 import { boothFix } from "./booth-fix";
 import { setBoothFleet } from "./player-compat";
-import { ArchiveState } from "../../archive/state";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, stateIn } from "../../test-support/testutil";
 
 // ---- fixture: a tiny fake archive -------------------------------------------
 const t = tempDir("megadj-boothfix-e2e-").rippable();
@@ -28,11 +27,10 @@ afterAll(() => {
   process.exitCode = 0;
 });
 
-function fakeState(): ArchiveState {
+function fakeState() {
   // Booth-fix only calls allTracks() + updateFilePath(); a throwaway DB
   // in the tmp dir keeps this hermetic without mocking the class shape.
-  const state = new ArchiveState(join(tmp, "state.sqlite"));
-  return state;
+  return stateIn(tmp, "state.sqlite");
 }
 
 describe("boothFix — end to end (fixture archive)", () => {

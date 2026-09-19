@@ -1,4 +1,5 @@
-import { describe, it, expect } from "bun:test";
+import { afterAll, describe, it, expect } from "bun:test";
+import { tempDir } from "./testutil";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { nfcCasefold, scanVolume } from "../src/scan";
 import {
@@ -15,8 +16,11 @@ import {
 import { progressFromLine } from "../src/rb";
 
 // ---- fixtures -------------------------------------------------------------
+const t = tempDir("cratedeck-fixture-").rippable();
+afterAll(() => t.rippleAll());
+
 function makeFakeDrive(): string {
-  const root = `/tmp/cratedeck-fixture-${Date.now()}`;
+  const root = t.dir();
   const dirs = [
     "PIONEER/rekordbox",
     "Contents/YTMusic Liked",

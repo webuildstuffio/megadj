@@ -1,18 +1,21 @@
 // search.test.ts — ⌘K global search (B9): drive-name matching + payload
 // shapes. The drive-hit path was a gap: searching a drive's name returned
 // nothing unless a playlist inside it happened to match.
-import { describe, it, expect, beforeEach } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { join } from "node:path";
+import { tempDir } from "./testutil";
 import { DB } from "../src/db";
 import { Registry } from "../src/registry";
 import { loadConfig } from "../src/config";
 import type { SnapshotData } from "../shared/types";
 
+const t = tempDir("cratedeck-search-").rippable();
+afterAll(() => t.rippleAll());
+
 let db: DB;
 let reg: Registry;
 beforeEach(() => {
-  db = new DB(
-    `/tmp/cratedeck-test-${Date.now()}-${Math.random().toString(36).slice(2)}/db.sqlite`,
-  );
+  db = new DB(join(t.dir(), "db.sqlite"));
   // Real default config (env untouched in CI-style sandboxes) — the paths
   // this suite exercises never touch cfg beyond name comparisons, but a
   // fully-typed default beats an `as never` lie.

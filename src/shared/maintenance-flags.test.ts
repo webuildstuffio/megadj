@@ -40,9 +40,13 @@ function fakeMount(): string {
   return mount;
 }
 
+// SQLite writes -shm/-wal sidecars even for a "nonexistent" DB probe, so
+// the never-created DB path must live INSIDE a rippled dir, not bare /tmp.
+const ABSENT_DB = join(TEST_ROOT.dir(), "absent.db");
+
 function run(args: string[], extraEnv: Record<string, string> = {}) {
   return runCli(args, {
-    MEGADJ_DB: "/tmp/megadj-maint-nope.db",
+    MEGADJ_DB: ABSENT_DB,
     MEGADJ_SPIKE_DIR: TEST_SPIKE_DIR,
     ...extraEnv,
   });

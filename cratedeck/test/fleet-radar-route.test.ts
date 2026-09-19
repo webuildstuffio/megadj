@@ -3,18 +3,21 @@
 // → per-drive RadarResult). The pure delta is radar.test.ts's job; here
 // we prove the WIRING: real FleetStore rows in, freshness fields out,
 // absent-archive degrades to "unavailable" (never zero).
-import { describe, it, expect, beforeEach } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { join } from "node:path";
+import { tempDir } from "./testutil";
 import { DB } from "../src/db";
 import { radar, type RadarSource } from "../src/radar";
 import type { SnapshotData, RadarResult } from "../shared/types";
+
+const t = tempDir("cratedeck-radar-").rippable();
+afterAll(() => t.rippleAll());
 
 const A = "drive-a";
 
 let db: DB;
 beforeEach(() => {
-  db = new DB(
-    `/tmp/cratedeck-radar-test-${Date.now()}-${Math.random().toString(36).slice(2)}/db.sqlite`,
-  );
+  db = new DB(join(t.dir(), "db.sqlite"));
 });
 
 /** Mirror-row shape straight from ArchiveReader.downloadedForRadar(). */
@@ -79,10 +82,10 @@ function driveResult(
     videoId: r.video_id,
     firstSeenAt: r.first_seen_at,
   }));
-  const driveRows: RadarSource[] = inv.map((t) => ({
-    path: t.path,
-    title: t.title,
-    artist: t.artist,
+  const driveRows: RadarSource[] = inv.map((row) => ({
+    path: row.path,
+    title: row.title,
+    artist: row.artist,
   }));
   return {
     ...radar(driveId, driveName, archive, driveRows),
@@ -119,7 +122,7 @@ describe("fleet radar route assembly (#148)", () => {
     const inv = db
       .fleetInventories([A])
       .get(A)!
-      .map((t) => ({ path: t.path, title: t.title, artist: t.artist }));
+      .map((row) => ({ path: row.path, title: row.title, artist: row.artist }));
     expect(inv.length).toBe(1);
     const r = driveResult(
       A,

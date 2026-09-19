@@ -2,10 +2,10 @@ import { describe, expect, test, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../archive/state";
 import { rbAdopt, type RekordboxContentRow } from "./rb-adopt";
 import { reconcileRekordboxRows } from "./rb-adopt-apply";
-import { tempDir } from "../test-support/testutil";
+import { tempDir, stateIn } from "../test-support/testutil";
 
 const t = tempDir("megadj-rb-adopt-").rippable();
 afterAll(() => t.rippleAll());
@@ -21,7 +21,7 @@ function fixture(): {
   const newPath = join(root, "new.mp3");
   writeFileSync(existingPath, "existing audio");
   writeFileSync(newPath, "new audio");
-  const state = new ArchiveState(join(root, "archive.db"));
+  const state = stateIn(root);
   state.upsertTrackFromPlaylist("youtube-real-id", 0, "Existing");
   state.markDownloaded("youtube-real-id", {
     title: "Existing",

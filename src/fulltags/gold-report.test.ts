@@ -6,11 +6,10 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../archive/state";
 import { goldReport, predictedPhraseBars } from "./gold-report";
 import { GOLD_SCHEMA_VERSION, type GoldAnnotation } from "./gold";
 import { runCli, cliEnv } from "../test-support/cli-run";
-import { tempDir } from "../test-support/testutil";
+import { tempDir, stateIn } from "../test-support/testutil";
 
 const t = tempDir("megadj-goldrep-").rippable();
 afterAll(() => t.rippleAll());
@@ -31,8 +30,7 @@ const GOLD: GoldAnnotation = {
 
 /** Fresh ArchiveState under `dir` (each test owns its tmp dir).
  *  Module-level — captures nothing from the enclosing describe. */
-const makeState = (dir: string): ArchiveState =>
-  new ArchiveState(join(dir, "archive.db"));
+const makeState = (dir: string) => stateIn(dir);
 
 describe("predictedPhraseBars", () => {
   test("one bar per 32 downbeats, 1-based", () => {

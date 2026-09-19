@@ -17,7 +17,7 @@ afterAll(() => t.rippleAll());
 // in tmpdir (measured Sep 18).
 describe("config", () => {
   it("loads defaults with no config file", () => {
-    const cfg = loadConfig("/tmp/cratedeck-test-nonexistent");
+    const cfg = loadConfig(join(t.dir(), "absent"));
     expect(cfg.serverPort).toBe(7742);
     expect(cfg.masterDrive).toBe("DJMASTER");
     expect(cfg.mirrorDrive).toBe("DJMIRROR");
@@ -26,12 +26,13 @@ describe("config", () => {
   });
 
   it("reads config.toml when present", () => {
-    mkdirSync("/tmp/cratedeck-test-cfg", { recursive: true });
+    const d_cfg = t.dir();
+    mkdirSync(d_cfg, { recursive: true });
     writeFileSync(
-      "/tmp/cratedeck-test-cfg/config.toml",
+      join(d_cfg, "config.toml"),
       `[server]\nport = 9999\n\n[images]\nprovider = "brave"\nkey = "k-test"\n\n[library]\nshelf_drive = "BIGBOX"\n`,
     );
-    const cfg = loadConfig("/tmp/cratedeck-test-cfg");
+    const cfg = loadConfig(d_cfg);
     expect(cfg.serverPort).toBe(9999);
     expect(cfg.imageProvider).toBe("brave");
     expect(cfg.imageKey).toBe("k-test");
@@ -39,34 +40,37 @@ describe("config", () => {
   });
 
   it("rejects unknown image providers", () => {
-    mkdirSync("/tmp/cratedeck-test-bad", { recursive: true });
+    const d_bad = t.dir();
+    mkdirSync(d_bad, { recursive: true });
     writeFileSync(
-      "/tmp/cratedeck-test-bad/config.toml",
+      join(d_bad, "config.toml"),
       `[images]\nprovider = " AltaVista"\n`.replace(" ", ""),
     );
-    expect(() => loadConfig("/tmp/cratedeck-test-bad")).toThrow();
+    expect(() => loadConfig(d_bad)).toThrow();
   });
 
   it("keeps a # inside quoted values (API keys contain hashes)", () => {
     // regression: the old parser stripped the inline comment BEFORE
     // de-quoting, truncating key = "abc#def" to "abc
-    mkdirSync("/tmp/cratedeck-test-hash", { recursive: true });
+    const d_hash = t.dir();
+    mkdirSync(d_hash, { recursive: true });
     writeFileSync(
-      "/tmp/cratedeck-test-hash/config.toml",
+      join(d_hash, "config.toml"),
       `[images]\nprovider = "exa"\nkey = "abc#def"\n\n[library]\nmaster_drive = "DJ #1"\n`,
     );
-    const cfg = loadConfig("/tmp/cratedeck-test-hash");
+    const cfg = loadConfig(d_hash);
     expect(cfg.imageKey).toBe("abc#def");
     expect(cfg.masterDrive).toBe("DJ #1");
   });
 
   it("still strips comments on unquoted values", () => {
-    mkdirSync("/tmp/cratedeck-test-cmt", { recursive: true });
+    const d_cmt = t.dir();
+    mkdirSync(d_cmt, { recursive: true });
     writeFileSync(
-      "/tmp/cratedeck-test-cmt/config.toml",
+      join(d_cmt, "config.toml"),
       `[library]\nmaster_drive = DJMASTER # mine\n[server]\nport = 8000 # debug\n`,
     );
-    const cfg = loadConfig("/tmp/cratedeck-test-cmt");
+    const cfg = loadConfig(d_cmt);
     expect(cfg.masterDrive).toBe("DJMASTER");
     expect(cfg.serverPort).toBe(8000);
   });

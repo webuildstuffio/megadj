@@ -5,15 +5,19 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
-import { ArchiveState } from "./state";
-import { tempDir } from "../test-support/testutil";
+import type { ArchiveState } from "./state";
+import { tempDir, stateIn } from "../test-support/testutil";
 
 const t = tempDir("megadj-flagnote-").rippable();
 afterAll(() => t.rippleAll());
 
 function makeState(): { state: ArchiveState; db: Database } {
-  const dbPath = join(t.dir(), `${crypto.randomUUID()}.db`);
-  const state = new ArchiveState(dbPath);
+  const dir = t.dir();
+  const name = `${crypto.randomUUID()}.db`;
+  const dbPath = join(dir, name);
+  // both handles open the SAME file: stateIn writes the schema, the
+  // readonly Database is the assertion twin
+  const state = stateIn(dir, name);
   return { state, db: new Database(dbPath, { readonly: true }) };
 }
 

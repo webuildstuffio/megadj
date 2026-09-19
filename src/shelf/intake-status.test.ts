@@ -1,8 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { tempDir } from "../test-support/testutil";
+import { tempDir, stateIn } from "../test-support/testutil";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../archive/state";
 import {
   findCaseCollisions,
   intakeStatus,
@@ -54,8 +53,7 @@ describe("walkAudioFiles", () => {
 describe("intakeStatus", () => {
   test("reconciled tree reads clean (exit-0 shape)", () => {
     const dir = t.dir();
-    const dbPath = join(t.dir(), "state.db");
-    const state = new ArchiveState(dbPath);
+    const state = stateIn(dir, "state.db");
     writeFileSync(join(dir, "t1.m4a"), "abc");
     state.upsertTrackFromPlaylist("v1", 1, "T1");
     state.markDownloaded("v1", {
@@ -83,8 +81,7 @@ describe("intakeStatus", () => {
 
   test("a row whose file vanished lands in missing-on-disk; an unrowed file lands in filesWithoutDbRow", () => {
     const dir = t.dir();
-    const dbPath = join(t.dir(), "state.db");
-    const state = new ArchiveState(dbPath);
+    const state = stateIn(dir, "state.db");
     writeFileSync(join(dir, "present.m4a"), "abc");
     state.upsertTrackFromPlaylist("v1", 1, "gone");
     state.markDownloaded("v1", {
@@ -124,8 +121,7 @@ describe("intakeStatus", () => {
 
   test("THE F5 INVARIANT: a db row stored with case-variant casing claims its file", () => {
     const dir = t.dir();
-    const dbPath = join(t.dir(), "state.db");
-    const state = new ArchiveState(dbPath);
+    const state = stateIn(dir, "state.db");
     writeFileSync(join(dir, "Track A.WAV"), "abc");
     state.upsertTrackFromPlaylist("v1", 1, "A");
     state.markDownloaded("v1", {
@@ -155,8 +151,7 @@ describe("intakeStatus", () => {
 
   test("a TRUE case-variant twin (two DB ROWS claiming one key) reports as a collision", () => {
     const dir = t.dir();
-    const dbPath = join(t.dir(), "state.db");
-    const state = new ArchiveState(dbPath);
+    const state = stateIn(dir, "state.db");
     // one file on disk, TWO rows whose stored paths fold to the same
     // key but differ as strings — exactly the divergent-ledger shape
     // the census must surface (a same-dir case-variant file pair is
@@ -199,8 +194,7 @@ describe("intakeStatus", () => {
 
   test("master leg without a drive degrades honestly (available: false, never zero-truth)", () => {
     const dir = t.dir();
-    const dbPath = join(t.dir(), "state.db");
-    const state = new ArchiveState(dbPath);
+    const state = stateIn(dir, "state.db");
     const r = intakeStatus({
       state,
       musicDir: dir,

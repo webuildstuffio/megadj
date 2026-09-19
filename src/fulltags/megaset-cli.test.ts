@@ -7,9 +7,8 @@ import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { ArchiveState } from "../archive/state";
 import { cliEnv, runCli } from "../test-support/cli-run";
-import { tempDir } from "../test-support/testutil";
+import { tempDir, stateIn } from "../test-support/testutil";
 
 const t = tempDir("megadj-megaset-cli-").rippable();
 afterAll(() => t.rippleAll());
@@ -20,7 +19,7 @@ describe("megadj megaset CLI step rendering", () => {
     const dbPath = join(dir, "archive.db");
     // bootstrap the REAL schema (ArchiveState's migration) so the CLI's
     // startup never trips on a missing column, then layer the fixtures
-    new ArchiveState(dbPath).close();
+    stateIn(dir).close();
     const db = new Database(dbPath);
     mkdirSync(join(dir, "music"), { recursive: true });
     // two mixable tracks with DISTINCT files (a shared file = one alias

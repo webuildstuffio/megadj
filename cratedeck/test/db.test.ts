@@ -1,13 +1,16 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { join } from "node:path";
+import { tempDir } from "./testutil";
 import { DB, inferRole } from "../src/db";
 import { addAgentNote, dismissAgentNote, agentNotes } from "../src/notes";
 import type { SnapshotData } from "../shared/types";
 
+const t = tempDir("cratedeck-db-").rippable();
+afterAll(() => t.rippleAll());
+
 let db: DB;
 beforeEach(() => {
-  db = new DB(
-    `/tmp/cratedeck-test-${Date.now()}-${Math.random().toString(36).slice(2)}/db.sqlite`,
-  );
+  db = new DB(join(t.dir(), "db.sqlite"));
 });
 
 const UUID_A = "1111-2222-3333";

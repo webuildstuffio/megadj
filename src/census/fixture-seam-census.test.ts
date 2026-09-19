@@ -141,37 +141,27 @@ describe("fixture-seam census (#248 ratchet)", () => {
     ).toEqual([]);
   });
 
-  test("raw new ArchiveState() in test files stays pinned (tempState seam ratchet)", () => {
-    const ALLOWED_STATE = new Set<string>([
-      // named per-file builders (makeState/makeRows) — the state creation
-      // is already centralized inside the file; migrating the builder body
-      // to tempState is follow-on polish, tracked in #248.
-      "src/fulltags/write/convert.test.ts",
-      "src/fulltags/booth/booth-fix.e2e.test.ts",
-      "src/fulltags/megaset-cli.test.ts",
-      "src/fulltags/gold-report.test.ts",
-      "src/archive/state-genreflag.test.ts",
-      "src/rekordbox/grid-triage.test.ts",
-      "src/rekordbox/rb-adopt.test.ts",
-      "src/shelf/intake-status.test.ts",
-    ]);
+  test("raw new ArchiveState() is ZERO in test files (stateIn/tempState seam)", () => {
+    // #248 closed: every suite builds state through tempState()/stateIn()
+    // (src/test-support/testutil) — the 17 hand-rolled setups the issue
+    // opened with are gone, so this pin has NO allowlist. The census's own
+    // doc text mentions the call shape, hence the self-skip.
     const offenders: string[] = [];
     for (const root of ["src", "cratedeck"]) {
       for (const file of walk(join(ROOT, root))) {
         const rel = relative(ROOT, file);
-        // the census's own doc text mentions the call shape — skip self
         if (rel === "src/census/fixture-seam-census.test.ts") continue;
-        if (ALLOWED_STATE.has(rel)) continue;
+        if (rel === SEAM) continue;
         const text = readFileSync(file, "utf8");
         if (text.includes("new ArchiveState("))
           offenders.push(
-            `  ${rel} — build state through tempState() (src/test-support/testutil) or join the pinned builder set with a reason`,
+            `  ${rel} — build state through tempState()/stateIn() (src/test-support/testutil); no allowlist remains`,
           );
       }
     }
     expect(
       offenders,
-      `raw ArchiveState sites outside the pinned builder set:\n${offenders.join("\n")}`,
+      `raw ArchiveState sites (state seam is closed):\n${offenders.join("\n")}`,
     ).toEqual([]);
   });
 });

@@ -1,6 +1,8 @@
 // fleet.test.ts — pure engine tests (coverage/redundancy/diff) + DB
 // round-trips for the fleet tables (setSnapshot → queries).
-import { describe, it, expect, beforeEach } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { join } from "node:path";
+import { tempDir } from "./testutil";
 import {
   coverage,
   trackLocations,
@@ -11,6 +13,9 @@ import {
 import { redundancy, diff } from "../src/coverage_fleet";
 import { DB } from "../src/db";
 import type { SnapshotData } from "../shared/types";
+
+const t = tempDir("cratedeck-fleet-").rippable();
+afterAll(() => t.rippleAll());
 
 const A = "drive-a";
 const B = "drive-b";
@@ -181,7 +186,7 @@ describe("redundancy", () => {
     const r = redundancy(rows, entries, 2);
     const party = r.playlists.find((p) => p.playlist === "Party")!;
     // thin.mp3 is on both, alone.mp3 only on A — the union is audited
-    expect(party.tracks.map((t) => t.copies).toSorted()).toEqual([1, 2, 2]);
+    expect(party.tracks.map((pt) => pt.copies).toSorted()).toEqual([1, 2, 2]);
   });
 
   it("unknown when no playlist data", () => {
@@ -266,9 +271,7 @@ describe("diff", () => {
 
 let db: DB;
 beforeEach(() => {
-  db = new DB(
-    `/tmp/cratedeck-fleet-test-${Date.now()}-${Math.random().toString(36).slice(2)}/db.sqlite`,
-  );
+  db = new DB(join(t.dir(), "db.sqlite"));
 });
 
 function snapWith(over: Partial<SnapshotData> = {}): SnapshotData {

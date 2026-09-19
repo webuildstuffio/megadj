@@ -1,10 +1,9 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
 import { convertArchive } from "./convert";
 import { makeWav } from "../../test-support/audio-fixtures";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, stateIn } from "../../test-support/testutil";
 
 /**
  * megadj convert — archive-wide wav→aiff (legacy WAVs have no art on the
@@ -24,7 +23,7 @@ describe("convertArchive", () => {
   test("converts wavs to aiff, removes sources, follows db paths", async () => {
     const batch = "2026-01-01 test batch";
     const wavPath = makeWav(join(ARCHIVE, batch), "Old Track.wav");
-    const state = new ArchiveState(join(DB_DIR, "archive.db"));
+    const state = stateIn(DB_DIR);
     state.upsertTrackFromPlaylist("ext-test1", 0, "Old Track", "ingest");
     state.markDownloaded("ext-test1", {
       title: "Old Track",
@@ -56,7 +55,7 @@ describe("convertArchive", () => {
   });
 
   test("no wavs → zero-work summary", async () => {
-    const state = new ArchiveState(join(DB_DIR, "second.db"));
+    const state = stateIn(DB_DIR, "second.db");
     const report = await convertArchive({ state, musicDir: ARCHIVE });
     // The first test converted the only WAV.
     expect(report.total).toBe(0);

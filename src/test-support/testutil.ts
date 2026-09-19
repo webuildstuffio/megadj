@@ -42,6 +42,18 @@ export function tempState(prefix: string): {
 }
 
 /**
+ * stateIn — the explicit-dir variant (#248): open an ArchiveState at
+ * `join(dir, name)` for tests that own the dir lifecycle through
+ * tempDir but need the DB path/nameshape tempState's fixed `archive.db`
+ * binding can't express (a second DB, a per-call helper, a named file).
+ * The construction still goes through the seam — raw `new ArchiveState`
+ * in a test file is a census failure.
+ */
+export function stateIn(dir: string, name = "archive.db"): ArchiveState {
+  return new ArchiveState(join(dir, name));
+}
+
+/**
  * tempDir — the dir-only fixture shape (#248): every
  * `mkdtempSync("/tmp/megadj-X-")` + hand `rmSync` pair collapses to
  * `const t = tempDir("megadj-X-")` + `t.dir`. Two lifecycle modes:

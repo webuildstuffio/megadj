@@ -9,7 +9,7 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../archive/state";
 import {
   anlzBpm,
   buildLedgerIndex,
@@ -20,7 +20,7 @@ import {
   type MasterRow,
 } from "./grid-triage";
 import { buildAnlz, parseAnlzGrid } from "../fulltags/anlz";
-import { tempDir } from "../test-support/testutil";
+import { tempDir, stateIn } from "../test-support/testutil";
 
 // ---- fixtures -------------------------------------------------------------
 
@@ -59,7 +59,7 @@ function seedLedger(
   beats: number[],
 ): ArchiveState {
   const dir = t.dir();
-  const state = new ArchiveState(join(dir, "db.sqlite"));
+  const state = stateIn(dir, "db.sqlite");
   state.upsertTrackFromPlaylist("v1", 1, "Track");
   state.markDownloaded("v1", {
     title: "Track",
@@ -258,7 +258,7 @@ describe("gridTriage command", () => {
       // missing DB → ok:false (never a fake pass)
       const missing = await gridTriage({
         mount: "/tmp/definitely-not-here",
-        state: new ArchiveState(join(t.dir(), "x.db")),
+        state: stateIn(t.dir(), "x.db"),
         rows: [],
         json: true,
       });
