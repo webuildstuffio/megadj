@@ -70,6 +70,12 @@ export function sanitizeDisplayText(text: string): string {
       (cp >= 0xe000 && cp <= 0xf8ff) ||
       (cp >= 0x2190 && cp <= 0x21ff) ||
       (cp >= 0x2300 && cp <= 0x23ff) ||
+      // enclosed alphanumerics/supplement (Ⓜ U+24C2 etc.) — the audit's
+      // NON_FLEET_TEXT regex spans 2300–2BFF, so the sanitizer must strip
+      // every block inside that span or its fixed point still trips the
+      // gate (booth-fix found 0 fixable while audit kept flagging, Sep 19).
+      (cp >= 0x2460 && cp <= 0x24ff) ||
+      (cp >= 0x2500 && cp <= 0x25ff) ||
       cp < 0x20 ||
       cp === 0x7f
     ) {

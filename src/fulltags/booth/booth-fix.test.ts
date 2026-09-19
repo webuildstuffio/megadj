@@ -32,6 +32,10 @@ describe("sanitizeDisplayText", () => {
   test("collapses runs of spaces left by strips", () => {
     expect(sanitizeDisplayText("A  B")).toBe("A B");
   });
+  test("strips enclosed alphanumerics — sanitizer is a fixed point of the audit gate (Sep 19: Ⓜ survived sanitize but tripped NON_FLEET_TEXT, so booth-fix found 0 fixable while audit kept flagging)", () => {
+    expect(sanitizeDisplayText("ⓂiSS Ⓜoni 7.8")).toBe("iSS oni 7.8");
+    expect(sanitizeDisplayText("①②③ mix")).toBe("mix");
+  });
 });
 
 describe("sanitizeFilename", () => {
