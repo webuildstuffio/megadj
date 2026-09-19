@@ -11,7 +11,7 @@ create a second source of truth.
 | Store                | Role                                                                                  | Schema owner                                                                                                                                 | Read/write boundary                                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `archive.db`         | GetDat pipeline state and FullTags/Set analysis ledgers                               | [`src/archive/state-core.ts`](../../src/archive/state-core.ts) plus the extension producers listed below                                     | megadj owns writes; CrateDeck opens its archive view read-only                                                      |
-| `cratedeck.sqlite`   | Drive registry, events, snapshots, jobs, checksums, benchmarks, and fleet projections | [`cratedeck/src/db-core.ts`](../../cratedeck/src/db-core.ts) and the domain stores behind [`cratedeck/src/db.ts`](../../cratedeck/src/db.ts) | CrateDeck only; WAL-backed local application state                                                                  |
+| `cratedeck.sqlite`   | Drive registry, events, snapshots, jobs, checksums, benchmarks, and fleet projections | [`cratedeck/src/db/core.ts`](../../cratedeck/src/db/core.ts) and the domain stores behind [`cratedeck/src/db.ts`](../../cratedeck/src/db.ts) | CrateDeck only; WAL-backed local application state                                                                  |
 | rekordbox collection | `master.db` rows plus the `masterPlaylists6.xml` playlist twin                        | rekordbox/pyrekordbox, reached through `src/rekordbox/*` and the CrateDeck Python seam                                                       | rekordbox is authoritative; megadj mutations require rekordbox closed, dated backups, and full re-read verification |
 
 `archive.db` is not a collection mirror and its row count is not the library
@@ -44,14 +44,14 @@ shape.
 [`cratedeck/src/db.ts`](../../cratedeck/src/db.ts) is the stable public façade;
 it is intentionally small. Ownership beneath it is split by concern:
 
-- [`db_core.ts`](../../cratedeck/src/db-core.ts) — connection settings, base DDL,
+- [`db/core.ts`](../../cratedeck/src/db/core.ts) — connection settings, base DDL,
   additive migrations, and retention.
-- [`db_drives.ts`](../../cratedeck/src/db-drives.ts) — drive identity and registry.
-- [`db_activity.ts`](../../cratedeck/src/db-activity.ts) — events, snapshots,
+- [`db/drives.ts`](../../cratedeck/src/db/drives.ts) — drive identity and registry.
+- [`db/activity.ts`](../../cratedeck/src/db/activity.ts) — events, snapshots,
   settings, notes, and jobs.
-- [`db_bench.ts`](../../cratedeck/src/db-bench.ts) and
-  [`db_ledger.ts`](../../cratedeck/src/db-ledger.ts) — speed/checksum ledgers.
-- [`db_library.ts`](../../cratedeck/src/db-library.ts) and
+- [`db/bench.ts`](../../cratedeck/src/db/bench.ts) and
+  [`db/ledger.ts`](../../cratedeck/src/db/ledger.ts) — speed/checksum ledgers.
+- [`db/library.ts`](../../cratedeck/src/db/library.ts) and
   [`fleet-db.ts`](../../cratedeck/src/fleet-db.ts) — scanned library projections
   and fleet tables.
 

@@ -1,11 +1,11 @@
-// db_ledger.ts — D30 archive-integrity ledger helpers (extracted from
+// db/ledger.ts — D30 archive-integrity ledger helpers (extracted from
 // db.ts at the file-length guard). Thin queries over the CrateDeck-side
 // `archive_ledger` table (known-good blake2b hashes, mirroring the
 // drive-side checksum ledger pattern); the table itself is created by
 // db.ts's migrations.
 
 import type Database from "bun:sqlite";
-import type { LedgerRow } from "./archive-sweep";
+import type { LedgerRow } from "../archive-sweep";
 
 /** v5 migration (D30 corruption memory): archive_ledger rows must survive
  *  a hash divergence with their reference intact — `flagged_at` marks the

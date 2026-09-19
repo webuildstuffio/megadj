@@ -46,8 +46,9 @@ src/
   index.ts            composition root + top-level HTTP dispatcher
   *_routes.ts         archive, booth, fixes, hygiene, and drive-job routes
   db.ts               stable persistence façade
-  db_core.ts          connection, base schema, migrations, retention
-  db_{activity,drives,library,bench,ledger}.ts
+  db/
+    core.ts           connection, base schema, migrations, retention
+    activity.ts, drives.ts, library.ts, bench.ts, ledger.ts
                       domain-owned query stores
   jobs.ts             stable job façade and queue state
   job_{runtime,execution}.ts / *_jobs.ts
@@ -110,8 +111,8 @@ truth, checked at the seam — not scattered through the UI.
 
 ## 5. Data model (bun:sqlite, WAL)
 
-The executable DDL and additive migrations live in `db_core.ts`; domain
-tables and queries live in the `db_*` stores behind the `db.ts` façade. The
+The executable DDL and additive migrations live in `db/core.ts`; domain
+tables and queries live in the `db/` stores behind the `db.ts` façade. The
 canonical schema map is [Data stores and schema ownership](../getdat/data-model.md).
 
 Design choices: ghost rendering reads the last snapshot stored with the drive;

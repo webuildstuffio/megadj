@@ -20,7 +20,7 @@ export function openLedger(
   // (SQLITE_MISUSE — flags must include READONLY or READWRITE). The bare
   // `new Database(path)` these sites replace auto-created, so default true.
   const db = new Database(path, { create: opts?.create ?? true });
-  // Pragma set mirrors cratedeck/src/db_core.ts DBCore (#87 ride-along):
+  // Pragma set mirrors cratedeck/src/db/core.ts DBCore (#87 ride-along):
   // alignment by convention, NEVER a cross-package import (cratedeck/
   // shared/types.ts is the import-leaf rule). synchronous=NORMAL matches
   // DBCore's durability stance for ledger DBs; WAL + busy_timeout keep

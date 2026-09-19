@@ -1,15 +1,15 @@
-// db_drives.ts — drives table CRUD + snapshot store. Split from db.ts at
+// db/drives.ts — drives table CRUD + snapshot store. Split from db.ts at
 // the file-length guard (lizard was also reporting the whole drive/snapshot
 // half of class DB as one 75-CCN "canon" blob); DB delegates so every call
 // site is unchanged. canon() and inferRole() live here with their only
 // callers — this module never imports db.ts (no cycle). canon() was
-// db_canon.ts (27L, its own file only to dodge a lizard mis-parse that
+// db/canon.ts (27L, its own file only to dodge a lizard mis-parse that
 // no longer applies — the AST census is the measurer now); merged per #221.
 import type { Database } from "bun:sqlite";
-import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
-import { sanitizeVerifyReport } from "./verify-report";
-import { parseSnapshotJson } from "../shared/badges";
-import { errMessage } from "../../src/shared/leaf/fmt";
+import type { Drive, SnapshotData, VerifyReport } from "../../shared/types";
+import { parseSnapshotJson } from "../../shared/badges";
+import { errMessage } from "../../../src/shared/leaf/fmt";
+import { sanitizeVerifyReport } from "../verify-report";
 
 /** Stable stringify: key-sorted at EVERY depth, arrays kept in order, every
  *  key included. Used by the setSnapshot change-detector, which must SEE

@@ -162,7 +162,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // calls, same guards, counts unchanged) — digest shifted: acd7abc3.
     // Sep 19 (#214 job-leg slice): safeJsonParse moved into the fetch
     // protocol leaf; the explicit-null contract and counts are unchanged.
-    digest: "6f1d3ea06e04f4ff67196f8f748025823a649582dc4b5fec6f560e58953bec65",
+    // Sep 19 (#214 database slice): guarded event/snapshot/report readers
+    // moved under db/; their failure contracts and counts are unchanged.
+    digest: "3e4953302c76e8cfc1700c72c7927e7220a8e16495d391827ed65633ce63cb80",
   });
 });
 

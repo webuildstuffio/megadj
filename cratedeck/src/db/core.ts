@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { BenchLedger } from "./db-bench";
-import { DriveStore } from "./db-drives";
-import { LedgerQueries, migrateArchiveLedger } from "./db-ledger";
+import { BenchLedger } from "./bench";
+import { DriveStore } from "./drives";
+import { LedgerQueries, migrateArchiveLedger } from "./ledger";
 
 const SCHEMA_V1 = `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS drives (

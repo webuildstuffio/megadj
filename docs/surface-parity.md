@@ -294,7 +294,7 @@ this table AND the enforcement test together (that's the point).
 - **L1 — cross-tier twin registry (the "same job, two packages" list).**
   These are structural twins that are deliberately NOT merged — the
   packages stay decoupled — with their alignment owned here instead:
-  `cratedeck/src/db-core.ts` DBCore vs `src/shared/sqlite-ledger.ts`
+  `cratedeck/src/db/core.ts` DBCore vs `src/shared/sqlite-ledger.ts`
   `openLedger()` (both open WAL + busy_timeout 5000 + synchronous NORMAL;
   aligned by convention Sep 18 per #87's ride-along — never a
   cross-package import; `cratedeck/shared/types.ts` stays the import

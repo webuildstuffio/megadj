@@ -1,4 +1,4 @@
-// db_bench.ts — benchmark + checksum-ledger queries. Split from db.ts for
+// db/bench.ts — benchmark + checksum-ledger queries. Split from db.ts for
 // the file-length guard; DB delegates so every call site is unchanged.
 import type { Database } from "bun:sqlite";
 
