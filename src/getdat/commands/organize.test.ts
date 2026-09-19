@@ -1,8 +1,9 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { ArchiveState } from "../../archive/state";
 import { organize } from "./organize";
+import { downloadBatchDir } from "./intake-folder";
 import { tempState } from "../../test-support/testutil";
 import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
@@ -50,7 +51,12 @@ describe("organize (move-failure honesty)", () => {
     const src = join(musicDir, "Track X.m4a");
     seedDownloaded("v2", "Track X", src);
     const { chmodSync } = await import("node:fs");
-    chmodSync(musicDir, 0o555); // read-only target: mv inside it fails
+    // The batch folder is mkdir'd by organize INSIDE musicDir — make THAT
+    // the read-only failure point (a read-only musicDir itself would break
+    // the fixture-seam cleanup that rm's the temp dir).
+    const batchDir = downloadBatchDir(musicDir, "organized");
+    mkdirSync(batchDir, { recursive: true });
+    chmodSync(batchDir, 0o555); // read-only target: mv inside it fails
 
     const logs: string[] = [];
     await organize({
@@ -58,7 +64,7 @@ describe("organize (move-failure honesty)", () => {
       musicDir,
       onProgress: (m) => logs.push(m),
     });
-    chmodSync(musicDir, 0o755); // restore so cleanup can delete
+    chmodSync(batchDir, 0o755); // restore so cleanup can delete
 
     const row = state.allTracks().find((t) => t.video_id === "v2");
     expect(row?.file_path).toBe(src); // unchanged — no phantom path
@@ -72,19 +78,25 @@ describe("organize (move-failure honesty)", () => {
     expect(logs.some((m) => m.includes("move-failed"))).toBe(true);
   }, 20_000);
 
-  test("successful move updates the DB path and lands in the genre folder", async () => {
+  test("a loose root file lands in the dated batch folder (never genre, never loose)", async () => {
     const src = join(musicDir, "Track Y.m4a");
     seedDownloaded("v3", "Track Y", src);
     await organize({ state, musicDir, onProgress: () => {} });
 
     const row = state.allTracks().find((t) => t.video_id === "v3");
-    expect(row?.file_path).toBe(join(musicDir, "House", "Track Y.m4a"));
+    // The batch folder is `<date> organized downloads/` — genre is metadata
+    // in the ledger, never a destination folder (Sep 19 policy).
+    const batchDir = downloadBatchDir(musicDir, "organized");
+    expect(row?.file_path).toBe(join(batchDir, "Track Y.m4a"));
+    expect(basename(batchDir)).toMatch(/^\d{4}-\d{2}-\d{2} /);
   });
 });
 
 describe("organize F5 move-or-merge", () => {
   test("a byte-identical destination MERGES: source removed, row repointed, no [id] twin born", async () => {
-    const destDir = join(musicDir, "House");
+    // The destination is an EXISTING batch folder (the one organize itself
+    // sweeps into) — the twin already sits there.
+    const destDir = downloadBatchDir(musicDir, "organized");
     mkdirSync(destDir, { recursive: true });
     // the destination already holds the organized copy
     writeFakeAudio(join(destDir, "Track M.m4a"), "same-bytes");
@@ -125,7 +137,7 @@ describe("organize F5 move-or-merge", () => {
   });
 
   test("a different-bytes destination keeps the disambiguating rename (no data loss)", async () => {
-    const destDir = join(musicDir, "House");
+    const destDir = downloadBatchDir(musicDir, "organized");
     mkdirSync(destDir, { recursive: true });
     writeFakeAudio(join(destDir, "Track D.m4a"), "the-organized-rip");
     const src = join(musicDir, "loose2", "Track D.m4a");

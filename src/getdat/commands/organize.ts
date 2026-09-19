@@ -1,22 +1,26 @@
 /**
- * megadj organize — move downloaded files into genre folders and keep the
- * state DB in sync. Rekordbox-friendly layout:
+ * megadj organize — sweep loose root files into the dated downloads batch
+ * and keep the state DB in sync. Sep 19 policy (user): downloads are
+ * organized by BATCH (the intake convention), never by genre, and never
+ * left loose at the archive root:
  *
  *   ~/Music/DJ-Imports/
- *     House/Track A.m4a
- *     Hip-Hop/Track B.m4a
+ *     2026-09-19 soundcloud downloads/Track A.m4a
+ *     2026-09-10 intake/Track B.aiff
  *     ...
  *
- * Genre is read from the DB (populated at download time) with a fallback to
- * the genre tag embedded in the file (ffprobe).
+ * Files in any `<YYYY-MM-DD …>` batch folder are already home and stay
+ * put. Unique rips are never deleted — merge only ever removes a
+ * byte-identical duplicate COPY while at least one copy survives.
  */
 
 import { $ } from "bun";
+import { mkdirSync } from "node:fs";
 import { basename } from "node:path";
 import type { ArchiveState, TrackRow } from "../../archive/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
-import { sanitizeGenreFolder } from "../../fulltags/write/schema";
+import { downloadBatchDir } from "./intake-folder";
 
 export interface OrganizeOptions {
   state: ArchiveState;
@@ -25,16 +29,6 @@ export interface OrganizeOptions {
   onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean | undefined;
-}
-
-async function fileGenreTag(filePath: string): Promise<string | null> {
-  const proc =
-    await $`ffprobe -v quiet -show_entries format_tags=genre -of csv=p=0 ${filePath}`
-      .quiet()
-      .nothrow();
-  if (proc.exitCode !== 0) return null;
-  const tag = new TextDecoder().decode(proc.stdout).trim();
-  return tag || null;
 }
 
 interface OrganizeCounters {
@@ -61,9 +55,10 @@ async function filesIdentical(a: string, b: string): Promise<boolean> {
   return hasherA.digest("hex") === hasherB.digest("hex");
 }
 
-/** Per-track: resolve destination from genre, move without clobbering, and
- *  only record the move when it actually happened. Returns true when the
- *  file moved (caller counts it). */
+/** Per-track: loose root files move into the dated batch folder; files in
+ *  any batch folder stay put. Genre is NEVER the destination axis (Sep 19
+ *  policy change — genre folders retired; the ledger still carries genre
+ *  as metadata). */
 async function organizeOne(
   opts: OrganizeOptions,
   log: (msg: string) => void,
@@ -96,16 +91,10 @@ async function organizeOne(
     return;
   }
 
-  // Fallback to the literal "Music" placeholder is gone (#61): organize is
-  // a MOVES command — a wrong bucket is damage, an "Unknown Genre" folder
-  // (sanitizeGenreFolder already maps null through safely) is recoverable.
-  const genre = track.genre ?? (await fileGenreTag(filePath));
-  const folder = sanitizeGenreFolder(genre);
   const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
   // Batch folders (`<YYYY-MM-DD slug>/` — per-dump intake groups) are
-  // already organized: moving their files into genre folders would destroy
-  // the per-dump grouping the archive layout is built around. Only loose
-  // root files get genre-foldered.
+  // already organized: the batch IS the organization. Nothing in one
+  // ever moves — genre folders are retired as a destination.
   const firstSegment = filePath.startsWith(`${opts.musicDir}/`)
     ? (filePath.slice(opts.musicDir.length + 1).split("/")[0] ?? "")
     : "";
@@ -116,7 +105,10 @@ async function organizeOne(
     );
     return;
   }
-  const targetDir = `${opts.musicDir}/${folder}`;
+  // A loose ROOT file: into the dated downloads batch (same-day re-runs
+  // share the folder). Never genre, never left loose.
+  const targetDir = downloadBatchDir(opts.musicDir, "organized");
+  mkdirSync(targetDir, { recursive: true });
   const targetPath = `${targetDir}/${fileName}`;
 
   if (filePath === targetPath) {
@@ -125,7 +117,7 @@ async function organizeOne(
   }
 
   if (opts.dryRun) {
-    log(`  would move: ${fileName} → ${folder}/`);
+    log(`  would move: ${fileName} → ${basename(targetDir)}/`);
     return;
   }
 
@@ -133,14 +125,15 @@ async function organizeOne(
   const mk = await $`mkdir -p ${targetDir}`.quiet().nothrow();
   if (mk.exitCode !== 0) {
     counters.movedFailed++;
-    log(`  ✗ cannot create ${folder}/ (skipping): ${filePath}`);
+    log(`  ✗ cannot create batch folder (skipping): ${filePath}`);
     return;
   }
   // Never clobber. F5 (postmortem): move-or-MERGE — when the destination
   // exists, byte-compare first:
-  //   identical bytes  → merge: drop the source duplicate, keep the
-  //                      destination row (the case-variant twin class),
-  //                      repoint THIS row at the destination;
+  //   identical bytes  → merge: the rows repoint at ONE file, and the
+  //                      duplicate COPY is removed (never the last copy —
+  //                      "files never deleted" means every unique rip
+  //                      survives, not that byte-twins multiply);
   //   different bytes  → a different rip of the same track: keep both,
   //                      disambiguate the name as before.
   // The old unconditional-rename behavior silently grew duplicate twins
@@ -149,7 +142,9 @@ async function organizeOne(
   if (await Bun.file(targetPath).exists()) {
     if (await filesIdentical(filePath, targetPath)) {
       if (opts.dryRun) {
-        log(`  would merge (identical bytes): ${fileName} → ${folder}/`);
+        log(
+          `  would merge (identical bytes): ${fileName} → ${basename(targetDir)}/`,
+        );
         return;
       }
       const rm = await $`rm ${filePath}`.quiet().nothrow();
@@ -160,7 +155,7 @@ async function organizeOne(
       }
       opts.state.updateFilePath(track.video_id, targetPath);
       counters.merged++;
-      log(`  ⇉ merged into ${folder}/${basename(targetPath)}`);
+      log(`  ⇉ merged into ${basename(targetDir)}/${basename(targetPath)}`);
       return;
     }
     const ext = fileName.match(/(\.[^.]+)$/)?.[1] ?? "";
@@ -182,7 +177,7 @@ async function organizeOne(
   }
   opts.state.updateFilePath(track.video_id, dest);
   counters.moved++;
-  log(`  → ${folder}/${dest.split("/").pop()}`);
+  log(`  → ${basename(targetDir)}/${dest.split("/").pop()}`);
 }
 
 export async function organize(opts: OrganizeOptions): Promise<void> {

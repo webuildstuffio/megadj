@@ -82,6 +82,11 @@ export interface DownloaderOptions {
   /** The ledger source of the rows being downloaded ("liked" | "liked-videos"
    *  | "soundcloud" | …) — decides the probe/download URL seam (#255). */
   source?: string | undefined;
+  /** Batch folder (the Sep 19 "never loose, never genre" policy): when set,
+   *  downloads land HERE — `<archive>/<date> <label>/` — instead of genre
+   *  folders or the root. Same-day re-runs reuse the folder (idempotent,
+   *  the intake convention). Organize's job shrinks to sweeping strays. */
+  batchDir?: string | undefined;
 }
 
 /** Permanent SC failure (DRM/Go+): surfaced as its own error class so the
@@ -147,6 +152,7 @@ export class Downloader {
       cookiesFromBrowser: opts.cookiesFromBrowser ?? null,
       cookiesFile: opts.cookiesFile ?? null,
       source: opts.source ?? "liked",
+      batchDir: opts.batchDir,
     };
   }
   classifyError(stderr: string): "gone" | "throttle" | "other" {
@@ -273,11 +279,13 @@ export class Downloader {
     genre?: string | null,
   ): Promise<DownloadResult> {
     const target = targetFor(videoId, this.opts.source ?? "liked");
-    // No "Music" mint (#61): junk genres bucket to "Unknown Genre" here;
-    // NULL genre sits at the archive root until `organize` moves it into
-    // the same bucket (sanitizeGenreFolder(null)). Never a fake genre.
-    const folder = genre ? `/${sanitizeGenreFolder(genre)}` : "";
-    const outTemplate = `${this.opts.musicDir}${folder}/%(title)s.%(ext)s`;
+    // Destination policy (Sep 19, "never loose, never genre"): a batchDir
+    // (the dated batch folder, intake convention) wins outright — genre
+    // decides nothing. Without one (legacy callers), the old genre-folder
+    // behavior remains so drop's genre-organized flow is untouched.
+    const outTemplate = this.opts.batchDir
+      ? `${this.opts.batchDir}/%(title)s.%(ext)s`
+      : `${this.opts.musicDir}${genre ? `/${sanitizeGenreFolder(genre)}` : ""}/%(title)s.%(ext)s`;
 
     const args = [
       // Audio-only, always. Never let format fallback pick a merged

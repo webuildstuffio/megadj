@@ -189,7 +189,7 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "organize",
     group: "fulltags",
     block: [
-      "  megadj organize [--dry-run] [--json]         move downloaded files into genre folders",
+      "  megadj organize [--dry-run] [--json]         sweep loose root files into the dated batch folder (batch intake, never genre)",
     ],
   },
 ];

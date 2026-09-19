@@ -7,6 +7,7 @@
  */
 
 import { $ } from "bun";
+import { mkdirSync } from "node:fs";
 import type { ArchiveState } from "../../archive/state";
 import { type RateLimiter, TrackGoneError, withRetry } from "../ratelimit";
 import {
@@ -36,6 +37,7 @@ import { commandLog, ProgressBar } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
 import { probeFile } from "../../fulltags/media-probe";
 import { organize } from "./organize";
+import { downloadBatchDir } from "./intake-folder";
 import {
   buildMetadata,
   scInfoToYtdlpInfo,
@@ -706,12 +708,24 @@ export async function sync(opts: SyncOptions): Promise<void> {
   const onlySc =
     (opts.sources ?? []).length > 0 &&
     (opts.sources ?? []).every((s) => s.kind !== "ytm-playlist");
+  // Batch-folder destination (Sep 19 policy): this run's downloads land
+  // in `<date> <label> downloads/` — never loose, never genre folders.
+  // The label names the run's dominant source so batches stay readable;
+  // same-day same-source re-runs reuse the folder (idempotent).
+  const batchDir = downloadBatchDir(
+    opts.musicDir,
+    (opts.sources ?? [{ label: "liked" }])
+      .map((s) => s.label.replace(/^soundcloud:/, ""))
+      .join("+"),
+  );
+  mkdirSync(batchDir, { recursive: true });
   const downloader = new Downloader({
     musicDir: opts.musicDir,
     ytdlpBin: opts.ytdlpBin,
     cookiesFromBrowser: opts.cookiesFromBrowser,
     cookiesFile: opts.cookiesFile ?? null,
     source: onlySc ? SC_SOURCE : "liked",
+    batchDir,
   });
 
   const isDry = opts.dryRun === true;

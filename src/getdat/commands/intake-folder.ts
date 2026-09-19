@@ -102,6 +102,20 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** The dated batch folder for a DOWNLOAD (sync/drop — no source folder to
+ *  name it after). Sep 19 policy: every download lands in `<date> <label>`
+ *  under the archive, never loose at the root, never in a genre folder —
+ *  the same convention `intakeFolderName` gives drag-in dumps. Same-day
+ *  re-runs reuse the folder (idempotent). */
+export function downloadBatchDir(
+  archiveDir: string,
+  label: string,
+  now = new Date(),
+): string {
+  const slug = label.trim().replace(/\s+/g, " ").slice(0, 30) || "downloads";
+  return resolveIntakeDir(archiveDir, `${isoDate(now)} ${slug} downloads`);
+}
+
 /** Resolve the batch folder under the archive: `<archive>/<name>`, always.
  *  The name derives from the SOURCE folder's own name + its dump date, so
  *  it is stable across re-runs of the same dump — an existing folder IS

@@ -34,6 +34,7 @@ import {
 import {
   intakeFolderName,
   resolveIntakeDir,
+  downloadBatchDir,
 } from "../getdat/commands/intake-folder";
 import { mkdirSync } from "node:fs";
 import { isRecord, isUnknownArray } from "./leaf/guards";
@@ -92,12 +93,16 @@ interface DownloadResult {
 }
 
 /** Download a non-SC URL straight into the music dir via yt-dlp
- *  (best-audio, no playlist expansion, same cookie plumbing as sync). */
+ *  (best-audio, no playlist expansion, same cookie plumbing as sync).
+ *  Lands in the dated batch folder (Sep 19 policy: never loose, never
+ *  genre folders — one intake convention for every download shape). */
 async function downloadUrl(
   target: string,
   musicDir: string,
   opts: DropOptions,
 ): Promise<DownloadResult> {
+  const batchDir = downloadBatchDir(musicDir, "drop");
+  mkdirSync(batchDir, { recursive: true });
   const args = [
     // Audio-only, never a merged video+audio format (that's how .webm/.mp4
     // strays happen — the same rule downloader.download enforces for YT).
@@ -116,7 +121,7 @@ async function downloadUrl(
     "--quiet",
     "--no-warnings",
     "-o",
-    `${musicDir}/%(title)s.%(ext)s`,
+    `${batchDir}/%(title)s.%(ext)s`,
     // #81: auth args via the shared builder (was a third inline twin).
     ...ytdlpCookieArgs(opts.cookiesFile, opts.cookiesFromBrowser),
   ];
@@ -303,6 +308,10 @@ async function downloadScUrl(
       skipReason: `link available — go through it instead of ripping: ${decision.link.url} (--force-rip overrides)`,
     };
   }
+  // Single-track rip: same batch-folder policy as every other shape —
+  // `<date> soundcloud downloads/`, never loose, never genre folders.
+  const singleBatchDir = downloadBatchDir(musicDir, "soundcloud");
+  mkdirSync(singleBatchDir, { recursive: true });
   const args = [
     "-f",
     SC_FORMAT,
@@ -312,7 +321,7 @@ async function downloadScUrl(
     // re-encode when the mp3 fallback lands.
     "-x",
     "-o",
-    `${musicDir}/%(title)s.%(ext)s`,
+    `${singleBatchDir}/%(title)s.%(ext)s`,
     "--no-playlist",
     "--embed-thumbnail",
     "--embed-metadata",
