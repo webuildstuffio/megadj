@@ -39,6 +39,10 @@ export const GENRE_VOTE_WEIGHTS = {
   imprint: 0.15,
 } as const;
 
+// All versioned rung weights have two decimal places. Tally their integer
+// basis points so equivalent decimal totals reach the tie-breaker exactly.
+const toBasisPoints = (weight: number) => Math.round(weight * 100);
+
 export type GenreVoteRung = keyof typeof GENRE_VOTE_WEIGHTS;
 
 /** One rung's claim on a track. `genre` is the canonicalized label
@@ -83,8 +87,9 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
     string,
     {
       total: number;
+      totalBasisPoints: number;
       rungs: GenreVoteRung[];
-      maxSingle: number;
+      maxSingleBasisPoints: number;
       familyOnly: boolean;
     }
   >();
@@ -92,14 +97,19 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
     const cur = tally.get(v.genre);
     if (cur) {
       cur.total += v.weight;
-      cur.maxSingle = Math.max(cur.maxSingle, v.weight);
+      cur.totalBasisPoints += toBasisPoints(v.weight);
+      cur.maxSingleBasisPoints = Math.max(
+        cur.maxSingleBasisPoints,
+        toBasisPoints(v.weight),
+      );
       if (!cur.rungs.includes(v.rung)) cur.rungs.push(v.rung);
       cur.familyOnly &&= v.rung === "imprint";
     } else {
       tally.set(v.genre, {
         total: v.weight,
+        totalBasisPoints: toBasisPoints(v.weight),
         rungs: [v.rung],
-        maxSingle: v.weight,
+        maxSingleBasisPoints: toBasisPoints(v.weight),
         familyOnly: v.rung === "imprint",
       });
     }
@@ -107,18 +117,20 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
   let best: {
     genre: string;
     total: number;
+    totalBasisPoints: number;
     rungs: GenreVoteRung[];
-    maxSingle: number;
+    maxSingleBasisPoints: number;
     familyOnly: boolean;
   } | null = null;
   for (const [genre, t] of tally) {
     if (
       best === null ||
-      t.total > best.total ||
+      t.totalBasisPoints > best.totalBasisPoints ||
       // tie toward the harder single gate, then alphabetical (deterministic)
-      (t.total === best.total &&
-        (t.maxSingle > best.maxSingle ||
-          (t.maxSingle === best.maxSingle && genre < best.genre)))
+      (t.totalBasisPoints === best.totalBasisPoints &&
+        (t.maxSingleBasisPoints > best.maxSingleBasisPoints ||
+          (t.maxSingleBasisPoints === best.maxSingleBasisPoints &&
+            genre < best.genre)))
     ) {
       best = { genre, ...t };
     }

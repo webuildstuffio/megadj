@@ -84,6 +84,19 @@ describe("electGenre", () => {
     expect(tied.winnerRungs).toEqual(["mb"]);
   });
 
+  test("decimal-total tie still breaks toward the harder single gate", () => {
+    // 0.4 + 0.2 is represented as 0.6000000000000001, but it carries the
+    // same intended vote mass as bp's 0.6. Compare normalized tally units
+    // before applying the higher-single-rung tie-break.
+    const tied = electGenre([
+      v("bp", "Techno"),
+      v("mb", "House"),
+      v("sync", "House"),
+    ]);
+    expect(tied.genre).toBe("Techno");
+    expect(tied.winnerRungs).toEqual(["bp"]);
+  });
+
   test("imprint-only votes elect the family (sole voice)", () => {
     const r = electGenre([v("imprint", "techno", "Drumcode")]);
     expect(r.genre).toBe("techno");
