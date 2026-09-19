@@ -6,7 +6,7 @@ import { loadConfig } from "../src/config";
 import {
   parseBoothFleetRequest,
   writeConfigBoothFleet,
-} from "../src/booth_routes";
+} from "../src/booth-routes";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("cratedeck-config-").rippable();

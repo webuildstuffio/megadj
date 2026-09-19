@@ -56,18 +56,18 @@
  *   getdat_intake {action?,folder?,dry_run?}  dump census (#20) / process a dump
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
-import { archiveTools } from "./archive_tools";
-import { deriveDeckTools, type DeckMcpVerb } from "./mcp_surfaces";
+import { archiveTools } from "./archive-tools";
+import { deriveDeckTools, type DeckMcpVerb } from "./mcp-surfaces";
 import { ensureServer } from "./deckapi";
 export { jobTerminal } from "./deckapi";
-import { serveMcp, type ToolDef } from "./mcp_server";
-import { getdatTools } from "./getdat_tools";
-import { DumpReader } from "./dump_reader";
-import { DECK_READ_HANDLERS } from "./mcp_read_tools";
-import { DECK_ACTION_HANDLERS } from "./mcp_action_tools";
+import { serveMcp, type ToolDef } from "./mcp-server";
+import { getdatTools } from "./getdat-tools";
+import { DumpReader } from "./dump-reader";
+import { DECK_READ_HANDLERS } from "./mcp-read-tools";
+import { DECK_ACTION_HANDLERS } from "./mcp-action-tools";
 
 // re-exported for tests (deckapi's terminal-status predicate)
-export type { ToolDef } from "./mcp_server";
+export type { ToolDef } from "./mcp-server";
 
 // ---- tool assembly ----------------------------------------------------------
 // ToolDef lives in mcp_server.ts (the JSON-RPC half); the handler TABLES

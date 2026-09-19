@@ -12,7 +12,7 @@ import type {
   ReportSummary,
 } from "../../../shared/types";
 import { rankBadges } from "../../../shared/badges";
-import { TIER_EXPLANATION } from "../../../shared/check_matrix";
+import { TIER_EXPLANATION } from "../../../shared/check-matrix";
 import { fmtBytes, timeAgo } from "../../../../src/shared/leaf/fmt";
 import { ROLE_HELP } from "../../../shared/help";
 import { Icon } from "../../ui/icons";

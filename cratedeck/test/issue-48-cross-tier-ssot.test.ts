@@ -15,7 +15,7 @@ test("#48: engine and spoke import the one cosine implementation", () => {
 
   const engine = readFileSync(join(root, "src/archive/similar.ts"), "utf8");
   const spoke = readFileSync(
-    join(root, "cratedeck/src/archive_similar.ts"),
+    join(root, "cratedeck/src/archive-similar.ts"),
     "utf8",
   );
   expect(engine).toContain('from "../shared/leaf/vector-space"');
@@ -34,7 +34,7 @@ test("#48: both hygiene readers hydrate rows through the shared contract", () =>
     "utf8",
   );
   const spoke = readFileSync(
-    join(root, "cratedeck/src/hygiene_reader.ts"),
+    join(root, "cratedeck/src/hygiene-reader.ts"),
     "utf8",
   );
 

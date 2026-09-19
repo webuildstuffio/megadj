@@ -9,7 +9,7 @@ import {
   megadjCliPath,
   ensureIntakeWatchDir,
   INTAKE_FILE_LINE,
-} from "../src/intake_run";
+} from "../src/intake-run";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-intake-watch-").rippable();

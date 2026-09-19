@@ -40,7 +40,7 @@ function jobKindsFromSource(): string[] {
 describe("KIND_DOCS covers every job kind (the explain census)", () => {
   // Import AFTER reading source so a malformed SSOT constant fails its own
   // clear error above rather than an import-time type surprise.
-  const { KIND_DOCS } = require("../src/deckctl_docs") as {
+  const { KIND_DOCS } = require("../src/deckctl-docs") as {
     KIND_DOCS: Record<string, unknown>;
   };
   const kinds = jobKindsFromSource();
@@ -60,7 +60,7 @@ describe("KIND_DOCS covers every job kind (the explain census)", () => {
   test("the deck_explain schema enum derives from KIND_DOCS (not a literal)", () => {
     // #89 split: the explain handler lives in mcp_read_tools.ts
     const mcp = readFileSync(
-      join(ROOT, "cratedeck/src/mcp_read_tools.ts"),
+      join(ROOT, "cratedeck/src/mcp-read-tools.ts"),
       "utf8",
     );
     expect(mcp).toContain('["verify", ...Object.keys(KIND_DOCS)]');
@@ -129,7 +129,7 @@ describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
   // checksum, none of which is true.
   test("deckctl help reads job `needs` from KIND_DOCS, not a hand twin", () => {
     const src = readFileSync(
-      join(ROOT, "cratedeck/src/deckctl_help.ts"),
+      join(ROOT, "cratedeck/src/deckctl-help.ts"),
       "utf8",
     );
     expect(src).toContain("KIND_DOCS[job.kind]?.needs");
@@ -140,7 +140,7 @@ describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
   // and rotted the moment the 11th kind landed — copy must stay count-free.
   test("no hard-coded job count in help copy (the 'five jobs' rot)", () => {
     for (const rel of [
-      "cratedeck/src/deckctl_help.ts",
+      "cratedeck/src/deckctl-help.ts",
       "cratedeck/web/ui/Onboard.tsx",
     ]) {
       const src = readFileSync(join(ROOT, rel), "utf8");

@@ -3,8 +3,8 @@
 // concern); driveBadges is the assembly (ghost short-circuit, corrupt-blob
 // surfacing, ordering).
 import type { Badge, Drive, SnapshotData } from "./types";
-import { driveTier } from "./check_matrix";
-import { junkBadge, verifyBadge, gridsBadge, linkBadge } from "./badge_rules";
+import { driveTier } from "./check-matrix";
+import { junkBadge, verifyBadge, gridsBadge, linkBadge } from "./badge-rules";
 
 /** The failure hierarchy. Cards rank badges by this order (server sorts, the
  *  web just renders), so the worst truths always surface first and the rail

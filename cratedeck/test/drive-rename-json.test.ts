@@ -15,7 +15,7 @@ process.env.CRATEDECK_VOLUMES = join(FIX, "vol");
 // static imports resolve before env is set — config reads env at call time
 const { DB } = await import("../src/db");
 const { Registry } = await import("../src/registry");
-const { makeDriveRoutes } = await import("../src/drive_routes");
+const { makeDriveRoutes } = await import("../src/drive-routes");
 const { loadConfig } = await import("../src/config");
 
 const cfg = loadConfig(FIX);

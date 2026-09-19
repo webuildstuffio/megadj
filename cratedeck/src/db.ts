@@ -1,9 +1,9 @@
 // Public CrateDeck persistence facade. Cohesive query families are layered in
 // db_core.ts, db_library.ts, and db_activity.ts; callers keep one stable type.
 import type { BenchRun } from "../shared/types";
-import { DBActivity } from "./db_activity";
+import { DBActivity } from "./db-activity";
 
-export { inferRole } from "./db_drives";
+export { inferRole } from "./db-drives";
 
 export class DB extends DBActivity {
   addBenchmark(driveId: string, seq: number, rand4k: number): void {

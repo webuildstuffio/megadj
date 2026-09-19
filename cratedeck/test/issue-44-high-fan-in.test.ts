@@ -5,8 +5,8 @@ import { afterAll, afterEach, expect, test } from "bun:test";
 import { tempDir } from "./testutil";
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
-import { ArchiveLedgerReader } from "../src/archive_ledger_reader";
-import { createDeckctlOutput } from "../src/deckctl_output";
+import { ArchiveLedgerReader } from "../src/archive-ledger-reader";
+import { createDeckctlOutput } from "../src/deckctl-output";
 import { api, ApiError, apiPost, setApiErrorReporter } from "../web/ui/api";
 import { Icon, ICON_NAMES } from "../web/ui/icons";
 
@@ -169,7 +169,7 @@ test("#159-class: flushStdout never truncates file-redirected stdout", async () 
           "await o.flushStdout();",
         ].join("\n"),
         "-",
-        join(import.meta.dir, "..", "src", "deckctl_output.ts"),
+        join(import.meta.dir, "..", "src", "deckctl-output.ts"),
       ],
       { stdio: ["ignore", fd, "ignore"] },
     );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { requireCliSummary, summaryCount } from "../src/cli_job_leg";
+import { requireCliSummary, summaryCount } from "../src/cli-job-leg";
 
 describe("shared CLI job summary boundary", () => {
   it("requires a JSON summary after a successful subprocess", () => {

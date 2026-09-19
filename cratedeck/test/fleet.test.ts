@@ -10,7 +10,7 @@ import {
   type PlaylistEntryRow,
   type ManifestRow,
 } from "../src/coverage";
-import { redundancy, diff } from "../src/coverage_fleet";
+import { redundancy, diff } from "../src/coverage-fleet";
 import { DB } from "../src/db";
 import type { SnapshotData } from "../shared/types";
 

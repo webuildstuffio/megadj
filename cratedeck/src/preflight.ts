@@ -18,7 +18,7 @@ export {
   type PreflightDriveResult,
   type PreflightReport,
 } from "../shared/types";
-import { checkApplies, type CheckId } from "../shared/check_matrix";
+import { checkApplies, type CheckId } from "../shared/check-matrix";
 import { firmwareAdvisories } from "./players";
 import {
   benchCheck,
@@ -30,7 +30,7 @@ import {
   spaceCheck,
   verifyCheck,
   type PreflightInput,
-} from "./preflight_checks";
+} from "./preflight-checks";
 
 // PreflightDriveResult/PreflightReport (the B12 wire shapes) are DEFINED in
 // shared/types.ts — the dependency leaf — and imported above. Re-exported
@@ -41,7 +41,7 @@ import {
 // builder split — a split-out module must never import its parent's types
 // back: madge counts a type-only back-edge as a cycle). Re-exported so
 // existing `from "./preflight"` sites hold.
-export type { PreflightInput } from "./preflight_checks";
+export type { PreflightInput } from "./preflight-checks";
 
 /** Worst-status-wins aggregation tuned for gig night: a fail is "don't take
  *  this drive" (not-ready), a warn is "usable, but know about it". */

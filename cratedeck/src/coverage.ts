@@ -19,7 +19,7 @@ export {
 } from "../shared/types";
 // fold + metaKey: the #201 one-definition module (was a byte-identical
 // twin here, radar.ts, coverage_fleet.ts).
-import { fold, metaKey } from "./coverage_fleet";
+import { fold, metaKey } from "./coverage-fleet";
 
 // ---- coverage (B6) ----------------------------------------------------------
 // (TrackCoverage / CoverageResult / CoverageResponse are defined in

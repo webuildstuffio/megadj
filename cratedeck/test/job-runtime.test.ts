@@ -3,7 +3,7 @@ import {
   recordProgressIncrease,
   withJobBudget,
   type RunHandle,
-} from "../src/job_runtime";
+} from "../src/job-runtime";
 
 describe("job wall-clock budget", () => {
   it("cancels and kills whichever extracted leg owns the subprocess", async () => {

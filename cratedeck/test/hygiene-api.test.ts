@@ -13,8 +13,8 @@ import { tempDir } from "./testutil";
 import { Database } from "bun:sqlite";
 import { rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { HygieneReader } from "../src/hygiene_reader";
-import { makeHygieneRoutes } from "../src/hygiene_routes";
+import { HygieneReader } from "../src/hygiene-reader";
+import { makeHygieneRoutes } from "../src/hygiene-routes";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-hyg-route-").rippable();

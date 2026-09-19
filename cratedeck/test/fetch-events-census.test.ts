@@ -12,7 +12,7 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "..");
 const read = (rel: string): string => readFileSync(join(ROOT, rel), "utf8");
 
-import { parseFetchStart, parseFetchTask, fetchArgs } from "../src/job_legs";
+import { parseFetchStart, parseFetchTask, fetchArgs } from "../src/job-legs";
 import {
   emitFetchStart,
   emitTaskDone,
@@ -25,7 +25,7 @@ import {
   fetchFeedSince,
   fetchFeedReset,
   fetchFeedClear,
-} from "../src/fetch_feed";
+} from "../src/fetch-feed";
 import { JOB_KINDS } from "../shared/types";
 
 describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
@@ -193,7 +193,7 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
   // ---- both sides stay tied to the job-kind SSOT ----
   test("the fetch job kind exists + both doc tables carry it", () => {
     expect(JOB_KINDS).toContain("fetch");
-    const { KIND_DOCS } = require("../src/deckctl_docs") as {
+    const { KIND_DOCS } = require("../src/deckctl-docs") as {
       KIND_DOCS: Record<string, unknown>;
     };
     const { HELP_JOBS } = require("../shared/help") as {

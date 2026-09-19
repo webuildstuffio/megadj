@@ -3,9 +3,9 @@
 // validates options BEFORE enqueueing (bad body = 400, never a garbage
 // run). The census pins route existence; this pins behavior.
 import { describe, test, expect, beforeEach } from "bun:test";
-import { makeApiRouter } from "../src/api_routes";
-import { fetchFeedPush, fetchFeedClear } from "../src/fetch_feed";
-import type { ApiDeps } from "../src/api_deps";
+import { makeApiRouter } from "../src/api-routes";
+import { fetchFeedPush, fetchFeedClear } from "../src/fetch-feed";
+import type { ApiDeps } from "../src/api-deps";
 
 /** Minimal deps: only jobs.enqueue (spied) + json are on the /fetch paths. */
 function makeDeps(): { deps: ApiDeps; enqueued: unknown[] } {

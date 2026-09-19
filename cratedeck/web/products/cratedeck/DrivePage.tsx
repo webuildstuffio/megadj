@@ -3,7 +3,7 @@
 // (#/drives/:id/:tab). Polls the API and merges SSE job updates.
 import { useEffect } from "preact/hooks";
 import type { InterlockState, JobKind } from "../../../shared/types";
-import { TIER_EXPLANATION } from "../../../shared/check_matrix";
+import { TIER_EXPLANATION } from "../../../shared/check-matrix";
 import { Icon } from "../../ui/icons";
 import { countCheckVerdicts } from "../../ui/DrivePanels";
 import { navigate } from "../../app/router";

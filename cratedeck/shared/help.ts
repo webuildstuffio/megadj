@@ -6,7 +6,7 @@
 // One file, zero behavior: pure data + tiny lookup helpers. Every string is
 // a DJ-facing sentence, not doc-speak — the rule of thumb a person repeats
 // in the booth.
-import { TIER_EXPLANATION } from "./check_matrix";
+import { TIER_EXPLANATION } from "./check-matrix";
 
 /** One glossary term: what it IS, and why a DJ should care. */
 export interface HelpTerm {

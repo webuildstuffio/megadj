@@ -10,7 +10,7 @@ import {
   omittedChecks,
   TIER_EXPLANATION,
   type CheckId,
-} from "../shared/check_matrix";
+} from "../shared/check-matrix";
 import { preflightForDrive } from "../src/preflight";
 import { driveBadges } from "../shared/badges";
 import type { Drive, HealthCheck, SnapshotData } from "../shared/types";
