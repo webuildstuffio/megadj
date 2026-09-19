@@ -1,9 +1,13 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { __test } from "./rb-comment-sync.js";
 import { renderKitMarkers } from "./rb-command-kit";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-csync-").rippable();
+afterAll(() => t.rippleAll());
 
 /** The RENDERED sync program — kit markers resolved exactly as
  *  pyUvFileArgv does at spawn time (#194 corpus extraction). */
@@ -17,7 +21,7 @@ const commentSyncScript = () =>
 
 describe("rb-comment-sync", () => {
   test("ledgerFreshnessOf reads MAX(analyzed_at) stamps (#174)", () => {
-    const dir = mkdtempSync("/tmp/megadj-csync-fresh-");
+    const dir = t.dir();
     const p = join(dir, "archive.db");
     const db = new Database(p);
     db.exec(`CREATE TABLE beats (analyzed_at TEXT NOT NULL);
@@ -32,7 +36,6 @@ describe("rb-comment-sync", () => {
       });
     } finally {
       db.close();
-      rmSync(dir, { recursive: true, force: true });
     }
   });
 
@@ -43,19 +46,15 @@ describe("rb-comment-sync", () => {
       moodAt: null,
     });
     // wrong schema (no beats/mood tables) → honest nulls, not a crash
-    const dir = mkdtempSync("/tmp/megadj-csync-fresh-bad-");
+    const dir = t.dir();
     const p = join(dir, "archive.db");
     const db = new Database(p);
     db.exec("CREATE TABLE other (x TEXT);");
     db.close();
-    try {
-      expect(__test.ledgerFreshnessOf(p)).toEqual({
-        beatsAt: null,
-        moodAt: null,
-      });
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    expect(__test.ledgerFreshnessOf(p)).toEqual({
+      beatsAt: null,
+      moodAt: null,
+    });
   });
   test("script never clobbers non-empty comments and reads TXXX only", () => {
     const s = commentSyncScript();

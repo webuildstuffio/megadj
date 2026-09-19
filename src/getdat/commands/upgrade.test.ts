@@ -4,10 +4,9 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, test } from "bun:test";
-import { ArchiveState } from "../../archive/state";
 import { isLowq, parseFfprobeKbps, replaceFileAtomically } from "./upgrade";
 import { runCli } from "../../test-support/cli-run";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, tempState } from "../../test-support/testutil";
 
 describe("isLowq (the same floor rule as CrateDeck's lowqQueue)", () => {
   test("mp4a/aac below 256", () => {
@@ -59,10 +58,14 @@ describe("upgrade replacement", () => {
 describe("upgrade CLI contract", () => {
   const t = tempDir("megadj-upgrade-test-");
   const dir = t.dir();
-  const state = new ArchiveState(join(dir, "archive.db"));
+  // tempState owns the DB dir; the child CLI must open THAT path via
+  // MEGADJ_DB, not the fixture dir (two dirs, two roles).
+  const ts = tempState("megadj-upgrade-state-");
+  const { dir: stateDir, state } = ts.next();
   afterAll(() => {
     state.close();
     t.dispose(dir);
+    ts.done({ dir: stateDir, state });
   });
 
   test("--dry-run --json: lists candidates, attempts nothing, exits 0", async () => {
@@ -79,7 +82,7 @@ describe("upgrade CLI contract", () => {
       durationS: 10,
     });
     const { code, stdout } = await runCli(["upgrade", "--dry-run", "--json"], {
-      MEGADJ_DB: join(dir, "archive.db"),
+      MEGADJ_DB: join(stateDir, "archive.db"),
       MEGADJ_MUSIC_DIR: dir,
       MEGADJ_COOKIES: "",
     });
@@ -113,7 +116,7 @@ describe("upgrade CLI contract", () => {
       durationS: 10,
     });
     const { code, stdout } = await runCli(["upgrade", "--dry-run", "--json"], {
-      MEGADJ_DB: join(dir, "archive.db"),
+      MEGADJ_DB: join(stateDir, "archive.db"),
       MEGADJ_MUSIC_DIR: dir,
       MEGADJ_COOKIES: "",
     });

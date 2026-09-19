@@ -1,24 +1,14 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../archive/state";
 import { rbAdopt, type RekordboxContentRow } from "./rb-adopt";
 import { reconcileRekordboxRows } from "./rb-adopt-apply";
+import { tempDir } from "../test-support/testutil";
 
-const roots: string[] = [];
-
-afterEach(() => {
-  for (const root of roots.splice(0))
-    rmSync(root, { recursive: true, force: true });
-});
+const t = tempDir("megadj-rb-adopt-").rippable();
+afterAll(() => t.rippleAll());
 
 function fixture(): {
   root: string;
@@ -26,8 +16,7 @@ function fixture(): {
   existingPath: string;
   newPath: string;
 } {
-  const root = mkdtempSync(join(tmpdir(), "rb-adopt-test-"));
-  roots.push(root);
+  const root = t.dir();
   const existingPath = join(root, "existing.aiff");
   const newPath = join(root, "new.mp3");
   writeFileSync(existingPath, "existing audio");

@@ -13,13 +13,13 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { mkdirSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, tempState } from "../../test-support/testutil";
 
 const t = tempDir("megadj-selfmatch-").rippable();
 const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
+const ts = tempState("megadj-selfmatch-state-");
 // The batch folder INSIDE the archive — the UI's candidate list is exactly
 // these folders, so this shape is the supported re-run path.
 const BATCH = join(ARCHIVE, "2026-09-10 batch import");
@@ -60,7 +60,7 @@ describe("ingest self-match guard (re-run of an in-archive batch)", () => {
     makeTrack("Self Match One");
     makeTrack("Self Match Two");
 
-    const state = new ArchiveState(join(DB_DIR, "archive.db"));
+    const { state } = ts.next();
     // run 1 — the intake that registers the rows (folder inside archive)
     await ingest({
       state,

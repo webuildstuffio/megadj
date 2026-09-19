@@ -14,13 +14,13 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, tempState } from "../../test-support/testutil";
 
 const t = tempDir("megadj-upgrade-row-").rippable();
 const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
+const ts = tempState("megadj-upg-state-");
 const BATCH = join(ARCHIVE, "2026-09-11 intake");
 
 afterAll(() => {
@@ -54,7 +54,7 @@ function makeTrack(name: string, freq: string, dest: string): void {
 
 describe("ingest quality-upgrade row replacement", () => {
   test("upgrade of an in-archive file reuses the row (no shadow twin)", async () => {
-    const state = new ArchiveState(join(DB_DIR, "archive.db"));
+    const { state } = ts.next();
 
     // run 1 — register the original 440 Hz file
     makeTrack("Upgrade Target", "440", BATCH);

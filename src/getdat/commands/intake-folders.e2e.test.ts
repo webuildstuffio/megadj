@@ -1,10 +1,9 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
 import { makeWav } from "../../test-support/audio-fixtures";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, tempState } from "../../test-support/testutil";
 /**
  * Per-batch intake folders (user request, Sep 10 2026): separate dumps must
  * land in SEPARATE dated subfolders of the archive — never mixed flat.
@@ -13,6 +12,7 @@ import { tempDir } from "../../test-support/testutil";
 const t = tempDir("megadj-intake-folders-").rippable();
 const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
+const ts = tempState("megadj-intake-folders-state-");
 
 afterAll(() => {
   t.rippleAll();
@@ -32,7 +32,7 @@ function archiveTopLevel(): { dirs: string[]; loose: string[] } {
 }
 
 async function runIngest(sourceFolder: string): Promise<void> {
-  const state = new ArchiveState(join(DB_DIR, "archive.db"));
+  const { state } = ts.next();
   await ingest({
     state,
     musicDir: ARCHIVE,

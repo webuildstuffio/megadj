@@ -37,17 +37,9 @@ const ALLOWED = new Set<string>([
   "src/shelf/intake-status.test.ts",
   "src/shelf/dedupe.test.ts",
   "src/shelf/ext-drift.test.ts",
-  // rekordbox: grid/ANLZ suites build multi-volume drive trees
-  "src/rekordbox/grid-triage.test.ts",
-  "src/rekordbox/rb-playlist.test.ts",
-  "src/rekordbox/rb-playlist-twin.test.ts",
-  "src/rekordbox/rb-adopt.test.ts",
-  "src/rekordbox/rb-unmatched.test.ts",
-  "src/rekordbox/anlz-spike.test.ts",
-  "src/rekordbox/rb-dedup.test.ts",
-  "src/rekordbox/guard.test.ts",
-  "src/rekordbox/rb-fix-paths.test.ts",
-  "src/rekordbox/rb-comment-sync.test.ts",
+  // rekordbox: FULLY MIGRATED to tempDir (#248 second pass, Sep 18) —
+  // all 10 grid/ANLZ/playlist suites; entries kept out on purpose so a
+  // regression re-adding mkdtempSync fails the first test above.
   // shared: hash/flags/volume/atomic/walk-tree unit seams
   "src/shared/maintenance-flags.test.ts",
   "src/shared/hash.test.ts",

@@ -343,8 +343,11 @@ export async function gridTriage(
   const mount = normalizeMount(opts.mount);
   const dbPath = masterDbPath(opts.mount);
   const compareDrive = opts.compareDrive ?? null;
+  // An absolute path IS the mount; a bare name is a volume under /Volumes.
+  // (Any absolute tmp path must work — tmpdir() is /var/folders/... on
+  // macOS, and the old /tmp/-prefix list silently rejected test mounts.)
   const stickMount = compareDrive
-    ? compareDrive.startsWith("/Volumes/") || compareDrive.startsWith("/tmp/")
+    ? compareDrive.startsWith("/")
       ? compareDrive
       : `/Volumes/${compareDrive}`
     : null;

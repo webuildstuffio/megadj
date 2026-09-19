@@ -6,8 +6,8 @@
  * real ANLZ bytes built by fulltags/anlz.ts, plus a fake stick for the
  * byte-compare.
  */
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../archive/state";
 import {
@@ -20,6 +20,7 @@ import {
   type MasterRow,
 } from "./grid-triage";
 import { buildAnlz, parseAnlzGrid } from "../fulltags/anlz";
+import { tempDir } from "../test-support/testutil";
 
 // ---- fixtures -------------------------------------------------------------
 
@@ -33,10 +34,13 @@ const anlzBeats = (n: number, startMs = 0) =>
 const ledgerBeats = (n: number, startS = 0) =>
   Array.from({ length: n }, (_, i) => startS + (i * step) / 1000);
 
+const t = tempDir("megadj-triage-").rippable();
+afterAll(() => t.rippleAll());
+
 /** Fake mount: shelf with a master DB + collection ANLZ tree, and a
  * Contents/ tree the ledger index can join against. */
 function fakeShelf(): { shelf: string; anlzDir: string } {
-  const shelf = mkdtempSync("/tmp/megadj-triage-shelf-");
+  const shelf = t.dir();
   const anlzDir = join(shelf, "PIONEER", "Master", "share", "ANLZ");
   mkdirSync(anlzDir, { recursive: true });
   mkdirSync(join(shelf, "Contents", "Artist"), { recursive: true });
@@ -45,16 +49,16 @@ function fakeShelf(): { shelf: string; anlzDir: string } {
 }
 
 /** Register one downloaded track in a temp state whose file_path lives
- * under the given music dir (the ledger join key). */
-/** Register one downloaded track in a temp state whose file_path lives
  * under the given music dir (the ledger join key). Uses the public
- * state API — no raw db access. */
+ * state API — no raw db access. The state's DB is rippled with the
+ * fixture tree (close is the caller's job — both command tests close
+ * in their finally). */
 function seedLedger(
   musicDir: string,
   rel: string,
   beats: number[],
 ): ArchiveState {
-  const dir = mkdtempSync("/tmp/megadj-triage-db-");
+  const dir = t.dir();
   const state = new ArchiveState(join(dir, "db.sqlite"));
   state.upsertTrackFromPlaylist("v1", 1, "Track");
   state.markDownloaded("v1", {
@@ -121,7 +125,7 @@ describe("resolveCollectionAnlz", () => {
 
 describe("buildLedgerIndex + ledgerBeatsFor", () => {
   test("joins by shelf Contents rel path (NFC+casefold) then basename", () => {
-    const musicDir = mkdtempSync("/tmp/megadj-triage-music-");
+    const musicDir = t.dir();
     mkdirSync(join(musicDir, "Artist"), { recursive: true });
     const state = seedLedger(
       musicDir,
@@ -173,27 +177,27 @@ describe("triageRow", () => {
   test("SYNC wins over audit when sidecars differ (the triage rule)", () => {
     const shelf = buildAnlz({ path: row.path, beats: anlzBeats(16) });
     const stick = buildAnlz({ path: row.path, beats: anlzBeats(16, 50) });
-    const t = triageRow({
+    const res = triageRow({
       row,
       shelfAnlzBytes: shelf,
       stickAnlzBytes: stick,
       compareActive: true,
       ledgerBeats: ledgerBeats(16),
     });
-    expect(t.cls).toBe("SYNC");
-    expect(t.detail).toMatch(/re-export/u);
+    expect(res.cls).toBe("SYNC");
+    expect(res.detail).toMatch(/re-export/u);
   });
 
   test("identical sidecars → full audit → A-OK", () => {
     const bytes = buildAnlz({ path: row.path, beats: anlzBeats(256) });
-    const t = triageRow({
+    const res = triageRow({
       row,
       shelfAnlzBytes: bytes,
       stickAnlzBytes: bytes,
       compareActive: true,
       ledgerBeats: ledgerBeats(256),
     });
-    expect(t.cls).toBe("A-OK");
+    expect(res.cls).toBe("A-OK");
   });
 
   test("RB grid one beat late → PHASE with anchor ≈ 1 beat", () => {
@@ -201,15 +205,15 @@ describe("triageRow", () => {
       path: row.path,
       beats: anlzBeats(256, Math.round(step)),
     });
-    const t = triageRow({
+    const res = triageRow({
       row,
       shelfAnlzBytes: bytes,
       stickAnlzBytes: null,
       compareActive: false,
       ledgerBeats: ledgerBeats(256),
     });
-    expect(t.cls).toBe("PHASE");
-    expect(t.phaseBeats).toBe(1);
+    expect(res.cls).toBe("PHASE");
+    expect(res.phaseBeats).toBe(1);
   });
 
   test("no ledger row → NO-LEDGER; gridless sidecar → NO-GRID", () => {
@@ -246,7 +250,7 @@ describe("triageRow", () => {
 describe("gridTriage command", () => {
   test("audits rows end-to-end; missing DB is a visible failure", async () => {
     const { shelf, anlzDir } = fakeShelf();
-    const musicDir = mkdtempSync("/tmp/megadj-triage-music2-");
+    const musicDir = t.dir();
     const prevMusic = process.env.MEGADJ_MUSIC_DIR;
     process.env.MEGADJ_MUSIC_DIR = musicDir;
     let state: ArchiveState | null = null;
@@ -254,7 +258,7 @@ describe("gridTriage command", () => {
       // missing DB → ok:false (never a fake pass)
       const missing = await gridTriage({
         mount: "/tmp/definitely-not-here",
-        state: new ArchiveState(join(musicDir, "x.db")),
+        state: new ArchiveState(join(t.dir(), "x.db")),
         rows: [],
         json: true,
       });
@@ -295,8 +299,8 @@ describe("gridTriage command", () => {
 
   test("--compare counts differing sidecars as SYNC issues", async () => {
     const { shelf, anlzDir } = fakeShelf();
-    const stick = mkdtempSync("/tmp/megadj-triage-stick-");
-    const musicDir = mkdtempSync("/tmp/megadj-triage-music3-");
+    const stick = t.dir();
+    const musicDir = t.dir();
     const prevMusic = process.env.MEGADJ_MUSIC_DIR;
     process.env.MEGADJ_MUSIC_DIR = musicDir;
     let state: ArchiveState | null = null;

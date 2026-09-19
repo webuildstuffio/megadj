@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { applyPlaylistTwinMutation, playlistXmlPath } from "./rb-playlist-twin";
+import { tempDir } from "../test-support/testutil";
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <MASTER_PLAYLIST Version="3.0.0">
@@ -10,84 +11,79 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 </MASTER_PLAYLIST>
 `;
 
+const t = tempDir("megadj-rb-playlist-twin-").rippable();
+afterAll(() => t.rippleAll());
+
 describe("playlist DB/XML twin mutation", () => {
   test("writes and verifies both twins while preserving 64-bit ids", () => {
-    const dir = mkdtempSync("/tmp/rb-playlist-twin-");
+    const dir = t.dir();
     const dbPath = join(dir, "master.db");
     const xmlPath = playlistXmlPath(dbPath);
     writeFileSync(dbPath, "original-db");
     writeFileSync(xmlPath, XML);
-    try {
-      const result = applyPlaylistTwinMutation({
+    const result = applyPlaylistTwinMutation({
+      dbPath,
+      what: "test playlist write",
+      mutateDb: () => {
+        writeFileSync(dbPath, "mutated-db");
+        return { playlistId: "9007199254740993" };
+      },
+      nodes: ({ playlistId }) => [
+        {
+          id: playlistId,
+          name: "64-bit & safe",
+          parentId: "0",
+          attribute: 0,
+        },
+      ],
+      verifyDb: () => expect(readFileSync(dbPath, "utf8")).toBe("mutated-db"),
+      testHooks: { assertClosed: () => {}, sleep: () => {} },
+    });
+
+    expect(result.value.playlistId).toBe("9007199254740993");
+    const xml = readFileSync(xmlPath, "utf8");
+    expect(xml).toContain('Name="64-bit &amp; safe"');
+    expect(xml).toContain('Id="20000000000001"');
+  });
+
+  test("an XML failure restores the DB and XML backups", () => {
+    const dir = t.dir();
+    const dbPath = join(dir, "master.db");
+    const xmlPath = playlistXmlPath(dbPath);
+    writeFileSync(dbPath, "original-db");
+    writeFileSync(xmlPath, XML);
+    expect(() =>
+      applyPlaylistTwinMutation({
         dbPath,
-        what: "test playlist write",
+        what: "test playlist rollback",
         mutateDb: () => {
           writeFileSync(dbPath, "mutated-db");
-          return { playlistId: "9007199254740993" };
+          return { playlistId: "42" };
         },
         nodes: ({ playlistId }) => [
           {
             id: playlistId,
-            name: "64-bit & safe",
+            name: "will fail",
             parentId: "0",
             attribute: 0,
           },
         ],
-        verifyDb: () => expect(readFileSync(dbPath, "utf8")).toBe("mutated-db"),
-        testHooks: { assertClosed: () => {}, sleep: () => {} },
-      });
-
-      expect(result.value.playlistId).toBe("9007199254740993");
-      const xml = readFileSync(xmlPath, "utf8");
-      expect(xml).toContain('Name="64-bit &amp; safe"');
-      expect(xml).toContain('Id="20000000000001"');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  test("an XML failure restores the DB and XML backups", () => {
-    const dir = mkdtempSync("/tmp/rb-playlist-twin-rollback-");
-    const dbPath = join(dir, "master.db");
-    const xmlPath = playlistXmlPath(dbPath);
-    writeFileSync(dbPath, "original-db");
-    writeFileSync(xmlPath, XML);
-    try {
-      expect(() =>
-        applyPlaylistTwinMutation({
-          dbPath,
-          what: "test playlist rollback",
-          mutateDb: () => {
-            writeFileSync(dbPath, "mutated-db");
-            return { playlistId: "42" };
+        verifyDb: () => {},
+        testHooks: {
+          assertClosed: () => {},
+          sleep: () => {},
+          writeXml: () => {
+            throw new Error("simulated XML write failure");
           },
-          nodes: ({ playlistId }) => [
-            {
-              id: playlistId,
-              name: "will fail",
-              parentId: "0",
-              attribute: 0,
-            },
-          ],
-          verifyDb: () => {},
-          testHooks: {
-            assertClosed: () => {},
-            sleep: () => {},
-            writeXml: () => {
-              throw new Error("simulated XML write failure");
-            },
-          },
-        }),
-      ).toThrow(/restored DB and XML/u);
-      expect(readFileSync(dbPath, "utf8")).toBe("original-db");
-      expect(readFileSync(xmlPath, "utf8")).toBe(XML);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+        },
+      }),
+    ).toThrow(/restored DB and XML/u);
+    expect(readFileSync(dbPath, "utf8")).toBe("original-db");
+    expect(readFileSync(xmlPath, "utf8")).toBe(XML);
   });
 
   test("a stale same-id XML node is repaired to the DB metadata", () => {
-    const dir = mkdtempSync("/tmp/rb-playlist-twin-repair-");
+    const dir = t.dir();
     const dbPath = join(dir, "master.db");
     const xmlPath = playlistXmlPath(dbPath);
     writeFileSync(dbPath, "original-db");
@@ -98,31 +94,25 @@ describe("playlist DB/XML twin mutation", () => {
         '    <NODE Name="Stale" Id="2A" ParentId="0" Attribute="1" Timestamp="0" Lib_Type="0" CheckType="0"/>\n  </PLAYLISTS>',
       ),
     );
-    try {
-      applyPlaylistTwinMutation({
-        dbPath,
-        what: "test playlist repair",
-        mutateDb: () => ({ playlistId: "42" }),
-        nodes: ({ playlistId }) => [
-          {
-            id: playlistId,
-            name: "Current",
-            parentId: "7",
-            attribute: 0,
-          },
-        ],
-        verifyDb: () => {},
-        testHooks: { assertClosed: () => {}, sleep: () => {} },
-      });
+    applyPlaylistTwinMutation({
+      dbPath,
+      what: "test playlist repair",
+      mutateDb: () => ({ playlistId: "42" }),
+      nodes: ({ playlistId }) => [
+        {
+          id: playlistId,
+          name: "Current",
+          parentId: "7",
+          attribute: 0,
+        },
+      ],
+      verifyDb: () => {},
+      testHooks: { assertClosed: () => {}, sleep: () => {} },
+    });
 
-      const xml = readFileSync(xmlPath, "utf8");
-      expect(xml).toContain(
-        'Name="Current" Id="2A" ParentId="7" Attribute="0"',
-      );
-      expect(xml).not.toContain('Name="Stale"');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    const xml = readFileSync(xmlPath, "utf8");
+    expect(xml).toContain('Name="Current" Id="2A" ParentId="7" Attribute="0"');
+    expect(xml).not.toContain('Name="Stale"');
   });
 
   test("every playlist mutation routes through the twin seam", () => {

@@ -1,8 +1,12 @@
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { rbUnmatched, printRbUnmatchedReport, __test } from "./rb-unmatched";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-rbunmatched-").rippable();
+afterAll(() => t.rippleAll());
 
 /**
  * rb-unmatched unit tests. The pyrekordbox leg is NOT exercised here (it
@@ -15,7 +19,7 @@ import { writeFakeAudio } from "../test-support/audio-fixtures";
  */
 
 function makeMount(): string {
-  const dir = mkdtempSync("/tmp/rbunmatched-test-");
+  const dir = t.dir();
   mkdirSync(join(dir, "Contents", "Artist A"), { recursive: true });
   mkdirSync(join(dir, "Contents", "UnknownArtist"), { recursive: true });
   // matched: a row points exactly here
@@ -43,19 +47,14 @@ describe("rb-unmatched", () => {
     } finally {
       if (previous === undefined) delete process.env.MEGADJ_RB_MASTER;
       else process.env.MEGADJ_RB_MASTER = previous;
-      rmSync(mount, { recursive: true, force: true });
     }
   }, 60_000); // uv cold-start under 16-way parallel workers needs > 5s
 
   test("missing master DB is a visible failure, not a fake pass", async () => {
     const mount = makeMount();
-    try {
-      const r = await rbUnmatched({ mount });
-      expect(r.ok).toBe(false);
-      expect(r.error).toContain("no master DB");
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const r = await rbUnmatched({ mount });
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("no master DB");
   });
 
   test("--quarantine without --yes refuses (two-step apply)", async () => {
@@ -76,7 +75,6 @@ describe("rb-unmatched", () => {
     } finally {
       if (prev === undefined) delete process.env.MEGADJ_RB_MASTER;
       else process.env.MEGADJ_RB_MASTER = prev;
-      rmSync(mount, { recursive: true, force: true });
     }
   });
 
@@ -126,14 +124,10 @@ describe("rb-unmatched", () => {
 
   test("human report prints without throwing (both modes)", async () => {
     const mount = makeMount();
-    try {
-      const r = await rbUnmatched({ mount });
-      expect(() => printRbUnmatchedReport(r, () => {})).not.toThrow();
-      const rFail = { ...r, ok: false, error: "boom" };
-      expect(() => printRbUnmatchedReport(rFail, () => {})).not.toThrow();
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const r = await rbUnmatched({ mount });
+    expect(() => printRbUnmatchedReport(r, () => {})).not.toThrow();
+    const rFail = { ...r, ok: false, error: "boom" };
+    expect(() => printRbUnmatchedReport(rFail, () => {})).not.toThrow();
   });
 
   test("quarantine moves only unknown files, writes manifest, nothing deleted", async () => {
@@ -142,82 +136,61 @@ describe("rb-unmatched", () => {
     // full command path with a real DB is the dry-run runbook's job.
     const { quarantineUnmatched } = await import("./rb-unmatched");
     const mount = makeMount();
-    try {
-      const unknown = [
-        join(mount, "Contents", "UnknownArtist", "01 Intro.mp3"),
-        join(mount, "Contents", "UnknownArtist", "02 Backlog.mp3"),
-      ];
-      const r = await quarantineUnmatched(unknown, mount, () => {});
-      expect(r.moved).toHaveLength(2);
-      expect(r.manifestPath).toContain(".hygiene-quarantine/unmatched");
-      // sources gone, dests present, manifest exists
-      for (const m of r.moved) {
-        expect(m.dest.startsWith(join(mount, ".hygiene-quarantine"))).toBe(
-          true,
-        );
-      }
-      const { existsSync, readFileSync } = await import("node:fs");
-      expect(existsSync(r.manifestPath)).toBe(true);
-      const lines = readFileSync(r.manifestPath, "utf8").trim().split("\n");
-      expect(lines).toHaveLength(2);
-      for (const l of lines) {
-        const obj = JSON.parse(l) as { from: string; dest: string };
-        expect(obj.from).toBeTruthy();
-        expect(obj.dest).toBeTruthy();
-      }
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
+    const unknown = [
+      join(mount, "Contents", "UnknownArtist", "01 Intro.mp3"),
+      join(mount, "Contents", "UnknownArtist", "02 Backlog.mp3"),
+    ];
+    const r = await quarantineUnmatched(unknown, mount, () => {});
+    expect(r.moved).toHaveLength(2);
+    expect(r.manifestPath).toContain(".hygiene-quarantine/unmatched");
+    // sources gone, dests present, manifest exists
+    for (const m of r.moved) {
+      expect(m.dest.startsWith(join(mount, ".hygiene-quarantine"))).toBe(true);
+    }
+    const { existsSync, readFileSync } = await import("node:fs");
+    expect(existsSync(r.manifestPath)).toBe(true);
+    const lines = readFileSync(r.manifestPath, "utf8").trim().split("\n");
+    expect(lines).toHaveLength(2);
+    for (const l of lines) {
+      const obj = JSON.parse(l) as { from: string; dest: string };
+      expect(obj.from).toBeTruthy();
+      expect(obj.dest).toBeTruthy();
     }
   });
 
   test("quarantine collision never overwrites (suffixed twin)", async () => {
     const { quarantineUnmatched } = await import("./rb-unmatched");
     const mount = makeMount();
-    try {
-      // same from listed twice → dest must differ, both must exist
-      const unknown = [
-        join(mount, "Contents", "UnknownArtist", "01 Intro.mp3"),
-      ];
-      const first = await quarantineUnmatched(unknown, mount, () => {});
-      expect(first.moved).toHaveLength(1);
-      // reconstruct a same-named file and quarantine again
-      writeFileSync(unknown[0]!, "x");
-      const second = await quarantineUnmatched(unknown, mount, () => {});
-      expect(second.moved).toHaveLength(1);
-      expect(second.moved[0]!.dest).not.toBe(first.moved[0]!.dest);
-      const { existsSync } = await import("node:fs");
-      expect(existsSync(first.moved[0]!.dest)).toBe(true);
-      expect(existsSync(second.moved[0]!.dest)).toBe(true);
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    // same from listed twice → dest must differ, both must exist
+    const unknown = [join(mount, "Contents", "UnknownArtist", "01 Intro.mp3")];
+    const first = await quarantineUnmatched(unknown, mount, () => {});
+    expect(first.moved).toHaveLength(1);
+    // reconstruct a same-named file and quarantine again
+    writeFileSync(unknown[0]!, "x");
+    const second = await quarantineUnmatched(unknown, mount, () => {});
+    expect(second.moved).toHaveLength(1);
+    expect(second.moved[0]!.dest).not.toBe(first.moved[0]!.dest);
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(first.moved[0]!.dest)).toBe(true);
+    expect(existsSync(second.moved[0]!.dest)).toBe(true);
   });
 
   test("quarantine runs in the same second keep separate manifests", async () => {
     const { quarantineUnmatched } = await import("./rb-unmatched");
     const mount = makeMount();
-    try {
-      const firstFile = join(
-        mount,
-        "Contents",
-        "UnknownArtist",
-        "01 Intro.mp3",
-      );
-      const secondFile = join(
-        mount,
-        "Contents",
-        "UnknownArtist",
-        "02 Backlog.mp3",
-      );
-      const first = await quarantineUnmatched([firstFile], mount, () => {});
-      writeFileSync(secondFile, "new");
-      const second = await quarantineUnmatched([secondFile], mount, () => {});
-      expect(second.manifestPath).not.toBe(first.manifestPath);
-      const { existsSync } = await import("node:fs");
-      expect(existsSync(first.manifestPath)).toBe(true);
-      expect(existsSync(second.manifestPath)).toBe(true);
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const firstFile = join(mount, "Contents", "UnknownArtist", "01 Intro.mp3");
+    const secondFile = join(
+      mount,
+      "Contents",
+      "UnknownArtist",
+      "02 Backlog.mp3",
+    );
+    const first = await quarantineUnmatched([firstFile], mount, () => {});
+    writeFileSync(secondFile, "new");
+    const second = await quarantineUnmatched([secondFile], mount, () => {});
+    expect(second.manifestPath).not.toBe(first.manifestPath);
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(first.manifestPath)).toBe(true);
+    expect(existsSync(second.manifestPath)).toBe(true);
   });
 });

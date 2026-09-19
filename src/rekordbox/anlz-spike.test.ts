@@ -4,23 +4,18 @@
  * PQTZ-only byte change must be attributable to the grid section.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import {
-  mkdtempSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { anlzSpike } from "./anlz-spike";
 import { buildAnlz } from "../fulltags/anlz";
+import { tempDir } from "../test-support/testutil";
 
-const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-anlz-spike-test-"));
+const t = tempDir("megadj-anlz-spike-test-").rippable();
+const TEST_ROOT = t.dir();
 const TEST_SPIKE_DIR = join(TEST_ROOT, "baselines");
 let mountId = 0;
 
-afterAll(() => rmSync(TEST_ROOT, { recursive: true, force: true }));
+afterAll(() => t.rippleAll());
 
 function fakeMount(): string {
   const mount = join(TEST_ROOT, `mount-${mountId++}`);

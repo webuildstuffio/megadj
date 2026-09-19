@@ -1,11 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import {
-  mkdtempSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import {
@@ -15,6 +9,7 @@ import {
   __test,
   type RbFixPathsRuntime,
 } from "./rb-fix-paths";
+import { tempDir } from "../test-support/testutil";
 
 /**
  * rb-fix-paths unit tests. The pyrekordbox leg is NOT exercised here (it
@@ -24,8 +19,11 @@ import {
  * pointing at a nonexistent file → visible failure, never a fake pass.
  */
 
+const t = tempDir("megadj-rbfix-").rippable();
+afterAll(() => t.rippleAll());
+
 function makeMount(): string {
-  const dir = mkdtempSync("/tmp/rbfix-test-");
+  const dir = t.dir();
   // live files with variant names the ladder must reconcile
   mkdirSync(join(dir, "Contents", "Artist A"), { recursive: true });
   mkdirSync(join(dir, "Contents", "Artist B"), { recursive: true });
@@ -50,19 +48,14 @@ describe("rb-fix-paths", () => {
     } finally {
       if (previous === undefined) delete process.env.MEGADJ_RB_MASTER;
       else process.env.MEGADJ_RB_MASTER = previous;
-      rmSync(mount, { recursive: true, force: true });
     }
   }, 60_000); // uv cold-start under 16-way parallel workers needs > 5s
 
   test("missing master DB is a visible failure, not a fake pass", async () => {
     const mount = makeMount();
-    try {
-      const r = await rbFixPaths({ mount });
-      expect(r.ok).toBe(false);
-      expect(r.error).toContain("no master DB");
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const r = await rbFixPaths({ mount });
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("no master DB");
   });
 
   test("--apply fails when the shared rekordbox guard rejects preflight", async () => {
@@ -137,26 +130,22 @@ describe("rb-fix-paths", () => {
       },
       sleep: () => events.push("sleep"),
     };
-    try {
-      const r = await rbFixPaths({ mount, apply: true, yes: true }, deps);
-      expect(r.ok).toBe(true);
-      expect(r.applied).toBe(1);
-      expect(r.stillBroken).toBe(0);
-      expect(events).toEqual([
-        "closed:rb-fix-paths --apply preflight",
-        "read:initial",
-        "walk",
-        "closed:rb-fix-paths --apply backup",
-        "backup",
-        "closed:rb-fix-paths --apply mutation",
-        "rewrite",
-        "sleep",
-        "closed:rb-fix-paths verification",
-        "read:verify",
-      ]);
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const r = await rbFixPaths({ mount, apply: true, yes: true }, deps);
+    expect(r.ok).toBe(true);
+    expect(r.applied).toBe(1);
+    expect(r.stillBroken).toBe(0);
+    expect(events).toEqual([
+      "closed:rb-fix-paths --apply preflight",
+      "read:initial",
+      "walk",
+      "closed:rb-fix-paths --apply backup",
+      "backup",
+      "closed:rb-fix-paths --apply mutation",
+      "rewrite",
+      "sleep",
+      "closed:rb-fix-paths verification",
+      "read:verify",
+    ]);
   });
 
   test("partial rewrite is a failed result and restores the backup", async () => {
@@ -167,25 +156,21 @@ describe("rb-fix-paths", () => {
     const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
     const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
     const restored: string[] = [];
-    try {
-      const r = await rbFixPaths(
-        { mount, apply: true, yes: true },
-        {
-          fileExists: (path) => path === dbPath || path === livePath,
-          assertClosed: () => {},
-          readRows: () => [["1", oldPath]],
-          backup: () => `${dbPath}.bak`,
-          rewrite: async () => 0,
-          restore: (db, backup) => restored.push(`${backup} -> ${db}`),
-        },
-      );
-      expect(r.ok).toBe(false);
-      expect(r.error).toContain("partial rewrite");
-      expect(r.applied).toBe(0);
-      expect(restored).toEqual([`${dbPath}.bak -> ${dbPath}`]);
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const r = await rbFixPaths(
+      { mount, apply: true, yes: true },
+      {
+        fileExists: (path) => path === dbPath || path === livePath,
+        assertClosed: () => {},
+        readRows: () => [["1", oldPath]],
+        backup: () => `${dbPath}.bak`,
+        rewrite: async () => 0,
+        restore: (db, backup) => restored.push(`${backup} -> ${db}`),
+      },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("partial rewrite");
+    expect(r.applied).toBe(0);
+    expect(restored).toEqual([`${dbPath}.bak -> ${dbPath}`]);
   });
 
   test("a still-broken rewritten target fails delayed verification and restores", async () => {
@@ -196,32 +181,28 @@ describe("rb-fix-paths", () => {
     const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
     let reads = 0;
     let restored = false;
-    try {
-      const r = await rbFixPaths(
-        { mount, apply: true, yes: true },
-        {
-          fileExists: (path) => path === dbPath,
-          assertClosed: () => {},
-          readRows: () => {
-            reads++;
-            return [["1", oldPath]];
-          },
-          backup: () => `${dbPath}.bak`,
-          rewrite: async () => 1,
-          sleep: () => {},
-          restore: () => {
-            restored = true;
-          },
+    const r = await rbFixPaths(
+      { mount, apply: true, yes: true },
+      {
+        fileExists: (path) => path === dbPath,
+        assertClosed: () => {},
+        readRows: () => {
+          reads++;
+          return [["1", oldPath]];
         },
-      );
-      expect(reads).toBeGreaterThanOrEqual(2);
-      expect(r.ok).toBe(false);
-      expect(r.error).toContain("verification");
-      expect(r.stillBroken).toBeGreaterThan(0);
-      expect(restored).toBe(true);
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+        backup: () => `${dbPath}.bak`,
+        rewrite: async () => 1,
+        sleep: () => {},
+        restore: () => {
+          restored = true;
+        },
+      },
+    );
+    expect(reads).toBeGreaterThanOrEqual(2);
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("verification");
+    expect(r.stillBroken).toBeGreaterThan(0);
+    expect(restored).toBe(true);
   });
 
   test("rollback failure is loud and never reports success", async () => {
@@ -231,84 +212,68 @@ describe("rb-fix-paths", () => {
     writeFileSync(dbPath, "stub");
     const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
     const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
-    try {
-      const r = await rbFixPaths(
-        { mount, apply: true, yes: true },
-        {
-          fileExists: (path) => path === dbPath || path === livePath,
-          assertClosed: () => {},
-          readRows: () => [["1", oldPath]],
-          backup: () => `${dbPath}.bak`,
-          rewrite: async () => 0,
-          restore: () => {
-            throw new Error("restore exploded");
-          },
+    const r = await rbFixPaths(
+      { mount, apply: true, yes: true },
+      {
+        fileExists: (path) => path === dbPath || path === livePath,
+        assertClosed: () => {},
+        readRows: () => [["1", oldPath]],
+        backup: () => `${dbPath}.bak`,
+        rewrite: async () => 0,
+        restore: () => {
+          throw new Error("restore exploded");
         },
-      );
-      expect(r.ok).toBe(false);
-      expect(r.error).toContain("ROLLBACK FAILED: restore exploded");
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+      },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("ROLLBACK FAILED: restore exploded");
   });
 
   test("human report prints without throwing (both modes)", async () => {
     const mount = makeMount();
-    try {
-      const r = await rbFixPaths({ mount });
-      expect(() => printRbFixReport(r, () => {})).not.toThrow();
-      const rFail = { ...r, ok: false, error: "boom" };
-      expect(() => printRbFixReport(rFail, () => {})).not.toThrow();
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const r = await rbFixPaths({ mount });
+    expect(() => printRbFixReport(r, () => {})).not.toThrow();
+    const rFail = { ...r, ok: false, error: "boom" };
+    expect(() => printRbFixReport(rFail, () => {})).not.toThrow();
   });
 
   test("ladder: dead prefix + unique basename + truly-dead rows", () => {
     const mount = makeMount();
-    try {
-      // APFS normalizes names on disk, so a same-name different-byte
-      // sequence cannot be simulated on this volume — pin the ladder
-      // contract against a dead prefix (what an exFAT NFC drift or a
-      // drive rename looks like): same tail, mount prefix gone.
-      const stalePrefix = "/Volumes/SHELF-OLD";
-      const r1 = __test.matchLadder(
-        join(stalePrefix, "Contents", "Artist B", "Old Track.mp3"),
-        mount,
-      );
-      // basename is unique on the live tree → direct hit
-      expect(r1.via).toBe("basename");
-      expect(r1.fixPath).toContain("Old Track.mp3");
-      // fully absent dir with a unique live basename → basename step
-      const r2 = __test.matchLadder(
-        join(mount, "Contents", "Elsewhere", "Old Track.mp3"),
-        mount,
-      );
-      expect(r2.via).toBe("basename");
-      // nothing remotely similar → dead, no fix proposed
-      const r3 = __test.matchLadder(
-        join(mount, "Contents", "Ghost", "Nope.wav"),
-        mount,
-      );
-      expect(r3.via).toBe("unresolved");
-      expect(r3.fixPath).toBeNull();
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    // APFS normalizes names on disk, so a same-name different-byte
+    // sequence cannot be simulated on this volume — pin the ladder
+    // contract against a dead prefix (what an exFAT NFC drift or a
+    // drive rename looks like): same tail, mount prefix gone.
+    const stalePrefix = "/Volumes/SHELF-OLD";
+    const r1 = __test.matchLadder(
+      join(stalePrefix, "Contents", "Artist B", "Old Track.mp3"),
+      mount,
+    );
+    // basename is unique on the live tree → direct hit
+    expect(r1.via).toBe("basename");
+    expect(r1.fixPath).toContain("Old Track.mp3");
+    // fully absent dir with a unique live basename → basename step
+    const r2 = __test.matchLadder(
+      join(mount, "Contents", "Elsewhere", "Old Track.mp3"),
+      mount,
+    );
+    expect(r2.via).toBe("basename");
+    // nothing remotely similar → dead, no fix proposed
+    const r3 = __test.matchLadder(
+      join(mount, "Contents", "Ghost", "Nope.wav"),
+      mount,
+    );
+    expect(r3.via).toBe("unresolved");
+    expect(r3.fixPath).toBeNull();
   });
 
   test("copy-suffix folding: 'Old Track - 1.mp3' → the plain file", () => {
     const mount = makeMount();
-    try {
-      const r = __test.matchLadder(
-        "/Volumes/NOPE/Contents/Artist B/Old Track - 1.mp3",
-        mount,
-      );
-      expect(r.via).toBe("copy-suffix");
-      expect(r.fixPath).toContain("Old Track.mp3");
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const r = __test.matchLadder(
+      "/Volumes/NOPE/Contents/Artist B/Old Track - 1.mp3",
+      mount,
+    );
+    expect(r.via).toBe("copy-suffix");
+    expect(r.fixPath).toContain("Old Track.mp3");
   });
 
   test("stripCopySuffix folds renumbered copies", () => {

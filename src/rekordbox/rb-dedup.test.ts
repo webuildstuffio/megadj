@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   buildDupePairs,
@@ -12,6 +11,10 @@ import {
   type ScanPair,
 } from "./rb-dedup.js";
 import { scanRow, scanPair } from "../test-support/scan-rows";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-rb-dedup-").rippable();
+afterAll(() => t.rippleAll());
 
 /**
  * Pair builder (issue #146 builder 2): a ScanPair whose `other` defaults
@@ -666,7 +669,7 @@ describe("rb-dedup apply safety", () => {
   });
 
   test("a same-day rerun preserves an existing quarantine destination", async () => {
-    const mount = mkdtempSync(join(tmpdir(), "rb-dedup-collision-"));
+    const mount = t.dir();
     const pair = candidate(
       "keep-rerun",
       join(mount, "Contents", "Artist", "keep.aiff"),
@@ -682,27 +685,23 @@ describe("rb-dedup apply safety", () => {
     const existing = join(qdir, "Artist · same.aiff");
     writeFileSync(existing, "prior run");
     const destinations: string[] = [];
-    try {
-      const result = await rbDedup(
-        { mount, apply: true, yes: true },
-        applyDeps(
-          '{"removed_ids":["lose-rerun"],"errors":[]}',
-          JSON.stringify({
-            rows: [{ id: "keep-rerun", path: pair.path }],
-          }),
-          {
-            fingerprint: () => "same-full-fingerprint",
-            rename: (_from, to) => destinations.push(to),
-            mkdir: (path) => mkdirSync(path, { recursive: true }),
-          },
-          [pair],
-        ),
-      );
-      expect(result.ok).toBe(true);
-      expect(destinations).toEqual([join(qdir, "Artist · same (2).aiff")]);
-      expect(Bun.file(existing).size).toBeGreaterThan(0);
-    } finally {
-      rmSync(mount, { recursive: true, force: true });
-    }
+    const result = await rbDedup(
+      { mount, apply: true, yes: true },
+      applyDeps(
+        '{"removed_ids":["lose-rerun"],"errors":[]}',
+        JSON.stringify({
+          rows: [{ id: "keep-rerun", path: pair.path }],
+        }),
+        {
+          fingerprint: () => "same-full-fingerprint",
+          rename: (_from, to) => destinations.push(to),
+          mkdir: (path) => mkdirSync(path, { recursive: true }),
+        },
+        [pair],
+      ),
+    );
+    expect(result.ok).toBe(true);
+    expect(destinations).toEqual([join(qdir, "Artist · same (2).aiff")]);
+    expect(Bun.file(existing).size).toBeGreaterThan(0);
   });
 });

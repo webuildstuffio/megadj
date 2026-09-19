@@ -1,10 +1,9 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
 import { byteTwinPair, ffmpegTone } from "../../test-support/audio-fixtures";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, tempState } from "../../test-support/testutil";
 
 /**
  * MD5 twin dedupe (Back To Friends trap, Sep 9 2026): a byte-identical
@@ -16,6 +15,7 @@ import { tempDir } from "../../test-support/testutil";
 const t = tempDir("megadj-md5-dedupe-").rippable();
 const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
+const ts = tempState("megadj-md5-dedupe-state-");
 
 afterAll(() => {
   t.rippleAll();
@@ -28,7 +28,7 @@ describe("ingest content-hash dedupe", () => {
       title: "Track",
     });
 
-    const state = new ArchiveState(join(DB_DIR, "archive.db"));
+    const { state } = ts.next();
     await ingest({
       state,
       musicDir: ARCHIVE,
@@ -63,7 +63,7 @@ describe("ingest content-hash dedupe", () => {
     ] as const) {
       ffmpegTone(join(dump, name), { freq, title: name });
     }
-    const state = new ArchiveState(join(DB_DIR, "archive.db"));
+    const { state } = ts.next();
     await ingest({
       state,
       musicDir: ARCHIVE,

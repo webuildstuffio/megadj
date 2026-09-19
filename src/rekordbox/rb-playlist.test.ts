@@ -3,9 +3,8 @@
 // must be quit) and is exercised by live dry-runs; these tests pin the
 // gates, the chain→payload shape, and the report contract.
 import { describe, expect, test } from "bun:test";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import {
   printRbPlaylistReport,
   rbPlaylist,
@@ -13,6 +12,7 @@ import {
   type RbPlaylistResult,
 } from "./rb-playlist";
 import { renderKitMarkers } from "./rb-command-kit";
+import { tempDir } from "../test-support/testutil";
 
 const scriptsSource = readFileSync(
   join(import.meta.dir, "rb-playlist-scripts.ts"),
@@ -289,7 +289,7 @@ describe("rb-playlist chain→payload shape", () => {
   });
 
   test("tmp workspace sanity (script contract is stable JSON)", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "rb-playlist-"));
+    const dir = tempDir("megadj-rb-playlist-").dir();
     const p = join(dir, "payload.json");
     writeFileSync(
       p,

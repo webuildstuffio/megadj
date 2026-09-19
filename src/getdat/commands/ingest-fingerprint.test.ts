@@ -1,10 +1,9 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
 import { ffmpegTone } from "../../../src/test-support/audio-fixtures";
-import { tempDir } from "../../test-support/testutil";
+import { tempDir, tempState } from "../../test-support/testutil";
 
 /**
  * Acoustic-fingerprint dedupe (name-blind): the same recording re-encoded
@@ -17,6 +16,7 @@ import { tempDir } from "../../test-support/testutil";
 const t = tempDir("megadj-fp-dedupe-").rippable();
 const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
+const ts = tempState("megadj-fp-state-");
 
 afterAll(() => {
   t.rippleAll();
@@ -37,7 +37,7 @@ describe("ingest fingerprint dedupe", () => {
       title: "Good Track (rip)",
     });
 
-    const state = new ArchiveState(join(DB_DIR, "archive.db"));
+    const { state } = ts.next();
     await ingest({
       state,
       musicDir: ARCHIVE,

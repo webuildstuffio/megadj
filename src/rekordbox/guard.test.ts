@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
 import {
   assertRbClosed,
   backupStamp,
@@ -6,9 +6,12 @@ import {
   rekordboxRunning,
   restoreMasterBackup,
 } from "./guard.js";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tempDir } from "../test-support/testutil";
+
+const t = tempDir("megadj-guard-").rippable();
+afterAll(() => t.rippleAll());
 
 describe("guard", () => {
   test("backupStamp is UTC sortable, filename-safe, and injectable", () => {
@@ -32,34 +35,29 @@ describe("guard", () => {
     expect(fileExistsSafe(null)).toBe(false);
     expect(fileExistsSafe(undefined)).toBe(false);
     expect(fileExistsSafe("")).toBe(false);
-    const dir = mkdtempSync(join(tmpdir(), "guard-"));
+    const dir = t.dir();
     const f = join(dir, "x.txt");
     writeFileSync(f, "hi");
     expect(fileExistsSafe(f)).toBe(true);
     expect(fileExistsSafe(join(dir, "nope"))).toBe(false);
     expect(fileExistsSafe(dir)).toBe(false); // dir is not a file
-    rmSync(dir, { recursive: true, force: true });
   });
 
   test("restoreMasterBackup replaces the DB family and removes stale sidecars", () => {
-    const dir = mkdtempSync(join(tmpdir(), "rb-guard-restore-"));
+    const dir = t.dir();
     const db = join(dir, "master.db");
     const backup = `${db}.bak-test`;
-    try {
-      writeFileSync(db, "mutated");
-      writeFileSync(`${db}-wal`, "stale-wal");
-      writeFileSync(`${db}-shm`, "stale-shm");
-      writeFileSync(backup, "original");
-      writeFileSync(`${backup}-wal`, "original-wal");
+    writeFileSync(db, "mutated");
+    writeFileSync(`${db}-wal`, "stale-wal");
+    writeFileSync(`${db}-shm`, "stale-shm");
+    writeFileSync(backup, "original");
+    writeFileSync(`${backup}-wal`, "original-wal");
 
-      restoreMasterBackup(db, backup, "test restore");
+    restoreMasterBackup(db, backup, "test restore");
 
-      expect(readFileSync(db, "utf8")).toBe("original");
-      expect(readFileSync(`${db}-wal`, "utf8")).toBe("original-wal");
-      expect(fileExistsSafe(`${db}-shm`)).toBe(false);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    expect(readFileSync(db, "utf8")).toBe("original");
+    expect(readFileSync(`${db}-wal`, "utf8")).toBe("original-wal");
+    expect(fileExistsSafe(`${db}-shm`)).toBe(false);
   });
 
   test("every dated-backup stamper derives from backupStamp (#83)", () => {
