@@ -413,8 +413,16 @@ async function prepareQueue(
   return { queue };
 }
 
-/** Music-only gate: reject anything YouTube doesn't categorize as Music. */
-function classifyMusic(result: YtdlpInfo, opts: SyncOptions): boolean {
+/** Owner call #250 (Sep 19): AI-generated songs are MUSIC — the user likes
+ *  them. They upload through personal channels with sloppy categories (the
+ *  PERC 30 false positive: "People & Blogs", no artist field, no -topic),
+ *  so the gate also accepts title-shaped song signals. Kept recall-favored:
+ *  a false "music" only means a liked video downloads — the user liked it.
+ *  Exported for the gate unit tests (pure function, no I/O). */
+const TITLE_MUSIC_RE =
+  /(?:\(|\[)\s*ai\s*[)\]]|\bai[\s-]*(?:generated|music|song|cover|remix|instrumental|video)\b|\bfeat\.|[([]\bft\b\.?|\bofficial (?:music )?(?:video|audio|visualizer)\b|\blyrics?\b|\bvisualizer\b|\bmusic video\b/i;
+
+export function classifyMusic(result: YtdlpInfo, opts: SyncOptions): boolean {
   if (!opts.musicOnly) return true;
   const cats = result.categories ?? [];
   const uploader = (result.uploader ?? result.channel ?? "").toLowerCase();
@@ -422,7 +430,8 @@ function classifyMusic(result: YtdlpInfo, opts: SyncOptions): boolean {
     cats.some((c) => c.toLowerCase() === "music") ||
     uploader.includes(" - topic") ||
     uploader.includes("- topic") ||
-    (result.artist !== undefined && result.artist !== null)
+    (result.artist !== undefined && result.artist !== null) ||
+    TITLE_MUSIC_RE.test(result.title ?? "")
   );
 }
 

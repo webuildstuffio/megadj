@@ -18,16 +18,21 @@ import {
   settleDownload,
   statSizeSafe,
   sync,
+  classifyMusic,
   type SyncOptions,
 } from "./sync";
 import { tempState } from "../../test-support/testutil";
 import { ProgressBar } from "../../shared/progress";
 import { SC_SOURCE } from "../soundcloud";
+import type { YtdlpInfo } from "../../fulltags/write/metadata-build";
 
 /** A real 1-second audio file — the preview guard ffprobes the landed
  *  path, so the fixture must carry actual media (written by the setup
  *  block below; ffmpeg is a repo dev dependency via media-probe). */
 const PREVIEW_FIXTURE = "/tmp/megadj-preview-guard-test.m4a";
+
+const testYtdlpInfo = (over: Partial<YtdlpInfo> = {}): YtdlpInfo =>
+  ({ ...over }) as YtdlpInfo;
 
 /**
  * GetDat regression tests for the sync pipeline — run with an injected
@@ -344,4 +349,82 @@ describe("sync --sc-url validation (#255)", () => {
     expect(state.trackById("ytPending1")?.status).toBe("pending");
     expect(state.trackById("ytPending2")?.status).toBe("pending");
   }, 60_000);
+});
+
+describe("classifyMusic gate — AI/sloppy-metadata uploads are music (#250)", () => {
+  const opts = { musicOnly: true } as SyncOptions;
+
+  test("the real PERC 30 false positive passes via its title", () => {
+    // Live-measured Sep 19: categories ["People & Blogs"], personal
+    // uploader, no artist field — only the title says "song".
+    expect(
+      classifyMusic(
+        testYtdlpInfo({
+          title: 'JUICE WRLD - "PERC 30" (FEAT. FUTURE) [AI]',
+          categories: ["People & Blogs"],
+          uploader: "some channel",
+        }),
+        opts,
+      ),
+    ).toBe(true);
+  });
+
+  test("AI markers + official-video/lyrics titles count as music", () => {
+    for (const title of [
+      "RAW WRLD - ANGELS & DEMONS [AI]",
+      "Neural Dreams (AI Generated Song)",
+      "Midnight City - Official Music Video",
+      "Something (Official Visualizer)",
+      "Track Title (Lyrics)",
+      "Artist - Song (feat. Someone)",
+    ]) {
+      expect(
+        classifyMusic(
+          testYtdlpInfo({ title, categories: ["People & Blogs"] }),
+          opts,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  test("the original signals still pass", () => {
+    expect(classifyMusic(testYtdlpInfo({ categories: ["Music"] }), opts)).toBe(
+      true,
+    );
+    expect(
+      classifyMusic(
+        testYtdlpInfo({ categories: [], uploader: "Artist - Topic" }),
+        opts,
+      ),
+    ).toBe(true);
+    expect(
+      classifyMusic(testYtdlpInfo({ categories: [], artist: "X" }), opts),
+    ).toBe(true);
+  });
+
+  test("genuinely non-music uploads still gate out", () => {
+    for (const [title, cats] of [
+      [
+        "Virtual Characters Learn To Work Out…and Undergo Surgery",
+        ["People & Blogs"],
+      ],
+      [
+        "Eminem biggest ever freestyle in the world! Westwood",
+        ["Entertainment"],
+      ],
+      ["My podcast episode 42", ["Comedy"]],
+    ] as const) {
+      expect(
+        classifyMusic(testYtdlpInfo({ title, categories: [...cats] }), opts),
+      ).toBe(false);
+    }
+  });
+
+  test("gate off = everything passes (unchanged)", () => {
+    expect(
+      classifyMusic(testYtdlpInfo({ categories: ["Comedy"] }), {
+        musicOnly: false,
+      } as SyncOptions),
+    ).toBe(true);
+  });
 });
