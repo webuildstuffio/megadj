@@ -29,16 +29,24 @@
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   writeFileSync,
   type Dirent,
 } from "node:fs";
 import { makeFail, printResult } from "./rb-command-kit.js";
 import { commandLog } from "../shared/progress";
 import { errMessage as errorText } from "../shared/leaf/fmt";
-import { join, basename, resolve as resolvePath } from "node:path";
+import {
+  join,
+  basename,
+  dirname,
+  relative,
+  resolve as resolvePath,
+} from "node:path";
 import { createHash } from "node:crypto";
 import {
   parseAnlzGrid,
@@ -328,19 +336,19 @@ function logChangedRows(
   }
 }
 
-/**
- * setGrid — GA-07 Q4's runner: rewrite ONE sidecar's PQTZ behind the
- * rb-fix-paths safety pattern (pre-edit backup next to the file, dry-run
- * by default, write + re-verify EVERY byte with --apply). The re-verify
- * is the point: the written bytes are decoded back through
- * parseAnlzGrid and must equal the requested beats exactly, or the edit
- * reports failure — a half-written grid is worse than no repair.
- *
- * Refuses (exit-1 snapshot, zero writes):
- *   - file outside the mount (path escape — same rule as rb-fix-paths)
- *   - missing/undecodable/gridless sidecar (nothing to edit)
- *   - new grid not parseable back to exactly the requested beats
- */
+/** Neither the entry nor its ancestors may redirect a grid/backup write. */
+function containedGridPath(mount: string, path: string): boolean {
+  const realMount = realpathSync(mount);
+  const expected = resolvePath(realMount, relative(resolvePath(mount), path));
+  const entry = lstatSync(path, { throwIfNoEntry: false });
+  if (entry?.isSymbolicLink()) return false;
+  const actual = entry
+    ? realpathSync(path)
+    : join(realpathSync(dirname(path)), basename(path));
+  return actual === expected && actual.startsWith(`${realMount}/`);
+}
+
+/** Rewrite one in-mount sidecar with a pre-edit backup and whole-file verification. */
 function setGrid(
   mount: string,
   opts: SpikeOptions & { file?: string; beats?: AnlzBeat[] },
@@ -372,6 +380,11 @@ function setGrid(
   if (!(abs === mountAbs || abs.startsWith(`${mountAbs}/`)))
     return fail(`set-grid: ${opts.file} escapes the mount — refused`);
   if (!existsSync(abs)) return fail(`no such sidecar: ${opts.file}`);
+  const backup = `${abs}.pre-grid-${opts.tag.replace(/[^A-Za-z0-9_-]/gu, "_")}`;
+  if (!containedGridPath(mount, abs) || !containedGridPath(mount, backup))
+    return fail(
+      `set-grid: sidecar or backup is a symlink or escapes the mount — refused`,
+    );
 
   const bytes = new Uint8Array(readFileSync(abs));
   const before = parseAnlzGrid(bytes);
@@ -399,7 +412,6 @@ function setGrid(
     return done({ edited: opts.file, wasHash: oldHash });
   }
 
-  const backup = `${abs}.pre-grid-${opts.tag.replace(/[^A-Za-z0-9_-]/gu, "_")}`;
   copyFileSync(abs, backup);
   writeFileSync(abs, rewritten);
 

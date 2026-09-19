@@ -4,7 +4,14 @@
  * PQTZ-only byte change must be attributable to the grid section.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  symlinkSync,
+  existsSync,
+} from "node:fs";
 import { join } from "node:path";
 import { anlzSpike } from "./anlz-spike";
 import { buildAnlz, parseAnlzGrid, parseAnlzInventory } from "../fulltags/anlz";
@@ -198,6 +205,44 @@ describe("anlzSpike", () => {
 });
 
 describe("anlzSpike set-grid (#147 Q4 armament)", () => {
+  test.each(["sidecar", "parent", "backup"])(
+    "refuses %s symlink before any write",
+    (kind) => {
+      const mount = fakeMount();
+      const outsideDir = t.dir();
+      const outside = join(outsideDir, "outside.DAT");
+      const original = buildAnlz({ path: "/a", beats: beats(16) });
+      const outsideOriginal = buildAnlz({ path: "/outside", beats: beats(12) });
+      writeFileSync(outside, outsideOriginal);
+      let sidecar = join(mount, "inside.DAT");
+      if (kind === "sidecar") symlinkSync(outside, sidecar);
+      else if (kind === "parent") {
+        symlinkSync(outsideDir, join(mount, "linked"));
+        sidecar = join(mount, "linked", "outside.DAT");
+      } else {
+        writeFileSync(sidecar, original);
+        symlinkSync(outside, `${sidecar}.pre-grid-safe`);
+      }
+      const result = runSpike({
+        mount,
+        tag: "safe",
+        mode: "set-grid",
+        file: sidecar,
+        beats: beats(8),
+        apply: true,
+        log: () => {},
+      });
+      expect(result.ok).toBe(false);
+      expect(result.error).toMatch(/symlink|escapes the mount/u);
+      expect([...readFileSync(outside)]).toEqual([...outsideOriginal]);
+      expect([...readFileSync(sidecar)]).toEqual([
+        ...(kind === "backup" ? original : outsideOriginal),
+      ]);
+      if (kind !== "backup")
+        expect(existsSync(`${sidecar}.pre-grid-safe`)).toBe(false);
+    },
+  );
+
   test("dry run: reports the edit, writes NOTHING, keeps the grid", () => {
     const mount = fakeMount();
     const sidecar = join(
