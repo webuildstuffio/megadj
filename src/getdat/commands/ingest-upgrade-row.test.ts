@@ -82,3 +82,43 @@ describe("ingest quality-upgrade row replacement", () => {
     state.close();
   }, 240000); // two ffmpeg encodes + two full ingest passes
 });
+
+describe("ingest ledgerSource (#258-superfix — drop's SC provenance)", () => {
+  test("ledgerSource flows onto the registered rows (SC rip → soundcloud)", async () => {
+    const { state } = ts.next();
+    makeTrack("SC Provenance Track", "660", BATCH);
+    await ingest({
+      state,
+      musicDir: ARCHIVE,
+      folder: BATCH,
+      minDuration: 10,
+      ledgerSource: "soundcloud",
+    });
+    const rows = state
+      .allTracks()
+      .filter((row) => row.file_path?.includes("SC Provenance Track"));
+    expect(rows.length).toBe(1);
+    // The whole point: the source-aware LOWQ floor (SC 160k) and
+    // sync's URL seam read this column — a default "ingest" here made
+    // every drop-ripped SC track LOWQ noise and invisible to re-fetch.
+    expect(rows[0]!.source).toBe("soundcloud");
+    state.close();
+  }, 240000);
+
+  test("default stays 'ingest' when the option is absent", async () => {
+    const { state } = ts.next();
+    makeTrack("Plain Ingest Track", "770", BATCH);
+    await ingest({
+      state,
+      musicDir: ARCHIVE,
+      folder: BATCH,
+      minDuration: 10,
+    });
+    const rows = state
+      .allTracks()
+      .filter((row) => row.file_path?.includes("Plain Ingest Track"));
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.source).toBe("ingest");
+    state.close();
+  }, 240000);
+});

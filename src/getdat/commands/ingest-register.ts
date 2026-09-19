@@ -73,6 +73,9 @@ export type MarkDownloadedRow = MarkDownloadedInfo;
 export interface IngestOptsLike {
   musicDir: string;
   noArtwork?: boolean | undefined;
+  /** #258-superfix: this batch's ledger source (default "ingest";
+   * "soundcloud" when drop's SC stage owns the folder). */
+  ledgerSource?: string | undefined;
   state: {
     updateArtworkStatus: (extId: string, status: string) => unknown;
     upsertTrackFromPlaylist: (
@@ -239,6 +242,10 @@ export async function registerAndMove(
   counters: IngestCounters,
   batchDir: string | null,
 ): Promise<void> {
+  // #258-superfix: the batch's ledger source ("ingest" default;
+  // "soundcloud" when drop's SC stage owns the folder). Drives the
+  // source-aware LOWQ floor and sync's URL seam.
+  const ledgerSource = opts.ledgerSource ?? "ingest";
   // UPGRADE REPLACEMENT (Sep 11 2026): when a quality upgrade lands on a
   // file path that is already registered (self-ingest of the archive), the
   // path-keyed ext- id would insert a SHADOW row next to the existing one —
@@ -254,7 +261,7 @@ export async function registerAndMove(
   const inArchive = isInArchive(opts.musicDir, a.file);
   let destPath = destPathFor(opts.musicDir, a.file, batchDir);
   destPath = await copyIntoArchive(opts, rec, a, destPath, inArchive, batchDir);
-  opts.state.upsertTrackFromPlaylist(extId, 0, a.title, "ingest");
+  opts.state.upsertTrackFromPlaylist(extId, 0, a.title, ledgerSource);
   opts.state.markDownloaded(extId, {
     title: a.title,
     artist: a.artist,

@@ -79,6 +79,11 @@ export interface IngestOptions {
   /** Clock override for the dated intake-folder name (tests pin it so a
    * suite that straddles UTC midnight cannot fork a "-2" batch folder). */
   now?: Date | undefined;
+  /** #258-superfix: the ledger `source` for this batch's registered rows
+   * (default "ingest"). Drop's SC stage passes "soundcloud" so rips land
+   * with real provenance — the source-aware LOWQ floor (SC 160k) and the
+   * URL-seam (sync re-fetch) both read this column. */
+  ledgerSource?: string | undefined;
 }
 
 function newCounters(): IngestCounters {
