@@ -6,6 +6,13 @@
 import { isFiniteNumberArray } from "../shared/leaf/guards";
 import { cosineSimilarity } from "../shared/leaf/vector-space";
 import { RecordLedger } from "./record-ledger";
+import {
+  closeEvalSummary,
+  evalDurationBand,
+  newEvalSummary,
+  tallySorted,
+  type EvalSummary,
+} from "./similar-evaluation";
 // The genre vocabulary (normalizeGenre, familyOf, repairEscapes) lives in
 // fulltags/src/genre-vocab.ts (#187 — one module owns every named map).
 // This file keeps the kNN inference engine; `familyOf` is the injected
@@ -13,6 +20,7 @@ import { RecordLedger } from "./record-ledger";
 import { familyOf as defaultFamilyOf } from "../fulltags/genre/genre-vocab";
 
 export { cosineSimilarity } from "../shared/leaf/vector-space";
+export type { EvalSummary, LoORowOutcome } from "./similar-evaluation";
 
 /** Parse one persisted embedding vector. Syntactically valid JSON is not
  * enough: every downstream cosine operation requires a non-empty vector of
@@ -250,42 +258,6 @@ export function inferGenre(
   };
 }
 
-/** One per-row LOO outcome — the handle the Tier-0 diagnostics and the
- *  artist-disjoint rerun consume (the aggregate summary hides the rows
- *  they need). `top2` is the vote's best-two families in rank order
- *  (ties broken alphabetically, deterministic). */
-export interface LoORowOutcome {
-  videoId: string;
-  family: string;
-  /** Gated vote result (null = the gate refused). */
-  predicted: string | null;
-  agreement: number;
-  /** Best-two families by vote tally. */
-  top2: string[];
-}
-
-/** The numeric outcome of one leave-one-out evaluation pass. `agree` is
- *  the headline family agreement (the audit's gated ≥65% target);
- *  `refusal` the split-vote share the gate declined to guess on. */
-export interface EvalSummary {
-  /** Evaluable family-labeled queries (the LOO denominator). */
-  evaluated: number;
-  /** Queries where the gated kNN vote kept the row's own family. */
-  agree: number;
-  /** Queries where the gated vote picked a DIFFERENT family. */
-  disagree: number;
-  /** Family-evaluable rows the gate refused (split vote) — honest gaps. */
-  refused: number;
-  /** Gated agreement share 0..1 (agree / (agree + disagree)). */
-  agreement: number;
-  /** Refusal share 0..1 (refused / evaluated). */
-  refusal: number;
-  /** Ungated (plain majority) agreement 0..1 over the same population. */
-  ungatedAgreement: number;
-  /** Per-row outcomes, same order as the filtered population. */
-  rows: LoORowOutcome[];
-}
-
 /** Leave-one-out family-agreement harness over seed vectors — the genre
  *  hygiene regression gate (docs/fulltags/genre-audit.md §5b.3 step 4).
  *  Every family-evaluable seed is held out in turn; the remaining seeds
@@ -295,57 +267,6 @@ export interface EvalSummary {
  *  `familyOf` injects the label→family map (defaults to the pinned
  *  `genreFamily`; `scoringFamily` = the refold's umbrella arbitration).
  *  Pure: the DB read happens in the caller (`genre --eval`). */
-
-/** Duration guard shared by both LOO harnesses (#99): absent from the
- *  map = durations unknown = guard off for this row; an explicit null
- *  duration is also kept (unknown, not out-of-band). Band: 90–480 s. */
-function evalDurationBand(
-  durationGuard: { videoId: string; durationS: number | null }[],
-): (id: string) => boolean {
-  const guard = new Map(durationGuard.map((d) => [d.videoId, d.durationS]));
-  return (id: string): boolean => {
-    const sec = guard.get(id);
-    if (sec === undefined || sec === null) return true;
-    return sec >= 90 && sec <= 480;
-  };
-}
-
-/** Fresh zeroed summary shared by both LOO harnesses (#99). */
-function newEvalSummary(evaluated: number): EvalSummary {
-  return {
-    evaluated,
-    agree: 0,
-    disagree: 0,
-    refused: 0,
-    agreement: 0,
-    refusal: 0,
-    ungatedAgreement: 0,
-    rows: [],
-  };
-}
-
-/** Closing ratios shared by both LOO harnesses (#99): gated agreement,
- *  refusal share, ungated plurality agreement. Mutates + returns. */
-function closeEvalSummary(
-  s: EvalSummary,
-  popLen: number,
-  ungatedAgree: number,
-): EvalSummary {
-  const gated = s.agree + s.disagree;
-  s.agreement = gated > 0 ? s.agree / gated : 0;
-  s.refusal = popLen > 0 ? s.refused / popLen : 0;
-  s.ungatedAgreement = popLen > 0 ? ungatedAgree / popLen : 0;
-  return s;
-}
-
-/** Deterministic tally ordering shared by both LOO harnesses (#99):
- *  count descending, ties alphabetical. The top-2 slice and the best
- *  lookup both need this exact rule (jscpd-flagged twin). */
-function tallySorted(tally: Map<string, number>): [string, number][] {
-  return [...tally.entries()].toSorted(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-  );
-}
 
 export function evalLeaveOneOut(
   seeds: GenreSeed[],
