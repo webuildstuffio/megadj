@@ -8,7 +8,7 @@
  * none of it was mechanically visible).
  *
  * Names are DERIVED from the same producers the surface-parity census
- * reads (never hand-copied): src/command-registry.ts + MAINTENANCE_VERBS,
+ * reads (never hand-copied): src/command-doc-* producer leaves,
  * cratedeck/src/deckctl.ts DECK_COMMANDS + PRE_SERVER_VERBS, the tool
  * keys in mcp.ts / archive_tools.ts / getdat_tools.ts + MCP_SURFACES,
  * and JOB_KINDS.
@@ -21,6 +21,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { COMMAND_DOCS } from "../command-registry";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
@@ -31,13 +32,7 @@ function read(rel: string): string {
 }
 
 function megadjVerbs(): string[] {
-  const verbs: string[] = [];
-  for (const m of read("src/command-registry.ts").matchAll(
-    /name: "([a-z][a-z-]+)"/g,
-  )) {
-    const v = m[1];
-    if (v) verbs.push(v);
-  }
+  const verbs = COMMAND_DOCS.map(({ name }) => name);
   // #235: the maintenance verb list is gone — the rb-*/shelf-hygiene
   // verbs derive from the domain command records like every other family.
   for (const f of [

@@ -5,7 +5,7 @@
  * (`rb-comment-sync --limit N` shipped for months; parseFlags silently
  * ignored the unknown string, so an agent scripting it thought the
  * batch was bounded while nothing was bounded). #143 removed the stale
- * block and moved help into `src/command-registry.ts`, but nothing
+ * block and moved help into the command-doc producer leaves, but nothing
  * pinned flag TRUTH — a new block can lie again the same way.
  *
  * This census cross-checks, per command:
@@ -25,6 +25,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { COMMAND_DOCS } from "../command-registry";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
@@ -141,49 +142,8 @@ interface RegistryEntry {
   block: string[];
 }
 
-/** Extract every string literal from a TS source slice with a real
- *  character scan. Regex pair-matching (`/(['"])...\1/`) mis-pairs quotes:
- *  an apostrophe inside prose (`it's`, `won't`) or an embedded `"..."`
- *  inside a single-quoted line pairs with the WRONG closing quote and the
- *  line's flags vanish from the census. A scanner can't mis-pair. */
-function stringLiterals(src: string): string[] {
-  const out: string[] = [];
-  let i = 0;
-  while (i < src.length) {
-    const c = src[i];
-    if (c === "'" || c === '"') {
-      const q: string = c;
-      let j = i + 1;
-      let s = "";
-      while (j < src.length && src[j] !== q) {
-        if (src[j] === "\\") {
-          s += src[j + 1] ?? "";
-          j += 2;
-        } else {
-          s += src[j];
-          j += 1;
-        }
-      }
-      out.push(s);
-      i = j + 1;
-    } else {
-      i += 1;
-    }
-  }
-  return out;
-}
-
 function registryEntries(): RegistryEntry[] {
-  const src = read("src/command-registry.ts");
-  const entries: RegistryEntry[] = [];
-  const re =
-    /name: "([a-z][a-z-]+)",\s*\n\s*group: "[a-z]+",\s*\n\s*block: \[([\s\S]*?)\],\s*\n\s*\}/g;
-  for (const m of src.matchAll(re)) {
-    const name = m[1];
-    if (!name) continue;
-    entries.push({ name, block: stringLiterals(m[2] ?? "") });
-  }
-  return entries;
+  return COMMAND_DOCS.map(({ name, block }) => ({ name, block }));
 }
 
 /** verb → accepted flags, derived from dispatch source. */

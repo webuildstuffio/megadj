@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { COMMAND_DOCS } from "../../src/command-registry";
 import { JOB_KINDS } from "../shared/types";
 import { DECK_MCP_SURFACES } from "../src/mcp/surfaces";
 
@@ -53,11 +54,7 @@ function deckctlVerbs(): string[] {
  *  (the whole shelf family + booth-fix + similar + upgrade landed with no
  *  census to fail). */
 function megadjCommands(): string[] {
-  const verbs: string[] = [];
-  const registry = read("src/command-registry.ts").join("\n");
-  for (const match of registry.matchAll(/name: "([a-z][a-z-]+)"/g)) {
-    if (match[1]) verbs.push(match[1]);
-  }
+  const verbs = COMMAND_DOCS.map(({ name }) => name);
   // #235: the MAINTENANCE_VERBS list dissolved into the domain records —
   // the rb-*/shelf-hygiene verbs derive from those tables now.
   for (const f of [
@@ -384,17 +381,14 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // P1 (--json on every command) makes the help text an agent-facing
     // contract: a command missing from the help is a capability half
     // the agent surface can't discover. #143: help content lives in
-    // src/command-registry.ts (usage.ts only renders); this census now
-    // reads BOTH directions off the registry — dispatch census
+    // command-doc producer leaves (usage.ts only renders); this census now
+    // reads BOTH directions off the registry data — dispatch census
     // (megadjCommands) vs doc census (COMMAND_DOCS) must agree exactly,
     // so a command can neither lose its help block nor gain an
     // undocumented twin.
-    const registry = read("src/command-registry.ts").join("\n");
     const usage = read("src/usage.ts").join("\n");
     expect(usage).toContain("command-registry");
-    const docNames = [...registry.matchAll(/name: "([a-z][a-z-]+)"/g)].map(
-      (m) => m[1] ?? "",
-    );
+    const docNames = COMMAND_DOCS.map(({ name }) => name);
     const dispatch = megadjCommands();
     const missing = dispatch.filter((cmd) => !docNames.includes(cmd));
     expect(
