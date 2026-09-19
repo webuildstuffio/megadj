@@ -4,7 +4,7 @@ import type {
   MoodRecord,
   MoodRecordInput,
 } from "./ledgers";
-import { ArchiveBeats } from "./state_beats";
+import { ArchiveBeats } from "./state-beats";
 import type { RunRow } from "./state-types";
 
 export type { RunRow, TrackRow } from "./state-types";
@@ -15,6 +15,16 @@ export type { RunRow, TrackRow } from "./state-types";
  * here so every existing call site keeps the same API.
  */
 export class ArchiveState extends ArchiveBeats {
+  /** The on-disk path this state was opened at (#251): storage probes
+   *  (status --json's storage block) read the ledger location from the
+   *  state itself — never a re-derived env/config twin. */
+  readonly dbPath: string;
+
+  constructor(dbPath: string) {
+    super(dbPath);
+    this.dbPath = dbPath;
+  }
+
   /** Run history remains explicit on the stable public facade type. */
   override lastRuns(n: number): RunRow[] {
     return super.lastRuns(n);

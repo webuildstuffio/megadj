@@ -1,5 +1,6 @@
 import type { ArchiveState } from "../archive/state";
 import { writeJson } from "./cli-output";
+import { storageReport, printStorageReport } from "./storage";
 
 /** One archive summary — both the human and --json renderers read this,
  * so the two surfaces can never drift apart. */
@@ -23,6 +24,7 @@ function summary(state: ArchiveState) {
 
 export function status(state: ArchiveState): void {
   const s = summary(state);
+  const storage = storageReport(state);
   console.log("megadj archive status");
   console.log("=====================");
   console.log(`total tracks tracked: ${s.total}`);
@@ -42,16 +44,20 @@ export function status(state: ArchiveState): void {
       );
     }
   }
+  printStorageReport(storage, console.log);
 }
 
 export async function statusJson(state: ArchiveState): Promise<void> {
   const s = summary(state);
+  const report = storageReport(state);
   await writeJson({
     total_tracks: s.total,
     by_status: s.counts,
     archive_bytes: s.bytes,
     high_quality: { count: s.highQ, of: s.downloadedCount },
     recent_runs: s.runs,
+    storage: report.storage,
+    ledger_freshness: report.ledgerFreshness,
   });
 }
 
