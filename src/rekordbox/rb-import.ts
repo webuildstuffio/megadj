@@ -22,7 +22,7 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { rekordboxRunning } from "./guard.js";
 import {
   applyConfirmationRefusal,
@@ -52,6 +52,12 @@ export interface RbImportOptions {
   mount: string;
   /** Absolute folder whose AUDIO FILES get imported. */
   folder: string;
+  /** The local archive root (~/Music/DJ-Imports) — when the import
+   *  folder lives under it AND the same relative path exists on the
+   *  mount's Contents/, rows carry the SHELF path (Sep 19 policy: the
+   *  master DB must travel with the drive). Derived by default from
+   *  the folder's parent when the basename is a dated batch. */
+  archiveDir?: string | undefined;
   /** Playlist name for the batch (defaults to the folder basename). */
   playlist?: string | undefined;
   /** Parent playlist group name (nested folder in the RB sidebar). */
@@ -153,8 +159,22 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   const gateRefusal = importGateRefusal(opts, dbPath);
   if (gateRefusal !== null) return fail(gateRefusal);
 
+  // Sep 19 path policy: prefer shelf copies. The archive root derives
+  // from the folder when unset — dated batch folders live one level
+  // under the archive, so the parent is the archive for exactly the
+  // layouts rb-import is for.
+  const archiveDir =
+    opts.archiveDir ??
+    (/^\d{4}-\d{2}-\d{2} /.test(basename(folder))
+      ? dirname(folder)
+      : undefined);
+
   // phase 2 — folder scan + ffprobe payload build (extracted, #181)
-  const payloadFiles = probePayloadFiles(folder, log);
+  const payloadFiles = probePayloadFiles(
+    folder,
+    log,
+    archiveDir ? { mount: opts.mount, archiveDir } : undefined,
+  );
   if (payloadFiles.length === 0) return fail(`no audio files in ${folder}`);
 
   // phase 2.5 — the F11 dupe gate: same-recording rows already in the
