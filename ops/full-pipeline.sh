@@ -46,7 +46,7 @@ say "stage 5/5: genre --eval (gate ${GENRE_GATE}%)"
 bun src/cli.ts genre --eval --json > /tmp/genre-eval-latest.json 2>&1
 AGREE=$(bun -e 'try{const r=await Bun.file("/tmp/genre-eval-latest.json").json();console.log(String(r.agreement ?? r.measured ?? 0))}catch{console.log("0")}' 2>/dev/null || echo 0)
 say "eval agreement: $AGREE"
-if bun -e "process.exit(Number(process.argv[1]??0)>=process.argv[2]?0:1)" "$AGREE" "$GENRE_GATE"; then
+if bun -e "process.exit(Number(process.argv[2]??0)*100>=Number(process.argv[3]??65)?0:1)" bun "$AGREE" "$GENRE_GATE"; then
   bun src/cli.ts genre --apply --json >> "$MAIN_LOG" 2>&1
   say "genre --apply done (gate passed)"
 else
