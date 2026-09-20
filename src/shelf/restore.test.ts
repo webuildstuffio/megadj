@@ -1,12 +1,15 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { tempDir } from "../test-support/testutil";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { writeFakeAudio } from "../test-support/audio-fixtures";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { HygieneStore } from "../archive/hygiene/store";
-import { shelfHygiene } from "./hygiene";
+import {
+  detectAndApply,
+  hygieneShelfFixture,
+  type HygieneFixture,
+} from "../test-support/hygiene-fixture";
 import { shelfRestore } from "./restore";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
@@ -19,65 +22,18 @@ afterAll(() => {
   t3.rippleAll();
 });
 
-function fixture(): { shelf: string; db: string; loser: string } {
-  const shelf = t.dir();
-  const dir = join(shelf, "Contents", "Artist");
-  mkdirSync(dir, { recursive: true });
-  writeFakeAudio(join(dir, "track.mp3"), "same bytes");
-  const loser = join(dir, "track copy.mp3");
-  writeFileSync(loser, "same bytes");
-  const db = join(t2.dir(), "archive.db");
-  return { shelf, db, loser };
-}
-
 function fixtureMd5(path: string): string {
   return createHash("md5").update(readFileSync(path)).digest("hex");
 }
 
-async function detectAndApply(f: ReturnType<typeof fixture>): Promise<string> {
-  await shelfHygiene({
-    shelfVolume: f.shelf,
-    dbPath: f.db,
-    md5: fixtureMd5,
-    log: () => {},
-  });
-  const db = new Database(f.db);
-  const store = new HygieneStore(db);
-  const finding = store.list({ status: "open" })[0];
-  if (!finding) {
-    db.close();
-    throw new Error("fixture did not produce a finding");
-  }
-  try {
-    expect(store.decide(finding.id, true)).toBe(true);
-  } finally {
-    db.close();
-  }
-  await shelfHygiene({
-    shelfVolume: f.shelf,
-    dbPath: f.db,
-    md5: fixtureMd5,
-    apply: true,
-    yes: true,
-    log: () => {},
-  });
-  const verifyDb = new Database(f.db);
-  try {
-    const applied = new HygieneStore(verifyDb).get(finding.id);
-    if (applied?.status !== "applied")
-      throw new Error(
-        `fixture apply did not complete: ${applied?.status ?? "missing"}`,
-      );
-  } finally {
-    verifyDb.close();
-  }
-  return finding.id;
+function fixture(): HygieneFixture {
+  return hygieneShelfFixture(t, t2);
 }
 
 describe("restore command", () => {
   test("restores by finding id, verifies MD5, and preserves the quarantine source", async () => {
     const f = fixture();
-    const id = await detectAndApply(f);
+    const id = await detectAndApply(f, fixtureMd5);
     expect(existsSync(f.loser)).toBe(false);
     const result = await shelfRestore({
       input: id,
@@ -94,7 +50,7 @@ describe("restore command", () => {
 
   test("accepts the ledger-owned quarantine path and --into target", async () => {
     const f = fixture();
-    await detectAndApply(f);
+    await detectAndApply(f, fixtureMd5);
     const db = new Database(f.db);
     const store = new HygieneStore(db);
     const finding = store.get(store.list({ status: "applied" })[0]!.id)!;
@@ -123,7 +79,7 @@ describe("restore command", () => {
 
   test("refuses an existing destination and an in-flight hygiene operation", async () => {
     const f = fixture();
-    const id = await detectAndApply(f);
+    const id = await detectAndApply(f, fixtureMd5);
     writeFileSync(f.loser, "do not overwrite");
     const collision = await shelfRestore({
       input: id,

@@ -36,6 +36,35 @@ afterAll(() => {
   t9.rippleAll();
 });
 
+/** Megaset pool DB row with the suite's default measured shape; null
+ *  overrides still win (jscpd cluster, issue #223). */
+const poolRow = (
+  video_id: string,
+  file_path: string | null,
+  bpm_folded: number | null,
+): Record<string, unknown> => ({
+  video_id,
+  title: video_id,
+  artist: "DJ",
+  duration_s: 300,
+  file_path,
+  bpm_folded,
+  valence: 5,
+  arousal: 6,
+  dance: 0.8,
+});
+
+/** ArchiveQuery stub over prebuilt rows with a known key cache. */
+const readerOver = (dbRows: Record<string, unknown>[]): ArchiveQuery =>
+  ({
+    available: () => true,
+    rows: <T>() => dbRows as T[],
+    row: <T>() => ({ beats_at: null, mood_at: null }) as T,
+    keyRecord: () => ({ key: "8A", analyzedAt: "2026-09-11" }),
+    rememberKeyRecord: () => undefined,
+    trackCols: () => "",
+  }) as unknown as ArchiveQuery;
+
 describe("setCandidates pool contract", () => {
   test("the full DB is audited, but unmeasurable missing files cannot enter a proposal", () => {
     const dir = t.dir();
@@ -43,51 +72,14 @@ describe("setCandidates pool contract", () => {
     const missingPath = join(dir, "missing.m4a");
     writeFileSync(existingPath, "cached test fixture");
     const dbRows = [
-      {
-        video_id: "actual",
-        title: "Actual",
-        artist: "DJ",
-        duration_s: 300,
-        file_path: existingPath,
-        bpm_folded: 128,
-        valence: 5,
-        arousal: 6,
-        dance: 0.8,
-      },
-      {
-        video_id: "missing",
-        title: "Missing",
-        artist: "DJ",
-        duration_s: 300,
-        file_path: missingPath,
-        // no measured tempo anywhere (null ledger + null mirror) — the
-        // B1 gate keeps this row OUT: metadata without a tempo cannot
-        // be sequenced
-        bpm_folded: null,
-        valence: 5,
-        arousal: 6,
-        dance: 0.8,
-      },
-      {
-        video_id: "null-path",
-        title: "No path",
-        artist: "DJ",
-        duration_s: 300,
-        file_path: null,
-        bpm_folded: null,
-        valence: 5,
-        arousal: 6,
-        dance: 0.8,
-      },
+      poolRow("actual", existingPath, 128),
+      // no measured tempo anywhere (null ledger + null mirror) — the
+      // B1 gate keeps this row OUT: metadata without a tempo cannot
+      // be sequenced
+      poolRow("missing", missingPath, null),
+      poolRow("null-path", null, null),
     ];
-    const reader: ArchiveQuery = {
-      available: () => true,
-      rows: <T>() => dbRows as T[],
-      row: <T>() => ({ beats_at: null, mood_at: null }) as T,
-      keyRecord: () => ({ key: "8A", analyzedAt: "2026-09-11" }),
-      rememberKeyRecord: () => undefined,
-      trackCols: () => "",
-    };
+    const reader = readerOver(dbRows);
 
     try {
       const result = setCandidates(reader, 0);
@@ -111,42 +103,21 @@ describe("setCandidates pool contract", () => {
     const missingPath = join(dir, "missing-but-analyzed.m4a");
     writeFileSync(existingPath, "cached test fixture");
     const dbRows = [
+      poolRow("actual", existingPath, 128),
       {
-        video_id: "actual",
-        title: "Actual",
-        artist: "DJ",
-        duration_s: 300,
-        file_path: existingPath,
-        bpm_folded: 128,
-        valence: 5,
-        arousal: 6,
-        dance: 0.8,
-      },
-      {
-        video_id: "meta",
+        ...poolRow("meta", missingPath, 126),
         title: "Meta Only",
-        artist: "DJ",
-        duration_s: 300,
-        file_path: missingPath,
         // beats-ledger BPM present, file gone (shelf asleep) — the B1
         // admission: scored from measured metadata, no file needed
-        bpm_folded: 126,
-        valence: 5,
-        arousal: 6,
-        dance: 0.8,
       },
     ];
     const reader: ArchiveQuery = {
-      available: () => true,
-      rows: <T>() => dbRows as T[],
-      row: <T>() => ({ beats_at: null, mood_at: null }) as T,
+      ...readerOver(dbRows),
       // the cache can NEVER match a null path; key must come from the
       // mirror or stay null — no live read is attempted (keyRecord is
       // the only key source this stub offers and it validates paths)
-      keyRecord: (_videoId, path) =>
+      keyRecord: (_videoId: string, path: string | null) =>
         path === null ? null : { key: "8A", analyzedAt: "2026-09-11" },
-      rememberKeyRecord: () => undefined,
-      trackCols: () => "",
     };
 
     try {
@@ -314,25 +285,10 @@ describe("setCandidates pool contract", () => {
     const dir = t5.dir();
     const audioPath = join(dir, "same-track.m4a");
     writeFileSync(audioPath, "cached test fixture");
-    const dbRows = ["older-id", "newer-id"].map((video_id) => ({
-      video_id,
-      title: "Same track",
-      artist: "DJ",
-      duration_s: 300,
-      file_path: audioPath,
-      bpm_folded: 128,
-      valence: 5,
-      arousal: 6,
-      dance: 0.8,
-    }));
-    const reader: ArchiveQuery = {
-      available: () => true,
-      rows: <T>() => dbRows as T[],
-      row: <T>() => ({ beats_at: null, mood_at: null }) as T,
-      keyRecord: () => ({ key: "8A", analyzedAt: "2026-09-11" }),
-      rememberKeyRecord: () => undefined,
-      trackCols: () => "",
-    };
+    const dbRows = ["older-id", "newer-id"].map((video_id) =>
+      poolRow(video_id, audioPath, 128),
+    );
+    const reader = readerOver(dbRows);
 
     try {
       const result = setCandidates(reader, 0);

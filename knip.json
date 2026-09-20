@@ -24,7 +24,8 @@
         "wait",
         "ffmpeg",
         "pgrep",
-        "uv"
+        "uv",
+        "jscpd"
       ],
       "ignoreDependencies": ["preact"]
     },

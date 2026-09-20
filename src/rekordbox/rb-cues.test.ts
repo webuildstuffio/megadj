@@ -35,6 +35,29 @@ function fakeRuntime(
   };
 }
 
+/** Spawn stub that answers a clean write on call 1 and a malformed
+ *  JSON verification report on call 2 — the malformed-verification
+ *  failure path (jscpd cluster, issue #223). */
+const writeThenMalformedVerify = () => {
+  let call = 0;
+  return () => {
+    call++;
+    return call === 1
+      ? {
+          status: 0,
+          stdout: JSON.stringify({
+            found: 1,
+            written: 1,
+            protected: 0,
+            written_ids: ["42"],
+            errors: [],
+          }),
+          stderr: "",
+        }
+      : { status: 0, stdout: "not json", stderr: "" };
+  };
+};
+
 describe("rb-cues constants (F4-pinned semantics)", () => {
   test("HOT_CUE_KIND is 1 — DB-side truth from the Sep 13 F4 spike", () => {
     // The incident's intended hot cues must be Kind=1. Kind=0 remains the
@@ -146,27 +169,9 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   });
 
   test("zero-check failure and malformed verification fail closed", async () => {
-    let call = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      fakeRuntime({
-        spawn: () => {
-          call++;
-          return call === 1
-            ? {
-                status: 0,
-                stdout: JSON.stringify({
-                  found: 1,
-                  written: 1,
-                  protected: 0,
-                  written_ids: ["42"],
-                  errors: [],
-                }),
-                stderr: "",
-              }
-            : { status: 0, stdout: "not json", stderr: "" };
-        },
-      }),
+      fakeRuntime({ spawn: writeThenMalformedVerify() }),
     );
     expect(result.ok).toBe(false);
     expect(result.verifyFailures.join(" ")).toContain("malformed JSON");
@@ -208,34 +213,21 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   });
 
   test("surfaces both the verification failure and a failed restore", async () => {
-    let call = 0;
+    let restoreCalls = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
       fakeRuntime({
         restore: () => {
+          restoreCalls++;
           throw new Error("restore exploded");
         },
-        spawn: () => {
-          call++;
-          return call === 1
-            ? {
-                status: 0,
-                stdout: JSON.stringify({
-                  found: 1,
-                  written: 1,
-                  protected: 0,
-                  written_ids: ["42"],
-                  errors: [],
-                }),
-                stderr: "",
-              }
-            : { status: 0, stdout: "not json", stderr: "" };
-        },
+        spawn: writeThenMalformedVerify(),
       }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("malformed JSON");
     expect(result.error).toContain("restore exploded");
+    expect(restoreCalls).toBe(1);
   });
 
   test("restores after a nonzero write subprocess exit", async () => {

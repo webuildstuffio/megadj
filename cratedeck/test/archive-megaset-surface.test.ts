@@ -12,6 +12,41 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
+/** One-analyzed-track ArchiveReader stub shared by the megaset surface
+ *  tests (jscpd cluster, issue #223). `withAvailable` keeps the explore
+ *  control's `available()` probe; the export path never calls it. */
+function oneTrackArchive(withAvailable = false): ArchiveReader {
+  const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
+  const archive: Record<string, unknown> = {
+    setCandidates: () => ({
+      available: true,
+      sourceTotal: 1,
+      total: 1,
+      missingFiles: 0,
+      duplicateFiles: 0,
+      keyReads: 0,
+      keyReadFailures: 0,
+      freshness: { beatsAt: null, moodAt: null },
+      candidates: [
+        {
+          videoId: "track-1",
+          title: "Test Track",
+          artist: "Test Artist",
+          durationS: 300,
+          bpm: 128,
+          key: "8A",
+          valence: 5,
+          arousal: 6,
+          dance: 0.8,
+          filePath,
+        },
+      ],
+    }),
+  };
+  if (withAvailable) archive.available = () => true;
+  return archive as unknown as ArchiveReader;
+}
+
 interface MegasetTool {
   run: (args: Record<string, unknown>) => Promise<unknown>;
 }
@@ -124,34 +159,7 @@ describe("megaset_propose candidate-pool contract", () => {
   });
 
   test("an unknown ?search= value falls back to the automatic pick (explore control, not a contract)", async () => {
-    const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
-    const archive = {
-      available: () => true,
-      setCandidates: () => ({
-        available: true,
-        sourceTotal: 1,
-        total: 1,
-        missingFiles: 0,
-        duplicateFiles: 0,
-        keyReads: 0,
-        keyReadFailures: 0,
-        freshness: { beatsAt: null, moodAt: null },
-        candidates: [
-          {
-            videoId: "track-1",
-            title: "Test Track",
-            artist: "Test Artist",
-            durationS: 300,
-            bpm: 128,
-            key: "8A",
-            valence: 5,
-            arousal: 6,
-            dance: 0.8,
-            filePath,
-          },
-        ],
-      }),
-    } as unknown as ArchiveReader;
+    const archive = oneTrackArchive(true);
 
     const response = await archiveRoutes(
       "/archive/megaset",
@@ -180,33 +188,7 @@ describe("megaset_propose candidate-pool contract", () => {
   });
 
   test("the Rekordbox export surface returns an importable read-only M3U8", async () => {
-    const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
-    const archive = {
-      setCandidates: () => ({
-        available: true,
-        sourceTotal: 1,
-        total: 1,
-        missingFiles: 0,
-        duplicateFiles: 0,
-        keyReads: 0,
-        keyReadFailures: 0,
-        freshness: { beatsAt: null, moodAt: null },
-        candidates: [
-          {
-            videoId: "track-1",
-            title: "Test Track",
-            artist: "Test Artist",
-            durationS: 300,
-            bpm: 128,
-            key: "8A",
-            valence: 5,
-            arousal: 6,
-            dance: 0.8,
-            filePath,
-          },
-        ],
-      }),
-    } as unknown as ArchiveReader;
+    const archive = oneTrackArchive();
 
     const response = await archiveRoutes(
       "/archive/megaset",
@@ -224,7 +206,7 @@ describe("megaset_propose candidate-pool contract", () => {
     expect(response?.headers.get("content-type")).toContain("mpegurl");
     expect(response?.headers.get("content-disposition")).toContain("5m.m3u8");
     expect(await response?.text()).toBe(
-      `#EXTM3U\n#EXTINF:300,Test Artist - Test Track\n${filePath}\n`,
+      `#EXTM3U\n#EXTINF:300,Test Artist - Test Track\n/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff\n`,
     );
   });
 
