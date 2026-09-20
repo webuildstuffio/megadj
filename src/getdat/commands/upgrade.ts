@@ -43,10 +43,13 @@ interface UpgradeCandidate {
 
 /** The same floor rule as CrateDeck's lowqQueue() — one quality bar.
  *  #258: `source='soundcloud'` rows use the SC PLATFORM CEILING instead
- *  (160k aac / 128k mp3 — probed Sep 19, formats = hls_aac_160k /
- *  hls_mp3_0_1 / hls_aac_96k): flagging every SC rip LOWQ against the YT
- *  floors would make the flag noise, while an UNDER-ceiling rip still
- *  flags. YT rows keep the byte-identical legacy rule. */
+ *  (256k aac with a paid session, 160k anonymous — probed Sep 19,
+ *  formats = hls_aac_256k / hls_aac_1_0 / hls_aac_160k / hls_mp3_0_1 /
+ *  hls_aac_96k): flagging every SC rip LOWQ against the YT floors would
+ *  make the flag noise, while an UNDER-ceiling rip still flags. A 256k
+ *  Premium rip clears the bar outright; 160k anonymous rips stay
+ *  un-flagged (they were the ceiling when they landed — upgrade re-rips
+ *  handle the bump). YT rows keep the byte-identical legacy rule. */
 export function isLowq(row: {
   bitrate_kbps: number | null;
   codec: string | null;

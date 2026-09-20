@@ -147,13 +147,15 @@ export function ripDecision(
   return { action: "rip", link: null };
 }
 
-/** The SC format selector. HLS AAC 160k is the platform ceiling (no
- *  progressive 320 for non-Go+; Go+ streams are DRM-protected) —
- *  measured live Sep 19: formats = hls_mp3_0_1 (128k), hls_aac_96k,
- *  hls_aac_160k. yt-dlp's `-f` chain falls through each step. The mp3
+/** The SC format selector. HLS AAC 256k ("Premium") tops the ladder when
+ *  the session carries a paid subscription (measured live Sep 19 with a
+ *  Plus session: hls_aac_1_0 / hls_aac_256k @256k appear beside the
+ *  anonymous 96k/160k) — yt-dlp's `-f` chain falls through to 160k on
+ *  anonymous sessions, so the same selector serves both. The mp3
  *  fallback exists because some legacy uploads stream ONLY mp3 — the
  *  container rules below keep it a stream-copy, never a re-encode. */
-export const SC_FORMAT = "hls_aac_160k/bestaudio[ext=m4a]/bestaudio/bestaudio*";
+export const SC_FORMAT =
+  "hls_aac_256k/hls_aac_1_0/hls_aac_160k/bestaudio[ext=m4a]/bestaudio/bestaudio*";
 
 /** #258-superfix: the extraction rule per landed SC format. AAC lands
  *  m4a (stream copy); the mp3 fallback must NOT go through
@@ -172,6 +174,9 @@ export function scFormatKbps(
   formatId: string | null | undefined,
 ): number | null {
   switch (formatId) {
+    case "hls_aac_256k":
+    case "hls_aac_1_0":
+      return 256;
     case "hls_aac_160k":
       return 160;
     case "hls_mp3_0_1":

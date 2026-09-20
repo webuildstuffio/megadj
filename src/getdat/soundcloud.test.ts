@@ -5,6 +5,7 @@
 // spawn, no network.
 import { describe, expect, test } from "bun:test";
 import {
+  SC_FORMAT,
   SC_SOURCE,
   classifyScFailure,
   extractAcquisitionLinks,
@@ -92,6 +93,12 @@ describe("SC format ids (#255 — the SC bitrate map)", () => {
     expect(scFormatKbps("hls_aac_160k")).toBe(160);
     expect(scFormatKbps("hls_mp3_0_1")).toBe(128);
     expect(scFormatKbps("hls_aac_96k")).toBe(96);
+  });
+
+  test("paid-session Premium ids (256k) map to 256 — the Plus bump", () => {
+    expect(scFormatKbps("hls_aac_256k")).toBe(256);
+    expect(scFormatKbps("hls_aac_1_0")).toBe(256);
+    expect(SC_FORMAT.startsWith("hls_aac_256k/hls_aac_1_0/")).toBe(true);
   });
 
   test("unknown and YT ids fall through null (YT map owns them)", () => {
