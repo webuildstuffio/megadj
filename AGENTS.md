@@ -40,6 +40,15 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   catch the twin (`maintenance-verbs.test.ts` dupes check); (5) after ANY
   foreign commit lands mid-flight, re-run the touched censuses before your
   own commit — a torn read is the other agent's landed rename, not your bug.
+- Git identity attributes commits on EMAIL, not name — a wrong repo-local
+ `user.email` hands your authorship to whoever owns that address on GitHub
+ (Sep 19: 13 commits shipped as a stranger's `nick@users.noreply.github.com`;
+ a legacy-format noreply address resolves to the owner of the short username).
+ This repo pins `Nicholas Montgomery <1810803+nichm@users.noreply.github.com>`
+ locally; `src/census/git-identity-census.test.ts` fails any commit outside
+ that identity. Machine-wide identity lives in shell-config `gitconfig.local`;
+ git `[include]` cannot override values set earlier in `~/.gitconfig` (first
+ value wins), so the template's `[user]` placeholders must stay commented out.
 - One file-naming convention repo-wide (#240, kebab-case):
   `src/census/naming-convention-census.test.ts` fails when a snake_case
   `.ts`/`.tsx` basename appears outside node_modules — module AND test files
