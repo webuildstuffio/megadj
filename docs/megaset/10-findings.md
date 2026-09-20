@@ -36,21 +36,21 @@ web panel. Everything below is measured evidence for the design choices.
 
 ### Genre ([genre-audit](../fulltags/genre-audit.md) v3, [taxonomy sources](../fulltags/genre-taxonomy-sources.md))
 
-| #   | Finding                                                   | Number                                                                         |
-| --- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| G1  | Labels are a formatting mess, not a truth problem         | 459 raw → 440 casefolded; 88% duplicates; 105 labels cover 90%                 |
+| #   | Finding                                                   | Number                                                                                                                                                                  |
+| --- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | Labels are a formatting mess, not a truth problem         | 459 raw → 440 casefolded; 88% duplicates; 105 labels cover 90%                                                                                                          |
 | G2  | Family-level audio structure is real                      | LOO k=5: 57.6% ungated / 62.7% gated at the v3 measure; the Sep 17 refold readout is **61.9% → 69.3%** — live numbers live in [genre-audit](../fulltags/genre-audit.md) |
-| G3  | Sub-genre labels mostly don't survive audio               | 3–27% survival across 6 clusters (deep house 3%, tech house 18%, hardtekk 44%) |
-| G4  | Old "39% @150 queries" was sampling noise                 | 30-round rerun: 55.9% ±3.5 ≈ full population                                   |
-| G5  | Duration guards (90–480 s) are hygiene, not accuracy      | −0.2 pt on this metric                                                         |
-| G6  | No label source is audio-truth; RB > ingest is conclusive | RB 58.4% CI[56.4,60.2] vs ingest 53.1% CI[48.6,58.0], p=0.046                  |
-| G7  | File TCON is an output, never a source                    | DB↔file exact agreement 81%; numeric SC IDs baked into files                   |
-| G8  | Numeric SC genre IDs never entered the DB                 | 0 rows — the write-point guard holds                                           |
-| G9  | Coverage is high and real                                 | 94.4% (3,458/3,664); 30-row spot check: 0 placeholders                         |
-| G10 | Analysis ledgers are library-wide, not a 500-batch        | mood 3,659 · beats 3,610 · cues 3,605 · embeddings 3,618                       |
-| G11 | Escape artifacts were real but shallow                    | 19+ rows `\u0026` — fixed in `normalizeGenre` (+tests)                         |
-| G12 | Family map v2 covers 93.4%                                | additions audio-verified via the head (grime→bass, tekk→techno, …)             |
-| G13 | Junk-label rule is now explicit                           | non-genre strings / placeholders / DJ-tool categories                          |
+| G3  | Sub-genre labels mostly don't survive audio               | 3–27% survival across 6 clusters (deep house 3%, tech house 18%, hardtekk 44%)                                                                                          |
+| G4  | Old "39% @150 queries" was sampling noise                 | 30-round rerun: 55.9% ±3.5 ≈ full population                                                                                                                            |
+| G5  | Duration guards (90–480 s) are hygiene, not accuracy      | −0.2 pt on this metric                                                                                                                                                  |
+| G6  | No label source is audio-truth; RB > ingest is conclusive | RB 58.4% CI[56.4,60.2] vs ingest 53.1% CI[48.6,58.0], p=0.046                                                                                                           |
+| G7  | File TCON is an output, never a source                    | DB↔file exact agreement 81%; numeric SC IDs baked into files                                                                                                            |
+| G8  | Numeric SC genre IDs never entered the DB                 | 0 rows — the write-point guard holds                                                                                                                                    |
+| G9  | Coverage is high and real                                 | 94.4% (3,458/3,664); 30-row spot check: 0 placeholders                                                                                                                  |
+| G10 | Analysis ledgers are library-wide, not a 500-batch        | mood 3,659 · beats 3,610 · cues 3,605 · embeddings 3,618                                                                                                                |
+| G11 | Escape artifacts were real but shallow                    | 19+ rows `\u0026` — fixed in `normalizeGenre` (+tests)                                                                                                                  |
+| G12 | Family map v2 covers 93.4%                                | additions audio-verified via the head (grime→bass, tekk→techno, …)                                                                                                      |
+| G13 | Junk-label rule is now explicit                           | non-genre strings / placeholders / DJ-tool categories                                                                                                                   |
 
 ### Taxonomy sources ([genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md))
 
@@ -172,21 +172,21 @@ engines; cloud anything.
 
 ## 4. Doc map (what lives where)
 
-| Doc                                                                                          | Role                                                                                           | State                  |
-| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------- |
-| [01-prd](01-prd.md)                                                                          | Product brief, kill criteria, F1–F7                                                            | current                |
-| [02-architecture](02-architecture.md)                                                        | Engine shape, variable inventory (20 set + 24 song vars)                                       | current                |
-| [03-competitive-analysis](03-competitive-analysis.md)                                        | 30 comparators + re-ranked roadmap (plan of record)                                            | current                |
-| [04-sequencing-benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) | E1–E8 measured engine claims                                                                   | current                |
-| [genre-audit](../fulltags/genre-audit.md) (was 05)                                           | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current                |
-| [embedding-models](../fulltags/embedding-models.md) (was 06)                                 | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current                |
-| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)                     | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current                |
-| [embedding-research-2026-09-14](../archive/embedding-research-2026-09-14.md)                 | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
-| [08-audit-and-plan](08-audit-and-plan.md)                                                    | Implementation audit + per-item sketches (reference)                                           | reference              |
-| [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md)               | `setbuild → megaset` atomic rename plan                                                        | ✅ executed 2026-09-15 |
-| [tier0-diagnostics-2026-09-15](../archive/tier0-diagnostics-2026-09-15.md)                   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
-| [10-findings](10-findings.md)                                                                | **this page** — distilled verdicts + next actions                                              | current                |
-| [11-master-architecture-v2](11-master-architecture-v2.md)                                    | **Master v2 architecture** — the synthesis doc: cross-shop invariants, B10p/Phase D/family specs, reject list, build order | 📐 proposal |
+| Doc                                                                                          | Role                                                                                                                       | State                  |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| [01-prd](01-prd.md)                                                                          | Product brief, kill criteria, F1–F7                                                                                        | current                |
+| [02-architecture](02-architecture.md)                                                        | Engine shape, variable inventory (20 set + 24 song vars)                                                                   | current                |
+| [03-competitive-analysis](03-competitive-analysis.md)                                        | 30 comparators + re-ranked roadmap (plan of record)                                                                        | current                |
+| [04-sequencing-benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) | E1–E8 measured engine claims                                                                                               | current                |
+| [genre-audit](../fulltags/genre-audit.md) (was 05)                                           | Genre policy + v3 statistical revalidation (FullTags doc)                                                                  | current                |
+| [embedding-models](../fulltags/embedding-models.md) (was 06)                                 | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                                                 | current                |
+| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)                     | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                                                   | current                |
+| [embedding-research-2026-09-14](../archive/embedding-research-2026-09-14.md)                 | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc)                             | snapshot               |
+| [08-audit-and-plan](08-audit-and-plan.md)                                                    | Implementation audit + per-item sketches (reference)                                                                       | reference              |
+| [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md)               | `setbuild → megaset` atomic rename plan                                                                                    | ✅ executed 2026-09-15 |
+| [tier0-diagnostics-2026-09-15](../archive/tier0-diagnostics-2026-09-15.md)                   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                                               | current                |
+| [10-findings](10-findings.md)                                                                | **this page** — distilled verdicts + next actions                                                                          | current                |
+| [11-master-architecture-v2](11-master-architecture-v2.md)                                    | **Master v2 architecture** — the synthesis doc: cross-shop invariants, B10p/Phase D/family specs, reject list, build order | 📐 proposal            |
 
 ---
 
@@ -255,7 +255,7 @@ numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),
 | megadj / FullTags / GetDat / CrateDeck | The four products. **GetDat** ingests (YouTube Music, drops, scored intake). **FullTags** enriches (beats/mood/cues/key/embeddings/genre ledgers + writers). **MegaSet** proposes sets. **CrateDeck** stages and verifies drives (deckctl, web UI, MCP). |
 | archive.db / master.db                 | The two databases. `archive.db` = megadj's local pipeline ledger (analysis results, caches) — never a collection copy. `master.db` = the SHELF1 rekordbox collection DB (the SSOT for the collection); always gate writes on rekordbox being closed.     |
 | RB / rekordbox mirror                  | "RB" = rekordbox. The mirror = read-only rows extracted from the shelf master DB (BPM×100, KeyName) used when the beats/key ledgers lack a track.                                                                                                        |
-| MCP                                    | Model Context Protocol — how agents (Claude etc.) call tools like `megaset_propose`.                                                                                                                                                                   |
+| MCP                                    | Model Context Protocol — how agents (Claude etc.) call tools like `megaset_propose`.                                                                                                                                                                     |
 | CLI / HTTP / web surfaces              | The three other ways to drive MegaSet: `megadj megaset`, `GET /api/archive/megaset` (+`?format=m3u8`), and the FullTags web panel. Parity is test-pinned in `docs/surface-parity.md`.                                                                    |
 | M3U8                                   | The UTF-8 playlist file format of the export path — a list (Phase D plans typed transition windows in comments) imported into rekordbox by hand; never auto-writes anything.                                                                             |
 | rb-playlist                            | The only writer: `megadj rb-playlist` links a proposal to existing master-DB content rows. Dry-run first; `--apply --yes` requires rekordbox quit + dated backups + whole-table verify.                                                                  |

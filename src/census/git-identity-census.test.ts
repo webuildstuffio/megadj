@@ -50,7 +50,8 @@ describe("git identity census", () => {
     for (const row of rows) {
       const [sha, ae = "", ce = ""] = row.split("|");
       const ok = ALLOWED_EMAILS.includes(ae) && ALLOWED_EMAILS.includes(ce);
-      if (!ok) throw new Error(`commit ${sha} authored/committed as ${ae} / ${ce}`);
+      if (!ok)
+        throw new Error(`commit ${sha} authored/committed as ${ae} / ${ce}`);
     }
   });
 });

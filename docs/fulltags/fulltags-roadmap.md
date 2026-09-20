@@ -569,7 +569,7 @@ the OpenKeyScan SSOT decision (#3).
 > disagreements; umbrella block down to 250/78 and now abstaining).
 > Therefore the next genre queue is, in order: **~~#61 Music-placeholder
 > unstrand~~** (**SHIPPED Sep 15, #61 closed — 0254c64**: `genre
-> --refold` detects all 154 placeholders (`unstrand:154`, idempotent)
+--refold` detects all 154 placeholders (`unstrand:154`, idempotent)
 > and `--apply` clears them to NULL through `clearGenre()` so inference
 > re-enrolls them as queries; the operator `--apply` pass on the live
 > DB is the remaining step — see rev 7.13),
@@ -808,8 +808,8 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 | Adopt (#3)  | OpenKeyScan analyzer (repo mode)                         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
 | Fallback    | essentia `Key` / keyfinder-cli                           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
 | Adopt (#4)  | Essentia ONNX heads + onnxruntime                        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/sources/mb.ts + enrich fold (rev 6.1)                                                                                       |
-| Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `src/fulltags/sources/beatport.ts` (rev 6.4)                           |
+| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/sources/mb.ts + enrich fold (rev 6.1)                                                                               |
+| Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `src/fulltags/sources/beatport.ts` (rev 6.4)                   |
 | Verified    | Dubspot 200-track test                                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
 | Verified    | rekordbox tag matrix                                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
 | Verified    | pyrekordbox 0.4.4 (local master.db)                      | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |

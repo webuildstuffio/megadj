@@ -83,4 +83,52 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     );
     expect(res).toBeNull();
   });
+
+  test("surfaced batch validates ids and notes them through one CLI call", async () => {
+    const calls: string[][] = [];
+    const cli = async (args: string[]) => {
+      calls.push(args);
+      return { code: 0, stderr: "" };
+    };
+    const req = new Request("http://localhost/api/archive/surfaced-batch", {
+      method: "POST",
+      body: JSON.stringify({
+        folder: "/Users/nick/Music/DJ-Downloads",
+        ids: ["track-1", "track-1", "track-2"],
+      }),
+      headers: { "content-type": "application/json" },
+    });
+    const res = await archiveRoutes(
+      "/archive/surfaced-batch",
+      new URL("http://localhost/api/archive/surfaced-batch"),
+      deps,
+      cli,
+      req,
+    );
+    expect(res?.status).toBe(200);
+    expect(calls).toEqual([
+      ["ingest", "/Users/nick/Music/DJ-Downloads", "--json"],
+      ["surfaced-note", "track-1", "track-2", "--json"],
+    ]);
+  });
+
+  test("surfaced batch refuses invalid ids before ingest", async () => {
+    const calls: string[][] = [];
+    const res = await archiveRoutes(
+      "/archive/surfaced-batch",
+      new URL("http://localhost/api/archive/surfaced-batch"),
+      deps,
+      async (args) => {
+        calls.push(args);
+        return { code: 0, stderr: "" };
+      },
+      new Request("http://localhost/api/archive/surfaced-batch", {
+        method: "POST",
+        body: JSON.stringify({ folder: "/tmp/downloads", ids: ["bad"] }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(res?.status).toBe(400);
+    expect(calls).toEqual([]);
+  });
 });

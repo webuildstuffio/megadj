@@ -21,19 +21,19 @@ target on its own; that gap needs the deletion lever, not the refactor lever.
 
 ## Measured state (4f8dd24, Sep 17 22:45 ET)
 
-| Metric | Value | Tool / provenance |
-|---|---|---|
-| Census LOC (budgeted code) | ~114,534 vs 75,000 target (+17,526 vs 9/15 baseline 97,008) | `bun tools/loc-budget.ts` |
-| TS/TSX total | 112,329 (673 files) | `git ls-files \| wc -l` over `wc` |
-| — production | 75,433 | non-test, non-test-support |
-| — test mass | 36,896 (235 test files) = **48.9% of prod** | `.test.` + `test-support` |
-| Python corpus | 5,982 LOC / 41 files, all ruff+mypy strict | #194 corpus |
-| Max real CCN | **56** `DataTable` (ceiling 60, ratchet) | `bun tools/ast-ccn.ts` |
-| Duplication | 107 clones / 1,157 L / 0.9% — **93 clones (1,082 L) are test-internal; prod = 14 clones / 182 L** | jscpd min-tokens 50 |
-| Gates | type-coverage 100% · oxlint 0 · knip 0 · `bun audit` 0 · prettier clean | `bun run check` |
-| Tests | 1,766 pass / 3 skip / 0 fail (one transient parallel flake in 3 runs — the known SQLite `busy_timeout` class) | `bun test` |
-| Open issues | 41 — p0: 2 · p1: 9 · p2: 20 · p3: 10 | `gh issue list` |
-| Per-area TS LOC | src (incl. fulltags) 58,971 · cratedeck/src 18,267 · cratedeck/shared 3,562 · cratedeck/web 17,092 · cratedeck/test 13,719 | `wc` per tree |
+| Metric                     | Value                                                                                                                      | Tool / provenance                 |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Census LOC (budgeted code) | ~114,534 vs 75,000 target (+17,526 vs 9/15 baseline 97,008)                                                                | `bun tools/loc-budget.ts`         |
+| TS/TSX total               | 112,329 (673 files)                                                                                                        | `git ls-files \| wc -l` over `wc` |
+| — production               | 75,433                                                                                                                     | non-test, non-test-support        |
+| — test mass                | 36,896 (235 test files) = **48.9% of prod**                                                                                | `.test.` + `test-support`         |
+| Python corpus              | 5,982 LOC / 41 files, all ruff+mypy strict                                                                                 | #194 corpus                       |
+| Max real CCN               | **56** `DataTable` (ceiling 60, ratchet)                                                                                   | `bun tools/ast-ccn.ts`            |
+| Duplication                | 107 clones / 1,157 L / 0.9% — **93 clones (1,082 L) are test-internal; prod = 14 clones / 182 L**                          | jscpd min-tokens 50               |
+| Gates                      | type-coverage 100% · oxlint 0 · knip 0 · `bun audit` 0 · prettier clean                                                    | `bun run check`                   |
+| Tests                      | 1,766 pass / 3 skip / 0 fail (one transient parallel flake in 3 runs — the known SQLite `busy_timeout` class)              | `bun test`                        |
+| Open issues                | 41 — p0: 2 · p1: 9 · p2: 20 · p3: 10                                                                                       | `gh issue list`                   |
+| Per-area TS LOC            | src (incl. fulltags) 58,971 · cratedeck/src 18,267 · cratedeck/shared 3,562 · cratedeck/web 17,092 · cratedeck/test 13,719 | `wc` per tree                     |
 
 Commit velocity during the push: Sep 15 = 121, Sep 16 = 109, Sep 17 = 64
 (294 total), while prod LOC still grew — the push spent LOC on the genre vote
@@ -60,15 +60,15 @@ and 274 new tests, and bought back complexity, twins, and parity bugs.
 
 ## Remaining refactor/reorg issues (the open 7)
 
-| # | Item | Effort | Expected effect |
-|---|---|---|---|
-| #220 | fulltags 82 flat → 8 domain subfolders | xl (move) | ±0 LOC; finishes the #193 model where it started |
-| #214 | cratedeck/src 111 flat → prefix-domain folders | xl (move) | ±0 LOC; splits land as siblings, not re-moves |
-| #225 | fold cratedeck workspace into `src/` | xl (move) | ±0 net; kills the 34-file deep bridge + the fmt/vector-space twins; one knip/tsconfig view |
-| #221 | tiny-file diet | m | 20 files / 485 L measured; 4 policy-exempt stay → **≈ −420 L** (checklist in issue is stale — 6/6 merges already landed tonight) |
-| #222 | shared leaf + boundary-direction census | m | twin fold (fmt 102 + vector-space 209) → **≈ −250 L** + the one-way rule becomes tripwired |
-| #223 | execute + extend #197: test-support routing + clone gate | m | 93 test clones / 1,082 L measured → **≈ −600 L** + a clone-count gate so it sticks |
-| #235 | CLI dispatch rehome (2,100 L grab-bag) | m | ±0 LOC; verb→domain placement |
+| #    | Item                                                     | Effort    | Expected effect                                                                                                                  |
+| ---- | -------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| #220 | fulltags 82 flat → 8 domain subfolders                   | xl (move) | ±0 LOC; finishes the #193 model where it started                                                                                 |
+| #214 | cratedeck/src 111 flat → prefix-domain folders           | xl (move) | ±0 LOC; splits land as siblings, not re-moves                                                                                    |
+| #225 | fold cratedeck workspace into `src/`                     | xl (move) | ±0 net; kills the 34-file deep bridge + the fmt/vector-space twins; one knip/tsconfig view                                       |
+| #221 | tiny-file diet                                           | m         | 20 files / 485 L measured; 4 policy-exempt stay → **≈ −420 L** (checklist in issue is stale — 6/6 merges already landed tonight) |
+| #222 | shared leaf + boundary-direction census                  | m         | twin fold (fmt 102 + vector-space 209) → **≈ −250 L** + the one-way rule becomes tripwired                                       |
+| #223 | execute + extend #197: test-support routing + clone gate | m         | 93 test clones / 1,082 L measured → **≈ −600 L** + a clone-count gate so it sticks                                               |
+| #235 | CLI dispatch rehome (2,100 L grab-bag)                   | m         | ±0 LOC; verb→domain placement                                                                                                    |
 
 Sequencing rules from #224 still govern: parity first (done), moves before
 splits, one logical move per commit, census strings renamed in the same pass.
@@ -80,20 +80,20 @@ payoff.
 
 ## If we do the remaining issues — projected progress
 
-| Metric | Now | After the 7 | Honest delta |
-|---|---|---|---|
-| Census LOC | ~114.5k | **~113.2k** | −1.3k — real, but **target 75k is NOT reachable by refactors** (prod 75.4k + tests 36.9k = the mass; only a deletion pass or not-building the 24 open feature issues moves it) |
-| Max CCN ceiling | 60 (max 56) | ~57 after one more web-component batch (DataTable/MegasetPanel are JSX-nesting, not logic) | ratchet lowers one tier |
-| Duplication | 107 clones | **~15 clones (−86%)**; prod → ~4 (kit residue) | test mass routed through `src/test-support` |
-| Flat packs | fulltags 82 flat · cratedeck/src 111 flat · 2 product roots | **0** — fulltags 8 folders, cratedeck ~12, one root | the #193 convention finished repo-wide |
-| src ↔ cratedeck seam | 34-file deep bridge, 3 twin modules, no rule | **one direction, census-pinned** | drift class dead |
-| Tiny files | 20 (<30 L) | 4 policy-exempt | −16 files |
-| Open issues | 41 (9 p1) | 34 (6 p1) | refactors fully burned; p0s (#2, #147) are hardware/ops-gated, not code |
+| Metric               | Now                                                         | After the 7                                                                                | Honest delta                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Census LOC           | ~114.5k                                                     | **~113.2k**                                                                                | −1.3k — real, but **target 75k is NOT reachable by refactors** (prod 75.4k + tests 36.9k = the mass; only a deletion pass or not-building the 24 open feature issues moves it) |
+| Max CCN ceiling      | 60 (max 56)                                                 | ~57 after one more web-component batch (DataTable/MegasetPanel are JSX-nesting, not logic) | ratchet lowers one tier                                                                                                                                                        |
+| Duplication          | 107 clones                                                  | **~15 clones (−86%)**; prod → ~4 (kit residue)                                             | test mass routed through `src/test-support`                                                                                                                                    |
+| Flat packs           | fulltags 82 flat · cratedeck/src 111 flat · 2 product roots | **0** — fulltags 8 folders, cratedeck ~12, one root                                        | the #193 convention finished repo-wide                                                                                                                                         |
+| src ↔ cratedeck seam | 34-file deep bridge, 3 twin modules, no rule                | **one direction, census-pinned**                                                           | drift class dead                                                                                                                                                               |
+| Tiny files           | 20 (<30 L)                                                  | 4 policy-exempt                                                                            | −16 files                                                                                                                                                                      |
+| Open issues          | 41 (9 p1)                                                   | 34 (6 p1)                                                                                  | refactors fully burned; p0s (#2, #147) are hardware/ops-gated, not code                                                                                                        |
 
 **The one-line verdict:** the remaining refactor batch finishes the
-*structure* story — one product root, no flat packs, no twins, pinned seam,
+_structure_ story — one product root, no flat packs, no twins, pinned seam,
 clone-gated tests, ~−1.3k LOC — and after it the codebase is out of
-refactor-shaped work. The 75k census target then becomes a *product*
+refactor-shaped work. The 75k census target then becomes a _product_
 decision (which of the 24 open feature issues earn their LOC, and what gets
 deleted to pay for them), which is exactly what the LOC-budget gate is
 designed to force per-commit.

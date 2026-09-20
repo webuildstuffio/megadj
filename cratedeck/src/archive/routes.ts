@@ -491,9 +491,13 @@ async function surfacedBatchRoute(
       : null;
   if (!folder || !folder.startsWith("/"))
     return json({ error: "folder must be an absolute path" }, 400);
-  const ids = Array.isArray(gate.body.ids)
-    ? gate.body.ids.filter((i): i is string => typeof i === "string")
-    : [];
+  const ids = Array.isArray(gate.body.ids) ? [...new Set(gate.body.ids)] : [];
+  if (
+    ids.length === 0 ||
+    ids.length > 500 ||
+    ids.some((id) => typeof id !== "string" || !/^[\w-]{6,24}$/.test(id))
+  )
+    return json({ error: "ids must contain 1–500 valid surfaced ids" }, 400);
   const r = await megadjCli(["ingest", folder, "--json"]);
   if (r.code !== 0)
     return json(
@@ -501,11 +505,16 @@ async function surfacedBatchRoute(
       409,
     );
   // Mark the checklist rows done only on a green ingest — the batch DID
-  // run for the folder; per-row file matching stays honest in the ledger
-  // (ingest registers what it actually found).
-  for (const id of ids.slice(0, 500))
-    await megadjCli(["surfaced-note", id, "--json"]);
-  return json({ ok: true, folder, checked: ids.length });
+  // run for the folder. Use one CLI call so partial unknowns remain visible
+  // in the command's summary and the route cannot claim every submitted id
+  // was accepted. The UI refreshes from the ledger, which is authoritative.
+  const noted = await megadjCli(["surfaced-note", ...ids, "--json"]);
+  if (noted.code !== 0)
+    return json(
+      { ok: false, error: noted.stderr.slice(-800) || `exit ${noted.code}` },
+      409,
+    );
+  return json({ ok: true, folder, submitted: ids.length });
 }
 
 function json(data: unknown, status = 200): Response {

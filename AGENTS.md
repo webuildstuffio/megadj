@@ -9,7 +9,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   macOS/Pioneer only; no CI; no PR flow — direct pushes to `main`.
 - Gates before push: `bun run check && bun test`. Hard 100% type coverage:
   `bun run check:full` (adds ruff + mypy strict over `cratedeck/python` and
-  `tools/*.py`, plus   `tools/*_test.py`). `check` = tsc + oxlint + format +
+  `tools/*.py`, plus `tools/*_test.py`). `check` = tsc + oxlint + format +
   knip + web vite build. `check` green has hidden a red `check:full` before
   (typecov 99.62% found Sep 18; earlier "gate green" claims were check-scoped)
   — claim the hard gate only after `check:full`.
@@ -41,14 +41,14 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   foreign commit lands mid-flight, re-run the touched censuses before your
   own commit — a torn read is the other agent's landed rename, not your bug.
 - Git identity attributes commits on EMAIL, not name — a wrong repo-local
- `user.email` hands your authorship to whoever owns that address on GitHub
- (Sep 19: 13 commits shipped as a stranger's `nick@users.noreply.github.com`;
- a legacy-format noreply address resolves to the owner of the short username).
- This repo pins `Nicholas Montgomery <1810803+nichm@users.noreply.github.com>`
- locally; `src/census/git-identity-census.test.ts` fails any commit outside
- that identity. Machine-wide identity lives in shell-config `gitconfig.local`;
- git `[include]` cannot override values set earlier in `~/.gitconfig` (first
- value wins), so the template's `[user]` placeholders must stay commented out.
+  `user.email` hands your authorship to whoever owns that address on GitHub
+  (Sep 19: 13 commits shipped as a stranger's `nick@users.noreply.github.com`;
+  a legacy-format noreply address resolves to the owner of the short username).
+  This repo pins `Nicholas Montgomery <1810803+nichm@users.noreply.github.com>`
+  locally; `src/census/git-identity-census.test.ts` fails any commit outside
+  that identity. Machine-wide identity lives in shell-config `gitconfig.local`;
+  git `[include]` cannot override values set earlier in `~/.gitconfig` (first
+  value wins), so the template's `[user]` placeholders must stay commented out.
 - One file-naming convention repo-wide (#240, kebab-case):
   `src/census/naming-convention-census.test.ts` fails when a snake_case
   `.ts`/`.tsx` basename appears outside node_modules — module AND test files
@@ -163,6 +163,14 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   size/duration/name BEFORE hashing (full-volume MD5 ≈ 50 min).
 - The hygiene engine owns the listen-first guard: `quality-diff`, `oddball`,
   `ear-check` findings cannot be batch-confirmed from any spoke.
+- `megadj sync` is serial against YouTube BY DESIGN — parallel yt-dlp earns
+  IP-403 storms that stop everything (`ratelimit.ts`); parallelism belongs in
+  the analysis chain (`fetch`/`beats`/`mood --jobs 4`). The music gate is
+  recall-favored on purpose: `classifyMusic` also accepts title-shaped song
+  signals (`[AI]`/`(AI)` brackets, official video/audio/visualizer, feat./ft.)
+  after a real false-positive (PERC 30, AI song gated, fix `56fd857e`) — a
+  wrong "music" just downloads something liked anyway. AI songs ARE music
+  (owner call, Sep 19).
 - The `hygiene_findings` natural key is (kind, paths[0], paths[1]) — NEVER
   keeper-based: a keeper-only key collapses every singleton finding
   (zero-byte/junk: null keeper) of a kind onto ONE row and a confirm on
@@ -172,7 +180,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   (unknown = exit 2, zero work); a CLI flag the engine never reads is a
   silent no-op bug (`--kind` shipped parsed-but-dropped for months).
   Applied findings keep a recoverable ledger copy: `shelf-restore
-  <finding-id|path>` (MD5-verified) + `/api/hygiene/restore` with a
+<finding-id|path>` (MD5-verified) + `/api/hygiene/restore` with a
   QuarantinePanel (#35/#36, Sep 19) — quarantine-empty flips rows to
   `archived` behind a literal `{confirm:"DELETE"}` gate, receipts survive.
 - `shelf-dupescan` judges duplicates by fingerprint, never by name; keep its
@@ -265,7 +273,10 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   `src/census/githooks-census.test.ts` pins existence + exec bit + chained gates.
 - Suite wedges are environmental first: leaked `/tmp/megadj-*` fixtures (purge
   > 24h old) and orphaned bun processes; identify a spinning worker via open
-  > file handles, not stack traces.
+  > file handles, not stack traces. The suite uses the real clock: a red
+  > date-keyed test around 00:00 UTC is the UTC-midnight straddle, not a
+  > regression (Sep 19: ingest same-day-dump re-ingest test straddled midnight;
+  > fix by freezing time, not by relaxing the invariant).
 - The launchctl deck server (`:7742`) goes stale the moment commits land on
   `main`: `launchctl kickstart -k` and re-probe live before debugging a route
   delta. Don't assume the port either: a concurrent agent's dev server may
@@ -357,10 +368,10 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - Runs multiple agents on one repo and expects them orchestrated, not avoided: "put all their stuff together on one branch and ship in logical parts to main" / "work alongside them properly, don't overlap" — consolidate concurrent agents' work into logical chunks, wait out (or surgically untangle) in-flight foreign edits, and never declare work lost without a worktree-vs-HEAD content check.
 - Super-sure verification passes are expected to find something: a pass that ends "all green" should still probe the hard gates (`check:full` caught a silent 99.62% typecov baseline), re-prove acceptance live (fresh-run leak sweep), and fix defects found — not just re-list statuses.
 - Expects a locally running dev server to hand-test UI changes ("dev up please and let me test it out").
+- Wants findings surfaced before fixes on audits and risky ops: report first (canvas or grouped GitHub issues), then an explicit go-ahead to act (Sep 19: "instead of you fixing please make a detailed canvas of all bugs"; "lets turn that off right now" on a suspected backup).
 
 ## Learned Workspace Facts
 
-- Concurrent-agent collisions resolve content-first: a foreign commit that swept staged files counts as landed when the diff is byte-identical vs the worktree (hash is irrelevant); a stash round-trip restores content byte-identical but loses the staged/unstaged distinction. Staging is contested under concurrency: a plain `git add`/`commit` on the shared index can sweep (or unstage, or resurrect) another agent's paths — for surgical multi-agent commits use a temp/plumbing index containing exactly your set (`git commit-tree` + ref advance), and after any foreign sweep audit HEAD for duplicate/resurrected paths before "fixing" (Sep 18: the #244 moves landed via three cooperative sweeps; one foreign commit re-added 24 old paths alongside the new ones — the follow-up deletions completed the rename).
 - Test/support trees follow one convention (Sep 17, post-rename): per-product `test/` dirs beside source (`src/fulltags/test/`, `cratedeck/test/`, `src/test-support/` shared helpers) — never a stuttered `test-support/fulltags/fulltags` doubling. When moving a test tree, the four pin classes that break are: relative import specifiers, `import.meta.dir` constructions, knip entry globs, and ACTIVE docs citing the path (`docs-paths-census` validates those live; archived docs are exempt). Tests move WITH their subject (#23/#234, completed Sep 17); `src/` root keeps exactly the host-kit set — host-kit tests (`cli-flags`, `numeric-options`, `json-summary`) plus `src/census/` (the `*-census` / `issue-*` tripwires, #244) and `src/test-support/`; cross-domain plumbing like `progress` lives in `src/shared/`, never at the root. Test PLACEMENT rule (#246, census-pinned by `src/census/test-placement-census.test.ts`): a subject's test co-locates beside it (`foo.ts` ↔ `foo.test.ts`, any depth); a product's `test/` dir holds ONLY shared support — fixtures, workers, builders, case tables — never a subject's own test; the known co-location debt is an allowlist ratchet in that census, every row naming its migration issue (#220/#214/#235). Fixture hygiene is also census-pinned (#248): raw `mkdtempSync`/`new ArchiveState` in tests fail `fixture-seam-census` — temp dirs go through the seam and get swept.
 - `AGENTS.md` and docs content is test-pinned by census tests (the two `boundary-*-census.test.ts` strings, plus `docs-paths`/`docs-safety` censuses) — keep pinned strings intact when condensing; archive-internal broken links are intentionally left (frozen snapshots).
 - Genre source matching has one artist-gate SSOT, `fulltags/src/sources/name-match.ts` (test-pinned): SoundCloud and Beatport scorers both route through it; the hard must-contain-artist gate is what makes remix-safe matches possible.
@@ -368,6 +379,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - Genre vocabularies are consolidated in `fulltags/src/genre/genre-vocab.ts` (one module, plainly-named maps) — it replaced the `GENRE_MAP`/`SC_GENRE_CANON`/`DJ_GENRES`/`GENRE_FAMILY` twins and the two different `inferGenre` functions.
 - Genre vote ladder (#173) SHIPPED in f54ba04 (Sep 16, closed Sep 17): every rung votes (genre+weight+provenance), one election seam (`stageGenreElection`) owns tag+DB write, breakdown persists in `tracks.genre_votes`, weights versioned in code as `GENRE_VOTE_WEIGHTS` (test-pinned ordering). First-win writes are gone. The writer-only GAP closed: `genre-why.ts` is now the production reader of `ArchiveState.genreVotes()` (#215 closed Sep 17). Lesson stands: knip is blind to dead methods on live classes — only a caller census catches that class. Shipped ≠ run: a day after ship, `tracks.genre_votes` was still 0 rows (no real fetch since the ship run) — quote per-cohort run state, not the feature's existence (Sep 18). The megamem transfer doc is `docs/megaset/embedding-learnings-from-megamem-2026-09-17.md` (v2 rewrite, Sep 18: 2,003 experiments re-censused, status split 1,001 failed / 681 done / 279 skipped / 40 queued); `docs/megaset/11-master-architecture-v2.md` (`e2e08918`) is the v2 synthesis with the 7 cross-shop invariants and a reject list (all 19 DIV diversity experiments dead — diversity ships as hard caps only).
 - `archive.db` is megadj's own intake ledger, not a shelf copy: rows decompose into YouTube liked-videos (music-checked by `megadj sync`, mostly never downloaded), local ingests, and playlists; `pending` ≠ gap and `skipped_not_music` rows are correctly parked non-music. Never present ledger counts as library size. Measured decomposition (Sep 18): ~5.9k tracks = 3.1k rekordbox mirror + 750 ingest + ~2.0k liked/liked-videos (1,087 liked-videos pending, unclassified since Aug 22); known audio ~26 GB vs 3,125 rows on SHELF1. YT rows are `tracks` rows keyed by video_id ONLY — zero embeddings/beats/mood; FullTags has NO YouTube search arm (votes: SoundCloud via yt-dlp, Beatport, Bandcamp), so there is no youtube-find store to reconcile. Storage/retention answers live in `docs/getdat/data-model.md` + the `storage-intake-census` skill (Sep 18, `9dae86a4`): every state-dir path has exactly one retention owner (dated backups → `tmp-purge --state`, newest per stem always kept); RB pilots zip + `.sha256`, never plain-delete; the "library size" honest answer is bytes-per-volume → ledger decomposition → per-source freshness.
-- Concurrent-agent collisions resolve content-first: a foreign commit that swept staged files counts as landed when the diff is byte-identical vs the worktree (hash is irrelevant); a stash round-trip restores content byte-identical but loses the staged/unstaged distinction.
+- SoundCloud is a first-class DOWNLOAD source since 062355ce + 4411f57e (Sep 19, #255–#259): `src/getdat/soundcloud.ts` is the one acquisition module (`hls_aac_160k` = the honest quality ceiling without Go+); link-first means purchase/free-download/smart-links (`smarturl.it` included) surface as `link_surfaced` + `source_links` and are NEVER counted as downloaded (`--force-rip` overrides; the decision lands in the ledger so sync never re-queues); SC rows key on numeric SC id; permalink 404 = permanent `gone` (the old generic class retried dead slugs forever); the HIGHQ bar is source-aware (SC ≥160k).
+- The backup decision is RECORDED (Sep 19): the shelf IS the backup — `shelf-sync` to SHELF1 gives every track two physical copies; no cloud backup infra exists or runs (issue #2 was a never-wired proposal, retired from the drive-day plan, stays parked). Don't start or assume a backup; #147 write-path spike is the only p0.
 - Concurrent-agent collisions resolve content-first: a foreign commit that swept staged files counts as landed when the diff is byte-identical vs the worktree (hash is irrelevant); a stash round-trip restores content byte-identical but loses the staged/unstaged distinction. Staging is contested under concurrency: a plain `git add`/`commit` on the shared index can sweep (or unstage, or resurrect) another agent's paths — for surgical multi-agent commits use a temp/plumbing index containing exactly your set (`git commit-tree` + ref advance), and after any foreign sweep audit HEAD for duplicate/resurrected paths before "fixing" (Sep 18: the #244 moves landed via three cooperative sweeps; one foreign commit re-added 24 old paths alongside the new ones — the follow-up deletions completed the rename).
 - plugin/skills files are git symlinks (mode 120000) into .claude/skills — that IS the dedup mechanism, not duplication; `wc` over `git ls-files` double-counts symlinked content (a v1 audit claimed 1.3kL of dupes that don't exist). Verify with `git ls-files -s` mode 120000 before proposing a dedup.

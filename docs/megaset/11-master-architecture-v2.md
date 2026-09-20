@@ -40,18 +40,18 @@ list (§5) with the experiment that killed it.
 
 ## 1. Sources synthesized
 
-| Source (all read Sep 17–18, 2026)                             | What it contributes to v2                                                                              |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| megamem engine ARCHITECTURE + retrieval decision guide (mem-bench repo, cited in prose — foreign) | The 7 cross-shop invariants (§2); reranker negativity; hybrid/fusion calibration discipline; oracle-ceiling method |
-| mem-bench experiment catalog (2,003 files; 1,001 failed / 681 done / 279 skipped / 40 queued) | The negative-results base: what never wins, across both shops                            |
-| [embedding-learnings v2](embedding-learnings-from-megamem-2026-09-17.md) | Shipped-wins ledger, ops incidents (poisoned caches, serve-path leaks), the top-10 action list |
-| [02-architecture](02-architecture.md) §2 variable inventory   | The S1–S20 / T1–T24 frames; v2 only promotes variables whose measurement already exists                |
-| [10-findings](10-findings.md) E1–E8, G1–G13, M1–M7, R1–R10, P1–P3 | The measured verdicts this doc binds into architecture                                |
-| [tier0 diagnostics](../archive/tier0-diagnostics-2026-09-15.md) | Hubness tail, no artist leakage, probe loss, refold +7.4 — the readout/architecture split            |
-| [embedding-models](../fulltags/embedding-models.md) + [research review](../archive/embedding-research-2026-09-14.md) | Tower decision (M1–M7); third-party: EDM-subgenre benchmarks, MuQ/TuneJury, licences (R1–R10) |
-| [genre-audit](../fulltags/genre-audit.md) + [taxonomy sources](../fulltags/genre-taxonomy-sources.md) | The label pipeline (refold, disputed flags, gates) MegaSet consumes; T2–T5 head-as-signal design |
-| Engine benchmarks (archived 04) + [08-audit](08-audit-and-plan.md) | E1–E8 sequencing verdicts; per-item implementation sketches                                        |
-| GitHub issues (roadmap SSOT) — #59 #107 #171 #172 #176 #121 #220 #236 #238 #247 #249 | Live scope markers; issues own WHAT/status, this doc owns WHY + architecture                    |
+| Source (all read Sep 17–18, 2026)                                                                                    | What it contributes to v2                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| megamem engine ARCHITECTURE + retrieval decision guide (mem-bench repo, cited in prose — foreign)                    | The 7 cross-shop invariants (§2); reranker negativity; hybrid/fusion calibration discipline; oracle-ceiling method |
+| mem-bench experiment catalog (2,003 files; 1,001 failed / 681 done / 279 skipped / 40 queued)                        | The negative-results base: what never wins, across both shops                                                      |
+| [embedding-learnings v2](embedding-learnings-from-megamem-2026-09-17.md)                                             | Shipped-wins ledger, ops incidents (poisoned caches, serve-path leaks), the top-10 action list                     |
+| [02-architecture](02-architecture.md) §2 variable inventory                                                          | The S1–S20 / T1–T24 frames; v2 only promotes variables whose measurement already exists                            |
+| [10-findings](10-findings.md) E1–E8, G1–G13, M1–M7, R1–R10, P1–P3                                                    | The measured verdicts this doc binds into architecture                                                             |
+| [tier0 diagnostics](../archive/tier0-diagnostics-2026-09-15.md)                                                      | Hubness tail, no artist leakage, probe loss, refold +7.4 — the readout/architecture split                          |
+| [embedding-models](../fulltags/embedding-models.md) + [research review](../archive/embedding-research-2026-09-14.md) | Tower decision (M1–M7); third-party: EDM-subgenre benchmarks, MuQ/TuneJury, licences (R1–R10)                      |
+| [genre-audit](../fulltags/genre-audit.md) + [taxonomy sources](../fulltags/genre-taxonomy-sources.md)                | The label pipeline (refold, disputed flags, gates) MegaSet consumes; T2–T5 head-as-signal design                   |
+| Engine benchmarks (archived 04) + [08-audit](08-audit-and-plan.md)                                                   | E1–E8 sequencing verdicts; per-item implementation sketches                                                        |
+| GitHub issues (roadmap SSOT) — #59 #107 #171 #172 #176 #121 #220 #236 #238 #247 #249                                 | Live scope markers; issues own WHAT/status, this doc owns WHY + architecture                                       |
 
 ## 2. The cross-shop invariants (v2 design law)
 
@@ -65,7 +65,7 @@ These seven are forced by convergent evidence from two independent shops
    after scoring.
 2. **kNN readout + space hygiene beats learned post-processing.** Probe lost
    here (51.5% vs 62.6%); LoRA/projection-head/CE-replacement all failed
-   there; the single learned win (a cross-encoder added as an *additional*
+   there; the single learned win (a cross-encoder added as an _additional_
    fusion leg, +0.17pp) defines the only legal shape for a learned component:
    additive leg, never replacement.
 3. **One well-chosen tower per leg; ensembles never won in either shop.**
@@ -239,23 +239,23 @@ instrumentation — it is a query over data already on the wire.
 
 ## 5. Explicitly rejected for v2 (each with its killing evidence)
 
-| Rejected                                            | Evidence that killed it                                                                                                    |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Exact solvers (Held-Karp DP)                        | E5: OOM at n=30; unnecessary at 29 ms greedy / 157 ms beam at 20k (E2)                                                     |
-| 2-opt repair                                        | E3: +0.0% on real pools                                                                                                    |
-| User-facing weight knobs                            | E6: 5 variants moved mean <0.006 — a knob that does nothing                                                                |
-| Second tower / second ledger / tower ensembles      | M2–M4 + MDL-127-class unmeasured panel in both shops; fusion best +1.1 inside noise at 2–6× cost                           |
-| Naive rank fusion                                   | M5: descending-rank silently selects least-similar neighbors                                                               |
-| Linear probe / learned readout                      | tier-0: 51.5% vs kNN 62.6%; megamem's LoRA/projection-head sprints shipped nothing; the one learned win was an additive leg |
-| Soft diversity penalties                            | All 19 megamem DIV experiments neutral-or-worse; hard limit was the survivor (§4d)                                          |
-| Co-occurrence / co-retrieval reranking              | INF-169 0.00pp + the S133 class closures (spreading activation, injection, hyperedge) — top-K already contains the items; T15 stays parked for sparse-pool expansion only |
-| Any post-fusion reordering                          | megamem decision guide: every reranker negative, −5% to −12%; breaks calibrated weights                                     |
-| MRL truncation / binary-quant / TurboQuant-class    | MDL-027 −12.5pp; MDL-028 regression; RaBitQ negative; we have zero storage/scan pressure at 3.6k vectors (§2.3 learnings)   |
-| MLX embed server for our stack                      | R9: wrong tool at every layer (18 MB head job / rent-a-GPU fine-tune); AGENTS sync-writer rule unaffected                   |
-| SPLADE/HyDE/classic-PRF-style text machinery        | Inapplicable (no text queries); measured negative in their domain anyway                                                    |
-| Stems / Demucs, MuQ, cloud anything                 | R8 (effnet is CLAP-side; gains don't transfer), no ONNX/small base, licence + principles (real sources only, local only)     |
-| SQLite-FTS-style DB text search for pools           | megamem's engine comparison: 55pp structural gap vs a real index — irrelevant here anyway: MegaSet reads ledgers, not text   |
-| Genre playlists                                     | House rule: one playlist per dated intake under DJ-Imports, never genre playlists                                           |
+| Rejected                                         | Evidence that killed it                                                                                                                                                   |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Exact solvers (Held-Karp DP)                     | E5: OOM at n=30; unnecessary at 29 ms greedy / 157 ms beam at 20k (E2)                                                                                                    |
+| 2-opt repair                                     | E3: +0.0% on real pools                                                                                                                                                   |
+| User-facing weight knobs                         | E6: 5 variants moved mean <0.006 — a knob that does nothing                                                                                                               |
+| Second tower / second ledger / tower ensembles   | M2–M4 + MDL-127-class unmeasured panel in both shops; fusion best +1.1 inside noise at 2–6× cost                                                                          |
+| Naive rank fusion                                | M5: descending-rank silently selects least-similar neighbors                                                                                                              |
+| Linear probe / learned readout                   | tier-0: 51.5% vs kNN 62.6%; megamem's LoRA/projection-head sprints shipped nothing; the one learned win was an additive leg                                               |
+| Soft diversity penalties                         | All 19 megamem DIV experiments neutral-or-worse; hard limit was the survivor (§4d)                                                                                        |
+| Co-occurrence / co-retrieval reranking           | INF-169 0.00pp + the S133 class closures (spreading activation, injection, hyperedge) — top-K already contains the items; T15 stays parked for sparse-pool expansion only |
+| Any post-fusion reordering                       | megamem decision guide: every reranker negative, −5% to −12%; breaks calibrated weights                                                                                   |
+| MRL truncation / binary-quant / TurboQuant-class | MDL-027 −12.5pp; MDL-028 regression; RaBitQ negative; we have zero storage/scan pressure at 3.6k vectors (§2.3 learnings)                                                 |
+| MLX embed server for our stack                   | R9: wrong tool at every layer (18 MB head job / rent-a-GPU fine-tune); AGENTS sync-writer rule unaffected                                                                 |
+| SPLADE/HyDE/classic-PRF-style text machinery     | Inapplicable (no text queries); measured negative in their domain anyway                                                                                                  |
+| Stems / Demucs, MuQ, cloud anything              | R8 (effnet is CLAP-side; gains don't transfer), no ONNX/small base, licence + principles (real sources only, local only)                                                  |
+| SQLite-FTS-style DB text search for pools        | megamem's engine comparison: 55pp structural gap vs a real index — irrelevant here anyway: MegaSet reads ledgers, not text                                                |
+| Genre playlists                                  | House rule: one playlist per dated intake under DJ-Imports, never genre playlists                                                                                         |
 
 ## 6. Benchmarks & gates (how v2 proves itself)
 
