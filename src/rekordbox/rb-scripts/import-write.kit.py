@@ -13,6 +13,7 @@ import datetime
 import json
 import os
 import sys
+import unicodedata
 import uuid
 
 from pyrekordbox import Rekordbox6Database  # type: ignore[import-not-found]
