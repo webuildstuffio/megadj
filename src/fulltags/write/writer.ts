@@ -186,9 +186,10 @@ function writePatchMp3(
     patch,
     {
       sets: (pairs) =>
-        pairs.map(([k, v]) => mp3Id3Statement(k, v)).filter(Boolean).join(
-          "\n",
-        ),
+        pairs
+          .map(([k, v]) => mp3Id3Statement(k, v))
+          .filter(Boolean)
+          .join("\n"),
       verifies: (pairs) =>
         pairs.map(([k, v]) => mp3VerifyStatement(k, v)).join("\n"),
       script: mp3MutagenScript,

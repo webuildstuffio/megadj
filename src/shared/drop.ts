@@ -636,12 +636,10 @@ async function downloadStage(
     status: "ok",
     ...(isSc && (r.downloaded > 1 || r.missed)
       ? {
-          detail:
-            `${r.downloaded} tracks from set` +
-            // #276: the missed count reaches every output surface —
-            // a set that silently drops 5 of 96 tracks must NOT look
-            // identical to a clean 96/96 rip.
-            (r.missed ? `, ${r.missed} missed` : ""),
+          // #276: the missed count reaches every output surface —
+          // a set that silently drops 5 of 96 tracks must NOT look
+          // identical to a clean 96/96 rip.
+          detail: `${r.downloaded} tracks from set${r.missed ? `, ${r.missed} missed` : ""}`,
         }
       : {}),
   });

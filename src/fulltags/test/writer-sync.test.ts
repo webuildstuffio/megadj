@@ -1,6 +1,11 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { $ } from "bun";
-import { copyFileSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { embedArt, groundTruth, writePatchSync } from "../index-all";
 import { hasValidContainerHeader } from "../write/writer-mutagen";
@@ -21,8 +26,8 @@ async function makeFile(ext: string): Promise<string> {
 /** Minimal valid JPEG (SOI + APP0 JFIF + EOI — 22 bytes): enough to
  *  poison ffmpeg's png decoder when the APIC mime claims image/png. */
 const JPEG_BYTES = Uint8Array.from([
-  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-  0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01,
+  0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
 ]);
 
 describe("writePatchSync", () => {

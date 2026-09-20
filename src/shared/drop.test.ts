@@ -3,6 +3,7 @@ import { writeFileSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, cliEnv } from "../test-support/cli-run";
 import { tempDir, tempState } from "../test-support/testutil";
+import type { ArchiveState } from "../archive/state";
 import { drop, missedEntry, type DropSummary } from "./drop";
 import { setScSetIdsForTest } from "../getdat/soundcloud";
 
@@ -18,6 +19,7 @@ import { setScSetIdsForTest } from "../getdat/soundcloud";
 
 const t = tempDir("megadj-drop-test-").rippable();
 const st = tempState("megadj-drop-state-");
+const enc = (s: string) => new TextEncoder().encode(s);
 afterAll(() => t.rippleAll());
 
 function runDrop(args: string[], env: Record<string, string>) {
@@ -29,7 +31,7 @@ function freshEnv() {
   return { dir, env: cliEnv(dir) };
 }
 
-let dropState: import("../archive/state").ArchiveState;
+let dropState: ArchiveState;
 beforeAll(() => {
   dropState = st.next().state;
 });
@@ -259,7 +261,6 @@ exit 1`,
   });
 
   test("missedEntry classifies the #255 classes and bounds the tail", async () => {
-    const enc = (s: string) => new TextEncoder().encode(s);
     const gone = missedEntry(
       "9",
       1,
@@ -271,7 +272,9 @@ exit 1`,
     const walled = missedEntry(
       "8",
       1,
-      enc("ERROR: [soundcloud] x/y: This track is not available (PROTECTED-CCS)"),
+      enc(
+        "ERROR: [soundcloud] x/y: This track is not available (PROTECTED-CCS)",
+      ),
     );
     expect(walled.class).toBe("permanent");
     const retry = missedEntry("7", 1, enc("HTTP Error 500: server choked"));

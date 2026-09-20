@@ -315,14 +315,10 @@ export function wavVerifyStatement(k: keyof TagPatch, v: unknown): string {
  *  cannot fail on a container-level oddity like a JPEG-bytes attached
  *  pic wearing a `image/png` mime (ffmpeg's mjpeg re-encode leg dies
  *  on exactly that shape; measured live, issue #280). */
-export const mp3Id3Statement = (
-  k: keyof TagPatch,
-  v: unknown,
-): string => id3StatementFor(k, v, "tags");
-export const mp3VerifyStatement = (
-  k: keyof TagPatch,
-  v: unknown,
-): string => id3VerifyFor(k, v, "tags");
+export const mp3Id3Statement = (k: keyof TagPatch, v: unknown): string =>
+  id3StatementFor(k, v, "tags");
+export const mp3VerifyStatement = (k: keyof TagPatch, v: unknown): string =>
+  id3VerifyFor(k, v, "tags");
 
 /** #280: full ID3 script for a plain MP3 — the SAME statement language
  *  as writePatchWav (statements re-addressed to the bare `tags` ID3
