@@ -41,7 +41,7 @@
     "unicorn/no-await-expression-member": "off",
     "unicorn/no-zero-fractions": "off",
     "unicorn/prefer-string-raw": "off",
-    "eslint/eqeqeq": ["error", "smart"],
+    "eslint/eqeqeq": "error",
     "typescript/no-explicit-any": "error",
     "eslint/no-shadow": "error",
     "typescript/no-unnecessary-condition": "error"

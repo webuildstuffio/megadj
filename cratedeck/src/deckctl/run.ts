@@ -166,7 +166,7 @@ export async function cmdRun(
       frame++;
       const percent = Math.round(current.progress * 100);
       const eta =
-        current.eta_seconds != null
+        current.eta_seconds !== null
           ? ` · ~${fmtEta(current.eta_seconds)} left`
           : "";
       const message = current.message ?? current.phase ?? "";

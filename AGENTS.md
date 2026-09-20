@@ -120,16 +120,26 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   candidate younger than ~7 days waits (oxlint ships weekly, so "latest" is
   almost never a same-week action).
 - No one-off scripts: encode safety in reusable commands, tests, skills.
-- `cratedeck/tsconfig.json` must stay an `extends` shim (it duplicates the
-  root compilerOptions 1:1 today — the twin drifted once and shares the root
-  `tsBuildInfoFile`, so `tsc -p cratedeck` Poisons the shared cache; never run
-  a project-scoped tsc there without `--incremental false`). Root
-  `typecheck` runs warm-incremental; `typecheck:forced` is the cold full-tree
-  check — reach for it when a cache is suspected (Sep 19 audit: warm and
-  forced disagreed only on a foreign WIP break, never on cache staleness).
+- `cratedeck/tsconfig.json` is an `extends` shim (#271, census-pinned by
+  `src/census/tsconfig-bunfig-census.test.ts` — it was a 19-option byte-twin
+  that shared the root `tsBuildInfoFile`, so `tsc -p cratedeck` poisoned the
+  shared cache; never run a project-scoped tsc there without
+  `--incremental false`). Root `typecheck` runs warm-incremental;
+  `typecheck:forced` is the cold full-tree check — reach for it when a cache
+  is suspected (Sep 19 audit: warm and forced disagreed only on a foreign WIP
+  break, never on cache staleness). `erasableSyntaxOnly` is ON in the root
+  config (#272/#274: TS7-ready syntax, probed 0 violations) — `enum`,
+  `namespace`, and parameter properties will not compile. Nested
+  `bunfig.toml` copies are INERT (bun reads bunfig only from the
+  process-start CWD): `cratedeck/bunfig.toml` is a documented tripwire whose
+  timeout must differ from root, `src/fulltags/bunfig.toml` is deleted.
   `.oxlintrc.json` rule list: the `off` entries are deliberate (each kills
   a firing style rule — e.g. sort-keys fires 3,255× without it); add
-  stricter `typescript/*` rules before re-enabling style noise.
+  stricter `typescript/*` rules before re-enabling style noise. Plain
+  (non-smart) `eqeqeq` is enforced (#272) — nullish presence checks use
+  `=== null`/`!== null`/`=== undefined` explicitly; when narrowing an
+  optional chain's base AND property, narrow both (`a !== undefined &&
+  a.prop !== null`), one strict check does NOT imply the other.
 
 ## Workflow map
 

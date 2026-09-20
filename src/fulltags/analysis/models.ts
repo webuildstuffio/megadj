@@ -361,7 +361,7 @@ export async function analyzeMoods(
     const expected = paths.length;
     while (out.size < expected) {
       const line = await readLine(180_000);
-      if (line == null) break;
+      if (line === null) break;
       const msg = parseMoodWorkerLine(line);
       if (msg.ok) out.set(msg.path, msg.mood);
       else console.error(`[${msg.context}] ${msg.detail}`);

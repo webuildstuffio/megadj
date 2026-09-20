@@ -32,7 +32,7 @@ export async function readUntilLine(
     const remaining = deadline - Date.now();
     if (remaining <= 0) return null;
     const line = await lr.next(remaining);
-    if (line == null) return null;
+    if (line === null) return null;
     if (pred(line)) return line;
   }
 }
@@ -105,7 +105,7 @@ export async function openWorkerSession<Req, Res>(
         spec.isResponse,
         spec.responseTimeoutMs,
       );
-      if (line == null) {
+      if (line === null) {
         // Timeout/EOF desyncs the protocol — kill so a late response can
         // never be misattributed to the next request.
         kill();

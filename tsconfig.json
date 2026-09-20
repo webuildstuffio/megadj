@@ -15,6 +15,7 @@
     "allowUnreachableCode": false,
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
     "skipLibCheck": true,
     "noEmit": true,
     "incremental": true,

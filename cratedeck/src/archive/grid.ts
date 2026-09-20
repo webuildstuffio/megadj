@@ -82,7 +82,7 @@ export function gridCrossCheck(
     drift,
   };
   for (const r of rows) {
-    if (r.bpm_folded == null) continue;
+    if (r.bpm_folded === null) continue;
     let beats: number[] = [];
     try {
       const parsed: unknown = JSON.parse(r.beats_json);

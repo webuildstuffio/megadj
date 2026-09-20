@@ -223,12 +223,57 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
         this.rows<{ n: number }>(`SELECT COUNT(*) n FROM ${name}`)[0]?.n ?? 0
       );
     };
+    // Enrichment stages (#260 UX): where the downloaded pool stands per
+    // stage — unprocessed cohorts (no genre, not yet genre-voted, raw
+    // batch folders) are the "what still needs processing" answer. The
+    // batch-folder split is read-side (JS) over the one path column: a
+    // SQL folder-split would be fragile substring gymnastics.
+    const batchRows = db
+      ? this.rows<{ folder: string }>(
+          `SELECT file_path AS folder FROM tracks
+           WHERE status = 'downloaded'
+             AND file_path LIKE '%DJ-Imports/%'
+           ORDER BY updated_at DESC`,
+        )
+      : [];
     return {
       available: db !== null,
       tracks,
       beats: ledger("beats"),
       mood: ledger("mood"),
       cues: ledger("cues"),
+      stages: db
+        ? {
+            noGenre:
+              this.rows<{ n: number }>(
+                `SELECT COUNT(*) n FROM tracks
+                 WHERE status = 'downloaded'
+                   AND (genre IS NULL OR genre = '')`,
+              )[0]?.n ?? 0,
+            genreVoted:
+              this.rows<{ n: number }>(
+                `SELECT COUNT(*) n FROM tracks
+                 WHERE status = 'downloaded'
+                   AND genre_votes IS NOT NULL
+                   AND genre_votes NOT IN ('', '[]', '{}')`,
+              )[0]?.n ?? 0,
+            rawBatches: Object.entries(
+              batchRows.reduce<Record<string, number>>((acc, r) => {
+                const marker = r.folder.indexOf("DJ-Imports/");
+                if (marker === -1) return acc;
+                const rest = r.folder.slice(marker + "DJ-Imports/".length);
+                const slash = rest.indexOf("/");
+                if (slash <= 0) return acc;
+                const folder = rest.slice(0, slash);
+                acc[folder] = (acc[folder] ?? 0) + 1;
+                return acc;
+              }, {}),
+            )
+              .toSorted((a, b) => (a[0] < b[0] ? 1 : -1))
+              .slice(0, 8)
+              .map(([folder, files]) => ({ folder, files })),
+          }
+        : undefined,
     };
   }
 

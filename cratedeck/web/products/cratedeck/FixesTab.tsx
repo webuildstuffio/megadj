@@ -79,7 +79,7 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
   const boothTerm = HELP_TERMS.find((t) => t.term === "Booth fleet");
 
   const banner =
-    scanned == null || !scanned.scannedPath
+    scanned === null || scanned === undefined || !scanned.scannedPath
       ? {
           cls: "ok" as const,
           text: "No booth audit yet — run a scan to check the shelf against your player fleet.",

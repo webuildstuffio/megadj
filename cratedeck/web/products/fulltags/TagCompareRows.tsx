@@ -105,8 +105,9 @@ function GenreRow({ t }: { t: CompareData }) {
       <KVVal>
         <span
           class={diffPill(
-            t.file?.genre != null &&
-              t.pipeline.genre != null &&
+            t.file !== null &&
+              t.file.genre !== null &&
+              t.pipeline.genre !== null &&
               t.file.genre.trim().toLowerCase() !==
                 t.pipeline.genre.trim().toLowerCase(),
           )}

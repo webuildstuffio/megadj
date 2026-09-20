@@ -90,7 +90,7 @@ export function probePayloadFiles(
     // the master DB travels with the drive; a Mac-local path would 404
     // on any other machine (and breaks the export leg).
     const rowPath =
-      shelf?.mount != null
+      shelf?.mount !== undefined
         ? (shelfPathFor(shelf.mount, shelf.archiveDir, full) ?? full)
         : full;
     if (rowPath !== full) shelfPrefer++;

@@ -21,6 +21,21 @@ export interface ArchiveRouteDeps {
   archive: ArchiveReader;
   db: DB;
   cfg: CrateConfig;
+  /** Optional job-engine seam: only the surfaced-batch write needs it
+   *  (enqueue the real ingest job instead of blocking the HTTP request
+   *  for a minutes-long CLI run). Structural — tests stub it; the
+   *  dispatcher supplies the real engine. */
+  jobs?: ArchiveJobs | undefined;
+}
+
+/** Minimal job-engine surface the archive family may use. */
+export interface ArchiveJobs {
+  enqueue: (
+    driveId: string,
+    kind: "ingest",
+    mountPoint: string,
+    origin: string,
+  ) => { id: string };
 }
 
 /** The CLI spawn seam for the family's single write (skip). The reads
@@ -396,6 +411,7 @@ export function archiveRoutes(
 ): Promise<Response | null> | Response | null {
   const { archive, db, cfg } = deps;
   archiveCli = megadjCli;
+  archiveJobs = deps.jobs;
   // One source of truth: the handler map's keys ARE the route list — the
   // regex here only asserts SHAPE (`/archive/<name>`), never enumerates
   // routes. The old hand-copied route-list regex drifted the moment
@@ -414,6 +430,8 @@ export function archiveRoutes(
  *  the write handlers (skip) can reach the engine CLI while the map's
  *  signature stays compatible with every read row. */
 let archiveCli: MegadjCli | undefined;
+/** The optional job-engine seam (surfaced-batch enqueue), same pattern. */
+let archiveJobs: ArchiveJobs | undefined;
 
 /** POST /api/archive/skip?id=<video_id> — user-marks ONE pending row as
  *  not-YouTube-music so sync's queue never picks it (Sep 19). Through
@@ -474,9 +492,10 @@ async function surfacedNoteRoute(
 }
 
 /** POST /api/archive/surfaced-batch — body {ids, folder}: the checklist's
- *  final button. Runs the REAL fulltags batch engine (`megadj ingest
- *  <folder> --json` — dated intake folder, tags, art, dedupe) and only on
- *  a green ingest marks the checked rows done. */
+ *  final button. Enqueues the REAL fulltags intake job (kind "ingest" —
+ *  dated intake folder, tags, art, dedupe, live progress) and marks the
+ *  checked rows done immediately (the user's act of checking means
+ *  "saved the file"; the job processes whatever is in the folder). */
 async function surfacedBatchRoute(
   req: Request | undefined,
   megadjCli: MegadjCli | undefined,
@@ -491,30 +510,31 @@ async function surfacedBatchRoute(
       : null;
   if (!folder || !folder.startsWith("/"))
     return json({ error: "folder must be an absolute path" }, 400);
-  const ids = Array.isArray(gate.body.ids) ? [...new Set(gate.body.ids)] : [];
+  const ids = Array.isArray(gate.body.ids)
+    ? [...new Set(gate.body.ids)].filter(
+        (id): id is string => typeof id === "string",
+      )
+    : [];
   if (
     ids.length === 0 ||
     ids.length > 500 ||
-    ids.some((id) => typeof id !== "string" || !/^[\w-]{6,24}$/.test(id))
+    ids.some((id) => !/^[\w-]{6,24}$/u.test(id))
   )
     return json({ error: "ids must contain 1–500 valid surfaced ids" }, 400);
-  const r = await megadjCli(["ingest", folder, "--json"]);
-  if (r.code !== 0)
-    return json(
-      { ok: false, error: r.stderr.slice(-800) || `exit ${r.code}` },
-      409,
-    );
-  // Mark the checklist rows done only on a green ingest — the batch DID
-  // run for the folder. Use one CLI call so partial unknowns remain visible
-  // in the command's summary and the route cannot claim every submitted id
-  // was accepted. The UI refreshes from the ledger, which is authoritative.
+  // Job-based (Sep 19 UX pass): the ingest is a REAL job on the engine —
+  // progress, cancel, SSE dock, one-at-a-time — instead of a blocking
+  // CLI spawn inside the HTTP request (the 600s client deadline was a
+  // symptom of that). The job's leg runs the CLI then notes the ids done.
+  if (!archiveJobs)
+    return json({ error: "surfaced-batch jobs not available" }, 501);
+  const job = archiveJobs.enqueue("local-archive", "ingest", folder, "web");
   const noted = await megadjCli(["surfaced-note", ...ids, "--json"]);
   if (noted.code !== 0)
     return json(
       { ok: false, error: noted.stderr.slice(-800) || `exit ${noted.code}` },
       409,
     );
-  return json({ ok: true, folder, submitted: ids.length });
+  return json({ ok: true, folder, submitted: ids.length, jobId: job.id });
 }
 
 function json(data: unknown, status = 200): Response {

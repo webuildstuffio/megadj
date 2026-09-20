@@ -75,7 +75,7 @@ export function VerifyTab(props: {
             <span>
               <Icon name="clock" size={12} /> last ran {timeAgo(report.ran_at)}
             </span>
-            {report.duration_s != null && (
+            {report.duration_s !== null && (
               <span>· took {report.duration_s}s</span>
             )}
             <span class="sep">·</span>

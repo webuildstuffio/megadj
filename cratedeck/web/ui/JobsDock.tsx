@@ -170,7 +170,7 @@ export function JobsDock(props: {
           let checkCount = 0;
           let unreadable: string | null = null;
           try {
-            if (j.result_json != null) {
+            if (j.result_json !== null) {
               // VerifyReport is the producer SSOT (verify_report.ts) — the
               // local shape used to drift (checks was "optional" here only
               // because of a hand-copy, masking missing arrays as 0).
@@ -349,7 +349,7 @@ function ActiveRow(props: {
               </span>
             )}
             <span style={{ marginLeft: "auto" }}>
-              {j.eta_seconds != null ? `ETA ${fmtEta(j.eta_seconds)}` : ""}
+              {j.eta_seconds !== null ? `ETA ${fmtEta(j.eta_seconds)}` : ""}
             </span>
           </div>
         </>

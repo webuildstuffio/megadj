@@ -142,19 +142,18 @@ export async function sweepArchive(
     const prior = ledger.get(rel);
     // The trusted fingerprint: an already-flagged row compares against its
     // PRESERVED known-good, not the corrupt bytes the last sweep recorded.
-    const trustedHash =
-      prior?.flagged_at != null ? prior.known_good_blake2b : prior?.blake2b;
-    const trustedSize =
-      prior?.flagged_at != null
-        ? (prior.known_good_size_bytes ?? prior.size_bytes)
-        : prior?.size_bytes;
-    const sizeChanged = trustedSize != null && trustedSize !== st.size;
+    const flagged = prior !== undefined && prior.flagged_at !== null;
+    const trustedHash = flagged ? prior.known_good_blake2b : prior?.blake2b;
+    const trustedSize = flagged
+      ? (prior.known_good_size_bytes ?? prior.size_bytes)
+      : prior?.size_bytes;
+    const sizeChanged = trustedSize !== null && trustedSize !== st.size;
     if (prior && trustedHash === hex) {
       unchanged++;
       if (sizeHintDiffers(t.size_hint, st.size)) {
         findings.push(sizeHintFinding(rel, t, st.size));
       }
-      if (sizeChanged || prior?.flagged_at != null) {
+      if (sizeChanged || flagged) {
         // known-good hash is back (or size caught up): clear the flag
         update({
           file_path: rel,
@@ -166,7 +165,7 @@ export async function sweepArchive(
           known_good_size_bytes: null,
         });
       }
-      if (prior?.flagged_at != null) {
+      if (flagged) {
         // previously corrupt/changed, now matches the known-good again
         findings.push({
           path: rel,

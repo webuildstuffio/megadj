@@ -148,7 +148,7 @@ async function runKeyServer(
     const t0 = Date.now();
     while (out.size < paths.length && Date.now() - t0 < 120_000) {
       const line = await readUntil(hasId, 120_000);
-      if (line == null) break;
+      if (line === null) break;
       const msg = parseKeyServerLine(line);
       if (!msg) continue;
       if (msg.status === "success" && msg.camelot) {

@@ -35,7 +35,7 @@ const DAY = 86_400_000;
 /** Free-space gate. rekordbox needs headroom for ANLZ + DB WAL writes; a
  *  full stick fails gig night even when every track reads fine. */
 export function spaceCheck(snap: SnapshotData | null): HealthCheck | null {
-  if (snap?.free_bytes == null) return null;
+  if (snap?.free_bytes === undefined || snap.free_bytes === null) return null;
   const cap = snap.capacity_bytes ?? 0;
   if (!cap) return null;
   const freePct = snap.free_bytes / cap;

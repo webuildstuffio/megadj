@@ -203,7 +203,7 @@ export async function probeFile(path: string): Promise<Probe> {
   const tags: Record<string, string> = {};
   for (const k of Object.keys(formatTags)) {
     const v = formatTags[k];
-    if (v == null) continue;
+    if (v === null) continue;
     tags[k.toLowerCase()] = String(v).trim();
   }
   const streams = data.streams;

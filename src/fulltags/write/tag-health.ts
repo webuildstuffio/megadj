@@ -64,7 +64,7 @@ export function tagHealth(path: string): TagHealth {
     ["artist", t.artist],
     ["album", t.album],
   ] as const) {
-    if (v == null) continue;
+    if (v === null) continue;
     if (isMojibake(v)) reasons.push(`mojibake-${label}`);
     // Control-byte detection is booth-text's SSOT (hasControlChars) — same
     // C0/DEL/C1 verdict the path check uses, one definition.
