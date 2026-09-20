@@ -316,7 +316,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
       )
       .all(`${ARCH}/%`) as Row[]
   ).filter(
-    // files now holds full paths (genre subfolders included), so match
+    // files now holds full paths (batch subfolders included), so match
     // file_path directly — the basename Set missed every organized track.
     (r) => files.has(r.file_path) && existsSync(r.file_path),
   );

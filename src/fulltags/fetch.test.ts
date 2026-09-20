@@ -27,7 +27,10 @@ function fakeTrack(rel: string): void {
 }
 
 describe("auditArchive folder walk", () => {
-  test("finds tracks in genre subfolders, not just the top level", async () => {
+  // The walker must recurse — organize() groups files into dated BATCH
+  // subfolders now (the folder names below keep the old genre spellings,
+  // which is fine: any subfolder shape exercises the same recursion).
+  test("finds tracks in subfolders, not just the top level", async () => {
     fakeTrack("top.m4a");
     fakeTrack("House/organized.m4a");
     fakeTrack("Techno  Trance/deep-dive.m4a");

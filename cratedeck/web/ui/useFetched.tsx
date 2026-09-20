@@ -16,7 +16,7 @@ export function useFetched<T>(
   deps: unknown[],
 ): Fetched<T> & { refresh?: () => void } {
   const [page, setPage] = useState<Fetched<T>>({ status: "loading" });
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   // `load` is an inline closure at every call site — a fresh identity each
   // render. The effect keys on the CALLER'S deps only; the closure itself
   // is read through a ref so the deps rule is satisfied by construction
@@ -33,7 +33,9 @@ export function useFetched<T>(
     return () => {
       alive = false;
     };
-  }, deps);
+    // tick: refresh() bumps it to re-run the loader in place (post-mutation
+    // refresh — the caller's list must reflect the change without a nav).
+  }, [...deps, tick]);
   return page.status === "ok"
     ? { ...page, refresh: () => setTick((t) => t + 1) }
     : page;

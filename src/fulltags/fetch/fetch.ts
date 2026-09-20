@@ -39,9 +39,9 @@ export interface FetchOptions {
 }
 
 /** Audio files under the archive, recursively — organize() moves tracks
- * into genre subfolders, so a top-level readdir would audit an empty set
- * and always report "all complete" (0/0 is vacuous). Shared FullTags
- * walker: same skip/extension rules as every other collect pass. */
+ * into dated batch subfolders, so a top-level readdir would audit an
+ * empty set and always report "all complete" (0/0 is vacuous). Shared
+ * FullTags walker: same skip/extension rules as every other collect pass. */
 const walkArchive = walkAudioFiles;
 
 /** Ground-truth audit of every audio file in the archive (player-compat

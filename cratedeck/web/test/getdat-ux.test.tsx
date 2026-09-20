@@ -104,3 +104,23 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
     expect(canvasCss).not.toContain("#256b49");
   });
 });
+
+// refresh() must actually re-run the loader: the tick state has to be in
+// the effect's dep array. (Found live Sep 19: setTick existed but the
+// effect keyed only on the caller's deps — refresh bumped state that
+// nothing read, so the pending-queue card never updated after a skip.)
+describe("useFetched refresh (post-mutation reload)", () => {
+  const src = readFileSync(
+    join(import.meta.dir, "../ui/useFetched.tsx"),
+    "utf8",
+  );
+
+  test("refresh's tick is an effect dep (the loader really re-runs)", () => {
+    expect(src).toContain("setTick");
+    expect(src).toMatch(/\[\.\.\.deps,\s*tick\]/);
+  });
+
+  test("refresh is exposed on the ok branch", () => {
+    expect(src).toContain("refresh: () => setTick((t) => t + 1)");
+  });
+});

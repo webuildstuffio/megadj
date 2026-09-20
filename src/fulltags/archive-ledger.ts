@@ -28,7 +28,7 @@ export const DB_PATH =
   process.env.MEGADJ_DB ?? `${home}/.local/state/megadj/archive.db`;
 export const db = new Database(DB_PATH);
 
-/** Audio files under the archive, recursively (genre subfolders included —
+/** Audio files under the archive, recursively (batch subfolders included —
  * organize() moves tracks into them, so a top-level readdir skipped every
  * organized track and let same-named files in different folders collide). */
 export function archiveFiles(): Set<string> {

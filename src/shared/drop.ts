@@ -486,7 +486,8 @@ const STAGE_RUNNERS: StageSpec[] = [
   },
   {
     name: "organize",
-    // Stage 5 — organize into genre folders (never deletes; moves only).
+    // Stage 5 — sweep loose root files into the dated batch folder (never
+    // deletes; moves only; batch folders themselves stay untouched).
     run: ({ opts }) =>
       organize({
         state: opts.state,

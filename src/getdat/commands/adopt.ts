@@ -33,7 +33,7 @@ export interface AdoptOptions {
   dryRun?: boolean;
 }
 
-/** Audio files under the archive (the tree has genre subfolders) — shared
+/** Audio files under the archive (the tree has batch subfolders) — shared
  * FullTags walker, filtered to .m4a for the YouTube-intake format. Sync
  * walk is fine here: adopt is a short CLI pass. */
 function walkM4a(dir: string): string[] {
