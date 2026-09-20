@@ -511,8 +511,8 @@ async function surfacedBatchRoute(
   if (!folder || !folder.startsWith("/"))
     return json({ error: "folder must be an absolute path" }, 400);
   const ids = Array.isArray(gate.body.ids)
-    ? [...new Set(gate.body.ids)].filter(
-        (id): id is string => typeof id === "string",
+    ? [...new Set(gate.body.ids as unknown[])].filter(
+        (id: unknown): id is string => typeof id === "string",
       )
     : [];
   if (
