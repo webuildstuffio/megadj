@@ -5,10 +5,12 @@ export const CRATEDECK_COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "tmp-purge",
     group: "cratedeck",
     block: [
-      "  megadj tmp-purge [--state] [--apply] [--all] [--json]",
+      "  megadj tmp-purge [--state] [--orphan-runs] [--apply] [--all] [--json]",
       "                                               sweep stale test fixture dirs from the OS tmpdir (--state:",
       "                                               the ~/.local/state/megadj backup/sidecar/spike tier, newest",
-      "                                               lineage backup kept); age-gated >24h, read-only without --apply",
+      "                                               lineage backup kept; --orphan-runs: close sync runs that",
+      "                                               crashed before finishing — never the newest 24h/active ones);",
+      "                                               age-gated >24h, read-only without --apply",
     ],
   },
   {

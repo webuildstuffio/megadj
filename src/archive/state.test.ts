@@ -133,6 +133,9 @@ describe("ArchiveState", () => {
 
   test("run lifecycle persisted", () => {
     const runId = state.startRun();
+    // runIsFinished false before, true after — the orphan-run guard in
+    // sync()'s finally reads this (must never double-stamp a run).
+    expect(state.runIsFinished(runId)).toBe(false);
     state.finishRun(runId, {
       attempted: 5,
       downloaded: 3,
@@ -143,6 +146,7 @@ describe("ArchiveState", () => {
     const runs = state.lastRuns(1);
     expect(runs[0]?.downloaded).toBe(3);
     expect(runs[0]?.bytes_downloaded).toBe(12345);
+    expect(state.runIsFinished(runId)).toBe(true);
   });
 
   test("fresh DB has the `year` column (fetch/years writes must not crash)", () => {

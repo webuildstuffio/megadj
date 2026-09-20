@@ -18,7 +18,13 @@
 //   - per-family counts + bytes in the report; `--json` contract
 //
 // Read-only by default: pass --apply to delete.
-import { readdirSync, realpathSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -40,6 +46,11 @@ export interface TmpPurgeOptions {
   json: boolean;
   /** Sweep the state dir (~/.local/state/megadj) instead of the tmpdir. */
   state?: boolean;
+  /** Close orphaned open run rows (finished_at NULL with attempted = 0 and
+   *  a started_at older than 24h — the crashed/killed `sync` wedge class,
+   *  302 rows found Sep 20). Newest-N open runs are never touched: a run
+   *  genuinely in progress has recent started_at and/or attempted > 0. */
+  orphanRuns?: boolean;
   log: (message: string) => void;
   /** Test seam: explicit roots make multi-root fixture coverage hermetic. */
   roots?: string[];
@@ -89,7 +100,78 @@ function treeBytes(path: string): number {
 }
 
 export function tmpPurge(opts: TmpPurgeOptions): TmpPurgeResult {
+  if (opts.orphanRuns) return orphanRunPurge(opts);
   return opts.state ? statePurge(opts) : tmpPurgeSweep(opts);
+}
+
+/** The --orphan-runs tier (Sep 20): close run rows that will never
+ *  finish. A crashed/killed `sync` used to leak an open row forever (302
+ *  found — oldest Aug 22), and status/recent_runs then lie about a run
+ *  "in progress". The selector is deliberately narrow: finished_at NULL,
+ *  attempted = 0 (a run that did ANY work keeps its numbers honest — it
+ *  can be judged by a human, not bulk-closed), started_at older than 24h.
+ *  The closure stamps attempted=0/finished_at=now: an honest "nothing
+ *  happened" verdict, never fabricated progress. --apply gates the write;
+ *  read-only reports the count. */
+export function orphanRunPurge(opts: TmpPurgeOptions): TmpPurgeResult {
+  const root = join(homedir(), ".local", "state", "megadj");
+  const dbPath = join(root, "archive.db");
+  if (!existsSync(dbPath)) {
+    opts.log(`tmp-purge --orphan-runs: no ledger at ${dbPath}`);
+    return {
+      ok: false,
+      root,
+      scanned: 0,
+      eligible: 0,
+      applied: 0,
+      freedBytes: 0,
+      families: [],
+      appliedMode: opts.apply,
+    };
+  }
+  const { Database } = require("bun:sqlite") as {
+    Database: new (path: string) => {
+      query: (sql: string) => {
+        get: (...p: unknown[]) => unknown;
+        all: (...p: unknown[]) => unknown[];
+        run: (...p: unknown[]) => unknown;
+      };
+      close: () => void;
+    };
+  };
+  const db = new Database(dbPath);
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const orphans = db
+      .query(
+        "SELECT id FROM runs WHERE finished_at IS NULL AND attempted = 0 AND started_at < ?",
+      )
+      .all(cutoff) as { id: number }[];
+    if (opts.apply && orphans.length > 0) {
+      const now = new Date().toISOString();
+      const upd = db.query(
+        "UPDATE runs SET finished_at = ?, attempted = 0, downloaded = 0, gone = 0, failed = 0, bytes_downloaded = 0 WHERE id = ? AND finished_at IS NULL AND attempted = 0",
+      );
+      for (const o of orphans) upd.run(now, o.id);
+    }
+    opts.log(
+      `tmp-purge --orphan-runs: ${orphans.length} orphaned run row(s) ${opts.apply ? "closed" : "found (read-only; --apply to close)"}`,
+    );
+    return {
+      ok: true,
+      root,
+      scanned: orphans.length,
+      eligible: orphans.length,
+      applied: opts.apply ? orphans.length : 0,
+      freedBytes: 0,
+      families: [
+        { prefix: "orphan-runs", dirs: orphans.length, bytes: 0 },
+      ],
+      appliedMode: opts.apply,
+    };
+  } finally {
+    db.close();
+  }
 }
 
 function commandOutput(value: unknown): string {

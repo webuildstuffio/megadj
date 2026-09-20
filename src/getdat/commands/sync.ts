@@ -760,6 +760,38 @@ export async function sync(opts: SyncOptions): Promise<void> {
   // a finished run row, so "dry" mutated the archive's memory.
   const runId = isDry ? null : opts.state.startRun();
 
+  // Sep 20 (302-orphan-runs fix): every failure path below startRun() used
+  // to leak an open run row (finished_at NULL forever — oldest found was
+  // Aug 22; status/recent_runs then lie about a run "in progress"). The
+  // finally closes the run with the totals SO FAR, then the error still
+  // propagates — the ledger tells the truth, the caller still sees the
+  // failure.
+  try {
+    return await syncInner(opts, log, runId, downloader, isDry);
+  } finally {
+    if (runId !== null && !opts.state.runIsFinished(runId)) {
+      const z = newTotals();
+      opts.state.finishRun(runId, {
+        attempted: z.attempted,
+        downloaded: z.downloaded,
+        gone: z.gone,
+        failed: z.failed,
+        bytesDownloaded: z.bytes,
+      });
+    }
+  }
+}
+
+/** The post-startRun body (queue → process → organize → finish). Split so
+ *  sync()'s finally can close the run row on ANY throw (the 302-orphan
+ *  fix above) without duplicating the finish call in every branch. */
+async function syncInner(
+  opts: SyncOptions,
+  log: (msg: string) => void,
+  runId: number | null,
+  downloader: Downloader,
+  isDry: boolean,
+): Promise<void> {
   // --repair-identity (#258-followup, Sep 19): SC rows that reached a
   // terminal state (gone / link_surfaced) with thin metadata — set/user
   // fan-out entries carry only id+url, so a row marked terminal at probe

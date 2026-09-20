@@ -68,6 +68,16 @@ export class ArchiveBeats extends ArchiveTracks {
       );
   }
 
+  /** Whether a run row already has its finished_at stamp (the orphan-run
+   *  guard in sync()'s finally reads this — finish-then-finalize must
+   *  never double-stamp or zero a finished run's real totals). */
+  runIsFinished(id: number): boolean {
+    const row = this.db
+      .query("SELECT finished_at FROM runs WHERE id = ?")
+      .get(id) as { finished_at: string | null } | null;
+    return row !== null && row.finished_at !== null;
+  }
+
   lastRuns(n: number): RunRow[] {
     return this.db
       .query("SELECT * FROM runs ORDER BY id DESC LIMIT ?")
