@@ -245,7 +245,7 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
 const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
   const flags = parseFlags(
     rest,
-    ["limit", "jobs"],
+    ["limit", "jobs", "max-seconds"],
     ["force", "dry-run", "json", "embeddings"],
   );
   const json = flags.bools.has("json");
@@ -253,6 +253,8 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
   const limit = nonNegOpt(flags, "limit", "mood", json);
   if (nonNegOptInvalid(flags, "jobs", "mood", json)) return;
   const jobs = nonNegOpt(flags, "jobs", "mood", json);
+  if (nonNegOptInvalid(flags, "max-seconds", "mood", json)) return;
+  const maxSeconds = nonNegOpt(flags, "max-seconds", "mood", json);
   const { mood: analyzeMood } = await import("./analysis/mood");
   await analyzeMood({
     state,
@@ -263,6 +265,7 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
     dryRun: flags.bools.has("dry-run"),
     json,
     embeddings: flags.bools.has("embeddings"),
+    maxSeconds,
   });
 };
 

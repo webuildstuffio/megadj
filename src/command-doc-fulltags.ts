@@ -86,8 +86,9 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "mood",
     group: "fulltags",
     block: [
-      "  megadj mood    [--limit N] [--jobs N] [--force] [--dry-run] [--json] [--embeddings]",
-      "                                               ONNX mood/dance/VA → DB ledger (syncs TXXX:MOOD stamps; analyzes unstamped)",
+      "  megadj mood    [--limit N] [--jobs N] [--max-seconds S] [--force] [--dry-run] [--json] [--embeddings]",
+      "                                               ONNX mood/dance/VA → DB ledger (syncs TXXX:MOOD stamps; analyzes unstamped;",
+      "                                               files >10 min skipped — --max-seconds 0 disables)",
     ],
   },
   {

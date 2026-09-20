@@ -31,11 +31,24 @@ export interface MoodOptions {
   /** I49 "sounds like": also emit + ledger the effnet 1280-d embedding
    * per analyzed track (same probe run — no extra model cost). */
   embeddings?: boolean | undefined;
+  /** Skip files longer than this (seconds). Long-form mixes/videos can
+   *  take 10+ min EACH in ONNX decode+infer and starve the single-worker
+   *  batch (the Sep 19 stall: one 3-hour mix blocked a 172-file run for
+   *  20+ min with zero output). Default 10 min — DJ tracks, not DJ sets.
+   *  0 disables the cap. */
+  maxSeconds?: number | undefined;
   onProgress?: (msg: string) => void;
 }
 
+/** Sep 19 (user policy): mood analysis targets DJ tracks — a 10-minute
+ *  ceiling keeps one multi-hour mix from starving the whole batch. */
+const DEFAULT_MAX_MOOD_SECONDS = 10 * 60;
+
 export async function mood(opts: MoodOptions): Promise<void> {
   const log = commandLog(opts);
+  const maxSeconds =
+    opts.maxSeconds === undefined ? DEFAULT_MAX_MOOD_SECONDS : opts.maxSeconds;
+  if (opts.dryRun) log("dry run: probing queue, no ONNX analysis");
 
   const candidates = opts.state
     .allTracks()
@@ -72,15 +85,61 @@ export async function mood(opts: MoodOptions): Promise<void> {
   const pass1 = syncPass(opts, candidates, record);
   const needAnalysis = buildAnalysisQueue(opts, pass1, candidates);
 
-  // Pass 2 — analyze tracks with no (or malformed) file stamps.
-  const { analyzed, failed } = await analysisPass(
-    opts,
-    needAnalysis,
-    record,
-    log,
-  );
+  // Length cap (Sep 19): probe duration once; over-cap files are counted
+  // honestly (`overLengthCap`) instead of wedging the batch — the queue
+  // is ONE python worker, so a 3-hour mix previously stalled everything
+  // behind it with zero output.
+  const runnable: TrackRow[] = [];
+  let overLengthCap = 0;
+  for (const t of needAnalysis) {
+    if (maxSeconds > 0 && (t.duration_s ?? 0) > maxSeconds) {
+      overLengthCap++;
+      continue;
+    }
+    runnable.push(t);
+  }
+  if (overLengthCap > 0)
+    log(
+      `  skipping ${overLengthCap} file(s) over the ${Math.round(maxSeconds / 60)}-min cap (re-run with --max-seconds 0 to include)`,
+    );
 
-  await emitMoodSummary(opts, { ...pass1, analyzed, failed });
+  // Dry-run reports the would-be workload WITHOUT spawning ONNX (the old
+  // behavior analyzed the whole queue "dry" — a dry-run that takes an
+  // hour is not a dry run).
+  if (opts.dryRun) {
+    log(
+      `  would analyze ${runnable.length} file(s), skip ${overLengthCap} over cap`,
+    );
+    await emitMoodSummary(opts, {
+      ...pass1,
+      analyzed: 0,
+      failed: 0,
+      overLengthCap,
+    });
+    return;
+  }
+
+  // Pass 2 — analyze tracks with no (or malformed) file stamps, in
+  // chunks: analyzeMoods streams ONE python worker over its whole input,
+  // so results only land per completed file — chunking bounds the blast
+  // radius of a wedged decode and makes progress visible per chunk.
+  let analyzed = 0;
+  let failed = 0;
+  const CHUNK = 20;
+  for (let i = 0; i < runnable.length; i += CHUNK) {
+    const chunk = runnable.slice(i, i + CHUNK);
+    log(`  mood chunk ${i + 1}-${i + chunk.length} of ${runnable.length}…`);
+    const result = await analysisPass(opts, chunk, record, log);
+    analyzed += result.analyzed;
+    failed += result.failed;
+  }
+
+  await emitMoodSummary(opts, {
+    ...pass1,
+    analyzed,
+    failed,
+    overLengthCap,
+  });
 }
 
 /** Pass-1 counters (synced from file stamps). */
@@ -194,19 +253,26 @@ async function analysisPass(
  *  nothing ran. */
 async function emitMoodSummary(
   opts: MoodOptions,
-  counts: SyncCounts & { analyzed: number; failed: number },
+  counts: SyncCounts & {
+    analyzed: number;
+    failed: number;
+    overLengthCap: number;
+  },
 ): Promise<void> {
   const log = commandLog(opts);
-  const { synced, analyzed, failed, energySynced } = counts;
+  const { synced, analyzed, failed, energySynced, overLengthCap } = counts;
   const total = opts.state.moodSummary().analyzed;
   const embedded = opts.embeddings
     ? opts.state.embeddingCorpus().length
     : undefined;
+  const capNote =
+    overLengthCap > 0 ? `, ${overLengthCap} over length cap (skipped)` : "";
   if (
     synced === 0 &&
     analyzed === 0 &&
     failed === 0 &&
     energySynced === 0 &&
+    overLengthCap === 0 &&
     !opts.dryRun
   ) {
     log(
@@ -214,7 +280,7 @@ async function emitMoodSummary(
     );
   } else {
     log(
-      `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${energySynced} energy columns synced, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
+      `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${energySynced} energy columns synced${capNote}, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
     );
   }
   await writeJson({
@@ -223,6 +289,7 @@ async function emitMoodSummary(
     analyzed,
     failed,
     energySynced,
+    overLengthCap,
     ledgered: total,
     ...(embedded !== undefined ? { embedded } : {}),
     dryRun: opts.dryRun === true,

@@ -31,15 +31,16 @@ export interface BeatsOptions {
   json?: boolean | undefined;
   onProgress?: ((msg: string) => void) | undefined;
   /** Skip beat analysis for tracks longer than this many seconds
-   *  (default 900 = 15min; 0 disables). */
+   *  (default 600 = 10min; 0 disables). */
   maxSeconds?: number | undefined;
 }
 
 const MODEL = "beat-this@1.1.0";
 /** Tracks longer than this many seconds skip beat analysis by default —
- *  beat_this cost scales with runtime and a 40-minute long-mix can dominate
- *  a batch (user request, Sep 11). 0 disables the cap. */
-const DEFAULT_MAX_BEAT_SECONDS = 15 * 60;
+ *  beat_this cost scales with runtime and a long-mix can dominate a batch
+ *  (user request, Sep 11; lowered 15→10min Sep 19 to match the mood cap —
+ *  analysis targets DJ TRACKS, not multi-hour sets). 0 disables the cap. */
+const DEFAULT_MAX_BEAT_SECONDS = 10 * 60;
 
 export async function beats(opts: BeatsOptions): Promise<void> {
   const log = commandLog(opts);
