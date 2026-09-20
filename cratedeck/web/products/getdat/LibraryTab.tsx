@@ -224,7 +224,7 @@ export function LibraryTab() {
             icon="usb"
             title="Codecs"
             n={lib.codecs.length}
-            hint="Container/codec mix of the playable files. pcm_* are WAVs (lossless — ingest converts new WAVs to AIFF for rekordbox art); mp3 are legacy downloads."
+            hint="Container/codec mix of the playable files. pcm_* are WAVs/AIFFs (lossless); rekordbox-mirror rows get theirs from the master DB's own FileType/BitDepth at rb-adopt — extensions never decide."
             lines={lib.codecs.map((c) => `${c.codec}: ${c.count}`)}
           />
           <ChipListLite

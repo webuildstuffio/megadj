@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ArchiveState } from "../archive/state";
 import { rbAdopt, type RekordboxContentRow } from "./rb-adopt";
-import { reconcileRekordboxRows } from "./rb-adopt-apply";
+import { reconcileRekordboxRows, rekordboxCodec } from "./rb-adopt-apply";
 import { tempDir, stateIn } from "../test-support/testutil";
 
 const t = tempDir("megadj-rb-adopt-").rippable();
@@ -282,6 +282,69 @@ describe("rb-adopt", () => {
       ).toEqual({ n: 3 });
       expect(existsSync(existingPath)).toBe(true);
       expect(existsSync(newPath)).toBe(true);
+    } finally {
+      state.close();
+    }
+  });
+
+  test("codec derives from the Content FileType/BitDepth, never the extension", () => {
+    // pyrekordbox FileType enum (db6/tables.py): MP3=1 M4A=4 FLAC=5 WAV=11
+    // AIFF/AIF=12. WAV/AIFF need BitDepth for the exact pcm_* codec; a
+    // missing depth stays null (honest gap), an unknown FileType too.
+    expect(rekordboxCodec({ FileType: 1 })).toBe("mp3");
+    expect(rekordboxCodec({ FileType: 4 })).toBe("aac");
+    expect(rekordboxCodec({ FileType: 5 })).toBe("flac");
+    expect(rekordboxCodec({ FileType: 11, BitDepth: 16 })).toBe("pcm_s16le");
+    expect(rekordboxCodec({ FileType: 11, BitDepth: 24 })).toBe("pcm_s24le");
+    expect(rekordboxCodec({ FileType: 11, BitDepth: 32 })).toBe("pcm_s32le");
+    expect(rekordboxCodec({ FileType: 12, BitDepth: 16 })).toBe("pcm_s16be");
+    expect(rekordboxCodec({ FileType: 12, BitDepth: 24 })).toBe("pcm_s24be");
+    // honest gaps: missing depth / unknown type / missing metadata
+    expect(rekordboxCodec({ FileType: 11 })).toBeNull();
+    expect(rekordboxCodec({ FileType: 99 })).toBeNull();
+    expect(rekordboxCodec({})).toBeNull();
+    // .m4a name with FileType 11 (WAV) = WAV — extensions lie
+    expect(
+      rekordboxCodec({ FileType: 11, BitDepth: 16, FileNameL: "x.m4a" }),
+    ).toBe("pcm_s16le");
+  });
+
+  test("re-adopt backfills codec on pre-existing mirror rows", () => {
+    const { state, existingPath, newPath } = fixture();
+    try {
+      const input = rows(existingPath, newPath).map((row) => ({
+        ...row,
+        // realistic Content metadata: WAV 24-bit and MP3
+        metadata:
+          row.contentId === "1001"
+            ? { ID: row.contentId, FileType: 12, BitDepth: 24 }
+            : { ID: row.contentId, FileType: 1 },
+      }));
+      // First apply seeds rows; strip codecs to simulate the legacy mirror
+      // that never wrote the column (the Sep 19 Codecs-card 3,133 case).
+      reconcileRekordboxRows({
+        state,
+        sourceDb: "/Volumes/SHELF1/PIONEER/Master/master.db",
+        rows: input,
+        apply: true,
+      });
+      state.db.exec("UPDATE tracks SET codec = NULL");
+      const again = reconcileRekordboxRows({
+        state,
+        sourceDb: "/Volumes/SHELF1/PIONEER/Master/master.db",
+        rows: input,
+        apply: true,
+      });
+      expect(again.ok).toBe(true);
+      const codecs = state.db
+        .query(
+          "SELECT video_id, codec FROM tracks WHERE status = 'downloaded' ORDER BY video_id",
+        )
+        .all() as { video_id: string; codec: string | null }[];
+      expect(codecs).toEqual([
+        { video_id: "rb-1002", codec: "mp3" },
+        { video_id: "youtube-real-id", codec: "pcm_s24be" },
+      ]);
     } finally {
       state.close();
     }

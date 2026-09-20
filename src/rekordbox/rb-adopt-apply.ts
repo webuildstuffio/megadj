@@ -34,6 +34,42 @@ export interface RekordboxContentRowRef {
   metadata: Record<string, unknown>;
 }
 
+/** Rekordbox FileType → ffprobe codec_name, decoded from pyrekordbox's own
+ *  FileType enum (db6/tables.py: MP3=1, M4A=4, FLAC=5, WAV=11, AIFF/AIF=12)
+ *  — no hand-guessed container detection. WAV/AIFF need BitDepth for the
+ *  exact pcm_* codec the rest of the ledger stores (probed vocabulary);
+ *  a missing depth stays null (honest gap), never a guess. Filled the
+ *  Codecs card's 3,133 "unknown" (the whole rb-adopt mirror cohort never
+ *  wrote codec — Sep 19). */
+const RB_FILETYPE_CODEC: Record<number, string> = {
+  1: "mp3",
+  4: "aac",
+  5: "flac",
+};
+
+const RB_PCM_CODEC: Record<string, string> = {
+  "11/16": "pcm_s16le",
+  "11/24": "pcm_s24le",
+  "11/32": "pcm_s32le",
+  "12/16": "pcm_s16be",
+  "12/24": "pcm_s24be",
+};
+
+/** Derive the archive `codec` column from a Content row's own metadata. */
+export function rekordboxCodec(
+  metadata: Record<string, unknown>,
+): string | null {
+  const fileType = metadata["FileType"];
+  const depth = metadata["BitDepth"];
+  const ft = typeof fileType === "number" ? fileType : NaN;
+  const d = typeof depth === "number" ? depth : NaN;
+  if (Number.isFinite(ft) && Number.isFinite(d)) {
+    const pcm = RB_PCM_CODEC[`${ft}/${d}`];
+    if (pcm !== undefined) return pcm;
+  }
+  return RB_FILETYPE_CODEC[ft] ?? null;
+}
+
 interface TrackIdentityRow {
   video_id: string;
   file_path: string | null;
@@ -235,9 +271,7 @@ export function insertedCount(plan: PlanRow[]): number {
   ).size;
 }
 
-/** Reconcile the read content rows INTO archive.db (transactional): the
- *  one archive-ledger mutation rb-adopt owns. Dry-run returns the base
- *  shape without touching the ledger. */
+/** Option shape for reconcileRekordboxRows. */
 export interface ReconcileOptionsShape {
   state: ArchiveState;
   sourceDb: string;
@@ -360,8 +394,8 @@ export function reconcileRekordboxRows(
             `INSERT INTO tracks (
                video_id, title, artist, album, status, bitrate_kbps,
                file_path, file_size_bytes, duration_s, last_error, source,
-               genre, year, first_seen_at, updated_at
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rekordbox', ?, ?, ?, ?)`,
+               genre, year, codec, first_seen_at, updated_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rekordbox', ?, ?, ?, ?, ?)`,
           )
           .run(
             item.videoId,
@@ -376,6 +410,7 @@ export function reconcileRekordboxRows(
             item.fileExists ? null : "Rekordbox Content path is missing",
             item.row.genre,
             item.row.year,
+            rekordboxCodec(item.row.metadata),
             now,
             now,
           );
@@ -405,6 +440,17 @@ export function reconcileRekordboxRows(
             now,
             item.videoId,
           );
+        // Codec backfill (Sep 19): the mirror cohort predates codec writes,
+        // so the Codecs card showed 3,133 "unknown". Derive from the Content
+        // row's own FileType/BitDepth — never the filename extension.
+        if (rekordboxCodec(item.row.metadata) !== null) {
+          opts.state.db
+            .query(
+              `UPDATE tracks SET codec = COALESCE(codec, ?)
+               WHERE video_id = ?`,
+            )
+            .run(rekordboxCodec(item.row.metadata), item.videoId);
+        }
       }
       opts.state.db
         .query(
