@@ -24,12 +24,13 @@ import { ytdlpCookieArgs } from "../getdat/downloader";
 import {
   SC_FORMAT,
   extractAcquisitionLinks,
-  isPrivateUser404,
   isSoundCloudUrl,
   mergeScRawLinks,
   ripDecision,
   scRawTrackLinks,
+  scSetTrackIds,
   scTrackIdFromUrl,
+  scTrackUrl,
 } from "../getdat/soundcloud";
 import {
   intakeFolderName,
@@ -37,7 +38,7 @@ import {
   downloadBatchDir,
 } from "../getdat/commands/intake-folder";
 import { mkdirSync } from "node:fs";
-import { isRecord, isUnknownArray } from "./leaf/guards";
+import { isRecord } from "./leaf/guards";
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "./progress";
 import { errMessage as errorText } from "./leaf/fmt";
@@ -90,6 +91,9 @@ interface DownloadResult {
   error?: string;
   folder?: string;
   skipReason?: string;
+  /** Set rips: entries whose metadata was walled (MONETIZE 403) — the
+   *  batch survived, these specific tracks did not land. */
+  missed?: number;
 }
 
 /** Download a non-SC URL straight into the music dir via yt-dlp
@@ -156,6 +160,53 @@ async function downloadScUrl(
   opts: DropOptions,
 ): Promise<DownloadResult> {
   const cookies = ytdlpCookieArgs(opts.cookiesFile, opts.cookiesFromBrowser);
+  // SET EXPANSION via our own api-v2 seam (NOT yt-dlp's -J dump): the -J
+  // pass full-resolves every entry and one MONETIZE entry's 403 kills
+  // the entire dump (summer-2025 'Free Your Mind' — zero output, exit
+  // 1, measured live). The api-v2 resolve returns the id list cleanly
+  // and per-entry downloads cost one walled track, not the set.
+  const setId = await scSetTrackIds(target);
+  if (setId.ok) {
+    const slug = target.split("/sets/")[1]?.split(/[?#]/)[0] ?? "set";
+    const batchDir = resolveIntakeDir(
+      musicDir,
+      intakeFolderName(`${slug} soundcloud`),
+    );
+    mkdirSync(batchDir, { recursive: true });
+    let okCount = 0;
+    let missCount = 0;
+    for (const id of setId.trackIds) {
+      const one = Bun.spawnSync({
+        cmd: [
+          "yt-dlp",
+          ...cookies,
+          "-f",
+          SC_FORMAT,
+          // `-x` alone keeps the source codec (copy semantics — never
+          // mp3→m4a re-encode; identical rule to the single path).
+          "-x",
+          "-o",
+          `${batchDir}/%(title)s.%(ext)s`,
+          "--no-playlist",
+          "--no-overwrites",
+          "--newline",
+          "--quiet",
+          "--no-warnings",
+          ...cookies,
+          scTrackUrl(id),
+        ],
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: 600_000,
+      });
+      if (one.exitCode === 0) okCount++;
+      else missCount++;
+    }
+    // Registration is INGEST's job (see the single-track path).
+    return { downloaded: okCount, folder: batchDir, missed: missCount };
+  }
+  // Not a /sets/ URL (or the resolve failed): fall through to the legacy
+  // single-probe path below for single tracks and user pages.
   const flat = Bun.spawnSync({
     cmd: ["yt-dlp", ...cookies, "--flat-playlist", "-J", target],
     stdout: "pipe",
@@ -163,19 +214,6 @@ async function downloadScUrl(
     timeout: 120_000,
   });
   if (flat.exitCode !== 0) {
-    const stderr = new TextDecoder().decode(flat.stderr);
-    // #258: a likes/user target without cookies 404s like a dead profile —
-    // name the remedy (drop takes full SC URLs; /likes & /tracks pages
-    // are the auth-gated shapes).
-    if (
-      (/\/likes|\/tracks/.test(target) || /soundcloud:user/.test(stderr)) &&
-      isPrivateUser404(stderr)
-    ) {
-      const remedy = opts.cookiesFromBrowser
-        ? "cookies loaded but SC says private/not-found — check the URL"
-        : "pass --cookies-from-browser <browser> (or --cookies <file>) — likes/user pages need auth";
-      return { downloaded: 0, error: `${stderr.slice(-160)} — ${remedy}` };
-    }
     const err =
       new TextDecoder()
         .decode(flat.stderr)
@@ -194,65 +232,10 @@ async function downloadScUrl(
   if (!isRecord(parsed)) {
     return { downloaded: 0, error: "SC probe output was not an object" };
   }
-  const entries = parsed.entries;
-  if (isUnknownArray(entries) && entries.length > 0) {
-    // A SET (or user page): rip every entry into one dated batch folder —
-    // the folder name carries the set slug so the intake is visible.
-    const slug = target.split("/sets/")[1]?.split(/[?#]/)[0] ?? "set";
-    const batchDir = resolveIntakeDir(
-      musicDir,
-      intakeFolderName(slug.endsWith(".mp3") ? slug : `${slug} soundcloud`),
-    );
-    mkdirSync(batchDir, { recursive: true });
-    const args = [
-      "-f",
-      SC_FORMAT,
-      // Sets contain walled entries (MONETIZE tracks 403 even on metadata
-      // with any session) — one wall must not kill the batch: skip the
-      // entry, report the count, keep ripping.
-      "--ignore-errors",
-      // #258-superfix parity: a set entry can land on the mp3 fallback
-      // (legacy uploads stream ONLY mp3), and `-x --audio-format m4a`
-      // would re-encode it lossy→lossy. `--audio-format` DEFAULTS to
-      // `best` = keep the source codec (stream copy), so `-x` alone is
-      // the per-entry source-aware rule — identical outcomes to the
-      // single path's scExtractionArgs without knowing formats up front.
-      "-x",
-      "-o",
-      `${batchDir}/%(title)s.%(ext)s`,
-      // Set expansion IS the point here — no --no-playlist.
-      "--no-overwrites",
-      "--newline",
-      "--quiet",
-      "--no-warnings",
-      ...cookies,
-      target,
-    ];
-    const proc = Bun.spawnSync({
-      cmd: ["yt-dlp", ...args],
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 1_800_000, // sets are long; the wall-clock budget lives here
-    });
-    if (proc.exitCode !== 0) {
-      const err =
-        new TextDecoder()
-          .decode(proc.stderr)
-          .split("\n")
-          .slice(-2)
-          .join(" ")
-          .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
-      return { downloaded: 0, error: err };
-    }
-    // Registration is INGEST's job: the stage-1 pass registers each
-    // landed file under its path-hash ext- id (dedupe, tags, artwork).
-    // Upserting the flat entries HERE too (#258 first cut) double-keyed
-    // every file — a pending soundcloud row (numeric id) BESIDE the
-    // downloaded ext- row — and the pending twin sent later sync runs
-    // after the same set again. The ledger gets exactly one row per
-    // file, from the stage that owns files.
-    return { downloaded: entries.length, folder: batchDir };
-  }
+  // (Sets are handled ABOVE via the api-v2 expansion; reaching here means
+  // the flat dump resolved to a single track or a user page — the page
+  // case falls into the single-track link-first path with --no-playlist
+  // semantics, which is the conservative default for drop.)
   // SINGLE TRACK: link-first (#256). A real acquisition link is SURFACED,
   // not ripped — the user goes through the official channel. Surfaced
   // rows land in the LEDGER (keyed by the numeric SC id) so `sync` sees

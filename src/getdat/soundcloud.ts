@@ -49,6 +49,31 @@ export function scTrackIdFromUrl(url: string): string | null {
   return m?.[1] ?? null;
 }
 
+/** Expand a /sets/<slug> URL into its track ids via the api-v2 resolve
+ *  endpoint (OUR client-id seam, not yt-dlp's -J dump: the dump full-
+ *  resolves every entry and one MONETIZE entry's 403 kills the whole
+ *  expansion — measured live Sep 19, summer-2025). */
+export async function scSetTrackIds(
+  setUrl: string,
+): Promise<{ ok: boolean; trackIds: string[] }> {
+  if (!/soundcloud\.com\/[^/]+\/sets\//.test(setUrl)) {
+    return { ok: false, trackIds: [] };
+  }
+  const clientId = await scWebClientId();
+  if (!clientId) return { ok: false, trackIds: [] };
+  const clean = setUrl.split("?")[0] ?? setUrl;
+  const res = await fetch(
+    `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(clean)}&client_id=${clientId}`,
+  ).catch(() => null);
+  if (!res?.ok) return { ok: false, trackIds: [] };
+  const json: unknown = await res.json().catch(() => null);
+  const collection = json as { tracks?: { id?: unknown }[] } | null;
+  const ids = (collection?.tracks ?? [])
+    .map((t) => (typeof t.id === "number" ? String(t.id) : null))
+    .filter((id): id is string => id !== null);
+  return { ok: ids.length > 0, trackIds: ids };
+}
+
 /** An SC acquisition link parsed out of a track (#256). `kind` carries
  *  the provenance so the summary can say WHY a link was surfaced. */
 export interface ScAcquisitionLink {

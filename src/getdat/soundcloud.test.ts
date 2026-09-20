@@ -16,6 +16,7 @@ import {
   scExtractionArgs,
   scFormatKbps,
   scRawTrackLinks,
+  scSetTrackIds,
   scTrackIdFromUrl,
   scTrackUrl,
   scUserGateNeeded,
@@ -57,6 +58,25 @@ describe("SC URL forms (#255)", () => {
     expect(scTrackIdFromUrl(scTrackUrl("42"))).toBe("42");
     expect(scTrackIdFromUrl("https://soundcloud.com/artist/slug")).toBeNull();
   });
+});
+
+describe("SC set expansion (Sep 19 — api-v2, not yt-dlp -J)", () => {
+  test("a /sets/ URL is detected; non-set URLs are rejected without network", async () => {
+    const nonSet = await scSetTrackIds(
+      "https://soundcloud.com/expertsonly/dansyn-jord-the-future",
+    );
+    expect(nonSet.ok).toBe(false);
+    expect(nonSet.trackIds).toStrictEqual([]);
+  });
+
+  test("the live summer-2025 set expands to 96 ids (id-dump contract)", async () => {
+    const r = await scSetTrackIds(
+      "https://soundcloud.com/parvati-rajesh/sets/summer-2025",
+    );
+    expect(r.ok).toBe(true);
+    expect(r.trackIds.length).toBeGreaterThanOrEqual(90);
+    expect(r.trackIds.every((id) => /^\d+$/.test(id))).toBe(true);
+  }, 30_000);
 });
 
 describe("SC failure classes (#255 — dead slugs must not retry forever)", () => {
