@@ -35,13 +35,22 @@ export interface ArchiveIngestStatus {
   }[];
   recent_tracks: ArchiveTrack[];
   /** #256 link-first: the surfaced-link cohort with its acquisition URLs
-   *  (last_error carries "kind: url" for these rows). Distinct list —
-   *  surfaced is an HONEST terminal state, never folded into downloaded. */
+   *  (source_links JSON parsed — first URL wins as `url`, the full list
+   *  rides in `links`). Distinct list — surfaced is an HONEST terminal
+   *  state, never folded into downloaded. `done` = the user's checklist
+   *  (clicked + saved into the downloads folder). */
   surfaced: {
     video_id: string;
     title: string | null;
     artist: string | null;
-    detail: string | null;
+    /** The first acquisition URL — rendered as a clickable link. */
+    url: string | null;
+    /** Every parsed acquisition link [{kind, url}]. */
+    links: { kind: string; url: string }[];
+    /** User checklist: file saved into the downloads folder. */
+    done: boolean;
+    /** ISO time the user checked it off (null while open). */
+    done_at: string | null;
   }[];
 }
 

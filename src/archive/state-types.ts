@@ -32,6 +32,9 @@ export interface TrackRow {
   content_hash: string | null;
   /** #256 link-first: JSON-encoded acquisition links (when surfaced). */
   source_links?: string | null;
+  /** Surfaced-link checklist (Sep 19): set when the user marks the
+   *  acquisition handled (file saved into the downloads folder). */
+  surfaced_done_at?: string | null;
   first_seen_at: string;
   updated_at: string;
 }

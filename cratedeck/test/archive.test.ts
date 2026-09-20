@@ -38,7 +38,8 @@ seed.exec(`
     last_error TEXT, liked_position INTEGER,
     source TEXT NOT NULL DEFAULT 'liked', genre TEXT, energy INTEGER,
     artwork_status TEXT, year TEXT, first_seen_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    source_links TEXT, surfaced_done_at TEXT
   );
   CREATE TABLE runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT NOT NULL,

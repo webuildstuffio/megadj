@@ -139,6 +139,17 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
       if (!archiveCli) return json({ error: "skip not available" }, 501);
       return skipRoute(_url, archiveCli);
     },
+    // POST /api/archive/surfaced-note — body {id, done}: the surfaced-link
+    // checklist checkbox (Sep 19). Engine-owned via `megadj surfaced-note`.
+    "surfaced-note": async (_url, _archive, _db, _cfg, req) =>
+      surfacedNoteRoute(req, archiveCli),
+    // POST /api/archive/surfaced-batch — body {ids: string[], folder}:
+    // the checklist's final button. Runs the REAL fulltags batch engine
+    // (`megadj ingest <folder> --json`) so the saved files get the same
+    // dated-batch intake + tags/art/dedupe chain as every other import.
+    // The engine owns the ledger; this route just aims it at the folder.
+    "surfaced-batch": async (_url, _archive, _db, _cfg, req) =>
+      surfacedBatchRoute(req, archiveCli),
     // Skip-reason census: why gone/skipped rows didn't land ("category:
     // …" buckets, YouTube errors) — the Pipeline tab's "what the pipeline
     // decided" card.
@@ -418,6 +429,83 @@ async function skipRoute(url: URL, megadjCli: MegadjCli): Promise<Response> {
       409,
     );
   return json({ ok: true, id });
+}
+
+/** Parse a JSON object body or return an error Response. Shared by the
+ *  surfaced POST routes (module scope keeps archiveHandlers' CCN down). */
+async function readJsonObject(
+  req: Request | undefined,
+): Promise<{ body: Record<string, unknown> } | { error: Response }> {
+  if (!req || req.method !== "POST")
+    return { error: json({ error: "POST required" }, 405) };
+  let parsed: unknown;
+  try {
+    parsed = await req.json();
+  } catch {
+    return { error: json({ error: "JSON body required" }, 400) };
+  }
+  if (typeof parsed !== "object" || parsed === null)
+    return { error: json({ error: "object body required" }, 400) };
+  return { body: parsed as Record<string, unknown> };
+}
+
+/** POST /api/archive/surfaced-note — body {id, done}: the surfaced-link
+ *  checklist checkbox. The engine (`megadj surfaced-note`) owns the flip
+ *  and rejects unknown / non-surfaced ids (exit 1 → 409). */
+async function surfacedNoteRoute(
+  req: Request | undefined,
+  megadjCli: MegadjCli | undefined,
+): Promise<Response> {
+  const gate = await readJsonObject(req);
+  if ("error" in gate) return gate.error;
+  if (!megadjCli) return json({ error: "surfaced-note not available" }, 501);
+  const id = typeof gate.body.id === "string" ? gate.body.id : "";
+  if (!/^[\w-]{6,24}$/.test(id)) return json({ error: "id is required" }, 400);
+  const done = gate.body.done !== false;
+  const args = ["surfaced-note", id, "--json"];
+  if (!done) args.push("--undone");
+  const r = await megadjCli(args);
+  if (r.code !== 0)
+    return json(
+      { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
+      409,
+    );
+  return json({ ok: true, id, done });
+}
+
+/** POST /api/archive/surfaced-batch — body {ids, folder}: the checklist's
+ *  final button. Runs the REAL fulltags batch engine (`megadj ingest
+ *  <folder> --json` — dated intake folder, tags, art, dedupe) and only on
+ *  a green ingest marks the checked rows done. */
+async function surfacedBatchRoute(
+  req: Request | undefined,
+  megadjCli: MegadjCli | undefined,
+): Promise<Response> {
+  const gate = await readJsonObject(req);
+  if ("error" in gate) return gate.error;
+  if (!megadjCli) return json({ error: "surfaced-batch not available" }, 501);
+  const rawFolder = gate.body.folder;
+  const folder =
+    typeof rawFolder === "string" && rawFolder.trim().length > 0
+      ? rawFolder.trim()
+      : null;
+  if (!folder || !folder.startsWith("/"))
+    return json({ error: "folder must be an absolute path" }, 400);
+  const ids = Array.isArray(gate.body.ids)
+    ? gate.body.ids.filter((i): i is string => typeof i === "string")
+    : [];
+  const r = await megadjCli(["ingest", folder, "--json"]);
+  if (r.code !== 0)
+    return json(
+      { ok: false, error: r.stderr.slice(-800) || `exit ${r.code}` },
+      409,
+    );
+  // Mark the checklist rows done only on a green ingest — the batch DID
+  // run for the folder; per-row file matching stays honest in the ledger
+  // (ingest registers what it actually found).
+  for (const id of ids.slice(0, 500))
+    await megadjCli(["surfaced-note", id, "--json"]);
+  return json({ ok: true, folder, checked: ids.length });
 }
 
 function json(data: unknown, status = 200): Response {

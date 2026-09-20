@@ -62,6 +62,9 @@ export class ArchiveCore {
     // #256 link-first: the acquisition links surfaced for a track
     // (purchase/free-download/description store links), JSON-encoded.
     this.addColumnIfMissing("tracks", "source_links", "TEXT");
+    // Surfaced-link workflow (Sep 19): the user clicks the link, saves the
+    // file into the downloads folder, and checks it off. NULL = not yet.
+    this.addColumnIfMissing("tracks", "surfaced_done_at", "TEXT");
     this.db.exec(
       "CREATE INDEX IF NOT EXISTS idx_tracks_content_hash ON tracks(content_hash)",
     );

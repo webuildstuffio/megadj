@@ -49,6 +49,14 @@ export const GETDAT_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "surfaced-note",
+    group: "getdat",
+    block: [
+      "  megadj surfaced-note <video_id…> [--undone] [--json]",
+      "                                               check a surfaced link off once its file is saved in the downloads folder",
+    ],
+  },
+  {
     name: "intake-status",
     group: "getdat",
     block: [

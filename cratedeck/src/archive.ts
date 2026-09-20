@@ -267,18 +267,51 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     const recent = this.rows<ArchiveTrack>(
       `SELECT ${TRACK_COLS} FROM tracks ORDER BY updated_at DESC LIMIT 10`,
     );
-    // last_error holds "kind: url" for surfaced rows (markLinkSurfaced).
-    const surfaced = this.rows<{
+    // Surfaced-link workflow (Sep 19): source_links JSON is the URL
+    // source of truth (last_error is prose); surfaced_done_at is the
+    // user's checklist. Parsed here so every client gets typed URLs.
+    const surfacedRaw = this.rows<{
       video_id: string;
       title: string | null;
       artist: string | null;
-      detail: string | null;
+      source_links: string | null;
+      surfaced_done_at: string | null;
     }>(
-      `SELECT video_id, title, artist,
-              NULLIF(TRIM(last_error), '') detail
+      `SELECT video_id, title, artist, source_links, surfaced_done_at
        FROM tracks WHERE status = 'link_surfaced'
-       ORDER BY updated_at DESC LIMIT 100`,
+       ORDER BY surfaced_done_at IS NOT NULL, updated_at DESC LIMIT 200`,
     );
+    const surfaced = surfacedRaw.map((r) => {
+      let links: { kind: string; url: string }[] = [];
+      try {
+        const parsed: unknown = JSON.parse(r.source_links ?? "[]");
+        if (Array.isArray(parsed))
+          links = parsed.flatMap((l) => {
+            if (typeof l !== "object" || l === null) return [];
+            const rec = l as Record<string, unknown>;
+            if (typeof rec.url !== "string") return [];
+            return [
+              {
+                kind: typeof rec.kind === "string" ? rec.kind : "link",
+                url: rec.url,
+              },
+            ];
+          });
+      } catch (error) {
+        // Corrupt source_links JSON must be visible, never a silent
+        // empty list (boundary-json census: the guard must report).
+        console.error(`surfaced links unparsable for ${r.video_id}:`, error);
+      }
+      return {
+        video_id: r.video_id,
+        title: r.title,
+        artist: r.artist,
+        url: links[0]?.url ?? null,
+        links,
+        done: r.surfaced_done_at !== null,
+        done_at: r.surfaced_done_at,
+      };
+    });
     const counts = Object.fromEntries(countRows.map((r) => [r.status, r.n]));
     return {
       available: true,

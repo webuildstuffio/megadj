@@ -156,7 +156,11 @@ export function PipelineTab() {
           </div>
 
           {surfacedRows.length > 0 && (
-            <SurfacedLinksCard rows={surfacedRows} context="ledger" />
+            <SurfacedLinksCard
+              rows={surfacedRows}
+              context="ledger"
+              onChanged={() => page.refresh?.()}
+            />
           )}
 
           <SectionHead icon="history" title="Recent runs">
@@ -434,7 +438,11 @@ export function BacklogTab() {
           )}
 
           {surfaced.length > 0 && (
-            <SurfacedLinksCard rows={surfaced} context="backlog" />
+            <SurfacedLinksCard
+              rows={surfaced}
+              context="backlog"
+              onChanged={() => page.refresh?.()}
+            />
           )}
 
           {total === 0 && (
@@ -538,23 +546,76 @@ export function PendingQueueCard(props: {
  *  (ArchiveIngestStatus.surfaced), same rendering — only the framing text
  *  changes per context. Extracted when the two hand-rolled copies started
  *  drifting (the DRY rule that bit the route table, Sep 17). */
+/** Clickable acquisition links for one surfaced row (module scope — pure
+ *  render, nothing captured). Bare URL, no "purchase_url" label. */
+function renderLinks(s: ArchiveIngestStatus["surfaced"][number]) {
+  if (s.links.length === 0) return <span class="dt-sub">link available</span>;
+  return (
+    <span class="surfaced-links">
+      {s.links.map((l) => (
+        <a
+          key={l.url}
+          href={l.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-sm surfaced-link"
+        >
+          {l.url.replace(/^https?:\/\//, "")} ↗
+        </a>
+      ))}
+    </span>
+  );
+}
+
 export function SurfacedLinksCard(props: {
   rows: ArchiveIngestStatus["surfaced"];
   context: "ledger" | "backlog";
+  onChanged?: () => void;
 }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [batchBusy, setBatchBusy] = useState(false);
+  // Default batch folder: the user's stated downloads home (editable —
+  // wherever the saved files actually sit). Kept a plain literal: the
+  // browser bundle has no process.env, and the route validates the path.
+  const [folder, setFolder] = useState("/Users/nick/Music/DJ-Downloads");
   const n = props.rows.length;
+  const doneCount = props.rows.filter((r) => r.done).length;
+  const openRows = props.rows.filter((r) => !r.done);
   const copy = {
     ledger: {
       title: "Surfaced links — go through them instead of ripping",
       hint: "These tracks advertise an official purchase or free-download link, so megadj skipped the rip and parked the URL here (--force-rip overrides, per drop). Surfaced rows are never counted as downloaded library.",
-      fix: "the decision is ledgered",
     },
     backlog: {
       title: "Links surfaced — yours to click",
-      hint: "No code fixes these: the track advertises an official download/purchase link, the rip was skipped on purpose, and the URL waits in megadj list --status link_surfaced. This card keeps them from being forgotten.",
-      fix: "these are YOUR click",
+      hint: "No code fixes these: the track advertises an official download/purchase link, the rip was skipped on purpose. Click through, save the file, check it off, then run the batch to fulltags-process everything you saved.",
     },
   }[props.context];
+  const setDone = async (videoId: string, done: boolean) => {
+    setBusy(videoId);
+    try {
+      await apiPost(`/api/archive/surfaced-note`, { id: videoId, done });
+      props.onChanged?.();
+    } finally {
+      setBusy(null);
+    }
+  };
+  const finalizeBatch = async () => {
+    setBatchBusy(true);
+    try {
+      await apiPost(
+        `/api/archive/surfaced-batch`,
+        {
+          folder,
+          ids: props.rows.filter((r) => r.done).map((r) => r.video_id),
+        },
+        { timeoutMs: 600_000 },
+      );
+      props.onChanged?.();
+    } finally {
+      setBatchBusy(false);
+    }
+  };
   return (
     <div class="card">
       <ListHead
@@ -562,30 +623,62 @@ export function SurfacedLinksCard(props: {
         title={copy.title}
         n={n}
         hint={copy.hint}
-        lines={props.rows.map(
-          (s) => `${s.title ?? s.video_id} — ${s.detail ?? "link"}`,
-        )}
+        lines={[
+          `${doneCount} checked off · ${openRows.length} open`,
+          ...props.rows
+            .slice(0, 3)
+            .map((s) => `${s.title ?? s.video_id} — ${s.url ?? "link"}`),
+        ]}
       />
       <KVRows>
-        {props.rows.slice(0, 30).map((s) => (
-          <KVRow key={s.video_id}>
+        {props.rows.slice(0, 50).map((s) => (
+          <KVRow key={s.video_id} class={s.done ? "surfaced-done" : ""}>
             <KVKey>
-              <TrackTitle
-                title={s.title}
-                videoId={s.video_id}
-                artist={s.artist}
-              />
+              <label class="surfaced-check">
+                <input
+                  type="checkbox"
+                  checked={s.done}
+                  disabled={busy === s.video_id}
+                  onChange={(e) =>
+                    setDone(s.video_id, (e.target as HTMLInputElement).checked)
+                  }
+                />
+                <TrackTitle
+                  title={s.title}
+                  videoId={s.video_id}
+                  artist={s.artist}
+                />
+              </label>
             </KVKey>
-            <KVVal>
-              <span class="dt-sub">{s.detail ?? "link available"}</span>
-            </KVVal>
+            <KVVal>{renderLinks(s)}</KVVal>
           </KVRow>
         ))}
-        {n > 30 && <Truncated shown={30} total={n} />}
+        {n > 50 && <Truncated shown={50} total={n} />}
       </KVRows>
+      {props.context === "backlog" && doneCount > 0 && (
+        <div class="surfaced-batch">
+          <label class="surfaced-folder">
+            batch folder
+            <input
+              type="text"
+              value={folder}
+              onInput={(e) => setFolder((e.target as HTMLInputElement).value)}
+            />
+          </label>
+          <button
+            class="btn primary"
+            disabled={batchBusy}
+            onClick={() => void finalizeBatch()}
+          >
+            {batchBusy
+              ? "processing…"
+              : `Fulltags-process ${doneCount} saved file${doneCount === 1 ? "" : "s"}`}
+          </button>
+        </div>
+      )}
       <div class="arch-fix">
-        {copy.fix} — <code>megadj list --status link_surfaced</code> for the
-        full URLs
+        click a link → save the file into the downloads folder → check it off →
+        run the batch. Ledger: <code>megadj surfaced-note &lt;id&gt;</code>
       </div>
     </div>
   );

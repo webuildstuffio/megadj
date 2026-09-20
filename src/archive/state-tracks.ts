@@ -455,6 +455,30 @@ export class ArchiveTracks extends ArchiveCore {
       .run(linksJson, detail, this.now(), trackId);
   }
 
+  /** Surfaced-link checklist (Sep 19): the user clicked the link, saved
+   *  the official file into the downloads folder, and checks it off.
+   *  `done=false` undoes (a mis-check). Only flips the timestamp — the
+   *  status stays `link_surfaced` until the file actually lands through
+   *  the fulltags batch ingest, which is the real state machine. */
+  markSurfacedDone(trackId: string, done: boolean): void {
+    this.db
+      .query(
+        "UPDATE tracks SET surfaced_done_at = ?, updated_at = ? WHERE video_id = ? AND status = 'link_surfaced'",
+      )
+      .run(done ? this.now() : null, this.now(), trackId);
+  }
+
+  /** True when the row EXISTS and is in the surfaced-link cohort (the
+   *  gate `surfaced-note` checks before flipping the timestamp). */
+  markSurfacedDoneExists(trackId: string): boolean {
+    const row = this.db
+      .query(
+        "SELECT 1 FROM tracks WHERE video_id = ? AND status = 'link_surfaced'",
+      )
+      .get(trackId);
+    return row !== null && row !== undefined;
+  }
+
   /** Identity backfill for SC rows that reached a terminal state with thin
    *  metadata (#258-followup): set/user fan-out entries carry only id+url,
    *  so a row marked gone/link_surfaced at probe time never learned its

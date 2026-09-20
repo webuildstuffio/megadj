@@ -407,6 +407,28 @@ describe("link_surfaced ledger state (#256)", () => {
     expect(scState.downloadedCount()).toBe(0);
   });
 
+  test("markSurfacedDone flips only the checklist timestamp; unknown/non-surfaced ids rejected", () => {
+    scState.upsertTrackFromPlaylist("270000010", 0, "Checklist", "soundcloud");
+    scState.markLinkSurfaced(
+      "270000010",
+      JSON.stringify([{ kind: "purchase_url", url: "https://x.example/b" }]),
+      "purchase_url: https://x.example/b",
+    );
+    // Gate: a surfaced row is checkable
+    expect(scState.markSurfacedDoneExists("270000010")).toBe(true);
+    scState.markSurfacedDone("270000010", true);
+    expect(scState.trackById("270000010")?.surfaced_done_at).not.toBeNull();
+    // Undo clears it; status NEVER leaves link_surfaced (the ingest batch
+    // is what actually moves the row forward)
+    scState.markSurfacedDone("270000010", false);
+    expect(scState.trackById("270000010")?.surfaced_done_at).toBeNull();
+    expect(scState.trackById("270000010")?.status).toBe("link_surfaced");
+    // A pending row is not checkable
+    scState.upsertTrackFromPlaylist("270000011", 0, "Pending", "soundcloud");
+    expect(scState.markSurfacedDoneExists("270000011")).toBe(false);
+    expect(scState.markSurfacedDoneExists("nonexistent")).toBe(false);
+  });
+
   test("markForcedRip keeps the decision without changing status", () => {
     scState.upsertTrackFromPlaylist("270000001", 0, "Track", "soundcloud");
     scState.markForcedRip(

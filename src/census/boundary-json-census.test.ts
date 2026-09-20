@@ -145,9 +145,6 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // the raw api-v2 track object through parseJsonObject (the shared
     // guarded parser, explicit-null) — audited 68 (parseJsonObject was
     // already the counted call), digest shifted only.
-    audited: 68,
-    guarded: 52,
-    sanctioned: 16,
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
     // unchanged) — digest shifted.
@@ -166,7 +163,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // moved under db/; their failure contracts and counts are unchanged.
     // Sep 19 (#214 archive slice): the overview and tag-compare readers
     // moved under archive/; their failure contracts and counts are unchanged.
-    digest: "8652d54da6fde62c0ef3eb4ee298b87200d3a9ba1c58a2e4813b3a83308f8537",
+    // Sep 19 (#256 surfaced checklist): ingestStatus's surfaced-cohort
+    // read adds one GUARDED parse (source_links JSON, console.error
+    // catch — corrupt link data is visible, never a silent empty list);
+    // audited 68→69 / guarded 52→53, sanctioned 16 unchanged.
+    audited: 69,
+    guarded: 53,
+    sanctioned: 16,
+    digest: "669f9ab383bff9006caf00c692d4728b0513f32dc80cc45426c7e404b71ae1c5",
   });
 });
 

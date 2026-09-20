@@ -204,6 +204,47 @@ const skip: CliCommandHandler = async (rest, { state }) => {
   if (unknown.length > 0 && marked.length === 0) setExit(1);
 };
 
+const surfacedNote: CliCommandHandler = async (rest, { state }) => {
+  const json = rest.includes("--json");
+  const done = !rest.includes("--undone");
+  const positional = positionalArgs(
+    rest.filter((a) => a !== "--json" && a !== "--undone"),
+    [],
+  );
+  if (positional.length === 0) {
+    await finishCommandError({
+      command: "surfaced-note",
+      json,
+      error:
+        "usage: megadj surfaced-note <video_id> […] [--undone] [--json] — check the surfaced link off once its file is saved in the downloads folder",
+      exitCode: 2,
+    });
+    return;
+  }
+  const marked: string[] = [];
+  const unknown: string[] = [];
+  for (const id of positional) {
+    if (state.markSurfacedDoneExists(id)) {
+      state.markSurfacedDone(id, done);
+      marked.push(id);
+    } else unknown.push(id);
+  }
+  if (json) {
+    await writeJson({
+      command: "surfaced-note",
+      done,
+      marked,
+      unknown,
+      count: marked.length,
+    });
+  } else {
+    for (const id of marked)
+      console.log(`  ${done ? "✓" : "○"} ${done ? "done" : "reopened"}: ${id}`);
+    for (const id of unknown) console.log(`  ✗ unknown/not-surfaced id: ${id}`);
+  }
+  if (unknown.length > 0 && marked.length === 0) setExit(1);
+};
+
 const organizeOrEnrich =
   (command: "organize" | "enrich"): CliCommandHandler =>
   async (rest, { state, musicDir }) => {
@@ -310,6 +351,7 @@ export const GETDAT_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   list,
   retry,
   skip,
+  "surfaced-note": surfacedNote,
   organize: organizeOrEnrich("organize"),
   enrich: organizeOrEnrich("enrich"),
   adopt,

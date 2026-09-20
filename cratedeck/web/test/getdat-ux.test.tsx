@@ -32,7 +32,10 @@ const surfacedRow = {
   video_id: "123",
   title: "Shelter",
   artist: "Porter Robinson",
-  detail: "purchase_url: https://example.com/buy",
+  url: "https://example.com/buy",
+  links: [{ kind: "purchase_url", url: "https://example.com/buy" }],
+  done: false,
+  done_at: null,
 };
 
 describe("FetchedGate shared states (Sep 19 polish)", () => {
@@ -59,14 +62,17 @@ describe("FetchedGate shared states (Sep 19 polish)", () => {
 });
 
 describe("surfaced-link cohort in the web UI (#256 parity)", () => {
-  test("SurfacedLinksCard renders rows, count and the CLI pointer", () => {
+  test("SurfacedLinksCard renders clickable URLs, checkbox and the CLI pointer", () => {
     const html = render(
       <SurfacedLinksCard rows={[surfacedRow]} context="ledger" />,
     );
     expect(html).toContain("Shelter");
     expect(html).toContain("Porter Robinson");
-    expect(html).toContain("purchase_url: https://example.com/buy");
-    expect(html).toContain("megadj list --status link_surfaced");
+    // URL-first: the bare link, rendered as a real anchor
+    expect(html).toContain('href="https://example.com/buy"');
+    expect(html).toContain("example.com/buy");
+    expect(html).toContain('type="checkbox"');
+    expect(html).toContain("megadj surfaced-note");
   });
 
   test("the two contexts frame the same rows differently (one component)", () => {
@@ -78,6 +84,22 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
     );
     expect(ledger).toContain("go through them instead of ripping");
     expect(backlog).toContain("yours to click");
+  });
+
+  test("backlog context exposes the batch finalize (fulltags ingest) flow", () => {
+    const backlog = render(
+      <SurfacedLinksCard
+        rows={[{ ...surfacedRow, done: true, done_at: "2026-09-19T22:00:00Z" }]}
+        context="backlog"
+      />,
+    );
+    expect(backlog).toContain("surfaced-batch");
+    expect(backlog).toContain("DJ-Downloads");
+    // an UNDONE row renders without the batch row (nothing to finalize)
+    const open = render(
+      <SurfacedLinksCard rows={[surfacedRow]} context="backlog" />,
+    );
+    expect(open).not.toContain("surfaced-batch");
   });
 
   test("both GetDat tabs key off ingest.surfaced (the producer-filled wire)", () => {
