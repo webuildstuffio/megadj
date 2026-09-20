@@ -82,6 +82,11 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // Pass 1 — sync existing file stamps into the ledger (cheap, no ONNX).
   // Embedding request rides along: every file visited here gets its vector
   // computed in pass 2 anyway, so pass-1 files must not miss out (I49).
+  // DB-shortcircuit (Sep 20, #278): a track already ledgered (no --force,
+  // no embedding ask) skips the per-file groundTruth scan entirely — that
+  // scan is ffprobe+mutagen PER FILE, and on a 3.9k-file library with
+  // network mounts it was minutes of silent spawning (the "mood wedges"
+  // report). Only UNledgered candidates pay the file-read cost.
   const pass1 = syncPass(opts, candidates, record);
   const needAnalysis = buildAnalysisQueue(opts, pass1, candidates);
 
@@ -160,6 +165,10 @@ function syncPass(
   let energySynced = 0;
   const needEmbedding: TrackRow[] = [];
   for (const t of candidates) {
+    // DB short-circuit: already ledgered and not asked to re-analyze or
+    // embed → skip the file entirely (see the call-site note on #278).
+    if (!opts.force && !opts.embeddings && opts.state.moodRecord(t.video_id))
+      continue;
     const truth = groundTruth(t.file_path!);
     // Energy stamp → DB column mirror (same idea as the mood ledger sync:
     // the file is ground truth; the column feeds audit/complete checks).
@@ -202,6 +211,9 @@ function buildAnalysisQueue(
   candidates: TrackRow[],
 ): TrackRow[] {
   const needAnalysis = candidates.filter((t) => {
+    // DB short-circuit first (#278): file scans are the expensive part.
+    if (!opts.force && !opts.embeddings && opts.state.moodRecord(t.video_id))
+      return false;
     const truth = groundTruth(t.file_path!);
     return !(truth.mood && parseMoodStamp(truth.mood));
   });
