@@ -313,7 +313,11 @@ describe("physical-media gate", () => {
       if (attached) Bun.spawnSync(["hdiutil", "detach", mnt, "-quiet"]);
       Bun.spawnSync(["rm", "-rf", img, root]);
     }
-  }, 30_000);
+    // 60s budget: every volume in this probe spawns real diskutil (and the
+    // DMG attach runs real hdiutil) — under the pre-commit hook's 256-file
+    // parallel load those sync spawns breached 30s once (Sep 19 flake).
+    // The probe stays real; only its wall-clock allowance grows.
+  }, 60_000);
 });
 
 describe("progress parsing", () => {

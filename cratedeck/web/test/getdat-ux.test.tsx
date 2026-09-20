@@ -8,12 +8,19 @@
 //      pipeline share-bar gains its seg.
 //   3. Canvas.css consumes the primary-button token block — the raw-green
 //      hexes must stay retired (tokens.css header rule).
+//   4. The #260 processing funnel (EnrichmentFunnel): the pipeline tab
+//      decomposes downloaded vs finished — no-genre meter, raw batch
+//      folders with one-click intake, and the genre-pass jump. The
+//      surfaced batch button navigates to the Intake tab (job-based).
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
 import { FetchedGate } from "../ui/useFetched";
-import { SurfacedLinksCard } from "../products/getdat/getdat-tabs";
+import {
+  EnrichmentFunnel,
+  SurfacedLinksCard,
+} from "../products/getdat/getdat-tabs";
 
 const canvasCss = readFileSync(
   join(import.meta.dir, "../styles/canvas.css"),
@@ -94,7 +101,7 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
       />,
     );
     expect(backlog).toContain("surfaced-batch");
-    expect(backlog).toContain("DJ-Downloads");
+    expect(backlog).toContain("Music/Downloads");
     // an UNDONE row renders without the batch row (nothing to finalize)
     const open = render(
       <SurfacedLinksCard rows={[surfacedRow]} context="backlog" />,
@@ -144,5 +151,61 @@ describe("useFetched refresh (post-mutation reload)", () => {
 
   test("refresh is exposed on the ok branch", () => {
     expect(src).toContain("refresh: () => setTick((t) => t + 1)");
+  });
+});
+
+// ---- #260 processing funnel -------------------------------------------------
+
+const funnelStages = {
+  noGenre: 1200,
+  genreVoted: 480,
+  rawBatches: [
+    { folder: "2026-09-19-b", files: 12 },
+    { folder: "2026-09-19-a", files: 4 },
+  ],
+};
+
+/** The tabs module source — read once, shared by the funnel pins (a
+ *  per-test local would re-read + shadow this one). */
+const funnelTabsSrc = readFileSync(
+  join(import.meta.dir, "../products/getdat/getdat-tabs.tsx"),
+  "utf8",
+);
+
+describe("EnrichmentFunnel (#260 downloaded ≠ finished)", () => {
+  test("renders the genre-voted meter against the unprocessed remainder", () => {
+    const html = render(<EnrichmentFunnel stages={funnelStages} />);
+    expect(html).toContain("Processing funnel");
+    expect(html).toContain("480"); // genre-voted
+    expect(html).toContain("1,200"); // no-genre
+    expect(html).toContain("ft-meter-fill");
+  });
+
+  test("every raw batch folder is a one-click intake button", () => {
+    const html = render(<EnrichmentFunnel stages={funnelStages} />);
+    expect(html).toContain("process 2026-09-19-b (12)");
+    expect(html).toContain("process 2026-09-19-a (4)");
+    expect(html).toContain("16 raw in 2 batch folders");
+  });
+
+  test("the genre-pass fix routes to the FullTags Run tab", () => {
+    const html = render(<EnrichmentFunnel stages={funnelStages} />);
+    expect(html).toContain("run the genre pass");
+    expect(funnelTabsSrc).toContain('navigateProduct("fulltags", "run")');
+  });
+
+  test("an empty raw-batches list renders no intake buttons", () => {
+    const html = render(
+      <EnrichmentFunnel stages={{ ...funnelStages, rawBatches: [] }} />,
+    );
+    expect(html).not.toContain("process 2026-");
+    expect(html).toContain("Processing funnel");
+  });
+
+  test("the surfaced batch button navigates to the Intake tab (job-based)", () => {
+    // the old blocking call had a 600s client deadline — the job route
+    // returns at once and the user watches the run on the Intake tab
+    expect(funnelTabsSrc).not.toContain("600_000");
+    expect(funnelTabsSrc).toContain('navigateProduct("getdat", "intake")');
   });
 });

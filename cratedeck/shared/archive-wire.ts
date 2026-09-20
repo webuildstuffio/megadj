@@ -77,6 +77,21 @@ export interface ArchiveAnalysisCoverage {
   beats: number | null;
   mood: number | null;
   cues: number | null;
+  /** Per-status enrichment stage counts (#260 UX): the "what's done vs
+   *  what still needs processing" funnel — downloaded-but-unprocessed
+   *  cohorts are invisible in the status totals alone. Numbers only; the
+   *  producer (analysisCoverage) owns every query. Absent when the
+   *  archive DB is unavailable. */
+  stages?:
+    | {
+        /** genre null/empty → the genre system never reached this row. */
+        noGenre: number;
+        /** genre_votes populated → ran under the CURRENT (voted) system. */
+        genreVoted: number;
+        /** file_paths pointing at dated batch folders not yet ingested. */
+        rawBatches: { folder: string; files: number }[];
+      }
+    | undefined;
 }
 
 export interface ArchiveGridOffender {

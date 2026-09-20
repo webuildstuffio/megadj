@@ -56,6 +56,13 @@ export async function archiveDispatch(
       archive: deps.archive,
       db: deps.db,
       cfg: deps.cfg,
+      // surfaced-batch's enqueue goes through the REAL job engine (the
+      // Intake tab's ingest job) — progress/cancel/SSE for the web's
+      // "process the saved links" button.
+      jobs: {
+        enqueue: (driveId, kind, mountPoint, origin) =>
+          deps.jobs.enqueue(driveId, kind, mountPoint, origin),
+      },
     },
     deps.megadjCli,
     req,

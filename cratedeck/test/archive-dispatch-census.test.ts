@@ -84,16 +84,26 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     expect(res).toBeNull();
   });
 
-  test("surfaced batch validates ids and notes them through one CLI call", async () => {
+  test("surfaced batch enqueues the intake job + notes ids through the CLI", async () => {
     const calls: string[][] = [];
     const cli = async (args: string[]) => {
       calls.push(args);
       return { code: 0, stderr: "" };
     };
+    const enqueued: { drive: string; kind: string; mount: string }[] = [];
+    const jobDeps = {
+      ...deps,
+      jobs: {
+        enqueue: (driveId: string, kind: "ingest", mountPoint: string) => {
+          enqueued.push({ drive: driveId, kind, mount: mountPoint });
+          return { id: "job-1234" };
+        },
+      },
+    };
     const req = new Request("http://localhost/api/archive/surfaced-batch", {
       method: "POST",
       body: JSON.stringify({
-        folder: "/Users/nick/Music/DJ-Downloads",
+        folder: "/Users/nick/Music/Downloads",
         ids: ["track-1", "track-1", "track-2"],
       }),
       headers: { "content-type": "application/json" },
@@ -101,15 +111,48 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     const res = await archiveRoutes(
       "/archive/surfaced-batch",
       new URL("http://localhost/api/archive/surfaced-batch"),
-      deps,
+      jobDeps,
       cli,
       req,
     );
     expect(res?.status).toBe(200);
-    expect(calls).toEqual([
-      ["ingest", "/Users/nick/Music/DJ-Downloads", "--json"],
-      ["surfaced-note", "track-1", "track-2", "--json"],
+    // The ingest is a JOB (progress/cancel/SSE — the Intake tab's engine),
+    // never a blocking CLI spawn inside the request (Sep 19 UX pass).
+    expect(enqueued).toEqual([
+      {
+        drive: "local-archive",
+        kind: "ingest",
+        mount: "/Users/nick/Music/Downloads",
+      },
     ]);
+    const body = (await res?.json()) as { jobId?: string };
+    expect(body.jobId).toBe("job-1234");
+    // the checklist rows are still noted done through the engine CLI
+    expect(calls).toEqual([["surfaced-note", "track-1", "track-2", "--json"]]);
+  });
+
+  test("surfaced batch refuses when the jobs seam is absent (501, nothing runs)", async () => {
+    const calls: string[][] = [];
+    const req = new Request("http://localhost/api/archive/surfaced-batch", {
+      method: "POST",
+      body: JSON.stringify({
+        folder: "/Users/nick/Music/Downloads",
+        ids: ["track-1"],
+      }),
+      headers: { "content-type": "application/json" },
+    });
+    const res = await archiveRoutes(
+      "/archive/surfaced-batch",
+      new URL("http://localhost/api/archive/surfaced-batch"),
+      deps,
+      async (args) => {
+        calls.push(args);
+        return { code: 0, stderr: "" };
+      },
+      req,
+    );
+    expect(res?.status).toBe(501);
+    expect(calls).toEqual([]);
   });
 
   test("surfaced batch refuses invalid ids before ingest", async () => {

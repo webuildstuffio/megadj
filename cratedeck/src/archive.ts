@@ -227,8 +227,17 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     // stage — unprocessed cohorts (no genre, not yet genre-voted, raw
     // batch folders) are the "what still needs processing" answer. The
     // batch-folder split is read-side (JS) over the one path column: a
-    // SQL folder-split would be fragile substring gymnastics.
-    const batchRows = db
+    // SQL folder-split would be fragile substring gymnastics. The whole
+    // block is column-guarded: pre-voting DBs (and lean test fixtures)
+    // lack genre_votes/file_path/genre, and an absent column means
+    // "nothing to report" (zeros, no batches), never an error.
+    const hasCol = (col: string): boolean =>
+      this.rows<{ name: string }>(
+        `SELECT name FROM pragma_table_info('tracks') WHERE name = ?`,
+        col,
+      ).length > 0;
+    const stagesOk = db && hasCol("genre") && hasCol("file_path");
+    const batchRows = stagesOk
       ? this.rows<{ folder: string }>(
           `SELECT file_path AS folder FROM tracks
            WHERE status = 'downloaded'
@@ -242,7 +251,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
       beats: ledger("beats"),
       mood: ledger("mood"),
       cues: ledger("cues"),
-      stages: db
+      stages: stagesOk
         ? {
             noGenre:
               this.rows<{ n: number }>(
@@ -250,13 +259,14 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
                  WHERE status = 'downloaded'
                    AND (genre IS NULL OR genre = '')`,
               )[0]?.n ?? 0,
-            genreVoted:
-              this.rows<{ n: number }>(
-                `SELECT COUNT(*) n FROM tracks
-                 WHERE status = 'downloaded'
-                   AND genre_votes IS NOT NULL
-                   AND genre_votes NOT IN ('', '[]', '{}')`,
-              )[0]?.n ?? 0,
+            genreVoted: hasCol("genre_votes")
+              ? (this.rows<{ n: number }>(
+                  `SELECT COUNT(*) n FROM tracks
+                   WHERE status = 'downloaded'
+                     AND genre_votes IS NOT NULL
+                     AND genre_votes NOT IN ('', '[]', '{}')`,
+                )[0]?.n ?? 0)
+              : 0,
             rawBatches: Object.entries(
               batchRows.reduce<Record<string, number>>((acc, r) => {
                 const marker = r.folder.indexOf("DJ-Imports/");
@@ -331,7 +341,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
       try {
         const parsed: unknown = JSON.parse(r.source_links ?? "[]");
         if (Array.isArray(parsed))
-          links = parsed.flatMap((l) => {
+          links = parsed.flatMap((l: unknown) => {
             if (typeof l !== "object" || l === null) return [];
             const rec = l as Record<string, unknown>;
             if (typeof rec.url !== "string") return [];

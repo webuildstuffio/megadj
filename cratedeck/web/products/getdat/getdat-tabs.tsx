@@ -4,16 +4,20 @@
 // sources (source census + the two-source diff). GetDatPage keeps the tab
 // routing; IntakeTab.tsx and LibraryTab.tsx were already their own files.
 // READ-ONLY (§4-A1): this page describes work, it never writes — every
-// card names the megadj command that does the fixing.
+// card names the megadj command that does the fixing. (The user-marking
+// actions — not-music skip, surfaced checklist — are ledger judgments,
+// not library writes; they route through the engine CLI seam.)
 import type {
   ArchiveIngestStatus,
+  ArchiveAnalysisCoverage,
   ArchiveLowqQueue,
   ArchiveSkipCensus,
 } from "../../../shared/types";
-import { api, apiPost } from "../../ui/toast";
+import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { useState } from "preact/hooks";
+import { navigateProduct } from "../../app/router";
 import { TabIntro } from "../../ui/InfoTip";
 import {
   ListHead,
@@ -29,6 +33,7 @@ import {
 import { StatCard } from "../../ui/DrivePanels";
 import {
   ArchiveAbsentGate,
+  Meter,
   SectionHead,
   ShareBar,
   Verdict,
@@ -39,17 +44,20 @@ import { fmtBytes } from "../../../../src/shared/leaf/fmt";
 // ---- pipeline ---------------------------------------------------------------
 
 export function PipelineTab() {
-  const page = useFetched<[ArchiveIngestStatus, ArchiveSkipCensus]>(
+  const page = useFetched<
+    [ArchiveIngestStatus, ArchiveSkipCensus, ArchiveAnalysisCoverage]
+  >(
     () =>
       Promise.all([
         api<ArchiveIngestStatus>("/api/archive/ingest-status"),
         api<ArchiveSkipCensus>("/api/archive/skip-census"),
+        api<ArchiveAnalysisCoverage>("/api/archive/analysis-coverage"),
       ]),
     [],
   );
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading pipeline status…" />;
-  const [ingest, skips] = page.data;
+  const [ingest, skips, coverage] = page.data;
   const c = ingest.available ? ingest.counts : {};
   const entry = (k: string) => c[k] ?? 0;
   const inArchive = entry("downloaded");
@@ -65,6 +73,7 @@ export function PipelineTab() {
   const runs = ingest.recent_runs.filter(
     (r) => r.downloaded + r.failed + r.gone > 0,
   );
+  const stages = coverage.available ? coverage.stages : undefined;
 
   return (
     <div>
@@ -102,6 +111,7 @@ export function PipelineTab() {
               v={waiting.toLocaleString()}
               l="waiting to download"
               icon="clock"
+              title="The queue `megadj sync` works through next — review it in the Backlog tab and mark anything that isn't music out."
             />
             <StatCard
               v={surfaced.toLocaleString()}
@@ -154,6 +164,8 @@ export function PipelineTab() {
               ]}
             />
           </div>
+
+          {stages && <EnrichmentFunnel stages={stages} />}
 
           {surfacedRows.length > 0 && (
             <SurfacedLinksCard
@@ -574,10 +586,11 @@ export function SurfacedLinksCard(props: {
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [batchBusy, setBatchBusy] = useState(false);
-  // Default batch folder: the user's stated downloads home (editable —
-  // wherever the saved files actually sit). Kept a plain literal: the
-  // browser bundle has no process.env, and the route validates the path.
-  const [folder, setFolder] = useState("/Users/nick/Music/DJ-Downloads");
+  // Default batch folder: the user's real downloads home (the intake
+  // watch dir, ~/Music/Downloads — editable to wherever the saved files
+  // actually sit). Plain literal: the browser bundle has no process.env,
+  // and the route validates the path.
+  const [folder, setFolder] = useState("/Users/nick/Music/Downloads");
   const n = props.rows.length;
   const doneCount = props.rows.filter((r) => r.done).length;
   const openRows = props.rows.filter((r) => !r.done);
@@ -603,15 +616,32 @@ export function SurfacedLinksCard(props: {
   const finalizeBatch = async () => {
     setBatchBusy(true);
     try {
-      await apiPost(
+      // Job-based now: the route enqueues the intake job and returns at
+      // once — no 600s client deadline, progress/cancel live in the dock.
+      const batch = await apiPost<{
+        ok: boolean;
+        jobId?: string;
+        submitted: number;
+      }>(
         `/api/archive/surfaced-batch`,
         {
           folder,
-          ids: props.rows.filter((r) => r.done).map((r) => r.video_id),
+          ids: props.rows.filter((row) => row.done).map((row) => row.video_id),
         },
-        { timeoutMs: 600_000 },
+        { timeoutMs: 30_000 },
       );
+      if (batch.jobId)
+        toast(
+          `Processing ${batch.submitted} saved file${batch.submitted === 1 ? "" : "s"} — job ${batch.jobId.slice(0, 8)}`,
+          "ok",
+        );
+      navigateProduct("getdat", "intake");
       props.onChanged?.();
+    } catch (e: unknown) {
+      toast(
+        `batch refused: ${e instanceof Error ? e.message : String(e)}`,
+        "err",
+      );
     } finally {
       setBatchBusy(false);
     }
@@ -681,5 +711,149 @@ export function SurfacedLinksCard(props: {
         run the batch. Ledger: <code>megadj surfaced-note &lt;id&gt;</code>
       </div>
     </div>
+  );
+}
+
+/** EnrichmentFunnel (#260 UX) — "downloaded ≠ finished". The archive's
+ *  playable pool decomposed by processing stage: how much has no genre,
+ *  how much ran under the CURRENT genre vote system, and which dated
+ *  batch folders are still raw downloads (untouched by ingest). Each
+ *  unfinished cohort names its fix: a CLI command or a one-click button
+ *  (Process batch → the intake job engine; Genre pass → the Run tab).
+ *  Rendered only when the producer reports stages (absent ledger → no
+ *  card, never fake numbers). */
+export function EnrichmentFunnel(props: {
+  stages: NonNullable<ArchiveAnalysisCoverage["stages"]>;
+}) {
+  const { stages } = props;
+  const raw = stages.rawBatches;
+  const rawFiles = raw.reduce((a, b) => a + b.files, 0);
+  const goGenre = (): void => navigateProduct("fulltags", "run"); // eslint-disable-line unicorn/consistent-function-scoping -- inline handler sugar reads clearer here
+  return (
+    <div class="card">
+      <ListHead
+        icon="pulse"
+        title="Processing funnel — downloaded vs finished"
+        n={rawFiles + stages.noGenre}
+        hint="A downloaded file is NOT a finished track until tags/art/analysis ran on it. 'No genre' = never went through the genre pass; 'genre-voted' = processed under the current (voted) system; 'raw batches' = fresh downloads still untouched. Everything else is done."
+        lines={[
+          `${stages.noGenre.toLocaleString()} without genre · ${stages.genreVoted.toLocaleString()} genre-voted · ${rawFiles.toLocaleString()} raw in ${raw.length} batch folder${raw.length === 1 ? "" : "s"}`,
+        ]}
+      />
+      <div class="fleet-note">
+        {stages.noGenre.toLocaleString()} without genre ·{" "}
+        {stages.genreVoted.toLocaleString()} genre-voted ·{" "}
+        {rawFiles.toLocaleString()} raw in {raw.length} batch folder
+        {raw.length === 1 ? "" : "s"}
+      </div>
+      <KVRows>
+        <KVRow>
+          <KVKey>
+            genre system (voted) coverage
+            <span class="dt-sub">
+              {" "}
+              — re-run after the system changes:{" "}
+              <code>megadj fetch --genres --all</code> or the Run tab
+            </span>
+          </KVKey>
+          <KVVal>
+            <Meter
+              done={stages.genreVoted}
+              total={Math.max(1, stages.genreVoted + stages.noGenre)}
+              label=""
+              cls={stages.noGenre === 0 ? "ok" : ""}
+            />
+          </KVVal>
+        </KVRow>
+        {raw.length > 0 && (
+          <KVRow>
+            <KVKey>
+              raw batch folder{raw.length === 1 ? "" : "s"}
+              <span class="dt-sub">
+                {" "}
+                — fresh downloads, not yet tagged/artworked/analyzed
+              </span>
+            </KVKey>
+            <KVVal>
+              <span class="surfaced-links">
+                {raw.map((b) => (
+                  <ProcessBatchButton
+                    key={b.folder}
+                    folder={b.folder}
+                    files={b.files}
+                  />
+                ))}
+              </span>
+            </KVVal>
+          </KVRow>
+        )}
+        <KVRow>
+          <KVKey>
+            <button
+              type="button"
+              class="btn btn-sm surfaced-link"
+              onClick={goGenre}
+              title="Open the FullTags Run tab — the live genre ladder with progress and cancel"
+            >
+              run the genre pass <Icon name="compass" size={12} />
+            </button>
+          </KVKey>
+          <KVVal>
+            <span class="dt-sub">
+              the fulltags page's coverage strip tracks beats/mood/cues
+            </span>
+          </KVVal>
+        </KVRow>
+      </KVRows>
+    </div>
+  );
+}
+
+/** ProcessBatchButton — ONE click turns a raw dated batch folder into
+ *  finished tracks: enqueues the REAL intake job (kind "ingest", the
+ *  Intake tab's engine — interlock, one-at-a-time, SSE live stream),
+ *  then jumps to the Intake tab to watch it. Toasts the refusal when the
+ *  engine is busy; the folder stays raw and retryable. */
+export function ProcessBatchButton(props: { folder: string; files: number }) {
+  const [busy, setBusy] = useState(false);
+  const start = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      const job = await apiPost<{ id: string }>(
+        "/api/intake/start",
+        { folder: props.folder },
+        { quiet: true },
+      );
+      toast(
+        `Processing ${props.files} file${props.files === 1 ? "" : "s"} — job ${job.id.slice(0, 8)}`,
+        "ok",
+      );
+      navigateProduct("getdat", "intake");
+    } catch (e: unknown) {
+      toast(
+        `intake refused: ${e instanceof Error ? e.message : String(e)}`,
+        "err",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      class="btn btn-sm surfaced-link"
+      disabled={busy}
+      onClick={() => void start()}
+      title={`Run the full intake pipeline on ${props.folder} (${props.files} files)`}
+    >
+      {busy ? (
+        <span class="spin">
+          <Icon name="refresh" size={12} />
+        </span>
+      ) : (
+        <Icon name="download" size={12} />
+      )}{" "}
+      process {props.folder} ({props.files})
+    </button>
   );
 }

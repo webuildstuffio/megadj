@@ -777,4 +777,54 @@ describe("ArchiveReader (O82b)", () => {
     r.close();
     rmSync(oldDir, { recursive: true, force: true });
   });
+
+  it("analysisCoverage.stages decomposes the pool: no-genre, genre-voted, raw batches", () => {
+    // self-contained fixtures (vx ids cleaned in beforeEach): two tracks
+    // with genre, one without; paths inside two DJ-Imports batch folders.
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, genre, file_path, first_seen_at, updated_at)
+         VALUES (?, ?, 'downloaded', ?, ?, '2026-09-19', '2026-09-19')`,
+      )
+      .run("vx-g1", "G1", "Techno", "/music/DJ-Imports/2026-09-19-b/a.mp3");
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, genre, file_path, first_seen_at, updated_at)
+         VALUES (?, ?, 'downloaded', ?, ?, '2026-09-19', '2026-09-19')`,
+      )
+      .run("vx-g2", "G2", null, "/music/DJ-Imports/2026-09-19-b/b.mp3");
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, genre, file_path, first_seen_at, updated_at)
+         VALUES (?, ?, 'downloaded', ?, ?, '2026-09-19', '2026-09-19')`,
+      )
+      .run("vx-g3", "G3", null, "/music/DJ-Imports/2026-09-18-a/c.mp3");
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, genre, file_path, first_seen_at, updated_at)
+         VALUES (?, ?, 'downloaded', ?, ?, '2026-09-19', '2026-09-19')`,
+      )
+      .run("vx-g4", "G4", "House", "/elsewhere/not-a-batch/x.mp3");
+    const cov = reader().analysisCoverage();
+    expect(cov.stages).toBeDefined();
+    const s = cov.stages!;
+    // the four seeded rows join the file's standing fixtures (v1/v2/v4
+    // downloaded with genre, plus any earlier vx leftovers) — assert the
+    // DELTAS this test's own fixtures contribute, not absolute totals.
+    expect(s.noGenre).toBeGreaterThanOrEqual(2); // vx-g2, vx-g3
+    expect(s.rawBatches).toEqual(
+      expect.arrayContaining([
+        { folder: "2026-09-19-b", files: 2 },
+        { folder: "2026-09-18-a", files: 1 },
+      ]),
+    );
+    // not-a-batch paths never appear as batch folders
+    expect(s.rawBatches.some((b) => b.folder.includes("not-a-batch"))).toBe(
+      false,
+    );
+    // genre_votes column absent in this fixture → 0 (never voted), not a crash
+    expect(s.genreVoted).toBe(0);
+    // cleanup: the stage fixture rows must not leak into later tests
+    seed.exec("DELETE FROM tracks WHERE video_id LIKE 'vx-g%'");
+  });
 });
