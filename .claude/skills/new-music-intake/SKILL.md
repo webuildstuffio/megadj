@@ -110,6 +110,37 @@ A stick/folder of UNKNOWN music is a different flow:
 junk-filtered, MD5-verified pull into the shelf with divergent copies kept
 as `<name> [<volume>]` twins. See the `shelf-intake` skill.
 
+## Library-scale analysis (the drive-day chain)
+
+Drop covers NEW tracks. The whole-library refresh is ONE command:
+
+```bash
+bash ops/full-pipeline.sh              # analysis chain (no YouTube)
+bash ops/full-pipeline.sh --with-sync  # + YouTube sync LAST (owner go)
+```
+
+Runbook: `docs/runbooks/0e-full-pipeline.md` (stage order + why serial).
+The traps it encodes, learned live Sep 20:
+
+- **Repoint before you analyze.** `megadj adopt --shelf` (dry-run) → any
+  `repointed > 0` means files MOVED on disk while the DB kept old paths —
+  every analysis pass silently skips them as missing. Heal with
+  `--apply`, THEN run the chain. (Sep 20: 84 stale rows, 39 of them the
+  entire no-embedding cohort.)
+- **`fetch --revote` is the old-genre drainer.** Rows whose genre
+  predates the #173 vote system (genre set, `genre_votes` empty) are its
+  exact selector; the imprint-vs-catalog downgrade guard keeps curated
+  labels from being overwritten by weaker family votes.
+- **The genre gate is fraction×100.** `genre --eval` returns 0..1;
+  apply fires only at ≥65% agreement (honest gap below the gate —
+  never a manufactured pass).
+- **Analysis caps are policy, not bugs.** beats/mood skip tracks over
+  10 minutes (`--max-seconds 0` to include) — DJ sets stay un-analyzed
+  by design; quote them as intentional, never as a coverage gap.
+- **Missing-row arithmetic:** a gap cohort (no embedding / no beats) is
+  NOT all work — decompose it first (over-cap vs missing-file vs
+  genuinely new). Only the third bucket is real work.
+
 ## Historical notes (kept for the traps)
 
 - **Re-running an already-ingested batch is a safe no-op** — "existing row

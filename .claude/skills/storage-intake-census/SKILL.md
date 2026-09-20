@@ -65,6 +65,20 @@ sqlite3 ~/.local/state/megadj/archive.db \
   "SELECT source, MAX(first_seen_at) FROM tracks GROUP BY 1;"
 ```
 
+**Sep 20 addendum — stale rows lie too.** A row can claim a path that no
+longer exists (folder reorgs move files; the DB keeps the old path), so
+"bytes known to the ledger" silently includes ghosts. The check + heal:
+
+```bash
+megadj adopt --shelf          # dry-run: how many rows point at dead paths
+megadj adopt --shelf --apply --yes   # repoint each at its shelf copy (NFC+casefold basename match)
+```
+
+Sep 20 measured: 84 rows stale (39 of them the entire no-embedding
+cohort — moved files are invisible to every analysis pass). After the
+heal, `repointed: 0` is the healthy steady state; anything else means a
+move happened and analysis coverage has a hole until the chain re-runs.
+
 Honesty rules: name the volume each number lives on; if SHELF1 is unmounted
 (`ls /Volumes/`), shelf-side bytes are an honest gap — say so, never a zero;
 explain disk-count > DB-count by provenance (quarantine, dedupe twins), never
@@ -83,6 +97,16 @@ bun src/cli.ts tmp-purge --apply  # delete what the gate admits
 #    archive.db matches no removable class by construction.
 bun src/cli.ts tmp-purge --state          # report: shows kept[] + eligible
 bun src/cli.ts tmp-purge --state --apply
+
+# 3. orphaned run rows — sync runs that crashed/killed between startRun
+#    and finishRun (finished_at NULL forever; status/recent_runs then lie
+#    about a run "in progress"). Selector is deliberately narrow:
+#    finished_at NULL + attempted = 0 + older than 24h. A run that did
+#    ANY work is never bulk-closed — it keeps its numbers for a human.
+#    The root cause is fixed in sync()'s finally (no NEW orphans can
+#    exist); this tier retro-cleans history. Sep 20: 302 closed live.
+bun src/cli.ts tmp-purge --orphan-runs          # read-only count
+bun src/cli.ts tmp-purge --orphan-runs --apply  # close them
 ```
 
 Both print per-family counts + bytes and honor `--json`. Deletion classes

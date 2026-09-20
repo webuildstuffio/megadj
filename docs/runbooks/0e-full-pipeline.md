@@ -44,6 +44,15 @@ two stages.
 - `git status` + `git log --oneline -5` — concurrent-agent check; don't
   launch a multi-hour chain on a tree mid-refactor.
 - Free disk / mount health: `df -h /Volumes/SHELF1`.
+- **Stale-path check (Sep 20 trap):** rows whose `file_path` died in a
+  folder reorg are INVISIBLE to every analysis pass (file-missing skip).
+  Run `megadj adopt --shelf` (dry-run) first — any `repointed > 0` means
+  heal with `--apply` BEFORE the chain, or those tracks never analyze.
+- **bun `-e` gate hygiene:** `bun -e` indexes argv from the program name
+  (argv[0]) — pass a placeholder and read operands from argv[2]+. And
+  `genre --eval` returns a 0..1 FRACTION; compare `fraction*100 >= 65`,
+  never the raw fraction (both bugs shipped in v1 of this script and
+  would have made `genre --apply` unreachable — fixed 141d15bb).
 
 ## Verification (after ALL DONE)
 
@@ -54,6 +63,8 @@ two stages.
 - `megadj status --json` — counts move coherently; no status
   explosion.
 - `megadj audit` — the completeness read-only verdict.
+- Re-run the stale-path check: `megadj adopt --shelf` must report
+  `repointed: 0`.
 
 ## History
 
@@ -61,4 +72,6 @@ The Sep 20 run that produced this script: manual stages, live in
 `docs/usb-sync-log.md` (2026-09-20 entry). The orphan-runs bug found that
 day (302 open run rows; sync crashed/killed between startRun and
 finishRun) is fixed in the same pass — sync's `finally` now closes the
-run row on ANY throw.
+run row on ANY throw. Two more same-day catches, both fixed:
+`tmp-purge --orphan-runs` (closes crashed-run rows, never the newest 24h
+or any run that did work) and the gate-math fix above (141d15bb).
