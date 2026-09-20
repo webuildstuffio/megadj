@@ -31,16 +31,53 @@ export interface YtdlpInfo {
   format_id?: string;
 }
 
+/** Split an SC-style "Artist - Track" title into its two halves (pure).
+ *  Splits on the FIRST " - " (feats/mixes use " - " inside the track
+ *  half, and multi-artist lead-ins use "," / "&" / "+", so the first
+ *  boundary is the artist↔title one). Null when no separator or when
+ *  either half would be trivially short — "AC/DC - TNT" has no ASCII
+ *  " - " and stays whole. #275: the download-time identity seam. */
+export function splitArtistFromTitle(
+  title: string | undefined | null,
+): { artist: string; track: string } | null {
+  if (typeof title !== "string") return null;
+  const idx = title.indexOf(" - ");
+  if (idx <= 0 || idx + 3 >= title.length) return null;
+  const artist = title.slice(0, idx).trim();
+  const track = title.slice(idx + 3).trim();
+  if (artist.length < 2 || track.length < 2) return null;
+  return { artist, track };
+}
+
 /** Map the SC payload shape onto the YT-shaped YtdlpInfo (pure).
  *  uploader→artist (when artist is absent), timestamp→upload_date
- *  (YYYYMMDD string, buildMetadata's native form). Idempotent. */
+ *  (YYYYMMDD string, buildMetadata's native form). Idempotent.
+ *
+ *  #275 (Sep 19): SC "uploader" is the CHANNEL, not the track artist —
+ *  label/imprint pages ("Experts Only", "Big Joy Records") upload other
+ *  artists' tracks, and the rip then tagged the channel as artist. The
+ *  fetch ladder's BP identity stage artist-gates against that wrong
+ *  artist and refuses correct hits, so label/genre enrichment died
+ *  downstream too. SC titles are conventionally "Artist - Track" (measured
+ *  on all 17 paro rips), so when the title carries that split AND the
+ *  uploader looks like an imprint rather than the track artist, the
+ *  title-derived artist wins and the original title is preserved. A
+ *  title with no split keeps uploader→artist (single-artist channels
+ *  naming tracks plainly still resolve). */
 export function scInfoToYtdlpInfo(info: YtdlpInfo): YtdlpInfo {
   if (
     info.artist === undefined &&
     typeof info.uploader === "string" &&
     info.uploader.length > 0
   ) {
-    info = { ...info, artist: info.uploader };
+    const split = splitArtistFromTitle(info.title);
+    const uploader = info.uploader.toLowerCase();
+    const titleArtist = split?.artist.toLowerCase() ?? null;
+    // Trust the title's artist unless the uploader IS that artist (the
+    // common self-upload case) — then uploader→artist is already right.
+    const artist =
+      split && titleArtist !== uploader ? split.artist : info.uploader;
+    info = { ...info, artist };
   }
   if (
     info.upload_date === undefined &&
@@ -105,7 +142,12 @@ function plausibleGenre(candidate: string): boolean {
 export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   const title = cleanTitle(info.title) ?? info.title ?? null;
   const artist = info.artist?.trim() || null;
-  const album = info.album?.trim() || null;
+  // #275: "<uploader> - Unknown Album" placeholders are a LIE the writer
+  // minted when album was unknown — an honest unknown beats a lying
+  // placeholder (repo rule). Strip the pattern wherever it rode in.
+  const rawAlbum = info.album?.trim() || null;
+  const album =
+    rawAlbum !== null && /- Unknown Album$/i.test(rawAlbum) ? null : rawAlbum;
   const date =
     info.release_date ||
     (info.release_year ? String(info.release_year) : null) ||
@@ -132,19 +174,36 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   const genre =
     guessFromFreeText([rawGenre, info.artist, info.album, info.title]) ??
     rawGenre;
-  const albumArtist = artist && album ? artist : null;
+  // #275: SC descriptions name the real album surprisingly often
+  // ("from the upcoming album "Buds" by …" — measured on Surf Curse).
+  // A quoted album mention recovers what yt-dlp leaves absent; the
+  // mention must be plausible-length to avoid CSS/JSON soup.
+  const descAlbum = album ?? descriptionAlbum(info.description);
+  const albumArtist = artist && descAlbum ? artist : null;
 
   return {
     title,
     artist,
     albumArtist,
-    album,
+    album: descAlbum,
     genre,
     date: date?.slice(0, 4) ?? null,
     composer,
     comment: info.webpage_url ?? null,
     bpm: null, // analysis happens in rekordbox itself
   };
+}
+
+/** #275: pull an album name out of an SC description — the first
+ *  quoted-or-… album-style mention of form: [album|ep|lp|single]
+ *  ["Name"] (case-insensitive). Null when nothing matches; the caller
+ *  keeps null as the honest unknown. */
+export function descriptionAlbum(
+  description: string | null | undefined,
+): string | null {
+  if (typeof description !== "string" || description.length === 0) return null;
+  const m = description.match(/(?:album|ep|lp)\s*[“"']([^“”"']{2,60})[”"']/i);
+  return m?.[1]?.trim() ?? null;
 }
 
 /** Pass-through (kept for API symmetry with the original code). */

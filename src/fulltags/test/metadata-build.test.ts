@@ -159,8 +159,57 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
         timestamp: 1470950832,
       }),
     );
-    expect(meta.artist).toBe("Porter Robinson");
+    // #275: the title's "A - T" split names the TRACK artist (both
+    // collaborators), which outranks the uploading channel's own name —
+    // the BP artist gate can match it.
+    expect(meta.artist).toBe("Porter Robinson & Madeon");
     expect(meta.date).toBe("2016");
+  });
+
+  test("#275: an imprint-channel upload takes the title's artist, not the channel", () => {
+    // The paro incident live shape: Big Joy Records (label channel)
+    // uploaded Surf Curse's track; the rip previously tagged
+    // "Big Joy Records" as artist and every BP identity gate refused.
+    const mapped = scInfoToYtdlpInfo({
+      title: 'Surf Curse "Freaks"',
+      uploader: "Big Joy Records",
+    });
+    // No " - " split in this title: uploader→artist is the only option
+    // (honest, and fetch's BP self-heal corrects it later).
+    expect(mapped.artist).toBe("Big Joy Records");
+
+    const splitShape = scInfoToYtdlpInfo({
+      title: "Gabss - She Freaks (Original Mix)",
+      uploader: "Ⓜ️iSS Ⓜ️oni 7.8",
+    });
+    expect(splitShape.artist).toBe("Gabss");
+  });
+
+  test("#275: self-uploads keep uploader→artist (split artist == uploader)", () => {
+    const mapped = scInfoToYtdlpInfo({
+      title: "Mau P - TESLA",
+      uploader: "Mau P",
+    });
+    expect(mapped.artist).toBe("Mau P");
+  });
+
+  test("#275: description album mention is recovered (Surf Curse live shape)", () => {
+    const meta = buildMetadata({
+      title: "Surf Curse - Freaks",
+      description:
+        '"Freaks" from the upcoming album "Buds" by Reno, Nevada\'s Surf Curse.',
+    });
+    expect(meta.album).toBe("Buds");
+  });
+
+  test("#275: 'X - Unknown Album' placeholders dissolve to honest null", () => {
+    expect(
+      buildMetadata({ title: "T", album: "Experts Only - Unknown Album" })
+        .album,
+    ).toBeNull();
+    expect(buildMetadata({ title: "T", album: "Real Album" }).album).toBe(
+      "Real Album",
+    );
   });
 
   test("idempotent — mapping twice changes nothing", () => {

@@ -41,6 +41,7 @@ import { downloadBatchDir } from "./intake-folder";
 import {
   buildMetadata,
   scInfoToYtdlpInfo,
+  splitArtistFromTitle,
   type YtdlpInfo,
 } from "../../fulltags/write/metadata-build";
 import { guessFromFreeText } from "../../fulltags/genre/genre-vocab";
@@ -168,7 +169,12 @@ async function repairScIdentity(
     const raw = await scRawTrackLinks(row.video_id);
     if (raw === null) continue;
     const title = typeof raw.title === "string" ? raw.title : null;
-    const artist = typeof raw.user === "string" ? raw.user : null;
+    // #275: raw.user is the UPLOADING CHANNEL — for label/imprint pages
+    // it is NOT the track artist. The title's "A - T" split is the
+    // honest artist when present (same seam as download time).
+    const uploader = typeof raw.user === "string" ? raw.user : null;
+    const split = splitArtistFromTitle(title);
+    const artist = split?.artist ?? uploader;
     if (title === null && artist === null) continue;
     opts.state.backfillTrackIdentity(row.video_id, title, artist);
     repaired++;

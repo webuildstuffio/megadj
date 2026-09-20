@@ -27,6 +27,10 @@ import {
   type TagValues,
 } from "../archive-ledger";
 import { stageGenreArm, stageYearArm } from "./fetch-genre-year";
+// #275: the SAME download-time title split heals legacy rows at fetch
+// time — a row carrying uploader-as-artist still queries BP with the
+// title's real artist, so the artist gate stops refusing correct hits.
+import { splitArtistFromTitle } from "../write/metadata-build";
 
 /** Where the SC-art fallback ladder stops being tried (artless → queue). */
 export interface Stats {
@@ -116,7 +120,9 @@ export interface ScHit {
 }
 
 /** Diff DB truth vs the row: which tag fields are missing and what value
- *  each should get. Pure — no writes, no stats (stageTags applies it). */
+ *  each should get. Pure — no writes, no stats (stageTags applies it).
+ *  #275: no "<artist> - Unknown Album" placeholder — an unknown album
+ *  stays unknown (null), never a lie carved into the file. */
 function missingTagValues(
   r: Row,
   truth: StageCtx["truth"],
@@ -125,8 +131,7 @@ function missingTagValues(
   const vals: TagValues = {};
   if (!truth.title) vals.title = cleanTitle(r.title);
   if (!truth.artist && artist) vals.artist = artist;
-  if (!truth.album && artist)
-    vals.album = r.album ?? `${artist} - Unknown Album`;
+  if (!truth.album && r.album) vals.album = r.album;
   if (!truth.genre && r.genre && r.genre !== "Music") vals.genre = r.genre;
   return vals;
 }
@@ -191,6 +196,21 @@ export function stageTags(t: StageCtx): void {
 // onto the Ctx. The pipeline body stays a flat sequencer with identical
 // stage order — the lookups were inline fan-out branches before.
 
+/** The BP query artist: the DB row's artist — UNLESS the title carries
+ *  an "Artist - Track" split whose artist differs (uploader-as-artist
+ *  rows, #275). The title-derived artist is the one the artist gate can
+ *  actually match; the channel name would refuse every correct hit. */
+function bpQueryArtist(t: StageCtx): string | null {
+  const stored = cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist);
+  const split = splitArtistFromTitle(t.truth.title ?? t.row.title);
+  if (split === null) return stored;
+  // The split's artist wins when it differs from what's stored — that
+  // mismatch is exactly the uploader-as-artist signature.
+  return stored !== null && stored.toLowerCase() === split.artist.toLowerCase()
+    ? stored
+    : split.artist;
+}
+
 /** Fan-out 1 — Beatport lookup (second source, behind SC). One catalog
  *  search feeds genre AND year AND art AND identity. Runs when any
  *  Beatport-fed field is needed; SC wins every field it covers. */
@@ -201,8 +221,10 @@ export async function fanOutBeatport(t: StageCtx): Promise<void> {
   if (t.dry || !(t.needGenre || t.needArt || t.needYear || needsIdentity))
     return;
   t.bpBest = await beatportLookup({
-    artist: cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist),
-    title: cleanTitle(t.truth.title ?? t.row.title),
+    artist: bpQueryArtist(t),
+    title:
+      splitArtistFromTitle(t.truth.title ?? t.row.title)?.track ??
+      cleanTitle(t.truth.title ?? t.row.title),
     durationS: t.durationS ?? undefined,
   });
 }
@@ -421,6 +443,22 @@ export function stageBeatportIdentity(t: StageCtx): void {
   if (t.dry || !t.needTags || !t.bpBest) return;
   const vals: TagValues = {};
   const bpFields: [string, string | number][] = [];
+  // #275 self-heal: when BP's artist-gated hit names an artist that
+  // DIFFERS from the file's/row's stored artist, the stored one was the
+  // SC uploader — fix the file AND the row (fill-don't-clobber is wrong
+  // here: the stored value is actively wrong, not merely absent).
+  const bpArtist = t.bpBest.artists.join(", ");
+  const split = splitArtistFromTitle(t.truth.title ?? t.row.title);
+  const expected =
+    split?.artist ?? cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist);
+  if (
+    bpArtist &&
+    expected !== null &&
+    bpArtist.toLowerCase() !== expected.toLowerCase()
+  ) {
+    vals.artist = bpArtist;
+    bpFields.push(["artist", bpArtist]);
+  }
   if (!t.truth.label && t.bpBest.label) {
     vals.label = t.bpBest.label;
     bpFields.push(["label", t.bpBest.label]);
