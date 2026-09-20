@@ -26,10 +26,21 @@ test("cratedeck/tsconfig.json is an extends shim, never an options twin", () => 
     json.extends,
     "cratedeck/tsconfig.json must extend the root config — a hand-copied compilerOptions twin drifts and shares the root tsBuildInfoFile (cache-poisoning footgun, #271)",
   ).toBe("../tsconfig.json");
+  // EXACTLY ONE override is allowed: incremental:false. Extends inherits
+  // the root's incremental:true + shared tsBuildInfoFile, so a scoped
+  // `tsc -p cratedeck` (or cratedeck/web/tsconfig.json) would still write
+  // sub-project state into the ROOT cache — repro'd live (Sep 20: child
+  // scoped run created base/cache/tsbuildinfo). The override makes the
+  // poison structurally impossible instead of merely unused.
+  const overrides = Object.keys(json.compilerOptions ?? {});
   expect(
-    json.compilerOptions,
-    "no local compilerOptions overrides: the twin died with #271 (any exception needs a written reason in the file)",
-  ).toBeUndefined();
+    overrides,
+    "the one sanctioned override is incremental:false",
+  ).toStrictEqual(["incremental"]);
+  expect(
+    json.compilerOptions?.["incremental"],
+    "scoped runs must never write the shared root tsBuildInfoFile",
+  ).toBe(false);
 });
 
 test("cratedeck/web/tsconfig.json stays the extends shim it already was", () => {
