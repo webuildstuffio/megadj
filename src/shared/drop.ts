@@ -207,6 +207,10 @@ async function downloadScUrl(
     const args = [
       "-f",
       SC_FORMAT,
+      // Sets contain walled entries (MONETIZE tracks 403 even on metadata
+      // with any session) — one wall must not kill the batch: skip the
+      // entry, report the count, keep ripping.
+      "--ignore-errors",
       // #258-superfix parity: a set entry can land on the mp3 fallback
       // (legacy uploads stream ONLY mp3), and `-x --audio-format m4a`
       // would re-encode it lossy→lossy. `--audio-format` DEFAULTS to

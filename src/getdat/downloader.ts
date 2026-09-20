@@ -290,11 +290,16 @@ export class Downloader {
     const args = [
       // Audio-only, always. Never let format fallback pick a merged
       // video+audio format (that's how .webm/.mp4 strays happen).
-      // SC picks its own ladder: hls_aac_160k is the ceiling (#255).
+      // SC picks its own ladder: 256k Premium with a paid session,
+      // falling through to the anonymous 160k (#255, Sep 19 Plus bump).
       "-f",
       target.soundcloud
         ? SC_FORMAT
         : "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
+      // One walled SC entry (MONETIZE 403s even on metadata) must not
+      // kill a set download — skip and continue; the run summary carries
+      // the misses.
+      "--ignore-errors",
       // #258-superfix: extraction flags are SOURCE-AWARE. SC's mp3
       // fallback must stream-copy (scExtractionArgs → []), never
       // mp3→m4a re-encode (lossy→lossy); YT keeps the m4a extraction —
