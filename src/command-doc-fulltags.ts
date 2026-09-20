@@ -38,10 +38,12 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     group: "fulltags",
     block: [
       "  megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--json]",
-      "                          [--ai-fallback] [--dry-run]",
+      "                          [--ai-fallback] [--revote] [--dry-run]",
       "                                               enrichment pass: tags+genres+years+art from",
       "                                               SC/Beatport/gateways; AI genre+year only with",
-      "                                               --ai-fallback (opt-in — verify years after)",
+      "                                               --ai-fallback (opt-in — verify years after);",
+      "                                               --revote re-runs the genre vote ladder on",
+      "                                               rows whose genre predates the vote system",
     ],
   },
   {

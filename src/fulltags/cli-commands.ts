@@ -115,7 +115,17 @@ const fetchCommand: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
     ["jobs"],
-    ["art", "genres", "tags", "years", "all", "ai-fallback", "dry-run", "json"],
+    [
+      "art",
+      "genres",
+      "tags",
+      "years",
+      "all",
+      "ai-fallback",
+      "revote",
+      "dry-run",
+      "json",
+    ],
   );
   if (nonNegOptInvalid(flags, "jobs", "fetch", flags.bools.has("json"))) return;
   const jobs = nonNegOpt(flags, "jobs", "fetch", flags.bools.has("json"));
@@ -127,6 +137,7 @@ const fetchCommand: CliCommandHandler = async (rest) => {
   await fetch({
     all: flags.bools.has("all"),
     only,
+    revote: flags.bools.has("revote"),
     jobs,
     aiFallback: flags.bools.has("ai-fallback"),
     dryRun: flags.bools.has("dry-run"),

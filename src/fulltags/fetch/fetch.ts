@@ -34,6 +34,11 @@ export interface FetchOptions {
    *  default — the flash-lite fallback has a documented "2023" failure
    *  mode; enable only for a bounded re-pass over a short unresolved list. */
   aiFallback?: boolean | undefined;
+  /** Re-run the #173 vote ladder over rows whose genre predates the vote
+   *  system (genre set on the file, no genre_votes on the row). The
+   *  election overwrites the old-system genre in file + row; SC/Beatport
+   *  votes may replace, imprint-only cannot downgrade a curated genre. */
+  revote?: boolean | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean | undefined;
 }
@@ -116,6 +121,7 @@ export async function fetch(opts: FetchOptions): Promise<void> {
     all: opts.all ?? false,
     only: opts.only ?? "all",
     aiFallback: opts.aiFallback ?? false,
+    revote: opts.revote ?? false,
     onlyDryRun: opts.dryRun ?? false,
     jobs: opts.jobs ?? 6,
     json: opts.json ?? false,
@@ -134,5 +140,6 @@ export function fetchAllArgs(opts: FetchOptions): string[] {
   if (opts.jobs !== undefined) extra.push("--jobs", String(opts.jobs));
   if (opts.dryRun) extra.push("--dry-run");
   if (opts.aiFallback) extra.push("--ai-fallback");
+  if (opts.revote) extra.push("--revote");
   return extra;
 }

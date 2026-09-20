@@ -83,6 +83,9 @@ export interface FetchAllOptions {
    * The operator turns it on for a bounded re-pass over a short unresolved
    * list, never as a silent part of every run. */
   aiFallback?: boolean | undefined;
+  /** --revote: re-run the vote ladder over already-genred rows whose
+   *  genre predates the vote system (no genre_votes). See FetchAllOptions. */
+  revote?: boolean | undefined;
   onlyDryRun?: boolean | undefined;
   jobs?: number | undefined;
   /** --json: stdout carries only the summary object (agent contract). */
@@ -116,16 +119,32 @@ interface Task {
 }
 
 /** Build the per-track task list: one pass over the downloaded rows,
- *  deciding which stages each row needs (the fetch stage gates). */
-function buildTasks(rows: Row[], only: string, all: boolean): Task[] {
+ *  deciding which stages each row needs (the fetch stage gates).
+ *  `revote` (Sep 20, #260 follow-up): rows whose FILE carries a genre but
+ *  whose ROW has no genre_votes predate the #173 vote ladder — the old
+ *  first-win system. Re-run the ladder on exactly those (needGenre is
+ *  forced true so the rungs collect and ONE election rewrites file+row);
+ *  rows already under the vote system are never re-fetched here (their
+ *  election stands; re-running would churn network for the same answer). */
+function buildTasks(
+  rows: Row[],
+  only: string,
+  all: boolean,
+  revote: boolean,
+): Task[] {
   const tasks: Task[] = [];
   for (const r of rows) {
     const truth = groundTruth(r.file_path);
-    const genreOk = truth.genre && truth.genre !== "Music";
+    const genreOk = Boolean(truth.genre) && truth.genre !== "Music";
+    const oldSystemGenre =
+      revote &&
+      Boolean(genreOk) &&
+      !(r.genre_votes && r.genre_votes.trim() !== "");
+    const needGenre =
+      (only === "all" || only === "genres") && (!genreOk || oldSystemGenre);
     const needTags =
       (only === "all" || only === "tags") &&
       (!truth.title || !truth.artist || !truth.album || !genreOk);
-    const needGenre = (only === "all" || only === "genres") && !genreOk;
     const needYear = (only === "all" || only === "years") && !truth.year;
     const upgradeSc = all && r.format_id?.startsWith("sc:") === true;
     const needArt =
@@ -305,6 +324,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   const only = opts.only ?? "all";
   const dry = opts.onlyDryRun ?? false;
   const aiFallback = opts.aiFallback ?? false;
+  const revote = opts.revote ?? false;
   const jobs = Math.max(1, opts.jobs ?? 6); // 0 workers is meaningless → clamp to 1
   jsonOut = opts.json ?? false;
 
@@ -312,7 +332,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   const rows = (
     db
       .query(
-        "SELECT video_id, title, artist, album, genre, label, file_path, format_id FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
+        "SELECT video_id, title, artist, album, genre, genre_votes, label, file_path, format_id FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
       )
       .all(`${ARCH}/%`) as Row[]
   ).filter(
@@ -321,14 +341,14 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     (r) => files.has(r.file_path) && existsSync(r.file_path),
   );
 
-  const tasks = buildTasks(rows, only, all);
+  const tasks = buildTasks(rows, only, all, revote);
 
   if (jsonOut) {
     // structured stderr channel: the job leg's ladder feed lives on these
     emitFetchStart({ total: rows.length, tasks: tasks.length, jobs, dry });
   } else {
     console.log(
-      `megadj fetch: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${jobs}${all ? " [--all upgrade]" : ""}${dry ? " [DRY RUN]" : ""}\n`,
+      `megadj fetch: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${jobs}${all ? " [--all upgrade]" : ""}${revote ? " [--revote]" : ""}${dry ? " [DRY RUN]" : ""}\n`,
     );
   }
 
@@ -407,6 +427,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     command: "fetch",
     dryRun: dry,
     aiFallback,
+    revote,
     tracks: rows.length,
     tasks: tasks.length,
     tags: stats.tags,

@@ -112,4 +112,9 @@ describe("fetch flag forwarding", () => {
     expect(fetchAllArgs({ aiFallback: false })).toEqual([]);
     expect(fetchAllArgs({ aiFallback: true })).toEqual(["--ai-fallback"]);
   });
+
+  test("revote is opt-in: off → absent, on → --revote", () => {
+    expect(fetchAllArgs({ revote: false })).toEqual([]);
+    expect(fetchAllArgs({ revote: true })).toEqual(["--revote"]);
+  });
 });

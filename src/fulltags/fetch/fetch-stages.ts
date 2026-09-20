@@ -422,6 +422,20 @@ export function stageGenreElection(
   t.stats.votesCast += votes.length;
   const elected = electGenre(votes);
   if (elected.genre === null) return null;
+  // --revote downgrade guard (Sep 20): the row already carries a curated
+  // genre from the old first-win system. An imprint-only family election
+  // (a scene prior, weight 0.15, no catalog claim behind it) is WEAKER
+  // evidence than that curated label — overwriting House/Techno with a
+  // vague family would be a regression. Only a catalog-rung winner
+  // (SC 0.35 / bp 0.6) may replace an existing curated label.
+  // familyOnly rows with NO prior genre still elect (fill-don't-clobber).
+  const hasCurated = Boolean(t.row.genre && t.row.genre !== "Music");
+  if (elected.familyOnly && hasCurated && elected.genre !== t.row.genre) {
+    t.notes.push(
+      `genre:KEEP ${t.row.genre} (imprint family ${elected.genre} weaker than curated label)`,
+    );
+    return null;
+  }
   if (!setFileTags(t.row.file_path, { genre: elected.genre })) {
     t.notes.push("genre:WRITE-FAILED (vote election)");
     return null;
