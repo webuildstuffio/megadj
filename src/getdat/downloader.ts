@@ -56,7 +56,11 @@ export interface DownloadTarget {
  *  place that knows how ids map to URLs (the old code hardcoded
  *  `https://music.youtube.com/watch?v=` in both probe and download). */
 export function targetFor(trackId: string, source: string): DownloadTarget {
-  if (source === SC_SOURCE) {
+  // #267: keyed per ROW, prefix-match — `soundcloud:<set-slug>` rows
+  // (sc-set fan-out, `#257`) previously fell through to the YT URL and
+  // mis-probed. Set provenance stays in the source column; the SC gate
+  // must read the FAMILY, not the exact string.
+  if (source === SC_SOURCE || source.startsWith(`${SC_SOURCE}:`)) {
     return {
       id: trackId,
       url: `https://api.soundcloud.com/tracks/${trackId}`,
@@ -176,9 +180,11 @@ export class Downloader {
     return $`${[this.opts.ytdlpBin, ...args]}`.quiet().nothrow();
   }
 
-  /** Fetch metadata JSON without downloading. */
-  async probe(videoId: string): Promise<YtdlpInfo> {
-    const target = targetFor(videoId, this.opts.source ?? "liked");
+  /** Fetch metadata JSON without downloading. `source` (#267) overrides
+   *  the constructor default PER ROW — a mixed YT+SC run routes each row
+   *  by its own `tracks.source`, never by the run's dominant family. */
+  async probe(videoId: string, source?: string): Promise<YtdlpInfo> {
+    const target = targetFor(videoId, source ?? this.opts.source ?? "liked");
     const proc = await this.spawn([
       "-J",
       "--no-playlist",
@@ -273,12 +279,15 @@ export class Downloader {
   }
 
   /** Download best audio; returns path of the landed file. */
+  /** Download. `source` (#267) overrides the constructor default PER
+   *  ROW — same contract as probe(); see targetFor's prefix match. */
   async download(
     videoId: string,
     info: YtdlpInfo,
-    genre?: string | null,
+    genre: string | null | undefined,
+    source?: string,
   ): Promise<DownloadResult> {
-    const target = targetFor(videoId, this.opts.source ?? "liked");
+    const target = targetFor(videoId, source ?? this.opts.source ?? "liked");
     // Destination policy (Sep 19, "never loose, never genre"): a batchDir
     // (the dated batch folder, intake convention) wins outright — genre
     // decides nothing. Without one (legacy callers), the old genre-folder

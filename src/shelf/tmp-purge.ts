@@ -114,16 +114,29 @@ function openPathsUnder(dir: string): Set<string> | null {
     }
     return held;
   } catch (e) {
-    // macOS lsof exits 1 with completely empty output when no files match.
-    // Any diagnostic output or other status is an unknown safety state.
+    // macOS lsof exits 1 in TWO distinct cases: no files matched at all
+    // (completely empty output) OR its +D walk raced a disappearing file
+    // while still having produced usable rows (the deck server holding
+    // archive.db open hits this). Empty = known-empty set; rows = parse
+    // them — treating a populated scan as "unknown" would fail closed on
+    // every sweep of a busy state dir (#270 follow-up).
     const failure = e as {
       status?: unknown;
       stdout?: unknown;
       stderr?: unknown;
     };
+    const out = commandOutput(failure.stdout);
+    if (failure.status === 1 && out.trim() !== "") {
+      const held = new Set<string>();
+      for (const line of out.split("\n")) {
+        const path = line.slice(line.lastIndexOf(" ") + 1).trim();
+        if (path.startsWith("/")) held.add(path);
+      }
+      return held;
+    }
     if (
       failure.status === 1 &&
-      commandOutput(failure.stdout).trim() === "" &&
+      out.trim() === "" &&
       commandOutput(failure.stderr).trim() === ""
     ) {
       return new Set();
@@ -192,11 +205,29 @@ export function statePurge(
     };
   }
 
-  const held = opts.apply ? (deps.openPaths ?? openPathsUnder)(root) : null;
-  if (opts.apply && held === null) {
-    opts.log(
-      "tmp-purge --state: open-file check unavailable; refusing --apply",
-    );
+  // #270: the lsof guard runs in BOTH modes. Read-only runs need it for
+  // HONEST eligibility (a held -wal/-shm sidecar is not deletable, so
+  // counting it as eligible overstated what --apply would remove), and
+  // the apply path refuses on unknown state exactly as before.
+  const held = (deps.openPaths ?? openPathsUnder)(root);
+  if (held === null) {
+    if (opts.apply) {
+      opts.log(
+        "tmp-purge --state: open-file check unavailable; refusing --apply",
+      );
+      return {
+        ok: false,
+        root,
+        scanned: 0,
+        eligible: 0,
+        applied: 0,
+        freedBytes: 0,
+        families: [],
+        appliedMode: true,
+      };
+    }
+    // read-only: unknown lsof state still fails the summary honestly (#265)
+    opts.log("tmp-purge --state: open-file check unavailable; report only");
     return {
       ok: false,
       root,
@@ -205,7 +236,7 @@ export function statePurge(
       applied: 0,
       freedBytes: 0,
       families: [],
-      appliedMode: true,
+      appliedMode: false,
     };
   }
 
@@ -299,13 +330,18 @@ export function statePurge(
   };
 }
 
-/** Classify a state-dir backup name → its DB stem, or null. */
+/** Classify a state-dir backup name → its DB stem, or null.
+ *  All classes are end-anchored (#270): a prefix-only match classified a
+ *  backup's own `-wal`/`-shm` sidecar (or a `.old` twin) as a BACKUP,
+ *  which both over-counted the lineage and let a sidecar win the
+ *  keep-newest race — sweeping the real backup while "keeping" a WAL.
+ *  Sidecar spellings belong to sidecarClass, not here. */
 export function backupClass(name: string): string | null {
-  const m1 = /^archive\.db\.(bak-\d{8}-\d{6})/.exec(name);
+  const m1 = /^archive\.db\.(bak-\d{8}-\d{6})$/.exec(name);
   if (m1) return "archive.db";
-  const m2 = /^archive\.db\.pre-restore-\d{8}-\d{6}\.bak/.exec(name);
+  const m2 = /^archive\.db\.pre-restore-\d{8}-\d{6}\.bak$/.exec(name);
   if (m2) return "archive.db";
-  const m3 = /^archive_bak_[\d-]+T[\d-]+Z\.db/.exec(name);
+  const m3 = /^archive_bak_[\d-]+T[\d-]+Z\.db(?:\.bak)?$/.exec(name);
   if (m3) return "archive.db";
   // Dated lineage snapshots (#108-class): archive-db-before-<what>-<date>.db
   const m4 = /^archive-db-before-[a-z0-9-]+-\d{4}-\d{2}-\d{2}\.db$/.exec(name);
@@ -323,12 +359,16 @@ export function sidecarClass(name: string): string | null {
 }
 
 /** One root scan: every fixture-prefixed entry, classified + age-gated.
- *  Shared by the multi-root sweep (#254) so both roots age identically. */
+ *  Shared by the multi-root sweep (#254) so both roots age identically.
+ *  #270: a failed removal FAILS CLOSED (mirrors statePurge's contract) —
+ *  ok:false so the CLI exits 1 and `--apply --json` automation can tell
+ *  a partial sweep from a clean one. */
 interface RootTally {
   scanned: number;
   eligible: number;
   applied: number;
   freedBytes: number;
+  removeFailed: boolean;
 }
 
 function scanOneTmpRoot(
@@ -337,12 +377,16 @@ function scanOneTmpRoot(
   apply: boolean,
   log: (message: string) => void,
   byFamily: Map<string, TmpPurgeFamily>,
+  deps: {
+    remove?: (path: string) => void;
+  },
 ): RootTally {
   const tally: RootTally = {
     scanned: 0,
     eligible: 0,
     applied: 0,
     freedBytes: 0,
+    removeFailed: false,
   };
 
   let entries: string[];
@@ -350,6 +394,7 @@ function scanOneTmpRoot(
     entries = readdirSync(root);
   } catch (e) {
     log(`tmp-purge: cannot read ${root}: ${(e as Error).message}`);
+    tally.removeFailed = true; // unreadable root: fail closed (#270)
     return tally;
   }
 
@@ -373,11 +418,15 @@ function scanOneTmpRoot(
     byFamily.set(prefix, fam);
     if (apply) {
       try {
-        rmSync(full, { recursive: true, force: true });
+        (
+          deps.remove ??
+          ((p: string) => rmSync(p, { recursive: true, force: true }))
+        )(full);
         tally.applied++;
         tally.freedBytes += bytes;
       } catch (e) {
         log(`  ! could not remove ${full}: ${(e as Error).message}`);
+        tally.removeFailed = true;
       }
     }
   }
@@ -386,19 +435,45 @@ function scanOneTmpRoot(
 
 /** The tmpdir tier (#254: scans BOTH tmpdir() and /tmp when they differ,
  *  deduped by realpath — the two roots leak independently). Exported for
- *  the multi-root pin test; the CLI rides tmpPurge(). */
-export function tmpPurgeSweep(opts: TmpPurgeOptions): TmpPurgeResult {
+ *  the multi-root pin test; the CLI rides tmpPurge().
+ *  `deps` mirrors StatePurgeDeps so the fail-closed removal contract
+ *  (#270) is testable hermetically — the same injected-failure pattern
+ *  the --state tier's #265 tests use. */
+export function tmpPurgeSweep(
+  opts: TmpPurgeOptions,
+  deps: {
+    remove?: (path: string) => void;
+  } = {},
+): TmpPurgeResult {
   // #254: macOS moved the default tmpdir to ~/.tmp while real suites
   // still leak into /tmp proper — the two roots exist and leak
   // independently, so BOTH are scanned (deduped by realpath) with
-  // identical age gating.
+  // identical age gating. #270: a nonexistent/unreadable root fails the
+  // sweep closed instead of throwing past the CLI boundary.
   const primary = tmpdir();
   const fallback = "/tmp";
-  const roots = opts.roots
-    ? new Set(opts.roots.map((root) => realpathSync(root)))
-    : new Set<string>([realpathSync(primary)]);
-  if (!opts.roots && realpathSync(fallback) !== realpathSync(primary)) {
-    roots.add(realpathSync(fallback));
+  const roots = new Set<string>();
+  let resolveFailed = false;
+  for (const root of opts.roots ?? [primary, fallback]) {
+    try {
+      roots.add(realpathSync(root));
+    } catch (e) {
+      opts.log(`tmp-purge: cannot resolve ${root}: ${(e as Error).message}`);
+      resolveFailed = true;
+    }
+  }
+  if (resolveFailed && roots.size === 0) {
+    return {
+      ok: false,
+      root: primary,
+      roots: [],
+      scanned: 0,
+      eligible: 0,
+      applied: 0,
+      freedBytes: 0,
+      families: [],
+      appliedMode: opts.apply,
+    };
   }
 
   const cutoffMs = opts.all
@@ -410,18 +485,29 @@ export function tmpPurgeSweep(opts: TmpPurgeOptions): TmpPurgeResult {
   let eligible = 0;
   let applied = 0;
   let freedBytes = 0;
+  let removeFailed = false;
 
   for (const root of roots) {
-    const t = scanOneTmpRoot(root, cutoffMs, opts.apply, opts.log, byFamily);
+    const t = scanOneTmpRoot(
+      root,
+      cutoffMs,
+      opts.apply,
+      opts.log,
+      byFamily,
+      deps,
+    );
     scanned += t.scanned;
     eligible += t.eligible;
     applied += t.applied;
     freedBytes += t.freedBytes;
+    if (t.removeFailed) removeFailed = true;
   }
 
   const families = [...byFamily.values()].toSorted((a, b) => b.dirs - a.dirs);
   return {
-    ok: true,
+    // #270: partial removal failure (or unreadable root) fails closed —
+    // the same contract the --state tier has had since #265.
+    ok: !removeFailed,
     root: primary,
     roots: [...roots].toSorted(),
     scanned,

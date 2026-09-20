@@ -194,12 +194,22 @@ export interface HygieneBadge {
   info: number;
 }
 
-/** SQLite filter fragments shared by every hygiene_findings reader (the
- *  engine's HygieneStore.list and CrateDeck's HygieneReader.list carried
- *  byte-identical WHERE/ORDER BY blocks until jscpd flagged the clone).
- *  HygieneReaders pass their filters here so the status priority (worst
- *  first: confirmed → open → failed → applied → dismissed) and the
- *  parameterized WHERE builder stay defined ONCE, next to the contract. */
+/**
+ * SQLite filter fragments shared by every hygiene_findings reader (the
+ * engine's HygieneStore.list and CrateDeck's HygieneReader.list carried
+ * byte-identical WHERE/ORDER BY blocks until jscpd flagged the clone).
+ * HygieneReaders pass their filters here so the status priority (worst
+ * first: confirmed → open → failed → applied → dismissed) and the
+ * parameterized WHERE builder stay defined ONCE, next to the contract.
+ *
+ * #269: `archived` is TERMINAL — its recoverable quarantine copy has been
+ * emptied (#36), and the write side already treats it as gone (the
+ * natural-key index is `WHERE status <> 'archived'`, upsert's duplicate
+ * select excludes it). A filter-less read leaking archived rows showed
+ * the web queue evidence-gone findings and let an archived row pin a
+ * stale walkToken. So the default (no explicit status filter) now
+ * excludes archived; an EXPLICIT `status: "archived"` stays legal for
+ * history views (opt-in, exact-value match). */
 export function hygieneWhere(
   filter:
     | {
@@ -214,6 +224,9 @@ export function hygieneWhere(
   if (filter?.status) {
     where.push("status = ?");
     params.push(filter.status);
+  } else {
+    // no explicit status → the default read surface excludes terminal rows
+    where.push("status <> 'archived'");
   }
   if (filter?.kind) {
     where.push("kind = ?");
@@ -224,7 +237,7 @@ export function hygieneWhere(
     params.push(filter.severity);
   }
   return {
-    whereSql: where.length ? `WHERE ${where.join(" AND ")}` : "",
+    whereSql: `WHERE ${where.join(" AND ")}`,
     params,
   };
 }

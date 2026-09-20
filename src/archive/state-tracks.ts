@@ -455,6 +455,21 @@ export class ArchiveTracks extends ArchiveCore {
       .run(linksJson, detail, this.now(), trackId);
   }
 
+  /** #267 Bug C: `--force-rip` only held its documented contract for
+   *  never-attempted rows — once a row was parked `link_surfaced`,
+   *  pendingTracks() (pending/failed only) never re-queued it, so a
+   *  re-run streamed 0 tracks and still exited 0. Requeue flips the
+   *  row's OWN source scope back to pending (attempts kept: the
+   *  backoff ceiling still applies) and returns whether it matched. */
+  requeueLinkSurfaced(trackId: string): boolean {
+    const r = this.db
+      .query(
+        "UPDATE tracks SET status = 'pending', updated_at = ? WHERE video_id = ? AND status = 'link_surfaced'",
+      )
+      .run(this.now(), trackId);
+    return r.changes > 0;
+  }
+
   /** Surfaced-link checklist (Sep 19): the user clicked the link, saved
    *  the official file into the downloads folder, and checks it off.
    *  `done=false` undoes (a mis-check). Only flips the timestamp — the

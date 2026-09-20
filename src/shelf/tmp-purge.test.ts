@@ -68,6 +68,18 @@ function mk(root: string, name: string, ageDays: number): string {
   return dir;
 }
 
+/** Aged fixture dir WITH a file inside (#270 tests): the file write happens
+ *  BEFORE the age stamp — creating a file bumps the parent dir's mtime,
+ *  which would re-freshen it past the age gate. Module level for the same
+ *  function-scoping reason as mk. */
+function tmpFixture(root: string, name: string): string {
+  const dir = mk(root, name, 3);
+  writeFileSync(join(dir, "junk.txt"), "junk");
+  const past = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  utimesSync(dir, new Date(past), new Date(past));
+  return dir;
+}
+
 describe("state tier: backup classification", () => {
   test("recognizes every dated backup class, never the live db", () => {
     expect(backupClass("archive.db.bak-20260911-174552")).toBe("archive.db");
@@ -204,6 +216,89 @@ describe("state tier: destructive safety (#265)", () => {
     expect(openResult.ok).toBe(true);
     expect(existsSync(join(open, "archive.db-wal"))).toBe(true);
     expect(existsSync(join(open, "archive.db-shm"))).toBe(true);
+  });
+});
+
+describe("tmpdir tier: fail-closed exit contract (#270)", () => {
+  test("partial rmSync failure → ok:false (exit 1), applied counts only wins", () => {
+    const root = stateFixtures.dir();
+    const win = tmpFixture(root, "270-win");
+    const blocked = tmpFixture(root, "270-blocked");
+    const r = tmpPurgeSweep(
+      {
+        apply: true,
+        all: false,
+        json: true,
+        log: () => {},
+        roots: [root],
+      },
+      {
+        remove: (path: string) => {
+          if (path.includes("270-blocked"))
+            throw new Error("EPERM: simulated denial");
+        },
+      },
+    );
+    // fail closed: a partial sweep is detectable by automation
+    expect(r.ok).toBe(false);
+    expect(r.applied).toBe(1); // only the win counted
+    expect(r.eligible).toBe(2);
+    void win;
+    void blocked;
+  });
+
+  test("unreadable root fails the sweep closed", () => {
+    const missing = join(stateFixtures.dir(), "270-missing");
+    const okRoot = stateFixtures.dir();
+    const r = tmpPurgeSweep({
+      apply: false,
+      all: false,
+      json: true,
+      log: () => {},
+      roots: [missing],
+    });
+    expect(r.ok).toBe(false); // was an ENOENT throw before #270
+    expect(r.scanned).toBe(0);
+    // a good root beside a bad one still sweeps (and reports ok)
+    const r2 = tmpPurgeSweep({
+      apply: false,
+      all: false,
+      json: true,
+      log: () => {},
+      roots: [missing, okRoot],
+    });
+    expect(r2.ok).toBe(true);
+  });
+
+  test("sidecar spellings never classify as backups (anchored regexes)", () => {
+    expect(backupClass("archive.db.bak-20260910-010101-wal")).toBeNull();
+    expect(backupClass("archive.db.bak-20260910-010101.old")).toBeNull();
+    expect(backupClass("archive.db.bak-20260910-010101-shm")).toBeNull();
+    // the real classes still classify
+    expect(backupClass("archive.db.bak-20260910-010101")).toBe("archive.db");
+    expect(backupClass("archive_bak_2026-09-12T05-56-07-511Z.db")).toBe(
+      "archive.db",
+    );
+  });
+
+  test("read-only --state counts held sidecars as ineligible (honest eligibility)", () => {
+    const root = fixtureStateRoot();
+    const r = statePurge(stateOpts(false), {
+      root,
+      openPaths: () => new Set([join(root, "archive.db")]),
+    });
+    // fixtureStateRoot: 2 backups (older superseded → eligible) + 2
+    // sidecars. Held sidecars are NOT counted (was eligible before #270 —
+    // the lsof guard ran only on --apply): only the superseded backup is.
+    expect(r.eligible).toBe(1);
+    expect(r.applied).toBe(0);
+    // closed sidecars ARE eligible in dry-run — honest in both directions
+    const openRoot = fixtureStateRoot();
+    const r2 = statePurge(stateOpts(false), {
+      root: openRoot,
+      openPaths: () => new Set(),
+    });
+    expect(r2.eligible).toBe(3); // 2 orphan sidecars + superseded backup
   });
 });
 

@@ -244,7 +244,9 @@ describe("HygieneStore", () => {
          '["/V/Contents/A/empty.mp3"]', '[0]', '{"type":"delete-corrupt"}',
          NULL, 'tok', 0, '2026-09-03', NULL);`);
     const migrated = new HygieneStore(raw);
-    expect(migrated.list({ kind: "zero-byte" })).toHaveLength(2);
+    expect(migrated.list({ kind: "zero-byte" })).toHaveLength(1);
+    // default read excludes the archived loser (#269)
+    expect(migrated.list().map((f) => f.id)).toEqual(["decided"]);
     const rows = raw
       .query("SELECT id, status FROM hygiene_findings ORDER BY id")
       .all() as { id: string; status: string }[];
@@ -282,6 +284,38 @@ describe("HygieneStore", () => {
     expect(s.list({ kind: "byte-twin" }).length).toBe(2);
     expect(s.list({ severity: "likely" }).length).toBe(1);
     expect(s.list({ status: "open" }).length).toBe(3);
+  });
+
+  test("default list excludes terminal 'archived' rows (#269)", () => {
+    const s = store();
+    // distinct natural keys so upsert keeps both rows
+    const keeper = finding();
+    const loser = finding({
+      id: "f2",
+      paths: ["/V/Contents/A/k2.mp3", "/V/Contents/B/l2.mp3"],
+      keeperPath: "/V/Contents/A/k2.mp3",
+    });
+    s.upsert([keeper, loser]);
+    // settle one row terminal the way apply does
+    expect(s.decide("f2", true)).toBe(true);
+    expect(
+      s.markApplied("f2", {
+        ranAt: "now",
+        keepersPresent: 1,
+        keepersMissing: [],
+        fpMismatches: [],
+        shelfDelta: { before: 2, after: 1, quarantined: 1 },
+        ok: true,
+      }),
+    ).toBe(true);
+    // archived via upsert re-settle: force the row terminal directly
+    const db = (s as unknown as { db: { run: (q: string) => void } }).db;
+    db.run(`UPDATE hygiene_findings SET status='archived' WHERE id='f2'`);
+    // filter-less default: archived is gone from every default surface
+    expect(s.list().map((f) => f.id)).toEqual([keeper.id]);
+    expect(s.list({ kind: "byte-twin" }).map((f) => f.id)).toEqual([keeper.id]);
+    // explicit opt-in stays legal (history views)
+    expect(s.list({ status: "archived" }).map((f) => f.id)).toEqual(["f2"]);
   });
 });
 

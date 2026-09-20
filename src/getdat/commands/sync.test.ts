@@ -362,6 +362,105 @@ describe("sync --sc-url validation (#255)", () => {
     expect(state.trackById("ytPending1")?.status).toBe("pending");
     expect(state.trackById("ytPending2")?.status).toBe("pending");
   }, 60_000);
+
+  test("set-provenance rows route through the SC arm (#267 Bug B)", async () => {
+    // A row whose source carries set provenance (`soundcloud:<slug>`)
+    // must take the SC arm — the exact-equality gate skipped probe
+    // enrichment, link-first, and the music-gate exemption for it. The
+    // observable contract here: an SC row with a non-music YT-shaped
+    // category payload is NOT music-gated (SC rows never run the gate),
+    // and the probe never receives a YT URL (classified SC on failure).
+    state.upsertTrackFromPlaylist(
+      "2278172975",
+      0,
+      null,
+      `soundcloud:summer-2026`,
+    );
+    const restore = setScSourceQueueImpl(async () => [
+      { id: "2278172975", title: null, label: `soundcloud:summer-2026` },
+    ]);
+    try {
+      await sync(
+        baseOpts(state, {
+          sources: [
+            {
+              kind: "sc-set",
+              url: "https://soundcloud.com/x/sets/summer-2026",
+              label: "soundcloud",
+            },
+          ],
+          json: true,
+        }),
+      );
+    } finally {
+      restore();
+    }
+    // SC arm: marked gone by the SC classifier (dead binary → SC failure
+    // class), NOT "failed" — the YT arm's generic classifier path.
+    const row = state.trackById("2278172975");
+    expect(row?.attempts).toBe(1);
+    expect(row?.status === "failed" || row?.status === "gone").toBe(true);
+  }, 60_000);
+
+  test("--force-rip requeues its own link_surfaced rows (#267 Bug C)", async () => {
+    state.upsertTrackFromPlaylist("2222222", 0, null, SC_SOURCE);
+    state.markLinkSurfaced("2222222", "[]", "bandcamp: https://x");
+    expect(state.trackById("2222222")?.status).toBe("link_surfaced");
+    const restore = setScSourceQueueImpl(async () => [
+      { id: "2222222", title: null, label: SC_SOURCE },
+    ]);
+    try {
+      await sync(
+        baseOpts(state, {
+          sources: [
+            {
+              kind: "sc-track",
+              url: "https://api.soundcloud.com/tracks/2222222",
+              label: "soundcloud",
+            },
+          ],
+          forceRip: true,
+          json: true,
+        }),
+      );
+    } finally {
+      restore();
+    }
+    // The row left link_surfaced: requeued and attempted (dead binary →
+    // failed), never a silent 0-track exit-0 run.
+    const row = state.trackById("2222222");
+    expect(row?.status).toBe("failed");
+    expect(row?.attempts).toBe(1);
+    // links provenance survived the round-trip
+    expect(state.sourceLinks("2222222")).not.toBeNull();
+  }, 60_000);
+
+  test("without --force-rip a link_surfaced row stays parked (#267 Bug C inverse)", async () => {
+    state.upsertTrackFromPlaylist("2222223", 0, null, SC_SOURCE);
+    state.markLinkSurfaced("2222223", "[]", "bandcamp: https://x");
+    const restore = setScSourceQueueImpl(async () => [
+      { id: "2222223", title: null, label: SC_SOURCE },
+    ]);
+    try {
+      await sync(
+        baseOpts(state, {
+          sources: [
+            {
+              kind: "sc-track",
+              url: "https://api.soundcloud.com/tracks/2222223",
+              label: "soundcloud",
+            },
+          ],
+          json: true,
+        }),
+      );
+    } finally {
+      restore();
+    }
+    const row = state.trackById("2222223");
+    expect(row?.status).toBe("link_surfaced");
+    expect(row?.attempts).toBe(0);
+  }, 60_000);
 });
 
 describe("classifyMusic gate — AI/sloppy-metadata uploads are music (#250)", () => {

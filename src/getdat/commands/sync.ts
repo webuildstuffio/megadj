@@ -385,6 +385,15 @@ async function prepareQueue(
     log(`  ${entries.length} track(s)`);
     entries.forEach((entry, index) => {
       if (!isDry) {
+        // #267 Bug C: --force-rip requeues THIS run's own link_surfaced
+        // rows before the queue is read — pendingTracks() only reads
+        // pending/failed, so a previously-surfaced row made a forced
+        // re-run stream 0 tracks and exit 0. Scoped to the row itself,
+        // which the queue filter below already scopes to this run's
+        // source labels.
+        if (opts.forceRip === true) {
+          opts.state.requeueLinkSurfaced(entry.id);
+        }
         opts.state.upsertTrackFromPlaylist(
           entry.id,
           index,
@@ -589,14 +598,23 @@ async function processQueue(
     }
 
     const row = opts.state.trackById(track.video_id);
-    const isSc = row?.source === SC_SOURCE;
+    // #267 Bug B: prefix match — set fan-out rows carry
+    // `soundcloud:<slug>` provenance and MUST take the SC arm (probe
+    // enrichment, link-first, music-gate exemption). The exact-equality
+    // gate silently skipped all of that for every set row.
+    const isSc =
+      row?.source === SC_SOURCE ||
+      (row?.source.startsWith(`${SC_SOURCE}:`) ?? false);
 
     opts.state.markAttempt(track.video_id, null);
 
     try {
       const result = await withRetry(
         opts.limiter,
-        () => downloader.probe(track.video_id),
+        // #267 Bug A: probe through the ROW's source family — a mixed
+        // YT+SC run previously probed every row through ONE downloader
+        // source (SC rows went to music.youtube.com and vice versa).
+        () => downloader.probe(track.video_id, row?.source),
         { maxRetries: 2 },
       );
       // #258: SC payloads carry uploader/timestamp instead of artist/date
@@ -675,6 +693,8 @@ async function processQueue(
         track.video_id,
         probed,
         downloadGenre,
+        // #267 Bug A: the row's own source decides the URL/format seam
+        row?.source,
       );
       await settleDownload(opts, log, bar, totals, track, dl, isSc);
     } catch (error) {

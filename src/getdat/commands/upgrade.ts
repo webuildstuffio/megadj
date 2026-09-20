@@ -39,6 +39,7 @@ interface UpgradeCandidate {
   file_path: string;
   bitrate_kbps: number | null;
   codec: string | null;
+  source?: string | null;
 }
 
 /** The same floor rule as CrateDeck's lowqQueue() — one quality bar.
@@ -200,8 +201,16 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
         }
 
         // 2. Re-download to the temp path (same formats as sync's driver).
-        const info = await downloader.probe(c.video_id);
-        const dl: DownloadResult = await downloader.download(c.video_id, info);
+        // #267: per-row source — candidates are YT-only today (SC rows
+        // are refused up front), so the row's own source column keeps the
+        // URL seam correct even if that filter ever widens.
+        const info = await downloader.probe(c.video_id, c.source ?? undefined);
+        const dl: DownloadResult = await downloader.download(
+          c.video_id,
+          info,
+          null,
+          c.source ?? undefined,
+        );
         if (
           dl.status !== "downloaded" ||
           !dl.filePath ||

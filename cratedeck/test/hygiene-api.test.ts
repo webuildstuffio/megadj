@@ -60,6 +60,7 @@ function insert(
     paths?: string[];
     bytes?: number[];
     autoSafe?: boolean;
+    walkToken?: string;
   },
 ): void {
   db.run(
@@ -76,7 +77,7 @@ function insert(
       JSON.stringify(o.bytes ?? [1000, 1000]),
       JSON.stringify({ type: "quarantine-loser" }),
       o.paths?.[0] ?? `/Volumes/SHELF1/Music/${o.id}.aiff`,
-      "wt-1",
+      o.walkToken ?? "wt-1",
       o.autoSafe === false ? 0 : 1,
       "2026-09-10T12:00:00Z",
     ],
@@ -180,6 +181,33 @@ test("reader: filters (status/kind/severity) and confirmed-first order", () => {
   const all = r.list();
   expect(all[0]!.status).toBe("confirmed"); // confirmed sorts first
   expect(all.every((f) => f.id.length > 0)).toBe(true);
+});
+
+test("reader: default read excludes terminal 'archived' rows (#269)", () => {
+  const p = fixtureDb("archived.db", 3);
+  {
+    const db = new Database(p);
+    insert(db, {
+      id: "a0",
+      status: "archived",
+      walkToken: "stale-archived-token",
+    });
+    db.close();
+  }
+  const r = new HygieneReader(p);
+  // filter-less read (the web queue's default, no query params)
+  const def = r.list();
+  expect(def.some((f) => f.id === "a0")).toBe(false);
+  expect(def.find((f) => f.id === "f0")?.walkToken).not.toBe(
+    "stale-archived-token",
+  );
+  // archived never pins the payload walkToken
+  expect(def[0]?.walkToken).not.toBe("stale-archived-token");
+  // explicit opt-in stays legal for history views
+  const hist = r.list({ status: "archived" });
+  expect(hist.map((f) => f.id)).toEqual(["a0"]);
+  // kind/severity-only filters keep the archived exclusion too
+  expect(r.list({ kind: "byte-twin" }).some((f) => f.id === "a0")).toBe(false);
 });
 
 // -- 2. route contract --------------------------------------------------

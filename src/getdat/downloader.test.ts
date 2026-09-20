@@ -1,5 +1,33 @@
 import { describe, expect, test } from "bun:test";
-import { Downloader, ytdlpCookieArgs } from "./downloader";
+import { Downloader, targetFor, ytdlpCookieArgs } from "./downloader";
+
+describe("targetFor — per-row source routing (#267 Bug A)", () => {
+  test("plain SC source builds the API permalink", () => {
+    const t = targetFor("2278172975", "soundcloud");
+    expect(t.soundcloud).toBe(true);
+    expect(t.url).toBe("https://api.soundcloud.com/tracks/2278172975");
+  });
+
+  test("set-provenance source (`soundcloud:<slug>`) still routes SC", () => {
+    // The regression: exact-equality sent these to music.youtube.com.
+    const t = targetFor("2278172975", "soundcloud:summer-2026");
+    expect(t.soundcloud).toBe(true);
+    expect(t.url).toContain("api.soundcloud.com");
+  });
+
+  test("YT sources keep the music.youtube.com seam", () => {
+    for (const source of ["liked", "liked-videos", "some-playlist"]) {
+      const t = targetFor("abc123", source);
+      expect(t.soundcloud).toBe(false);
+      expect(t.url).toBe("https://music.youtube.com/watch?v=abc123");
+    }
+  });
+
+  test("a YT-shaped source that merely CONTAINS 'soundcloud:' elsewhere never SC-routes", () => {
+    const t = targetFor("abc123", "mysoundcloud:likes");
+    expect(t.soundcloud).toBe(false);
+  });
+});
 
 describe("ytdlpCookieArgs — the ONE cookie-order seam (#81)", () => {
   test("explicit jar wins over browser extraction", () => {
