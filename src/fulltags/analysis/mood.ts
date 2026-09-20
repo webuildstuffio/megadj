@@ -165,9 +165,21 @@ function syncPass(
   let energySynced = 0;
   const needEmbedding: TrackRow[] = [];
   for (const t of candidates) {
-    // DB short-circuit: already ledgered and not asked to re-analyze or
-    // embed → skip the file entirely (see the call-site note on #278).
-    if (!opts.force && !opts.embeddings && opts.state.moodRecord(t.video_id))
+    // Embedding-gap check is a CHEAP DB read — do it before any file scan.
+    // A row that still owes an embedding is the ONE case where an
+    // --embeddings run has pass-2 work beyond fresh analysis (and under
+    // --embeddings the gap check must run even in dry-run so the probe
+    // reports the true would-do queue).
+    const owesEmbedding =
+      opts.embeddings === true && !opts.state.embeddingRecord(t.video_id);
+    // DB short-circuit (#278, and — since #279 — for --embeddings runs
+    // too): ledgered means ANALYZED. The old shape let --embeddings
+    // disable this, so every ledgered row paid the per-file groundTruth
+    // scan and the unstamped ones (the whole RB-mirror cohort) re-queued
+    // for FULL ONNX re-analysis — the 3,113-file ~8h storm killed live
+    // Sep 20. A ledgered row's only possible remaining work is the
+    // embedding gap, and only when the file carries a stamp to re-read.
+    if (!owesEmbedding && !opts.force && opts.state.moodRecord(t.video_id))
       continue;
     const truth = groundTruth(t.file_path!);
     // Energy stamp → DB column mirror (same idea as the mood ledger sync:
@@ -179,12 +191,11 @@ function syncPass(
     const stamp = truth.mood;
     const m = stamp ? parseMoodStamp(stamp) : undefined;
     if (!m) continue;
-    if (
-      opts.embeddings &&
-      !opts.dryRun &&
-      !opts.state.embeddingRecord(t.video_id)
-    ) {
-      // stamp exists but no embedding yet — queue for pass 2 (ONNX only)
+    if (owesEmbedding) {
+      // stamp exists but no embedding yet — queue for pass 2 (ONNX only).
+      // NO stamp (RB-mirror rows) → dropped here AND by the queue filter
+      // (ledgered) — refilling THAT gap is a full re-analysis, i.e. a
+      // deliberate --force, never an --embeddings side effect (#279).
       needEmbedding.push(t);
       continue;
     }
@@ -212,7 +223,12 @@ function buildAnalysisQueue(
 ): TrackRow[] {
   const needAnalysis = candidates.filter((t) => {
     // DB short-circuit first (#278): file scans are the expensive part.
-    if (!opts.force && !opts.embeddings && opts.state.moodRecord(t.video_id))
+    // --embeddings does NOT lift this (#279): a ledgered row is analyzed;
+    // its embedding gap (if any) rides through syncPass's stamped-file
+    // path, and refilling a no-stamp gap is a --force decision, never an
+    // --embeddings side effect. Dry-run probes keep the file scan so the
+    // would-do report stays honest.
+    if (!opts.force && !opts.dryRun && opts.state.moodRecord(t.video_id))
       return false;
     const truth = groundTruth(t.file_path!);
     return !(truth.mood && parseMoodStamp(truth.mood));

@@ -164,9 +164,7 @@ export function orphanRunPurge(opts: TmpPurgeOptions): TmpPurgeResult {
       eligible: orphans.length,
       applied: opts.apply ? orphans.length : 0,
       freedBytes: 0,
-      families: [
-        { prefix: "orphan-runs", dirs: orphans.length, bytes: 0 },
-      ],
+      families: [{ prefix: "orphan-runs", dirs: orphans.length, bytes: 0 }],
       appliedMode: opts.apply,
     };
   } finally {

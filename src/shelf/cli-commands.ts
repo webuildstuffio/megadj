@@ -210,13 +210,11 @@ const tmpPurgeCmd: CliCommandHandler = async (rest) => {
   // --state retargets the sweep at ~/.local/state/megadj: superseded
   // archive.db backups (newest lineage per stem kept), orphan SQLite
   // sidecars of DBs not open, age-gated spike/ artifacts.
-  const flags = parseFlags(rest, [], [
-    "apply",
-    "all",
-    "json",
-    "state",
-    "orphan-runs",
-  ]);
+  const flags = parseFlags(
+    rest,
+    [],
+    ["apply", "all", "json", "state", "orphan-runs"],
+  );
   const json = jsonFlag(flags);
   const { tmpPurge, printTmpPurgeReport } = await import("./tmp-purge");
   const r = tmpPurge({

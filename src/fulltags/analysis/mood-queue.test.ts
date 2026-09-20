@@ -109,3 +109,57 @@ describe("mood analysis queue (flagless no-op regression)", () => {
     expect(buggy).toEqual([]); // the silent no-op
   });
 });
+
+describe("mood --embeddings respects the DB ledger (#279 regression)", () => {
+  test("ledgered tracks are NOT re-queued for ONNX under --embeddings; unstamped gaps still queue", async () => {
+    // #279 (Sep 20): --embeddings disabled the DB short-circuit in BOTH
+    // syncPass and buildAnalysisQueue, so a run over a 3.9k-file library
+    // re-queued 3,113 already-ledgered rows for full ONNX (~8h). The
+    // contract now: ledgered == analyzed — the only remaining work an
+    // --embeddings run can owe is the EMBEDDING gap, and that gap is a
+    // cheap DB read, not a file scan.
+    const { mood } = await import("./mood");
+    // two files: one ledgered (mood row exists), one unstamped (no row).
+    const ledgeredPath = addDownloaded("emb-ledgered");
+    addDownloaded("emb-unstamped");
+    state.setMoodRecord({
+      videoId: "emb-ledgered",
+      dance: 0.5,
+      aggressive: 0.1,
+      happy: 0.4,
+      electronic: 0.9,
+      party: 0.7,
+      valence: 4,
+      arousal: 5,
+      sourcePath: ledgeredPath,
+    });
+
+    let captured = "";
+    const origLog = console.log.bind(console);
+    console.log = (msg: unknown) => {
+      captured += `${String(msg)}\n`;
+    };
+    try {
+      // --limit keeps the run bounded even if the fix regressed: the
+      // storm shape would try BOTH files (limit 2 not hit); the fixed
+      // shape queues only the unstamped one.
+      await mood({ state, musicDir: dir, embeddings: true, limit: 10 });
+    } finally {
+      console.log = origLog;
+    }
+    const summary = JSON.parse(captured.trim().split("\n").pop() ?? "{}") as {
+      analyzed: number;
+      failed: number;
+      synced: number;
+    };
+    // The ledgered track must NOT have been re-analyzed (analyzed/failed
+    // counts cover only the unstamped file, which fails analysis on the
+    // fake bytes — same probe as the flagless regression above).
+    expect(summary.analyzed + summary.failed).toBe(1);
+    // pass 1 must NOT have re-synced the ledgered row (synced counts
+    // fresh ledger writes; its row already existed and was skipped).
+    expect(summary.synced).toBe(0);
+    // and the ledger row survives untouched.
+    expect(state.moodRecord("emb-ledgered")).not.toBeNull();
+  }, 60000);
+});
