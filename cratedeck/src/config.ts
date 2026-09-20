@@ -48,6 +48,8 @@ export interface CrateConfig {
    *  CDJ-2000NXS2 default on. Audits + the web settings UI derive the
    *  compat floor from this. */
   boothFleet: string[];
+  /** Resolved uv binary path for pyrekordbox spawns (see loadConfig). */
+  uvPath: string;
 }
 
 /** Raw TOML value: what the tiny parser can produce. */
@@ -204,6 +206,23 @@ export function loadConfig(root: string): CrateConfig {
       `${process.env.HOME}/.local/state/megadj/archive.db`,
     musicDir:
       process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/DJ-Imports`,
+    // The uv binary for every pyrekordbox spawn (rb.ts, spawnVerify,
+    // spawnMirror). The launchd deck server's PATH lacks ~/.local/bin, so
+    // a bare "uv" 404s unattended (live: auto-verify job 6b37500c failed
+    // 'Executable not found in $PATH: "uv"', Sep 20). Resolution: env
+    // override → the standard install location → bare name (PATH) so
+    // dev shells and hermetic test envs keep working.
+    uvPath: (() => {
+      const candidates = [
+        process.env.MEGADJ_UV_BIN,
+        process.env.UV_BIN,
+        `${process.env.HOME}/.local/bin/uv`,
+      ].filter((p): p is string => typeof p === "string" && p.length > 0);
+      for (const candidate of candidates) {
+        if (existsSync(candidate)) return candidate;
+      }
+      return "uv";
+    })(),
     // [players.players] MY-XDJ = "device" — user-added players for the N75
     // compatibility matrix (players.ts merges them with the vendor defaults).
     extraPlayers: (() => {

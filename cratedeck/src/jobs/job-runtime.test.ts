@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { tempDir } from "../../test/testutil";
 import {
   recordProgressIncrease,
   withJobBudget,
@@ -66,4 +67,59 @@ describe("job stall progress clock", () => {
     ).toBe(true);
     expect(progressAt.get("job-1")).toBe(3_000);
   });
+});
+
+// ---------------------------------------------------------------------------
+// auditArchive degrade contract (#260 super-sure, Sep 20)
+// ---------------------------------------------------------------------------
+describe("auditArchive degrades instead of failing the job", () => {
+  // The audit leg is a read-only post-check AFTER ingest's durable work:
+  // a broken/empty child payload must NOT flip the whole ingest job to
+  // "failed" (live Sep 20: job 42a682db died at 97% on JSON.parse("")). It
+  // must resolve audit:null and log the reason. Driven through the REAL
+  // spawn seam with an env-swapped megadj CLI that emits garbage.
+  it("resolves audit:null when the child emits unparseable output", async () => {
+    const { mkdirSync, rmSync, writeFileSync, chmodSync } =
+      await import("node:fs");
+    const { join } = await import("node:path");
+    // #248 fixture seam: tempDir owns the mkdtemp lifecycle (this file's
+    // fake-`bun` bin dir is test-owned throwaway).
+    const t = tempDir("megadj-auditleg-").rippable();
+    const tmp = t.dir();
+    try {
+      // A fake "bun" that ignores its args and prints a traceback-ish
+      // fragment to stderr + nothing to stdout — the truncation shape.
+      const binDir = join(tmp, "bin");
+      const shellScript = join(binDir, "bun");
+      mkdirSync(binDir, { recursive: true });
+      writeFileSync(
+        shellScript,
+        "#!/bin/sh\necho 'boom: child exploded' >&2\nexit 1\n",
+      );
+      chmodSync(shellScript, 0o755);
+      const prevPath = process.env.PATH;
+      process.env.PATH = `${binDir}:${prevPath}`;
+      try {
+        const { auditArchive } = await import("./job-legs-intake");
+        const { loadConfig } = await import("../config");
+        const cfg = loadConfig(join(import.meta.dir, ".."));
+        const logs: string[] = [];
+        const result = await auditArchive(
+          cfg,
+          { cancelled: false },
+          () => {},
+          (line: string) => logs.push(line),
+        );
+        expect(result.audit).toBeNull();
+        expect(result.auditErrors).toEqual([]);
+        expect(logs.some((l) => l.includes("audit leg failed to report"))).toBe(
+          true,
+        );
+      } finally {
+        process.env.PATH = prevPath;
+      }
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 30_000);
 });

@@ -23,6 +23,36 @@ describe("config", () => {
     expect(cfg.mirrorDrive).toBe("DJMIRROR");
     expect(cfg.shelfDrive).toBe("SHELF1");
     expect(cfg.imageProvider).toBe(null);
+    // uvPath resolves to SOMETHING on every machine — the launchd server
+    // has no ~/.local/bin on PATH, so a bare "uv" spawn 404'd unattended
+    // (live: verify job 6b37500c, Sep 20). Either the standard install
+    // path exists, or the env override / PATH fallback answered.
+    expect(cfg.uvPath.length).toBeGreaterThan(0);
+  });
+
+  it("prefers MEGADJ_UV_BIN over the PATH fallback when the file exists", () => {
+    const fake = join(t.dir(), "fake-uv");
+    writeFileSync(fake, "#!/bin/sh\n");
+    process.env.MEGADJ_UV_BIN = fake;
+    try {
+      const cfg = loadConfig(join(t.dir(), "absent2"));
+      expect(cfg.uvPath).toBe(fake);
+    } finally {
+      delete process.env.MEGADJ_UV_BIN;
+    }
+  });
+
+  it("falls through to the standard install path / bare name when the env candidate is missing", () => {
+    process.env.MEGADJ_UV_BIN = join(t.dir(), "does-not-exist");
+    try {
+      const cfg = loadConfig(join(t.dir(), "absent3"));
+      // On a machine with ~/.local/bin/uv the standard path wins; on a
+      // bare box the bare "uv" PATH fallback answers. Both are correct.
+      const std = `${process.env.HOME}/.local/bin/uv`;
+      expect([std, "uv"]).toContain(cfg.uvPath);
+    } finally {
+      delete process.env.MEGADJ_UV_BIN;
+    }
   });
 
   it("reads config.toml when present", () => {

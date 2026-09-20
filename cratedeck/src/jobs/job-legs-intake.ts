@@ -126,12 +126,17 @@ export async function auditArchive(
   try {
     result = parseAuditSummary(output);
   } catch (error) {
+    // DEGRADE, don't fail (#260 super-sure live find): the audit is a
+    // read-only post-check AFTER the ingest's durable work is done — a
+    // truncated/empty child stdout (live Sep 20: job 42a682db died at
+    // 97% on JSON.parse("") when the audit bun spawn emitted nothing)
+    // marks real imported tracks as a FAILED job and hides them behind
+    // an error chip. The IntakeResult wire type already carries
+    // `audit: null` for exactly this case; the UI renders an honest
+    // "audit unavailable" instead of a fake failure.
     const detail = errorText(error);
-    log(`audit leg failed to report: ${detail}`);
-    throw new Error(
-      `megadj audit returned an invalid JSON summary: ${detail}`,
-      { cause: error },
-    );
+    log(`audit leg failed to report — continuing without it: ${detail}`);
+    return { audit: null, auditErrors: [] };
   }
   tick(
     1,

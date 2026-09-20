@@ -8,6 +8,9 @@ import type { Guard } from "./guard";
 import type { CrateConfig } from "./config";
 
 const RB = "rekordbox";
+// Retired bare-name spawn head: every uv spawn goes through cfg.uvPath
+// (config.ts resolution — the launchd PATH lacks ~/.local/bin, and a bare
+// "uv" 404'd the auto-verify job unattended, Sep 20).
 
 // The interlock is polled by every job enqueue, every /api/interlock request
 // and every rbSnapshot. pgrep is cheap but not free — cache the verdict for
@@ -41,7 +44,6 @@ export function rekordboxRunning(opts?: { fresh?: boolean }): {
   return result;
 }
 
-const UV = "uv";
 // Pinned to the audited upstream commit (f6955418, 2026-09-11) — a git-tip
 // dep would change snapshot output mid-week with no repo-side signal. Bump
 // deliberately: run the rb_read.test.ts round-trip, then update BOTH this
@@ -94,7 +96,7 @@ export async function rbSnapshot(
 
   const proc = Bun.spawn(
     [
-      UV,
+      cfg.uvPath,
       "run",
       "--with",
       PYREKORDBOX,
@@ -142,7 +144,7 @@ export function spawnVerify(
   );
   return Bun.spawn(
     [
-      UV,
+      cfg.uvPath,
       "run",
       "--with",
       PYREKORDBOX,
@@ -171,7 +173,7 @@ export function spawnMirror(
 ): Bun.Subprocess {
   return Bun.spawn(
     [
-      UV,
+      cfg.uvPath,
       "run",
       "python",
       "-u", // unbuffered — see spawnVerify

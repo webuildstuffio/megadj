@@ -144,7 +144,7 @@ export function IntakeVerdict({ job }: { job: Job }) {
     );
   const auditOk = r.audit
     ? ` · archive ${r.audit.complete}/${r.audit.total} verified`
-    : "";
+    : " · archive audit unavailable (run megadj audit for the verdict)";
   return (
     <Verdict
       cls="ok"
