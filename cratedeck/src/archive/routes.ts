@@ -23,6 +23,11 @@ export interface ArchiveRouteDeps {
   cfg: CrateConfig;
 }
 
+/** The CLI spawn seam for the family's single write (skip). The reads
+ *  stay direct over the readonly reader; the write goes through the
+ *  engine CLI so archive mutation stays engine-owned (§4-A1). */
+type MegadjCli = (args: string[]) => Promise<{ code: number; stderr: string }>;
+
 /** Optional limit param → parsed int, or undefined when absent/invalid. */
 function intParam(v: string | null): number | undefined {
   if (v === null) return undefined;
@@ -35,6 +40,7 @@ type ArchiveHandler = (
   archive: ArchiveReader,
   db: DB,
   cfg: CrateConfig,
+  req?: Request,
 ) => Response | Promise<Response>;
 
 /** Resolve the shared set-builder query and inspect the archive exactly once.
@@ -115,6 +121,24 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
       return t ? json(t) : json({ error: "unknown video_id" }, 404);
     },
     "ingest-status": (_url, archive) => json(archive.ingestStatus()),
+    // The download queue awaiting sync (the Backlog tab's pending card):
+    // what sync WOULD attempt — reviewable, and skippable per-row via
+    // the skip write.
+    "pending-queue": (url, archive) => {
+      const limit = intParam(url.searchParams.get("limit"));
+      return json(archive.pendingQueue(limit ?? 200));
+    },
+    // POST /api/archive/skip?id=<video_id> — user-marks ONE pending row
+    // as not-YouTube-music so sync's queue never picks it (Sep 19).
+    // Through megadjCli (the family's CLI seam) so the ENGINE owns the
+    // ledger mutation (§4-A1); kept in this map so the route census and
+    // the dispatcher stay one source of truth.
+    skip: async (_url, _archive, _db, _cfg, req) => {
+      if (!req || req.method !== "POST")
+        return json({ error: "POST required" }, 405);
+      if (!archiveCli) return json({ error: "skip not available" }, 501);
+      return skipRoute(_url, archiveCli);
+    },
     // Skip-reason census: why gone/skipped rows didn't land ("category:
     // …" buckets, YouTube errors) — the Pipeline tab's "what the pipeline
     // decided" card.
@@ -356,8 +380,11 @@ export function archiveRoutes(
   route: string,
   url: URL,
   deps: ArchiveRouteDeps,
+  megadjCli?: MegadjCli,
+  req?: Request,
 ): Promise<Response | null> | Response | null {
   const { archive, db, cfg } = deps;
+  archiveCli = megadjCli;
   // One source of truth: the handler map's keys ARE the route list — the
   // regex here only asserts SHAPE (`/archive/<name>`), never enumerates
   // routes. The old hand-copied route-list regex drifted the moment
@@ -369,7 +396,28 @@ export function archiveRoutes(
   if (!match) return Promise.resolve(null);
   const handler = archiveHandlers()[match[1]!];
   if (!handler) return null;
-  return Promise.resolve(handler(url, archive, db, cfg));
+  return Promise.resolve(handler(url, archive, db, cfg, req));
+}
+
+/** The family's CLI spawn seam — set per-dispatch (no module state) so
+ *  the write handlers (skip) can reach the engine CLI while the map's
+ *  signature stays compatible with every read row. */
+let archiveCli: MegadjCli | undefined;
+
+/** POST /api/archive/skip?id=<video_id> — user-marks ONE pending row as
+ *  not-YouTube-music so sync's queue never picks it (Sep 19). Through
+ *  `megadj skip` (the engine's terminal skip + sticky semantics); the
+ *  CLI's stdout carries the one JSON summary. */
+async function skipRoute(url: URL, megadjCli: MegadjCli): Promise<Response> {
+  const id = url.searchParams.get("id") ?? "";
+  if (!/^[\w-]{6,24}$/.test(id)) return json({ error: "id is required" }, 400);
+  const r = await megadjCli(["skip", id, "--json"]);
+  if (r.code !== 0)
+    return json(
+      { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
+      409,
+    );
+  return json({ ok: true, id });
 }
 
 function json(data: unknown, status = 200): Response {

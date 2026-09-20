@@ -11,6 +11,7 @@ fails the build on it.
 
 ## Revision history
 
+- rev-44 (2026-09-19): user-marked skips — the pending download queue is now reviewable before sync runs it. NEW CLI verb: `megadj skip <video_id…>` (marks rows skipped_not_music with a `user-marked` category — sticky across playlist refreshes, sync's queue excludes them permanently). NEW routes: `GET /api/archive/pending-queue` (what sync WOULD download, source + attempts), `POST /api/archive/skip?id=` (through the engine CLI — §4-A1 mutation rule). NEW UI: PendingQueueCard atop the Backlog tab with per-row "not music" buttons + in-place refresh. First live user: the miniature-airport video marked out of the liked queue. 51 → 52 commands, 78 → 80 routes, 61 → 63 UI calls.
 - rev-43 (2026-09-19): #35/#36/#20 — hygiene quarantine closes its loop + dumps get a ledger. NEW CLI verbs: `shelf-restore-all`, `shelf-quarantine` (N files/X GB census), `shelf-quarantine-empty --yes` (deletes recoverable copies, flips applied → archived; receipt kept). NEW routes: `POST /api/hygiene/restore`, `POST /api/hygiene/restore-all`, `GET /api/hygiene/quarantine`, `POST /api/hygiene/quarantine/empty` (literal `{confirm:"DELETE"}` gate), `GET /api/intake/dumps`. NEW MCP tool: `getdat_intake {action?,folder?,dry_run?}` (dump census / process). NEW UI: QuarantinePanel (census + restore-all + typed-confirmed empty) + failed-row Revert in the Hygiene tab; IntakeDumps strip in GetDat ⌗ Intake. §4-R1 retired — restore/empty are now first-class surfaces (engine-owned CLI, web is a remote control). Dump ledger = `intake_dumps` in archive.db, written by ingest itself (one dump = one dated batch folder, #20 acceptance: same-day dumps stay distinct, a partial 17/18 outcome is representable). 48 → 51 commands, 43 → 44 tools, 73 → 78 routes.
 - rev-25 (2026-09-15): MegaSet rename — verb/route/tool renamed (`megadj megaset`, `/api/archive/megaset`, `megaset_propose`); census unchanged.
 - rev-26 (2026-09-16): #42 split — `/api` dispatch moved to `api_routes.ts` (census reads its exact-table keys); `/events/` trailing-slash spelling restored + 406 negotiation pinned by e2e. 63 → 64 routes (the restored alias).
@@ -53,11 +54,11 @@ deliberate exemptions are in §4. Historical repair details belong in
 
 | Surface    | Entry points                                                      | Count                  |
 | ---------- | ----------------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 51 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 52 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                         | 24 verbs               |
 | MCP        | `bun run mcp` (`mcp.ts` + `archive/tools.ts` + `getdat_tools.ts`) | 44 tools               |
-| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 78 routes              |
-| Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, 61 UI calls   |
+| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 80 routes              |
+| Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, 63 UI calls   |
 
 The server's HTTP API is the **fourth surface** and the seam everything
 converges on: deckctl and MCP are HTTP clients of it, and the UI talks to

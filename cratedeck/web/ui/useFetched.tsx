@@ -14,8 +14,9 @@ export type Fetched<T> =
 export function useFetched<T>(
   load: () => Promise<T>,
   deps: unknown[],
-): Fetched<T> {
+): Fetched<T> & { refresh?: () => void } {
   const [page, setPage] = useState<Fetched<T>>({ status: "loading" });
+  const [, setTick] = useState(0);
   // `load` is an inline closure at every call site — a fresh identity each
   // render. The effect keys on the CALLER'S deps only; the closure itself
   // is read through a ref so the deps rule is satisfied by construction
@@ -33,7 +34,9 @@ export function useFetched<T>(
       alive = false;
     };
   }, deps);
-  return page;
+  return page.status === "ok"
+    ? { ...page, refresh: () => setTick((t) => t + 1) }
+    : page;
 }
 
 /** Shared loading/error gates for a useFetched tab: the `card > empty`

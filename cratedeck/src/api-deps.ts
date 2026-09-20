@@ -43,6 +43,9 @@ export interface ApiDeps {
   fleetRoutes: (route: string, url: URL) => Response | Promise<Response>;
   json: (data: unknown, status?: number) => Response;
   sse: () => Response;
+  /** megadj CLI spawn seam (archive writes go through the CLI so the
+   *  engine owns every ledger mutation — §4-A1). */
+  megadjCli: (args: string[]) => Promise<{ code: number; stderr: string }>;
   /** graceful stop (deckctl stop): watcher + jobs + closes + exit. */
   stopServer: () => void;
 }

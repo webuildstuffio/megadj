@@ -325,7 +325,7 @@ export function makeApiRouter(deps: ApiDeps): ApiRouter {
     // ---- fleet superpowers (§B6/B7/B8 + O83 prep): one family, one handler
     if (route.startsWith("/fleet/")) return deps.fleetRoutes(route, url);
     // ---- archive reads (O82b): megadj's DB, readonly -----------------
-    const archiveResp = await archiveDispatch(deps, route, url);
+    const archiveResp = await archiveDispatch(deps, req, route, url);
     if (archiveResp) return archiveResp;
     if (route === "/images/search") {
       return json(await images.search(url.searchParams.get("q") ?? ""));

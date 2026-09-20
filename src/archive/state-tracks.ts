@@ -411,6 +411,31 @@ export class ArchiveTracks extends ArchiveCore {
       .all() as TrackRow[];
   }
 
+  /** The YouTube-side download queue for UI review (the Backlog tab's
+   *  pending card): pending/failed rows that `sync` would attempt. */
+  pendingQueue(limit = 500): TrackRow[] {
+    return this.db
+      .query(
+        `SELECT * FROM tracks WHERE status IN ('pending', 'failed') AND attempts < 5
+         ORDER BY status = 'pending' DESC, liked_position IS NULL, liked_position, first_seen_at
+         LIMIT ?`,
+      )
+      .all(limit) as TrackRow[];
+  }
+
+  /** User-marked "not YouTube music" (Sep 19): the row leaves the
+   *  download queue permanently — same terminal state the ingest skipper
+   *  uses, and `skipped_not_music` is sticky across playlist refreshes
+   *  (upsert never touches status). Category records WHO decided. */
+  markNotMusicByUser(videoId: string): boolean {
+    const row = this.db
+      .query("SELECT status FROM tracks WHERE video_id = ?")
+      .get(videoId) as { status: string } | undefined;
+    if (!row) return false;
+    this.markNotMusic(videoId, "user-marked not-music");
+    return row.status !== "skipped_not_music";
+  }
+
   downloadedCount(): number {
     const row = this.db
       .query("SELECT COUNT(*) as n FROM tracks WHERE status = 'downloaded'")

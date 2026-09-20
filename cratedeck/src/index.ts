@@ -351,6 +351,16 @@ const apiRouter = makeApiRouter({
   fleetRoutes,
   json,
   sse,
+  megadjCli: async (args) => {
+    const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), ...args], {
+      stdout: "pipe",
+      stderr: "pipe",
+      cwd: cfg.root,
+    });
+    const stderr = await new Response(proc.stderr).text();
+    const code = await proc.exited;
+    return { code, stderr };
+  },
   stopServer: () => {
     watcher.stop();
     void jobs.shutdown();

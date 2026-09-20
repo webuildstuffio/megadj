@@ -19,6 +19,7 @@ import {
   nonNegOpt,
   nonNegOptInvalid,
   parseFlags,
+  positionalArgs,
 } from "../cli-flags";
 import type { CliCommandHandler } from "../cli-dispatch";
 import { listJson, listTracks, status, statusJson } from "../shared/status";
@@ -167,6 +168,42 @@ const retry: CliCommandHandler = async (rest, { state }) => {
   }
 };
 
+// `megadj skip <id|permalink…>` (Sep 19): user-mark rows as not-YouTube-
+// music so sync's download queue never picks them. Terminal, sticky
+// across playlist refreshes; reversible only by hand (unskip = the
+// retry family does not resurrect a deliberate skip).
+const skip: CliCommandHandler = async (rest, { state }) => {
+  const json = rest.includes("--json");
+  const positional = positionalArgs(
+    rest.filter((a) => a !== "--json"),
+    [],
+  );
+  if (positional.length === 0) {
+    await finishCommandError({
+      command: "skip",
+      json,
+      error: "usage: megadj skip <video_id|permalink> […] [--json]",
+      exitCode: 2,
+    });
+    return;
+  }
+  const marked: string[] = [];
+  const unknown: string[] = [];
+  for (const id of positional) {
+    if (state.markNotMusicByUser(id)) marked.push(id);
+    else unknown.push(id);
+  }
+  if (json) {
+    await writeJson({ command: "skip", marked, unknown, count: marked.length });
+  } else {
+    for (const id of marked) console.log(`  ✓ skipped (not music): ${id}`);
+    for (const id of unknown) console.log(`  ✗ unknown id: ${id}`);
+    const unknownNote = unknown.length > 0 ? `, ${unknown.length} unknown` : "";
+    console.log(`skipped ${marked.length} row(s)${unknownNote}`);
+  }
+  if (unknown.length > 0 && marked.length === 0) setExit(1);
+};
+
 const organizeOrEnrich =
   (command: "organize" | "enrich"): CliCommandHandler =>
   async (rest, { state, musicDir }) => {
@@ -272,6 +309,7 @@ export const GETDAT_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   status: statusCommand,
   list,
   retry,
+  skip,
   organize: organizeOrEnrich("organize"),
   enrich: organizeOrEnrich("enrich"),
   adopt,

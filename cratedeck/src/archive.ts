@@ -321,6 +321,40 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     };
   }
 
+  /** The download queue awaiting `sync` (the Backlog tab's pending card):
+   *  what sync WOULD attempt next, so the user can review it and mark
+   *  non-music rows out (megadj skip). Source + attempts shown so a
+   *  YouTube-shaped row is recognizable before committing. */
+  pendingQueue(limit = 200): {
+    available: boolean;
+    tracks: {
+      video_id: string;
+      title: string | null;
+      artist: string | null;
+      duration_s: number | null;
+      status: string;
+      source: string;
+      attempts: number;
+    }[];
+  } {
+    const rows = this.rows<{
+      video_id: string;
+      title: string | null;
+      artist: string | null;
+      duration_s: number | null;
+      status: string;
+      source: string;
+      attempts: number;
+    }>(
+      `SELECT video_id, title, artist, duration_s, status, source, attempts
+       FROM tracks WHERE status IN ('pending', 'failed') AND attempts < 5
+       ORDER BY status = 'pending' DESC, liked_position IS NULL, liked_position, first_seen_at
+       LIMIT ?`,
+      limit,
+    );
+    return { available: this.handle() !== null, tracks: rows };
+  }
+
   /** Playlist diff across ARCHIVE sources: track sets that live in one
    *  source's liked list but not another (e.g. liked vs a specific playlist
    *  sync source). N75-style fleet diff, but for the archive's own

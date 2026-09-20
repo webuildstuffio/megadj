@@ -70,6 +70,37 @@ describe("ArchiveState", () => {
     expect(state.allTracks()[0]?.status).toBe("pending");
   });
 
+  test("markNotMusicByUser leaves the download queue permanently (Sep 19)", () => {
+    state.upsertTrackFromPlaylist(
+      "nm1",
+      0,
+      "WORLD's LARGEST Miniature Airport",
+    );
+    state.upsertTrackFromPlaylist("nm2", 1, "real song");
+    expect(state.pendingQueue().length).toBe(2);
+    expect(state.markNotMusicByUser("nm1")).toBe(true);
+    // the skipped row is OUT of the queue sync reads…
+    expect(state.pendingQueue().map((t) => t.video_id)).toEqual(["nm2"]);
+    expect(state.pendingTracks().map((t) => t.video_id)).toEqual(["nm2"]);
+    // …and STICKY across playlist refreshes (upsert never touches status)
+    state.upsertTrackFromPlaylist(
+      "nm1",
+      0,
+      "WORLD's LARGEST Miniature Airport",
+    );
+    expect(state.pendingQueue().map((t) => t.video_id)).toEqual(["nm2"]);
+    expect(state.allTracks().find((t) => t.video_id === "nm1")?.status).toBe(
+      "skipped_not_music",
+    );
+    // category records WHO decided
+    expect(
+      state.allTracks().find((t) => t.video_id === "nm1")?.last_error,
+    ).toContain("user-marked");
+    // unknown id reports false; re-marking an already-skipped row is a no-op
+    expect(state.markNotMusicByUser("nope")).toBe(false);
+    expect(state.markNotMusicByUser("nm1")).toBe(false);
+  });
+
   test("pending tracks order: pending-first, then by liked_position", () => {
     state.upsertTrackFromPlaylist("p5", 5, "pending pos 5");
     state.upsertTrackFromPlaylist("p1", 1, "pending pos 1");

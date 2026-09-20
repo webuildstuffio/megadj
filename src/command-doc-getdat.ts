@@ -42,6 +42,13 @@ export const GETDAT_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "skip",
+    group: "getdat",
+    block: [
+      "  megadj skip    <video_id…> [--json]          mark pending rows not-YouTube-music — sync never downloads them",
+    ],
+  },
+  {
     name: "intake-status",
     group: "getdat",
     block: [

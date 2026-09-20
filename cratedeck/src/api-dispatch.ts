@@ -41,17 +41,25 @@ export function jobDispatch(
 
 /** The archive-read family (O82b): megadj's DB, readonly. Lives in
  *  archive/routes.ts (file-length guard); null = no archive route
- *  matched, fall through. */
+ *  matched, fall through. The ONE write (POST /archive/skip) goes
+ *  through megadjCli — archive mutation stays CLI (§4-A1). */
 export async function archiveDispatch(
   deps: ApiDeps,
+  req: Request,
   route: string,
   url: URL,
 ): Promise<Response | null> {
-  const resp = await archiveRoutes(route, url, {
-    archive: deps.archive,
-    db: deps.db,
-    cfg: deps.cfg,
-  });
+  const resp = await archiveRoutes(
+    route,
+    url,
+    {
+      archive: deps.archive,
+      db: deps.db,
+      cfg: deps.cfg,
+    },
+    deps.megadjCli,
+    req,
+  );
   return resp;
 }
 

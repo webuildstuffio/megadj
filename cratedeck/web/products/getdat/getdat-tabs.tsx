@@ -10,9 +10,10 @@ import type {
   ArchiveLowqQueue,
   ArchiveSkipCensus,
 } from "../../../shared/types";
-import { api } from "../../ui/toast";
+import { api, apiPost } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
+import { useState } from "preact/hooks";
 import { TabIntro } from "../../ui/InfoTip";
 import {
   ListHead,
@@ -296,22 +297,52 @@ export function PipelineTab() {
 // ---- backlog ----------------------------------------------------------------
 
 export function BacklogTab() {
-  const page = useFetched<[ArchiveIngestStatus, ArchiveLowqQueue]>(
+  const page = useFetched<
+    [
+      ArchiveIngestStatus,
+      ArchiveLowqQueue,
+      {
+        available: boolean;
+        tracks: {
+          video_id: string;
+          title: string | null;
+          artist: string | null;
+          duration_s: number | null;
+          status: string;
+          source: string;
+          attempts: number;
+        }[];
+      },
+    ]
+  >(
     () =>
       Promise.all([
         api<ArchiveIngestStatus>("/api/archive/ingest-status"),
         api<ArchiveLowqQueue>("/api/archive/lowq"),
+        api<{
+          available: boolean;
+          tracks: {
+            video_id: string;
+            title: string | null;
+            artist: string | null;
+            duration_s: number | null;
+            status: string;
+            source: string;
+            attempts: number;
+          }[];
+        }>("/api/archive/pending-queue"),
       ]),
     [],
   );
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading backlog…" />;
-  const [ingest, lowq] = page.data;
+  const [ingest, lowq, pendingQ] = page.data;
   const c = ingest.available ? ingest.counts : {};
   const failed = c["failed"] ?? 0;
   const gone = c["gone"] ?? 0;
   const retry = failed + gone;
   const quality = lowq.available ? lowq.tracks : [];
+  const pending = pendingQ.available ? pendingQ.tracks : [];
   // #256: surfaced links are backlog work of a different KIND — the fix
   // isn't a re-download, it's the user going through the official link.
   const surfaced = ingest.available ? ingest.surfaced : [];
@@ -321,7 +352,7 @@ export function BacklogTab() {
     <div>
       <TabIntro
         what="The work queue: everything that can't be played or shouldn't stay."
-        how="Retry backlog first (failed/gone downloads — one command clears the failed half), then the LOWQ quality upgrades (lossy files below the set-ready floor), worst bitrate first. Copy any list — the fix is a megadj command, named on the card."
+        how="Review the pending download queue first (mark anything that isn't YouTube music out of it), then the retry backlog (failed/gone downloads — one command clears the failed half), then the LOWQ quality upgrades, worst bitrate first. Copy any list — the fix is a megadj command, named on the card."
         next="An empty backlog means every download in the archive is playable AND gig-safe on quality."
       />
       {!ingest.available && !lowq.available ? (
@@ -341,6 +372,13 @@ export function BacklogTab() {
               retry > 0 ? "fix the failed half with one command" : undefined
             }
           />
+
+          {pending.length > 0 && (
+            <PendingQueueCard
+              tracks={pending}
+              onSkipped={() => page.refresh?.()}
+            />
+          )}
 
           {retry > 0 && (
             <div class="card">
@@ -414,6 +452,85 @@ export function BacklogTab() {
 }
 
 // ---- sources ----------------------------------------------------------------
+
+/** PendingQueueCard — the download queue awaiting `megadj sync`, with a
+ *  per-row "not music" action (Sep 19): marks the row skipped_not_music
+ *  through POST /api/archive/skip (engine CLI) so sync never downloads
+ *  it. This is how non-YouTube-video rows leave the import pipeline. */
+export function PendingQueueCard(props: {
+  tracks: {
+    video_id: string;
+    title: string | null;
+    artist: string | null;
+    status: string;
+    source: string;
+    attempts: number;
+  }[];
+  onSkipped: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const skip = async (videoId: string) => {
+    setBusy(videoId);
+    try {
+      await apiPost(`/api/archive/skip?id=${encodeURIComponent(videoId)}`, {});
+      props.onSkipped();
+    } finally {
+      setBusy(null);
+    }
+  };
+  const n = props.tracks.length;
+  return (
+    <div class="card">
+      <ListHead
+        icon="inbox"
+        title="Pending downloads — review before sync"
+        n={n}
+        hint="What megadj sync WILL download next. Anything here that isn't actually music you want (podcasts, mixes you already have, junk), mark it not-music — the row leaves the queue permanently and sync skips it."
+        lines={[
+          `showing ${Math.min(n, 30)} of ${n}`,
+          ...props.tracks
+            .slice(0, 3)
+            .map((t) => `${t.title ?? t.video_id} — ${t.source}`),
+        ]}
+      />
+      <KVRows>
+        {props.tracks.slice(0, 30).map((t) => (
+          <KVRow key={t.video_id}>
+            <KVKey>
+              <TrackTitle
+                title={t.title ?? t.video_id}
+                videoId={t.video_id}
+                artist={t.artist}
+              />
+              <span class="dt-sub">
+                {t.source}
+                {t.attempts > 0
+                  ? ` · ${t.attempts} failed attempt${t.attempts === 1 ? "" : "s"}`
+                  : ""}
+                {t.status === "failed" ? " · failed" : ""}
+              </span>
+            </KVKey>
+            <KVVal>
+              <button
+                class="btn tiny"
+                disabled={busy === t.video_id}
+                onClick={() => void skip(t.video_id)}
+                title="Mark as not-YouTube-music — sync will never download this"
+              >
+                {busy === t.video_id ? "…" : "not music"}
+              </button>
+            </KVVal>
+          </KVRow>
+        ))}
+        {n > 30 && <Truncated shown={30} total={n} />}
+      </KVRows>
+      <div class="arch-fix">
+        CLI equivalent: <code>megadj skip &lt;video_id…&gt;</code> — bulk-mark
+        from a terminal
+      </div>
+    </div>
+  );
+}
 
 /** SurfacedLinksCard — ONE component for the #256 surfaced-link cohort on
  *  both GetDat tabs that show it (Pipeline = the ledger view; Backlog =
