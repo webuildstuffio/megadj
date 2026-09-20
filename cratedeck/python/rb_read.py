@@ -326,12 +326,30 @@ def main() -> int:
     db_path, drive_root = sys.argv[1], sys.argv[2]
     try:
         import pyrekordbox  # type: ignore[import-not-found]  # noqa: F401
-    except ImportError:
+
+        # Module-surface probe: pyrekordbox >=0.7 moved devicelib_plus; a
+        # bare `uv run` (no --with pin) or an old cached wheel crashes deep
+        # in snapshot() with a bare ModuleNotFoundError instead of this
+        # contract error. Detect it HERE, at the boundary, with the pinned
+        # invocation in the message (super-sure Sep 20 — the an-ad-hoc-uv
+        # incident: a hand-run `uv run` printed a raw traceback and the
+        # fix had to be rediscovered from the docstring).
+        from pyrekordbox.devicelib_plus.database import (  # noqa: F401
+            DeviceLibraryPlus,
+        )
+    except ImportError as exc:
         print(
             json.dumps(
                 {
                     "ok": False,
-                    "error": "pyrekordbox not installed; run via uv --with pyrekordbox",
+                    "error": (
+                        "pyrekordbox missing or too old "
+                        f"({exc}); run exactly:\n"
+                        'uv run --with "pyrekordbox @ git+https://github.com/'
+                        "dylanljones/pyrekordbox.git@"
+                        'f695541827cc488af267d6ca8a8e0052598d85a0" '
+                        "python python/rb_read.py <db_copy> <drive_root>"
+                    ),
                 }
             )
         )

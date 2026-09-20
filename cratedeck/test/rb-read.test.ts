@@ -262,8 +262,19 @@ describe("rb_read.main (CLI contract)", () => {
   // up to 12s warm; bun's 5s default (and any inherited bunfig) is not a
   // contract this suite may rely on, so the override rides the test.
   test("missing args → JSON error, exit 1", () => {
+    // PINNED like production rb.ts — a bare `uv run python` resolves the
+    // ambient (or newest) pyrekordbox, and pyrekordbox >=0.7 moved
+    // devicelib_plus (ModuleNotFoundError mid-snapshot, Sep 19/20). The
+    // unpinned variant here made this test a false-green for the trap.
     const p = Bun.spawnSync({
-      cmd: ["uv", "run", "python", join(PY_DIR, "rb_read.py")],
+      cmd: [
+        "uv",
+        "run",
+        "--with",
+        PYREKORDBOX_PIN,
+        "python",
+        join(PY_DIR, "rb_read.py"),
+      ],
       stdout: "pipe",
       stderr: "pipe",
       cwd: TMP,
@@ -290,7 +301,7 @@ describe("rb_read.main (CLI contract)", () => {
         "uv",
         "run",
         "--with",
-        "pyrekordbox",
+        PYREKORDBOX_PIN,
         "python",
         join(PY_DIR, "rb_read.py"),
         dbPath,

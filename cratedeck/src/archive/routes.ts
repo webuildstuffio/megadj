@@ -14,6 +14,7 @@ import {
   MEGASET_EXCLUDED_PREVIEW_MAX,
 } from "../../shared/megaset";
 import { isSimilarSpace } from "../../../src/shared/leaf/vector-space";
+import { intakeCandidateDirs } from "../intake-run";
 import type { DB } from "../db";
 import type { CrateConfig } from "../config";
 
@@ -163,8 +164,10 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // (`megadj ingest <folder> --json`) so the saved files get the same
     // dated-batch intake + tags/art/dedupe chain as every other import.
     // The engine owns the ledger; this route just aims it at the folder.
-    "surfaced-batch": async (_url, _archive, _db, _cfg, req) =>
-      surfacedBatchRoute(req, archiveCli),
+    // Same allowlist as /intake/start (intakeCandidateDirs) — one folder
+    // gate per enqueue seam, no weaker sibling (super-sure Sep 20).
+    "surfaced-batch": async (_url, _archive, _db, cfg, req) =>
+      surfacedBatchRoute(req, archiveCli, cfg),
     // Skip-reason census: why gone/skipped rows didn't land ("category:
     // …" buckets, YouTube errors) — the Pipeline tab's "what the pipeline
     // decided" card.
@@ -499,6 +502,7 @@ async function surfacedNoteRoute(
 async function surfacedBatchRoute(
   req: Request | undefined,
   megadjCli: MegadjCli | undefined,
+  cfg: CrateConfig,
 ): Promise<Response> {
   const gate = await readJsonObject(req);
   if ("error" in gate) return gate.error;
@@ -527,6 +531,21 @@ async function surfacedBatchRoute(
   // symptom of that). The job's leg runs the CLI then notes the ids done.
   if (!archiveJobs)
     return json({ error: "surfaced-batch jobs not available" }, 501);
+  // Allowlist parity with /intake/start (super-sure Sep 20): only folders
+  // intakeCandidateDirs offers (watch folder + archive batch dirs) may
+  // enqueue — the UI always posts from that census; a crafted path to
+  // system dirs is refused, never ingested.
+  const allowed = intakeCandidateDirs(cfg).some(
+    (c) => c.path === folder && c.exists,
+  );
+  if (!allowed)
+    return json(
+      {
+        error:
+          "folder not on the intake allowlist — pick one from /intake/folders",
+      },
+      403,
+    );
   const job = archiveJobs.enqueue("local-archive", "ingest", folder, "web");
   const noted = await megadjCli(["surfaced-note", ...ids, "--json"]);
   if (noted.code !== 0)

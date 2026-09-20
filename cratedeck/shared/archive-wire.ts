@@ -88,7 +88,9 @@ export interface ArchiveAnalysisCoverage {
         noGenre: number;
         /** genre_votes populated → ran under the CURRENT (voted) system. */
         genreVoted: number;
-        /** file_paths pointing at dated batch folders not yet ingested. */
+        /** ABSOLUTE folder paths of dated batch folders not yet ingested —
+         *  /intake/start's allowlist compares full paths, so these must be
+         *  absolute for the process-batch buttons to pass it. */
         rawBatches: { folder: string; files: number }[];
       }
     | undefined;

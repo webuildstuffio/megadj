@@ -10,11 +10,14 @@
  * construction, so this pins REACHABILITY instead: dispatch each key for
  * real and require a non-404.
  */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { archiveHandlers, archiveRoutes } from "../src/archive/routes";
 import type { ArchiveReader } from "../src/archive";
 import type { CrateConfig } from "../src/config";
 import type { DB } from "../src/db";
+import { tempDir } from "./testutil";
 
 /** Minimal deps: some handlers reach the reader even before param guards
  *  (`track` reads unconditionally), so the stub throws — the point is
@@ -32,6 +35,24 @@ const deps = {
   db: {} as DB,
   cfg: {} as CrateConfig,
 };
+
+/** Hermetic allowlist fixture (#248 seam): one temp archive dir with a
+ *  dated batch subfolder — surfaced-batch posts must match a real
+ *  intakeCandidateDirs entry. The watch-dir leg is HOME-independent via
+ *  the MEGADJ_INTAKE_WATCH override, so the watch candidate equals the
+ *  musicDir (skipped) and ONLY the seeded batch dir is allowlisted. */
+const allowlistTmp = tempDir("cratedeck-dispatch-allowlist-").rippable();
+const archiveFixture = (() => {
+  const musicDir = join(allowlistTmp.dir(), "archive");
+  const batchDir = join(musicDir, "2026-09-19 legacy downloads");
+  mkdirSync(batchDir, { recursive: true });
+  process.env.MEGADJ_INTAKE_WATCH = musicDir; // watch === musicDir → skipped
+  return { musicDir, batchDir };
+})();
+afterAll(() => {
+  allowlistTmp.rippleAll();
+  delete process.env.MEGADJ_INTAKE_WATCH;
+});
 
 /** Run one dispatch; resolve to the Response when the handler returned
  *  one, `null` when the route fell through, and a sentinel 599 Response
@@ -93,6 +114,12 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     const enqueued: { drive: string; kind: string; mount: string }[] = [];
     const jobDeps = {
       ...deps,
+      // Hermetic allowlist: intakeCandidateDirs(cfg) lists the watch dir
+      // (HOME-independent: MEGADJ_INTAKE_WATCH override) + cfg.musicDir's
+      // children. This fixture seeds one existing batch dir to post.
+      cfg: {
+        musicDir: archiveFixture.musicDir,
+      } as CrateConfig,
       jobs: {
         enqueue: (driveId: string, kind: "ingest", mountPoint: string) => {
           enqueued.push({ drive: driveId, kind, mount: mountPoint });
@@ -103,7 +130,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     const req = new Request("http://localhost/api/archive/surfaced-batch", {
       method: "POST",
       body: JSON.stringify({
-        folder: "/Users/nick/Music/Downloads",
+        folder: archiveFixture.batchDir,
         ids: ["track-1", "track-1", "track-2"],
       }),
       headers: { "content-type": "application/json" },
@@ -122,7 +149,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
       {
         drive: "local-archive",
         kind: "ingest",
-        mount: "/Users/nick/Music/Downloads",
+        mount: archiveFixture.batchDir,
       },
     ]);
     const body = (await res?.json()) as { jobId?: string };
@@ -136,7 +163,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     const req = new Request("http://localhost/api/archive/surfaced-batch", {
       method: "POST",
       body: JSON.stringify({
-        folder: "/Users/nick/Music/Downloads",
+        folder: archiveFixture.batchDir,
         ids: ["track-1"],
       }),
       headers: { "content-type": "application/json" },
@@ -167,11 +194,50 @@ describe("archive dispatch census (route list = handler map keys)", () => {
       },
       new Request("http://localhost/api/archive/surfaced-batch", {
         method: "POST",
-        body: JSON.stringify({ folder: "/tmp/downloads", ids: ["bad"] }),
+        body: JSON.stringify({
+          folder: archiveFixture.batchDir,
+          ids: ["bad"],
+        }),
         headers: { "content-type": "application/json" },
       }),
     );
     expect(res?.status).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
+  test("surfaced batch refuses a folder outside the intake allowlist (parity with /intake/start)", async () => {
+    const calls: string[][] = [];
+    const enqueued: unknown[] = [];
+    const res = await archiveRoutes(
+      "/archive/surfaced-batch",
+      new URL("http://localhost/api/archive/surfaced-batch"),
+      {
+        ...deps,
+        cfg: { musicDir: archiveFixture.musicDir } as CrateConfig,
+        jobs: {
+          enqueue: (..._: unknown[]) => {
+            enqueued.push(_);
+            return { id: "job-x" };
+          },
+        },
+      },
+      async (args) => {
+        calls.push(args);
+        return { code: 0, stderr: "" };
+      },
+      new Request("http://localhost/api/archive/surfaced-batch", {
+        method: "POST",
+        // absolute, well-formed, NOT on the allowlist — exactly the
+        // crafted-path shape the gate exists to refuse (Sep 20 parity fix)
+        body: JSON.stringify({
+          folder: "/etc",
+          ids: ["track-1"],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(res?.status).toBe(403);
+    expect(enqueued).toEqual([]);
     expect(calls).toEqual([]);
   });
 });

@@ -781,6 +781,9 @@ describe("ArchiveReader (O82b)", () => {
   it("analysisCoverage.stages decomposes the pool: no-genre, genre-voted, raw batches", () => {
     // self-contained fixtures (vx ids cleaned in beforeEach): two tracks
     // with genre, one without; paths inside two DJ-Imports batch folders.
+    // Paths are ABSOLUTE — the wire contract since the super-sure fix
+    // (Sep 20): /intake/start's allowlist compares full paths, so bare
+    // folder names made every process-batch button 403 (the shipped bug).
     seed
       .query(
         `INSERT INTO tracks (video_id, title, status, genre, file_path, first_seen_at, updated_at)
@@ -805,21 +808,39 @@ describe("ArchiveReader (O82b)", () => {
          VALUES (?, ?, 'downloaded', ?, ?, '2026-09-19', '2026-09-19')`,
       )
       .run("vx-g4", "G4", "House", "/elsewhere/not-a-batch/x.mp3");
+    // batch-folder ROOT row (no file segment) — extraction takes it whole
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, genre, file_path, first_seen_at, updated_at)
+         VALUES (?, ?, 'downloaded', 'Trance', ?, '2026-09-19', '2026-09-19')`,
+      )
+      .run("vx-g5", "G5", "/music/DJ-Imports/2026-09-17-c");
+    // empty batch segment right after the prefix — junk, never reported
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, genre, file_path, first_seen_at, updated_at)
+         VALUES (?, ?, 'downloaded', 'Trance', ?, '2026-09-19', '2026-09-19')`,
+      )
+      .run("vx-g6", "G6", "/music/DJ-Imports//weird.mp3");
     const cov = reader().analysisCoverage();
     expect(cov.stages).toBeDefined();
     const s = cov.stages!;
-    // the four seeded rows join the file's standing fixtures (v1/v2/v4
+    // the six seeded rows join the file's standing fixtures (v1/v2/v4
     // downloaded with genre, plus any earlier vx leftovers) — assert the
     // DELTAS this test's own fixtures contribute, not absolute totals.
     expect(s.noGenre).toBeGreaterThanOrEqual(2); // vx-g2, vx-g3
     expect(s.rawBatches).toEqual(
       expect.arrayContaining([
-        { folder: "2026-09-19-b", files: 2 },
-        { folder: "2026-09-18-a", files: 1 },
+        { folder: "/music/DJ-Imports/2026-09-19-b", files: 2 },
+        { folder: "/music/DJ-Imports/2026-09-18-a", files: 1 },
+        { folder: "/music/DJ-Imports/2026-09-17-c", files: 1 },
       ]),
     );
-    // not-a-batch paths never appear as batch folders
+    // not-a-batch paths never appear; junk empty-segment never appears
     expect(s.rawBatches.some((b) => b.folder.includes("not-a-batch"))).toBe(
+      false,
+    );
+    expect(s.rawBatches.some((b) => b.folder.endsWith("DJ-Imports/"))).toBe(
       false,
     );
     // genre_votes column absent in this fixture → 0 (never voted), not a crash

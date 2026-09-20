@@ -160,8 +160,8 @@ const funnelStages = {
   noGenre: 1200,
   genreVoted: 480,
   rawBatches: [
-    { folder: "2026-09-19-b", files: 12 },
-    { folder: "2026-09-19-a", files: 4 },
+    { folder: "/music/DJ-Imports/2026-09-19-b", files: 12 },
+    { folder: "/music/DJ-Imports/2026-09-19-a", files: 4 },
   ],
 };
 
@@ -183,9 +183,23 @@ describe("EnrichmentFunnel (#260 downloaded ≠ finished)", () => {
 
   test("every raw batch folder is a one-click intake button", () => {
     const html = render(<EnrichmentFunnel stages={funnelStages} />);
+    // labels show the BATCH NAME; the POST body carries the absolute path
+    // (the /intake/start allowlist's shape — the Sep 20 contract fix)
     expect(html).toContain("process 2026-09-19-b (12)");
     expect(html).toContain("process 2026-09-19-a (4)");
+    expect(html).toContain(
+      'title="Run the full intake pipeline on /music/DJ-Imports/2026-09-19-b (12 files)"',
+    );
     expect(html).toContain("16 raw in 2 batch folders");
+  });
+
+  test("the button POSTs the absolute folder, not the label", () => {
+    // source pin: the POST body uses props.folder verbatim (absolute);
+    // only the visible label is shortened to the batch name.
+    expect(funnelTabsSrc).toContain("{ folder: props.folder }");
+    expect(funnelTabsSrc).toContain(
+      'props.folder.split("/").filter(Boolean).pop()',
+    );
   });
 
   test("the genre-pass fix routes to the FullTags Run tab", () => {

@@ -237,6 +237,12 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
         col,
       ).length > 0;
     const stagesOk = db && hasCol("genre") && hasCol("file_path");
+    // ABSOLUTE folder paths (#260 super-sure fix): /intake/start's allowlist
+    // compares full paths (intakeCandidateDirs emits absolute candidates),
+    // so a bare folder name 403s. The extraction keeps the whole prefix up
+    // to (and including) the dated batch segment; a path outside DJ-Imports
+    // (or a bare name with no slash) is skipped — those rows have no
+    // processable folder identity.
     const batchRows = stagesOk
       ? this.rows<{ folder: string }>(
           `SELECT file_path AS folder FROM tracks
@@ -245,6 +251,19 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
            ORDER BY updated_at DESC`,
         )
       : [];
+    const DJ_IMPORTS = "DJ-Imports/";
+    const batchFolderOf = (p: string): string | null => {
+      const marker = p.indexOf(DJ_IMPORTS);
+      if (marker === -1) return null;
+      const start = marker + DJ_IMPORTS.length;
+      const rest = p.slice(start);
+      const slash = rest.indexOf("/");
+      // "/" right after the prefix → empty folder name, junk. No slash →
+      // the row IS the batch folder path (no file segment yet): take whole.
+      if (slash === 0) return null;
+      const end = slash === -1 ? p.length : start + slash;
+      return end > start ? p.slice(0, end) : null;
+    };
     return {
       available: db !== null,
       tracks,
@@ -269,13 +288,9 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
               : 0,
             rawBatches: Object.entries(
               batchRows.reduce<Record<string, number>>((acc, r) => {
-                const marker = r.folder.indexOf("DJ-Imports/");
-                if (marker === -1) return acc;
-                const rest = r.folder.slice(marker + "DJ-Imports/".length);
-                const slash = rest.indexOf("/");
-                if (slash <= 0) return acc;
-                const folder = rest.slice(0, slash);
-                acc[folder] = (acc[folder] ?? 0) + 1;
+                const abs = batchFolderOf(r.folder);
+                if (!abs) return acc;
+                acc[abs] = (acc[abs] ?? 0) + 1;
                 return acc;
               }, {}),
             )

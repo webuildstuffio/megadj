@@ -816,6 +816,10 @@ export function EnrichmentFunnel(props: {
  *  engine is busy; the folder stays raw and retryable. */
 export function ProcessBatchButton(props: { folder: string; files: number }) {
   const [busy, setBusy] = useState(false);
+  // Button label shows the BATCH NAME (the dated tail, what the user
+  // recognizes); the POST sends the ABSOLUTE path (the allowlist's shape).
+  // `folder` is always absolute now (archive.ts extracts full paths).
+  const name = props.folder.split("/").filter(Boolean).pop() ?? props.folder;
   const start = async (): Promise<void> => {
     setBusy(true);
     try {
@@ -853,7 +857,7 @@ export function ProcessBatchButton(props: { folder: string; files: number }) {
       ) : (
         <Icon name="download" size={12} />
       )}{" "}
-      process {props.folder} ({props.files})
+      process {name} ({props.files})
     </button>
   );
 }
