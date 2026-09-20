@@ -157,7 +157,14 @@ export function App() {
     const wasActive = jobs.some(
       (j) => j.status === "running" || j.status === "queued",
     );
-    if (jobs.length && !wasActive) refresh();
+    if (jobs.length && !wasActive)
+      refresh().catch((error: unknown) => {
+        // every other refresh() caller routes through useJobEvents'
+        // try/catch → throttled toast; this late effect was the one bare
+        // caller — an unhandled rejection instead of the family contract
+        console.error("drive list refresh failed", error);
+        toast(`drive list unavailable: ${errMessage(error)}`, "err");
+      });
   }, [jobs, refresh]);
 
   useEffect(() => {
