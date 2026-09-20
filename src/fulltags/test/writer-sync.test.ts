@@ -1,8 +1,9 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { $ } from "bun";
-import { copyFileSync, readFileSync, readdirSync } from "node:fs";
+import { copyFileSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { embedArt, groundTruth, writePatchSync } from "../index-all";
+import { hasValidContainerHeader } from "../write/writer-mutagen";
 import type { WriterAtomicOps } from "../write/writer";
 import { tempDir } from "../../test-support/testutil";
 
@@ -16,6 +17,13 @@ async function makeFile(ext: string): Promise<string> {
   await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
   return p;
 }
+
+/** Minimal valid JPEG (SOI + APP0 JFIF + EOI — 22 bytes): enough to
+ *  poison ffmpeg's png decoder when the APIC mime claims image/png. */
+const JPEG_BYTES = Uint8Array.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+  0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
+]);
 
 describe("writePatchSync", () => {
   test("mp3 round-trip + perf parity with direct ffmpeg", async () => {
@@ -109,6 +117,85 @@ describe("writePatchSync", () => {
   test("empty patch is a no-op success", async () => {
     const p = await makeFile(".mp3");
     expect(writePatchSync(p, {})).toBe(true);
+  });
+
+  // #280: an mp3 whose attached pic is JPEG BYTES under a `image/png`
+  // mime (ffmpeg trusts the mime, its png decoder rejects the bytes, the
+  // remux leg died — every write on such a file failed forever;
+  // rb-193676214 was the lone WRITE-FAILED of 3,401 on Sep 20). The
+  // mutagen ID3 leg never decodes art, so the write must succeed with
+  // the art bytes untouched.
+  test("mp3 with JPEG-bytes/PNG-mime attached pic still writes (#280)", async () => {
+    const base = await makeFile(".mp3");
+    const poison = `${DIR}/poison.mp3`;
+    copyFileSync(base, poison);
+    // Embed the poison art via mutagen directly (bypasses the writer
+    // under test — the fixture needs the pre-existing bad APIC).
+    const hex = [...JPEG_BYTES]
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    const script = `from mutagen.id3 import ID3, APIC
+a = ID3(${JSON.stringify(poison)})
+a.add(APIC(encoding=3, mime="image/png", type=3, desc="", data=bytes.fromhex("${hex}")))
+a.save(v2_version=3)
+print("ok")`;
+    const pr = Bun.spawnSync({
+      cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
+      stdout: "pipe",
+    });
+    expect(pr.exitCode).toBe(0);
+
+    // Before the fix: the ffmpeg remux leg died on this exact file.
+    const ok = writePatchSync(poison, { genre: "House" });
+    expect(ok).toBe(true);
+    expect(groundTruth(poison).genre).toBe("House");
+
+    // Art bytes survive the write byte-identical.
+    const readBack = `from mutagen.id3 import ID3
+a = ID3(${JSON.stringify(poison)})
+pics = a.getall("APIC")
+print(pics[0].data.hex() if pics else "NONE")`;
+    const art = Bun.spawnSync({
+      cmd: ["uv", "run", "--with", "mutagen", "python", "-c", readBack],
+      stdout: "pipe",
+    });
+    expect(art.stdout.toString().trim()).toBe(hex);
+  });
+
+  test("mp3 mutagen leg reports failure without touching the file", async () => {
+    const p = await makeFile(".mp3");
+    const before = readFileSync(p);
+    const ok = writePatchSync(p, { title: "must not land" }, {
+      mutagenOk: () => false,
+    } satisfies Partial<WriterAtomicOps>);
+    expect(ok).toBe(false);
+    expect(readFileSync(p)).toEqual(before);
+    expect(
+      readdirSync(DIR).filter((name) => name.includes(".fulltags-")),
+    ).toEqual([]);
+  });
+
+  test("mp3 header guard: ID3 tag, bare MPEG sync, and garbage", () => {
+    // Files are padded past 12 bytes: the guard's read is all-or-nothing
+    // (a short read = invalid, same contract as the other containers).
+    const tagged = join(DIR, "guard-tagged.mp3");
+    writeFileSync(
+      tagged,
+      new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, ...new Uint8Array(10)]),
+    );
+    expect(hasValidContainerHeader(tagged)).toBe(true);
+    const bare = join(DIR, "guard-bare.mp3");
+    writeFileSync(
+      bare,
+      new Uint8Array([0xff, 0xfb, 0x90, 0x00, ...new Uint8Array(10)]),
+    );
+    expect(hasValidContainerHeader(bare)).toBe(true);
+    const junk = join(DIR, "guard-junk.mp3");
+    writeFileSync(
+      junk,
+      new Uint8Array([0x00, 0x01, 0x02, 0x03, ...new Uint8Array(10)]),
+    );
+    expect(hasValidContainerHeader(junk)).toBe(false);
   });
 
   for (const ext of [".wav", ".aiff", ".m4a"]) {

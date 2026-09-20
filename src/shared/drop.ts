@@ -23,6 +23,7 @@ import { organize } from "../getdat/commands/organize";
 import { ytdlpCookieArgs } from "../getdat/downloader";
 import {
   SC_FORMAT,
+  classifyScFailure,
   extractAcquisitionLinks,
   isSoundCloudUrl,
   mergeScRawLinks,
@@ -68,6 +69,9 @@ export interface DropOptions {
   /** Cookies/env plumbing for the URL-download stage. */
   cookiesFromBrowser?: string | null;
   cookiesFile?: string | null;
+  /** yt-dlp binary override (parity with SyncOptions.ytdlpBin) — tests
+   *  stub the binary hermetically; ops can pin a version. */
+  ytdlpBin?: string | undefined;
   onProgress?: (msg: string) => void;
 }
 
@@ -75,6 +79,8 @@ export interface DropStage {
   stage: string;
   status: "ok" | "skipped" | "failed";
   detail?: string;
+  /** #277: set-rip failures only — classified per-entry evidence. */
+  missedDetail?: MissedEntry[];
 }
 
 export interface DropSummary {
@@ -94,6 +100,55 @@ interface DownloadResult {
   /** Set rips: entries whose metadata was walled (MONETIZE 403) — the
    *  batch survived, these specific tracks did not land. */
   missed?: number;
+  /** #277: per-entry failure evidence for the misses above — classified
+   *  (gone/permanent/retryable via classifyScFailure) + a bounded stderr
+   *  tail, so `missed: N` is diagnosable without re-running the set. */
+  missedDetail?: MissedEntry[];
+}
+
+/** One failed set entry (#277). Bounded: count ≤ 10, tail ≤ 160 chars —
+ *  the JSON epilogue stays a compact one-liner (stdout-boundary rule). */
+export interface MissedEntry {
+  trackId: string;
+  class: "gone" | "permanent" | "retryable" | "unknown";
+  detail: string;
+}
+
+const MAX_MISSED_DETAIL = 10;
+
+/** Build one MissedEntry from a failed yt-dlp spawn. Exported pure for
+ *  the census test; the tail logic mirrors the single-URL path's
+ *  last-2-lines slice but stays shorter (160) and is classified via
+ *  the #255 seam. */
+export function missedEntry(
+  trackId: string,
+  exitCode: number | null,
+  stderr: Uint8Array,
+): MissedEntry {
+  const tail =
+    new TextDecoder()
+      .decode(stderr)
+      .split("\n")
+      .filter(Boolean)
+      .slice(-1)[0]
+      ?.slice(0, 160) ?? `yt-dlp exit ${exitCode}`;
+  return {
+    trackId,
+    class: tail === `yt-dlp exit ${exitCode}` ? "unknown" : scClassOf(tail),
+    detail: tail,
+  };
+}
+
+function scClassOf(stderr: string): MissedEntry["class"] {
+  return classifyScFailure(stderr);
+}
+
+/** The yt-dlp binary this run invokes — opts.ytdlpBin override (tests +
+ *  version pinning), else PATH lookup. ONE resolution point for all
+ *  four spawn sites (downloadUrl, the set loop, the flat probe, the
+ *  single rip) — they can never drift onto different binaries. */
+function ytdlpBinOf(opts: DropOptions): string {
+  return opts.ytdlpBin ?? "yt-dlp";
 }
 
 /** Download a non-SC URL straight into the music dir via yt-dlp
@@ -131,7 +186,7 @@ async function downloadUrl(
   ];
   args.push(target);
   const proc = Bun.spawnSync({
-    cmd: ["yt-dlp", ...args],
+    cmd: [ytdlpBinOf(opts), ...args],
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -175,10 +230,11 @@ async function downloadScUrl(
     mkdirSync(batchDir, { recursive: true });
     let okCount = 0;
     let missCount = 0;
+    const missedDetail: MissedEntry[] = [];
     for (const id of setId.trackIds) {
       const one = Bun.spawnSync({
         cmd: [
-          "yt-dlp",
+          ytdlpBinOf(opts),
           ...cookies,
           "-f",
           SC_FORMAT,
@@ -199,16 +255,31 @@ async function downloadScUrl(
         stderr: "pipe",
         timeout: 600_000,
       });
-      if (one.exitCode === 0) okCount++;
-      else missCount++;
+      if (one.exitCode === 0) {
+        okCount++;
+        continue;
+      }
+      // #277: carry the per-entry failure evidence instead of counting
+      // silently. The tail is classified with the ONE SC failure-class
+      // seam (#255) so `gone` (dead slug) reads differently from a
+      // transient 500 — the count stays exact; the DETAIL array is
+      // bounded so the epilogue stays one honest compact object.
+      missCount++;
+      if (missedDetail.length < MAX_MISSED_DETAIL)
+        missedDetail.push(missedEntry(id, one.exitCode, one.stderr));
     }
     // Registration is INGEST's job (see the single-track path).
-    return { downloaded: okCount, folder: batchDir, missed: missCount };
+    return {
+      downloaded: okCount,
+      folder: batchDir,
+      missed: missCount,
+      missedDetail,
+    };
   }
   // Not a /sets/ URL (or the resolve failed): fall through to the legacy
   // single-probe path below for single tracks and user pages.
   const flat = Bun.spawnSync({
-    cmd: ["yt-dlp", ...cookies, "--flat-playlist", "-J", target],
+    cmd: [ytdlpBinOf(opts), ...cookies, "--flat-playlist", "-J", target],
     stdout: "pipe",
     stderr: "pipe",
     timeout: 120_000,
@@ -318,7 +389,7 @@ async function downloadScUrl(
     target,
   ];
   const proc = Bun.spawnSync({
-    cmd: ["yt-dlp", ...args],
+    cmd: [ytdlpBinOf(opts), ...args],
     stdout: "pipe",
     stderr: "pipe",
     timeout: 600_000,
@@ -563,10 +634,24 @@ async function downloadStage(
   stages.push({
     stage: "download",
     status: "ok",
-    ...(isSc && r.downloaded > 1
-      ? { detail: `${r.downloaded} tracks from set` }
+    ...(isSc && (r.downloaded > 1 || r.missed)
+      ? {
+          detail:
+            `${r.downloaded} tracks from set` +
+            // #276: the missed count reaches every output surface —
+            // a set that silently drops 5 of 96 tracks must NOT look
+            // identical to a clean 96/96 rip.
+            (r.missed ? `, ${r.missed} missed` : ""),
+        }
       : {}),
   });
+  if (r.missedDetail?.length) {
+    // #277: per-entry evidence, one log line per miss (human surface;
+    // the JSON epilogue carries the same array on the download stage).
+    for (const m of r.missedDetail)
+      log(`  missed ${m.trackId} (${m.class}): ${m.detail}`);
+    stages[stages.length - 1]!.missedDetail = r.missedDetail;
+  }
   return {
     folder: r.folder ?? opts.musicDir,
     ok: true,

@@ -56,6 +56,7 @@ export function scTrackIdFromUrl(url: string): string | null {
 export async function scSetTrackIds(
   setUrl: string,
 ): Promise<{ ok: boolean; trackIds: string[] }> {
+  if (cannedSetIds !== undefined) return cannedSetIds;
   if (!/soundcloud\.com\/[^/]+\/sets\//.test(setUrl)) {
     return { ok: false, trackIds: [] };
   }
@@ -284,6 +285,21 @@ export function setScClientIdForTest(id: string | null): () => void {
   cachedClientId = id;
   return () => {
     cachedClientId = prev;
+  };
+}
+
+let cannedSetIds: { ok: boolean; trackIds: string[] } | undefined;
+
+/** Install a canned set-expansion result (tests) — the #277/#276 set-rip
+ *  tests run the real `drop` pipeline without network. Restore via the
+ *  returned fn; undefined clears the can. */
+export function setScSetIdsForTest(
+  canned: { ok: boolean; trackIds: string[] } | undefined,
+): () => void {
+  const prev = cannedSetIds;
+  cannedSetIds = canned;
+  return () => {
+    cannedSetIds = prev;
   };
 }
 

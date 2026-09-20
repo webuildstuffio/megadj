@@ -24,6 +24,9 @@ import {
   atomicOps,
   type TagPair,
   type WriterAtomicOps,
+  mp3Id3Statement,
+  mp3MutagenScript,
+  mp3VerifyStatement,
   mp4Statement,
   mp4VerifyStatement,
   mutagenPatchFrame,
@@ -141,8 +144,8 @@ function ffmpegTagPlan(
  */
 
 /** Mutagen-container dispatch (the twin-leg seam): WAV/AIFF → the ID3-in-
- * container path, m4a/m4b → MP4 atoms, everything else → null (the caller's
- * ffmpeg branch owns those). */
+ * container path, m4a/m4b → MP4 atoms, mp3 → in-place ID3 (#280), everything
+ * else → null (the caller's ffmpeg branch owns those). */
 function mutagenDispatch(
   filePath: string,
   patch: TagPatch,
@@ -155,7 +158,43 @@ function mutagenDispatch(
   if (ext === ".m4a" || ext === ".m4b") {
     return writePatchMp4(filePath, patch, ops);
   }
+  // #280: MP3 writes go mutagen-first. The old shape routed mp3 to the
+  // ffmpeg remux unconditionally, so ONE container-level oddity — a
+  // JPEG-bytes attached pic declaring `image/png` (ffmpeg trusts the
+  // mime, the png decoder rejects the bytes) — failed EVERY write on
+  // that file forever (rb-193676214, the lone WRITE-FAILED of 3,401).
+  // An in-place ID3 edit is also strictly safer for MP3: no remux, art
+  // bytes untouched, v2.3 preserved. Fallback stays for completeness.
+  if (ext === ".mp3") {
+    return writePatchMp3(filePath, patch, ops);
+  }
   return null;
+}
+
+/** Sync tag write for MP3 via mutagen ID3 (v2.3) — the same
+ *  statement/verify language as the WAV/AIFF path (the frames ARE ID3
+ *  in both containers). In-place atomic edit: audio + art bytes are
+ *  never touched. Returns false on any failure (no throw) — callers
+ *  treat it like any other failed write. */
+function writePatchMp3(
+  filePath: string,
+  patch: TagPatch,
+  ops?: Partial<WriterAtomicOps>,
+): boolean {
+  return mutagenPatchFrame(
+    filePath,
+    patch,
+    {
+      sets: (pairs) =>
+        pairs.map(([k, v]) => mp3Id3Statement(k, v)).filter(Boolean).join(
+          "\n",
+        ),
+      verifies: (pairs) =>
+        pairs.map(([k, v]) => mp3VerifyStatement(k, v)).join("\n"),
+      script: mp3MutagenScript,
+    },
+    ops,
+  );
 }
 
 export async function writePatch(
@@ -167,11 +206,13 @@ export async function writePatch(
   const pairs = tagPairs(patch);
   if (!pairs.length) return;
 
-  // WAV/AIFF/M4A: mutagen edits the metadata in place. ffmpeg's wav/aiff
+  // WAV/AIFF/M4A/MP3: mutagen edits the metadata in place. ffmpeg's wav/aiff
   // muxers DROP the ID3 chunk entirely (art + TXXX stamps vanish), and the
   // ipod (m4a) muxer has no metadata mapping for bpm/energy/remixer/mbid/
   // AI-* keys — they are silently dropped, plus every remux wipes existing
-  // freeform atoms. The mutagen paths exist precisely for this.
+  // freeform atoms. The mutagen paths exist precisely for this. MP3 joins
+  // them via #280: an in-place ID3 edit can never trip the remux leg's
+  // attached-pic container oddities (JPEG bytes under a png mime).
   const handled = mutagenDispatch(filePath, patch, ops);
   if (handled !== null) {
     if (!handled) throw new Error(`mutagen tag write failed for ${filePath}`);

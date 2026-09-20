@@ -121,6 +121,18 @@ export function hasValidContainerHeader(path: string): boolean {
   if (ext === ".aiff" || ext === ".aif")
     return fourcc(0) === "FORM" && ["AIFF", "AIFC"].includes(fourcc(8));
   if (ext === ".m4a" || ext === ".m4b") return fourcc(4) === "ftyp";
+  if (ext === ".mp3") {
+    // MP3 has no container FourCC: a tagged file opens with an ID3v2
+    // header ("ID3" + version byte — the magic is THREE bytes, the 4th
+    // is the major version, 0x04 on current files), an untagged one
+    // with an MPEG audio frame sync (0xFF + three set sync bits).
+    // #280 — the mutagen MP3 path needs this guard like every other
+    // container.
+    if (header.toString("ascii", 0, 3) === "ID3") return true;
+    const b0 = header[0];
+    const b1 = header[1];
+    return b0 === 0xff && b1 !== undefined && (b1 & 0xe0) === 0xe0;
+  }
   return false;
 }
 
@@ -254,6 +266,29 @@ const WAV_FRAME_STATEMENT: Partial<
   grouping: (t) => `a.tags.add(TIT1(encoding=3, text=${t}))`,
 };
 
+/** Tag-object receiver inside generated scripts. WAVE/AIFF scripts talk
+ *  to the container wrapper (`a.tags`); the MP3 script binds a bare
+ *  `tags` variable to a raw `ID3()` handle and passes `tags` here, so
+ *  the SAME frame/verify language serves both containers (#280). */
+export type MutagenReceiver = "a.tags" | "tags";
+
+export function id3StatementFor(
+  k: keyof TagPatch,
+  v: unknown,
+  recv: MutagenReceiver,
+): string {
+  const stmt = wavId3Statement(k, v);
+  return stmt ? stmt.replaceAll("a.tags.", `${recv}.`) : "";
+}
+
+export function id3VerifyFor(
+  k: keyof TagPatch,
+  v: unknown,
+  recv: MutagenReceiver,
+): string {
+  return wavVerifyStatement(k, v).replaceAll("a.tags.", `${recv}.`);
+}
+
 export function wavId3Statement(k: keyof TagPatch, v: unknown): string {
   const t = JSON.stringify(String(v));
   // Whole-string interpolations (year/bpm) historically used the raw
@@ -271,6 +306,49 @@ export function wavVerifyStatement(k: keyof TagPatch, v: unknown): string {
   const key = WAV_ID3_READ[k];
   const expected = JSON.stringify(String(v));
   return `if str(a.tags.get(${JSON.stringify(key)}, "")) != ${expected}: raise RuntimeError(${JSON.stringify(`tag readback failed: ${String(k)}`)})`;
+}
+
+/** MP3 statement builders — SAME ID3 frame language as WAV/AIFF (the
+ *  frames ARE ID3 in both containers), re-addressed to the raw `tags`
+ *  handle via id3StatementFor/id3VerifyFor. #280: MP3 tag writes go
+ *  here FIRST — mutagen edits the tag in place, never remuxes, so it
+ *  cannot fail on a container-level oddity like a JPEG-bytes attached
+ *  pic wearing a `image/png` mime (ffmpeg's mjpeg re-encode leg dies
+ *  on exactly that shape; measured live, issue #280). */
+export const mp3Id3Statement = (
+  k: keyof TagPatch,
+  v: unknown,
+): string => id3StatementFor(k, v, "tags");
+export const mp3VerifyStatement = (
+  k: keyof TagPatch,
+  v: unknown,
+): string => id3VerifyFor(k, v, "tags");
+
+/** #280: full ID3 script for a plain MP3 — the SAME statement language
+ *  as writePatchWav (statements re-addressed to the bare `tags` ID3
+ *  handle by mp3Id3Statement/mp3VerifyStatement), saved as v2.3 (the
+ *  repo's hardware-compat convention, matches ffmpegTagPlan's
+ *  `-id3v2_version 3`). The verify leg re-opens the file and reads
+ *  every patched key back — a silently dropped statement fails the
+ *  write. `ID3(path)` returns the loaded tag (or None when absent);
+ *  the fallback creates a fresh tag so a stamp-less file still writes.
+ */
+export function mp3MutagenScript(
+  tempPath: string,
+  sets: string,
+  verifies: string,
+): string {
+  return `from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, TSRC, COMM
+a = ID3(${JSON.stringify(tempPath)})
+if a is None:
+    a = ID3()
+tags = a
+${sets}
+a.save(${JSON.stringify(tempPath)}, v2_version=3)
+a = ID3(${JSON.stringify(tempPath)})
+tags = a
+${verifies}
+print("ok")`;
 }
 
 // ---- MP4 (iTunes atoms) statement builders --------------------------------
