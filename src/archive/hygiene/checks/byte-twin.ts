@@ -1,5 +1,5 @@
 /**
- * Check: byte-twin (§4.2) — same size + same md5 = the same file twice.
+ * Check: byte-twin (§4.2) — same size + identical md5 = the same file twice.
  * The ONLY severity-"safe" duplicate class: the loser has a byte-proven
  * twin, so quarantining it loses nothing (955 of the Sep 9 session's
  * 1,271 findings were this class). md5 runs at DETECT time on same-size
