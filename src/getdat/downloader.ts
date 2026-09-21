@@ -5,6 +5,7 @@
  */
 
 import { $ } from "bun";
+import { existsSync } from "node:fs";
 import { sanitizeGenreFolder } from "../fulltags/write/schema";
 import type { YtdlpInfo } from "../fulltags/write/metadata-build";
 import { TrackGoneError } from "./ratelimit";
@@ -340,6 +341,30 @@ export class Downloader {
     const stderr = new TextDecoder().decode(proc.stderr);
 
     if (proc.exitCode !== 0) {
+      // EMBED-failure salvage (Sep 20 live find): yt-dlp downloads the
+      // audio FIRST, then ffmpeg embeds metadata/thumbnail. When only the
+      // embed step fails ("Unable to embed using ffprobe & ffmpeg"), the
+      // bytes are FULLY on disk but the nonzero exit marked the row failed
+      // — the file sat unledgered and the next run re-downloaded it (2
+      // live dupes: Bobby Shmurda Caked Up, Wiz Khalifa Still Down).
+      // The stdout still carries the after_move filepath prints (they
+      // fire before the embed step), so parse them; a landed audio file
+      // becomes downloaded-with-caveat. GONE/throttle classes never reach
+      // this branch — classifyError runs after it.
+      if (/unable to embed/i.test(stderr)) {
+        const salvaged = Downloader.parseDownloadOutput(
+          new TextDecoder().decode(proc.stdout),
+          { soundcloud: target.soundcloud === true },
+        );
+        if (salvaged.filePath && existsSync(salvaged.filePath)) {
+          return {
+            status: "downloaded",
+            filePath: salvaged.filePath,
+            formatId: salvaged.formatId,
+            info: {},
+          };
+        }
+      }
       if (target.soundcloud) {
         const sc = classifyScFailure(stderr);
         if (sc === "gone")

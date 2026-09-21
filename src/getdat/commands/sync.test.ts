@@ -212,6 +212,57 @@ describe("sync (GetDat pipeline)", () => {
     expect(d.classifyError("some totally different failure")).toBe("other");
   });
 
+  // Sep 20 live find #2: yt-dlp downloads audio FIRST, then ffmpeg embeds
+  // metadata/thumbnail. An embed-only failure ("Unable to embed…") exited
+  // nonzero with the bytes FULLY on disk, and the row was marked failed —
+  // the landed file sat unledgered and later runs re-downloaded it (2 live
+  // dupes: Bobby Shmurda Caked Up, Wiz Khalifa Still Down).
+  test("embed-failure salvage: landed file + Unable-to-embed stderr → downloaded", async () => {
+    const { tempDir } = await import("../../test-support/testutil");
+    const { join: pathJoin } = await import("node:path");
+    const t = tempDir("megadj-embed-salvage-").rippable();
+    // tempDir.dir() makes a NEW dir per call — ONE dir for everything.
+    const tmp = t.dir();
+    const landed = pathJoin(tmp, "Victim.m4a");
+    const { writeFileSync, mkdirSync, chmodSync } = await import("node:fs");
+    writeFileSync(landed, "fake-bytes");
+    // Drive the private download path through a synthetic spawn: point
+    // ytdlpBin at a fake shell script that prints the after_move filepath
+    // (as yt-dlp does BEFORE embedding) then exits 1 with the embed error.
+    const binDir = pathJoin(tmp, "bin");
+    mkdirSync(binDir, { recursive: true });
+    const fake = pathJoin(binDir, "fake-ytdlp");
+    writeFileSync(
+      fake,
+      [
+        "#!/bin/sh",
+        'while [ "$#" -gt 0 ]; do',
+        '  if [ "$1" = "-o" ]; then shift; out="$1"; fi',
+        "  shift",
+        "done",
+        // eslint's no-template-curly-in-string fires on the ${out…} shell
+        // syntax inside a plain string; build the shell dollar via char
+        // code so the line stays a plain expression.
+        `dest="${String.fromCharCode(36)}{out%%%(title)s*}Victim.m4a"`,
+        "printf 'fake-bytes' > \"$dest\"",
+        'echo "[ExtractAudio] Destination: $dest"',
+        'echo "$dest"',
+        'echo "abc123"',
+        'echo "ERROR: Unable to embed using ffprobe & ffmpeg; Error opening output files: Invalid argument" >&2',
+        "exit 1",
+      ].join("\n"),
+    );
+    chmodSync(fake, 0o755);
+    const d2 = new Downloader({
+      musicDir: tmp,
+      ytdlpBin: fake,
+      batchDir: tmp,
+    });
+    const r = await d2.download("abc123", {}, null);
+    expect(r.status).toBe("downloaded");
+    expect(r.filePath).toBe(landed);
+  }, 30_000);
+
   // super-sure pass, Sep 19: SC Go+ tracks serve ONLY a 30s preview;
   // yt-dlp downloads it and the run registered a 30s clip as a full
   // download (15 paro-set rows). The guard compares the landed file's
