@@ -62,7 +62,14 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep
   `src/census/boundary-number-census.test.ts` and `src/census/boundary-json-census.test.ts`
-  green when either call surface changes. Positionals go through
+  green when either call surface changes. Env-var PATH overrides go through
+  `nonEmptyEnv` (`src/shared/leaf/guards.ts`), never raw `??` on
+  `process.env` — `??` only catches `undefined`, so `MEGADJ_MUSIC_DIR="$SHELF"`
+  with `$SHELF` unset expanded to empty string, resolved CWD-relative, and
+  dropped a dated batch folder in the repo root (#281, Sep 20: 20 downloads
+  + 20 ledger rows repaired). Present-but-empty env = typo, read it as
+  absent. `downloadBatchDir` additionally refuses relative archive dirs
+  (pinned by `src/getdat/commands/intake-folder.test.ts`). Positionals go through
   `firstPositional(args, cmd, stringOpts)`/`positionalArgs` — the stringOpts
   argument is load-bearing: without it a space-form flag's VALUE reads as the
   positional (`ingest --min-duration 30 <folder>` took "30" as the folder;
