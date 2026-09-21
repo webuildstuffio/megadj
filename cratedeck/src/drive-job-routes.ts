@@ -8,7 +8,7 @@ import { readdirSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "./config";
 import { DRIVE_JOB_KINDS, type Drive, type JobKind } from "../shared/types";
-import { MAX_IMAGE_BYTES } from "./image-store";
+import { MAX_IMAGE_BYTES } from "./image/store";
 
 function isContainedMount(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);

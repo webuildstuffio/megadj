@@ -26,7 +26,7 @@ process.env.CRATEDECK_VOLUMES = join(FIX, "vol");
 
 // static imports resolve before env is set — config reads env at call time
 const { ImageService, readBoundedImageBody } =
-  await import("../src/image-store");
+  await import("../src/image/store");
 const { Guard } = await import("../src/guard");
 const { DB } = await import("../src/db");
 const { loadConfig } = await import("../src/config");

@@ -1,7 +1,7 @@
 // photo-files.ts — the cover-photo file primitives (#42 item 2 split,
 // out of image-store.ts): the canonical-name/extension rules, the
 // size-capped response reader, and the MIME→extension mapping. The
-// ImageService class lives in image-store.ts; drive routes import the
+// ImageService class lives in image/store.ts; drive routes import the
 // byte cap from here.
 export const PHOTO_BASENAME = /^photo(?:\.(?:png|jpe?g|gif|webp|avif))?$/i;
 /** Extensions accepted for cover photos. */

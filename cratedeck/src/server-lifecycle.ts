@@ -9,7 +9,7 @@ import {
 } from "./auto-schedule";
 import type { DB } from "./db";
 import type { Registry } from "./registry";
-import type { ImageService } from "./image-store";
+import type { ImageService } from "./image/store";
 import type { JobEngine } from "./jobs";
 import type { CrateConfig } from "./config";
 
