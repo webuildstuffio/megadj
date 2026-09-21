@@ -52,9 +52,16 @@ export const reDownload: CheckDef = {
         .filter((fp): fp is string => fp !== null),
     );
 
+    // Scope gate: a row whose FolderPath lives OUTSIDE this walk's volume
+    // (the playing USB, another mounted drive) is not "gone" — it was never
+    // on the walked shelf. Flagging it re-downloadable would be a false
+    // positive the ledger can never satisfy. Only rows under the walk
+    // volume participate.
+    const volumePrefix = `${ctx.volume}/`;
     const out: Finding[] = [];
     for (const row of rows) {
       if (!row.folderPath || !row.title) continue;
+      if (!row.folderPath.startsWith(volumePrefix)) continue; // other drive
       if (walkedKeys.has(nameKey(row.folderPath))) continue; // file alive
       const rowFp = ctx.fpOfRow?.(row) ?? null;
       if (rowFp !== null && walkedFps.has(rowFp)) continue; // moved, not gone

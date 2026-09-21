@@ -11,6 +11,7 @@
 // writeJson), human logs suppressed in json mode, meaningful exit codes
 // (1 = no archive / nothing mixable, 2 = bad flag input, 0 = proposal).
 import { join } from "node:path";
+import { nonEmptyEnv } from "../shared/leaf/guards";
 import { ArchiveReader } from "../../cratedeck/src/archive/reader";
 import { loadConfig } from "../../cratedeck/src/config";
 import { DB_PATH } from "../cli-env";
@@ -51,7 +52,7 @@ export interface MegasetOptions {
 export async function megaset(opts: MegasetOptions): Promise<void> {
   const log = commandLog(opts);
   const configRoot =
-    process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck");
   const cfg = loadConfig(configRoot);
   const archive = new ArchiveReader(
     DB_PATH,

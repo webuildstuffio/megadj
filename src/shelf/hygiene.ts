@@ -422,11 +422,41 @@ export async function shelfHygiene(
             // the walk already fingerprinted that path's previous tenant
             // (or the fp is simply absent → the honest-gap path). Never
             // spawn fpcalc for a row: its file is off-disk by definition.
-            fpOfRow: (row: DbContentRow): string | null => {
-              const size = rowFileSize(db, row);
-              if (size === null) return null;
-              return cache.get(nameKeyPath(row.folderPath), size) ?? null;
-            },
+            fpOfRow: (() => {
+              // The fp cache is keyed by RAW walked paths (what readdir
+              // produced), while the master DB's FolderPath is a DIFFERENT
+              // string form (rekordbox's stored case/normalization). A raw
+              // key read here missed on virtually every path (case + NFC
+              // divergence) and silently starved stale-pointer/orphan/
+              // re-download of the fp join. Join through the #238 pathKey
+              // rule instead: one normalized index over the cache, built
+              // lazily on the first dead row (dead rows are rare; the scan
+              // is one SELECT).
+              let index: Map<string, Map<number, string>> | undefined;
+              const ensureIndex = (): Map<string, Map<number, string>> => {
+                if (index !== undefined) return index;
+                index = new Map();
+                for (const r of cache.allRows()) {
+                  if (r.fingerprint === null) continue;
+                  const key = nameKeyPath(r.path);
+                  let bySize = index.get(key);
+                  if (bySize === undefined) {
+                    bySize = new Map();
+                    index.set(key, bySize);
+                  }
+                  bySize.set(r.size, r.fingerprint);
+                }
+                return index;
+              };
+              return (row: DbContentRow): string | null => {
+                const size = rowFileSize(db, row);
+                if (size === null) return null;
+                const hit = ensureIndex()
+                  .get(nameKeyPath(row.folderPath))
+                  ?.get(size);
+                return hit ?? null;
+              };
+            })(),
           }
         : {}),
     };

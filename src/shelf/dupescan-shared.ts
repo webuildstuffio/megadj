@@ -37,6 +37,15 @@ export class DupFpCache {
       .get(path, size) as { fingerprint: string | null } | null;
     return row ? row.fingerprint : undefined; // undefined = not cached
   }
+  /** Every cached row (path/size/fingerprint). Callers join across
+   *  DIFFERENT path forms (the hygiene fpOfRow bridge) — a raw-key get
+   *  cannot serve that, so expose the rows and let the caller index by
+   *  its own identity rule (#238 pathKey). */
+  allRows(): { path: string; size: number; fingerprint: string | null }[] {
+    return this.db
+      .query(`SELECT path, size, fingerprint FROM ${this.table}`)
+      .all() as { path: string; size: number; fingerprint: string | null }[];
+  }
   put(path: string, size: number, fp: string | null): void {
     this.db
       .query(

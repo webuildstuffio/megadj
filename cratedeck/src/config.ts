@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FLEET_PROFILES, DEFAULT_FLEET } from "../../src/fulltags/booth/fleet";
-import { isUnknownArray } from "../../src/shared/leaf/guards";
+import { isUnknownArray, nonEmptyEnv } from "../../src/shared/leaf/guards";
 import { resolveServerPort } from "./server-port";
 
 export type ImageProvider = "brave" | "exa";
@@ -145,7 +145,7 @@ export function loadConfig(root: string): CrateConfig {
   ) {
     throw new Error(`config: unknown images.provider '${rawImageProvider}'`);
   }
-  const dataDir = process.env.CRATEDECK_DATA ?? join(root, "data");
+  const dataDir = nonEmptyEnv("CRATEDECK_DATA") ?? join(root, "data");
   const cfg: CrateConfig = {
     root,
     dataDir,
@@ -158,7 +158,7 @@ export function loadConfig(root: string): CrateConfig {
       process.env.CRATEDECK_PORT,
       join(root, "config.toml"),
     ),
-    volumesRoot: process.env.CRATEDECK_VOLUMES ?? "/Volumes",
+    volumesRoot: nonEmptyEnv("CRATEDECK_VOLUMES") ?? "/Volumes",
     masterDrive:
       typeof library.master_drive === "string"
         ? library.master_drive
@@ -171,9 +171,11 @@ export function loadConfig(root: string): CrateConfig {
       typeof library.shelf_drive === "string" ? library.shelf_drive : "SHELF1",
     imageProvider: rawImageProvider ?? null,
     imageKey:
-      (typeof images.key === "string" ? images.key : undefined) ??
-      process.env.CRATEDECK_IMAGE_KEY ??
-      process.env.EXA_API_KEY ??
+      (typeof images.key === "string" && images.key !== ""
+        ? images.key
+        : undefined) ??
+      nonEmptyEnv("CRATEDECK_IMAGE_KEY") ??
+      nonEmptyEnv("EXA_API_KEY") ??
       null,
     verifyTimeoutMin:
       typeof jobs.verify_timeout_min === "number"
@@ -202,10 +204,10 @@ export function loadConfig(root: string): CrateConfig {
         ? automation.verify_interval_days
         : 7,
     archiveDbPath:
-      process.env.MEGADJ_DB ??
+      nonEmptyEnv("MEGADJ_DB") ??
       `${process.env.HOME}/.local/state/megadj/archive.db`,
     musicDir:
-      process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/DJ-Imports`,
+      nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${process.env.HOME}/Music/DJ-Imports`,
     // The uv binary for every pyrekordbox spawn (rb.ts, spawnVerify,
     // spawnMirror). The launchd deck server's PATH lacks ~/.local/bin, so
     // a bare "uv" 404s unattended (live: auto-verify job 6b37500c failed

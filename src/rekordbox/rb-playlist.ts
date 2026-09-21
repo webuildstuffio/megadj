@@ -31,6 +31,7 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive/reader";
 import { loadConfig } from "../../cratedeck/src/config";
+import { nonEmptyEnv } from "../shared/leaf/guards";
 import {
   buildMegaset,
   parseMegasetQuery,
@@ -133,7 +134,7 @@ function buildChain(
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
   const cfg = loadConfig(
-    process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck"),
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck"),
   );
   const archive = new ArchiveReader(
     DB_PATH,

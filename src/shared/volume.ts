@@ -13,7 +13,7 @@ export function volumePath(name: string): string {
 export function resolveShelfVolume(explicit?: string): string {
   if (explicit) return volumePath(explicit);
   const root =
-    process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck");
   const configured = loadConfig(root).shelfDrive;
   return volumePath(nonEmptyEnv("MEGADJ_SHELF_VOLUME") ?? configured);
 }
@@ -23,7 +23,7 @@ export function resolveShelfVolume(explicit?: string): string {
  *  silently diverged from every other surface's drive name. */
 export function configuredMasterDrive(): string {
   const root =
-    process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck");
   return loadConfig(root).masterDrive;
 }
 /** The mount argument → drive path: explicit positional wins, else the

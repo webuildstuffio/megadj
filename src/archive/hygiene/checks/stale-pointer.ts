@@ -66,10 +66,15 @@ export const stalePointer: CheckDef = {
     }
     if (byFp.size === 0) return [];
 
+    // Scope gate (mirrors re-download): a row whose FolderPath lives on
+    // another drive was never a shelf tenant — its "moved elsewhere" story
+    // is unknowable from this walk. Out-of-volume rows are out of scope.
+    const volumePrefix = `${ctx.volume}/`;
     const out: Finding[] = [];
     const seenFiles = new Set<string>();
     for (const row of rows) {
       if (!row.folderPath) continue;
+      if (!row.folderPath.startsWith(volumePrefix)) continue; // other drive
       if (walkedByKey.has(nameKey(row.folderPath))) continue; // path alive
       const rowFp = ctx.fpOfRow(row);
       if (rowFp === null) continue; // honest gap: no fp, no match
