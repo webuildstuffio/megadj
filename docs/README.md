@@ -210,6 +210,13 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   (kit fragments, reconcile payload, title dedupe, silent `--search`
   no-op), two rounds of sets built/scored/applied to the master with
   measured quality stats.
+- [Full honest audit + what to improve next (Sep 21)](megaset/2026-09-21-audit-and-next.md) —
+  live-measured review of the #283 work: dedupe v3 (three live
+  same-recording-twice shapes fixed), exclusion reasons grouped by
+  class (130 buckets → 3), transition bands recalibrated for the
+  bonus-era score, dated drafts with request context, `--genre` visible
+  in CLI header + web repro; ordered improve-next list (#284 evidence
+  on the wire, #282 reconcile scoping, superseded-set cleanup).
 - **Embeddings similarity prior (Sep 16, #171)** — `transitionScore`
   gains a capped bonus (`MEGASET_SIMILARITY_WEIGHT` 0.1) from the
   cosine similarity of both tracks' stored embedding vectors,
