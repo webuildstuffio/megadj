@@ -17,6 +17,9 @@ import { acousticTwin } from "./acoustic-twin";
 import { appledoubleJunk, zeroByte } from "./simple";
 import { folderVariant } from "./folder-variant";
 import { truncatedName } from "./truncated-name";
+import { stalePointer } from "./stale-pointer";
+import { orphanAudio } from "./orphan-audio";
+import { reDownload } from "./re-download";
 
 export interface CheckResult {
   kind: FindingKind;
@@ -32,6 +35,9 @@ export const REGISTERED_KINDS: readonly FindingKind[] = [
   folderVariant.kind,
   truncatedName.kind,
   zeroByte.kind,
+  stalePointer.kind,
+  orphanAudio.kind,
+  reDownload.kind,
 ] as const;
 
 /** Files already named by an earlier check (keeper OR loser). */
@@ -63,14 +69,20 @@ export function runChecks(
 
   const unclaimed = walkable.filter((f) => !byteClaimed.has(f.path));
   const acoustic = acousticTwin.detect(unclaimed, ctx);
-  const acousticClaimed = claimedSet(acoustic);
 
-  // folder-variant + truncated-name read ALL walkable files (their units
-  // are folders / DB-vs-disk joins, not fp-equal file pairs) — only the
-  // junk claims are excluded
+  // folder-variant + truncated-name + stale-pointer + orphan-audio +
+  // re-download read ALL walkable files (their units are folders /
+  // DB-vs-disk joins, not fp-equal file pairs) — only the junk claims
+  // are excluded
   const folders = folderVariant.detect(walkable, ctx);
   const truncated = truncatedName.detect(walkable, ctx);
-  void acousticClaimed; // reserved for orphan-audio ordering
+  // stale-pointer gets first claim on moved content (fp match against a
+  // dead row) before orphan-audio judges unclaimed files
+  const stale = stalePointer.detect(walkable, ctx);
+  const staleClaimed = claimedSet(stale);
+  const orphanCandidates = walkable.filter((f) => !staleClaimed.has(f.path));
+  const orphan = orphanAudio.detect(orphanCandidates, ctx);
+  const reDL = reDownload.detect(walkable, ctx);
 
   return [
     ...(wanted(appledoubleJunk.kind)
@@ -90,6 +102,15 @@ export function runChecks(
       : []),
     ...(wanted(zeroByte.kind)
       ? [{ kind: zeroByte.kind, findings: zeroByte.detect(unclaimed, ctx) }]
+      : []),
+    ...(wanted(stalePointer.kind)
+      ? [{ kind: stalePointer.kind, findings: stale }]
+      : []),
+    ...(wanted(orphanAudio.kind)
+      ? [{ kind: orphanAudio.kind, findings: orphan }]
+      : []),
+    ...(wanted(reDownload.kind)
+      ? [{ kind: reDownload.kind, findings: reDL }]
       : []),
   ];
 }

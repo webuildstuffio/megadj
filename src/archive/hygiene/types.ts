@@ -55,11 +55,16 @@ export interface CheckCtx {
   fp: (path: string, size: number) => string | null;
   /** ISO timestamp factory (injectable clock in tests) */
   now: () => string;
-  /** Master-DB content rows for the DB-vs-disk checks (truncated-name):
-   *  supplied by the CLI scan seam (one pyrekordbox spawn); absent in
-   *  offline/unit contexts — those checks then detect nothing (an honest
-   *  gap, never a half-read). */
+  /** Master-DB content rows for the DB-vs-disk checks (truncated-name,
+   *  stale-pointer): supplied by the CLI scan seam (one pyrekordbox
+   *  spawn); absent in offline/unit contexts — those checks then detect
+   *  nothing (an honest gap, never a half-read). */
   dbRows?: (() => DbContentRow[]) | undefined;
+  /** Fingerprint of a master-DB ROW's content (the rb-adopt mirror's
+   *  stored fingerprint join in shelf-hygiene; tests inject). staler-
+   *  pointer needs it because the row's own file is off-disk — there is
+   *  nothing to hash. Absent hook → stale-pointer detects nothing. */
+  fpOfRow?: ((row: DbContentRow) => string | null) | undefined;
 }
 
 /** One master-DB content row — the fields the DB-vs-disk checks read

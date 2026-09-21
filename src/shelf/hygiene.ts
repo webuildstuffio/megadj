@@ -51,6 +51,29 @@ import { resolveShelfVolume } from "../shared/volume";
  * DB-seam checks then detect nothing (an honest gap, never a
  * half-read); the reason is surfaced once on the log channel.
  */
+/** The one comparison form for shelf paths (NFC + lowercase) — the same
+ *  rule the DB-vs-disk checks inline; here it keys the fp-cache lookup
+ *  for a dead row's previous on-disk tenant. */
+function nameKeyPath(p: string): string {
+  return p.normalize("NFC").toLowerCase();
+}
+
+/** The mirrored on-disk size of a master-DB row's file, from the rb-adopt
+ *  mirror in archive.db (tracks.file_size_bytes keyed by exact path).
+ *  The fp cache is size-keyed, so a stale size would silently miss — the
+ *  exact-size read is what makes the join honest. Null = no mirror row
+ *  (the fpOfRow contract: null → the row is honestly unmatched). */
+function rowFileSize(
+  db: ReturnType<typeof openLedger>,
+  row: DbContentRow,
+): number | null {
+  const rows = db
+    .query("SELECT file_size_bytes FROM tracks WHERE file_path = ? LIMIT 1")
+    .all(row.folderPath) as { file_size_bytes: number | null }[];
+  const size = rows[0]?.file_size_bytes;
+  return typeof size === "number" && Number.isFinite(size) ? size : null;
+}
+
 function masterDbRowsReader(
   shelfVolume: string,
   log: (s: string) => void,
@@ -391,7 +414,21 @@ export async function shelfHygiene(
         return fp;
       },
       now: () => new Date().toISOString(),
-      ...(dbRows ? { dbRows } : {}),
+      ...(dbRows
+        ? {
+            dbRows,
+            // #37 slice 4: a dead row's content fingerprint joins through
+            // the shelf_fingerprints cache keyed by the row's OWN path —
+            // the walk already fingerprinted that path's previous tenant
+            // (or the fp is simply absent → the honest-gap path). Never
+            // spawn fpcalc for a row: its file is off-disk by definition.
+            fpOfRow: (row: DbContentRow): string | null => {
+              const size = rowFileSize(db, row);
+              if (size === null) return null;
+              return cache.get(nameKeyPath(row.folderPath), size) ?? null;
+            },
+          }
+        : {}),
     };
     const results = runChecks(files, ctx, only);
     const all = results.flatMap((r) => r.findings);
