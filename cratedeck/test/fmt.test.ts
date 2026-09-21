@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { fmtDur, fmtEta } from "../../src/shared/leaf/fmt";
-import { statsLine } from "../src/hygiene-audio";
+import { statsLine } from "../src/hygiene/audio";
 
 describe("duration formatting", () => {
   test("carries rounded seconds into the next minute", () => {

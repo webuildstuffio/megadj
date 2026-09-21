@@ -148,7 +148,7 @@ function cliDeps({ deps, job, handle, tick, log }: LegArgs) {
 }
 
 export async function runHygiene(args: LegArgs, apply: boolean) {
-  const jobs = await import("../hygiene-jobs");
+  const jobs = await import("../hygiene/jobs");
   const run = apply ? jobs.runHygieneApply : jobs.runHygieneScan;
   return run(cliDeps(args), args.mountPoint, args.handle);
 }
