@@ -10,7 +10,9 @@ Tracks the PRD (F1–F10) and build-plan milestone acceptance items. Evidence
 here is **code-verified only** (file/route/test existence in `cratedeck/`).
 Items marked ☐ require real-hardware runs (gig drives) — those stay manual
 by design ("real gig drives stay manual — the Python tools already carry
-that trust", architecture §9). Last audited: 2026-09-17.
+that trust", architecture §9). Last audited: 2026-09-20 (status lines and
+the F10 radar note re-verified against issue state; hardware checks stay
+manual — run the recipes below when the gig drives are at hand).
 
 ## Milestones
 

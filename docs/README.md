@@ -137,7 +137,7 @@ tracker is one of those — the recipes stay in the acceptance doc).
   consolidation: #66 masterDbPath (11/11 callers), #67 NFC+casefold
   name key, #82 errorText SSOT — all pinned by tests; #67/#82/#75/#100
   issues closed with evidence.
-- [Genre pipeline architecture (Sep 16, rev 6)](fulltags/genre-pipeline.md) —
+- [Genre pipeline architecture (Sep 16, rev 6; rev 7 — Sep 20 revote)](fulltags/genre-pipeline.md) —
   how the genre system processes a track end to end: **§2 is the full
   write-source inventory** (every path that can put a genre in the DB —
   sync/fetch-SC/fetch-BP/**fetch-imprint (W7)**/fetch-Bandcamp/AI/MusicBrainz/
