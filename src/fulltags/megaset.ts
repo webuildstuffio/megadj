@@ -11,7 +11,7 @@
 // writeJson), human logs suppressed in json mode, meaningful exit codes
 // (1 = no archive / nothing mixable, 2 = bad flag input, 0 = proposal).
 import { join } from "node:path";
-import { ArchiveReader } from "../../cratedeck/src/archive";
+import { ArchiveReader } from "../../cratedeck/src/archive/reader";
 import { loadConfig } from "../../cratedeck/src/config";
 import { DB_PATH } from "../cli-env";
 import { commandLog } from "../shared/progress";

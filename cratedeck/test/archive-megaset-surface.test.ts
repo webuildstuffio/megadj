@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { archiveRoutes } from "../src/archive/routes";
 import { archiveTools } from "../src/archive/tools";
-import type { ArchiveReader } from "../src/archive";
+import type { ArchiveReader } from "../src/archive/reader";
 import { isMegasetSearchOverride } from "../shared/types";
 import type { CrateConfig } from "../src/config";
 import type { DB } from "../src/db";

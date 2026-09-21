@@ -14,7 +14,7 @@ import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { archiveHandlers, archiveRoutes } from "../src/archive/routes";
-import type { ArchiveReader } from "../src/archive";
+import type { ArchiveReader } from "../src/archive/reader";
 import type { CrateConfig } from "../src/config";
 import type { DB } from "../src/db";
 import { tempDir } from "./testutil";

@@ -150,7 +150,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: 15,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
-    digest: "9c982e4c0aea884f6687436e781c126bff514a213cdd874f4ad5f254786956ee",
+    digest: "87655575ca8b4daeaca6c1866330a325a0f570ef9572f7f6a2ffa1f5fceee68c",
   });
 });
 

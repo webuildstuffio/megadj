@@ -9,24 +9,21 @@
 //
 // READ-ONLY, by construction and by promise: opened with `readonly: true` so
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
-import { similarTracks as similarTracksImpl } from "./archive/similar";
-import {
-  genreWhy as genreWhyImpl,
-  type ArchiveGenreWhy,
-} from "./archive/genre";
+import { similarTracks as similarTracksImpl } from "./similar";
+import { genreWhy as genreWhyImpl, type ArchiveGenreWhy } from "./genre";
 import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
-} from "./archive/overview";
-import { tagCensus as tagCensusImpl } from "./archive/tag-census";
+} from "./overview";
+import { tagCensus as tagCensusImpl } from "./tag-census";
 import {
   poolFreshness as poolFreshnessImpl,
   setCandidates as setCandidatesImpl,
-} from "./archive/pool";
-import { trackTagCompare as trackTagCompareImpl } from "./archive/tag-compare";
-import { gridCrossCheck as gridCrossCheckImpl } from "./archive/grid";
-import { moodProfile as moodProfileImpl } from "./archive/mood";
-import type { ArchiveQuery, ArchiveTrack } from "./archive/types";
+} from "./pool";
+import { trackTagCompare as trackTagCompareImpl } from "./tag-compare";
+import { gridCrossCheck as gridCrossCheckImpl } from "./grid";
+import { moodProfile as moodProfileImpl } from "./mood";
+import type { ArchiveQuery, ArchiveTrack } from "./types";
 import type {
   ArchiveAnalysisCoverage,
   ArchiveCueStats,
@@ -42,15 +39,15 @@ import type {
   ArchiveSourceCensus,
   ArchiveTagCensus,
   ArchiveTrackTagCompare,
-} from "../shared/archive-wire";
+} from "../../shared/archive-wire";
 // ArchiveTrack is canonically defined in the leaf archive/types.ts (along
 // with the ArchiveQuery seam the split-out modules type against); re-export
 // keeps every existing `from "./archive"` import working unchanged.
-export type { ArchiveTrack } from "./archive/types";
+export type { ArchiveTrack } from "./types";
 // The core stays importable from archive/reader-core.ts (the canonical
 // home); no re-export here — the split modules type against the
 // ArchiveQuery leaf, not this class.
-import { ArchiveReaderCore, TRACK_COLS } from "./archive/reader-core";
+import { ArchiveReaderCore, TRACK_COLS } from "./reader-core";
 
 /** Public archive-query facade over the read-only core. */
 export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {

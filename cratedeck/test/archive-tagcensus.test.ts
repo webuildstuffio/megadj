@@ -13,7 +13,7 @@ import {
   tagCensus,
 } from "../src/archive/tag-census";
 import { trackTagCompare } from "../src/archive/tag-compare";
-import { ArchiveReader } from "../src/archive";
+import { ArchiveReader } from "../src/archive/reader";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("cratedeck-tagcensus-").rippable();

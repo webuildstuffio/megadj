@@ -6,7 +6,7 @@
 // index.ts calls archiveRoutes({ archive, getArchiveSweepDeps }) with the
 // URL already sliced to the route part ("/archive/..."). Returns null when
 // no archive route matched so index.ts can fall through.
-import type { ArchiveReader } from "../archive";
+import type { ArchiveReader } from "./reader";
 import { SET_PRESETS, buildMegaset, parseMegasetQuery } from "../megaset/engine";
 import {
   clampMegasetPool,

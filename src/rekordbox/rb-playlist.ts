@@ -29,7 +29,7 @@
 
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { ArchiveReader } from "../../cratedeck/src/archive";
+import { ArchiveReader } from "../../cratedeck/src/archive/reader";
 import {
   buildMegaset,
   parseMegasetQuery,

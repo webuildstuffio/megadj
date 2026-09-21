@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { setCandidates } from "../src/archive/pool";
-import { ArchiveReader } from "../src/archive";
+import { ArchiveReader } from "../src/archive/reader";
 import type { ArchiveQuery } from "../src/archive/types";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
