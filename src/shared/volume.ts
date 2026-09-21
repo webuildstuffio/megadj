@@ -1,17 +1,21 @@
 import { join } from "node:path";
 import { loadConfig } from "../../cratedeck/src/config";
+import { nonEmptyEnv } from "./leaf/guards";
 
 export function volumePath(name: string): string {
   return name.startsWith("/") ? name : `/Volumes/${name}`;
 }
 
-/** Explicit path, then the single supported env override, then config. */
+/** Explicit path, then the single supported env override, then config.
+ *  The env read is nonEmptyEnv (#281 class): `MEGADJ_SHELF_VOLUME=""` is a
+ *  typo, not "disable the override" — it would volumePath("") into a
+ *  relative `/Volumes/`-less path. */
 export function resolveShelfVolume(explicit?: string): string {
   if (explicit) return volumePath(explicit);
   const root =
     process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
   const configured = loadConfig(root).shelfDrive;
-  return volumePath(process.env.MEGADJ_SHELF_VOLUME ?? configured);
+  return volumePath(nonEmptyEnv("MEGADJ_SHELF_VOLUME") ?? configured);
 }
 
 /** The master stick's configured drive name (config `library.master_drive`

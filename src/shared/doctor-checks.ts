@@ -7,6 +7,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform, userInfo } from "node:os";
 import type { CheckResult } from "./doctor";
+import { nonEmptyEnv } from "./leaf/guards";
 import {
   DECK_SERVICE_LABEL,
   classifyDeckService,
@@ -14,7 +15,7 @@ import {
 import { resolveServerPort } from "../../cratedeck/src/server-port";
 
 export const MUSIC_DIR =
-  process.env.MEGADJ_MUSIC_DIR ?? `${homedir()}/Music/DJ-Imports`;
+  nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${homedir()}/Music/DJ-Imports`;
 export const CRATEDECK_DIR = join(import.meta.dir, "..", "..", "cratedeck");
 
 export function have(bin: string): string | null {

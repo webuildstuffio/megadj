@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { intakeFolderName, dumpDateFromName } from "./intake-folder";
+import {
+  downloadBatchDir,
+  intakeFolderName,
+  dumpDateFromName,
+} from "./intake-folder";
 
 // Deterministic "now" for tests.
 const NOW = new Date("2026-09-10T12:00:00");
@@ -53,5 +57,23 @@ describe("dumpDateFromName", () => {
   });
   test("month without day → null (fall back to today)", () => {
     expect(dumpDateFromName("sept dump")).toBeNull();
+  });
+});
+
+describe("downloadBatchDir (#281 relative-archive guard)", () => {
+  test("absolute archive dir still builds the dated batch folder", () => {
+    expect(downloadBatchDir("/Volumes/SHELF1/Contents", "liked", NOW)).toBe(
+      "/Volumes/SHELF1/Contents/2026-09-10 liked downloads",
+    );
+  });
+  test("EMPTY archive dir (the $SHELF-unset trap) throws instead of resolving CWD-relative", () => {
+    expect(() => downloadBatchDir("", "liked", NOW)).toThrow(
+      /absolute path.*refusing to write into CWD/,
+    );
+  });
+  test("relative archive dir throws the same way", () => {
+    expect(() => downloadBatchDir("some/relative/dir", "liked", NOW)).toThrow(
+      /absolute path/,
+    );
   });
 });

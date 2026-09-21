@@ -40,6 +40,7 @@ import {
 import { makeFail, printResult } from "./rb-command-kit.js";
 import { commandLog } from "../shared/progress";
 import { errMessage as errorText } from "../shared/leaf/fmt";
+import { nonEmptyEnv } from "../shared/leaf/guards";
 import {
   join,
   basename,
@@ -125,7 +126,7 @@ const sha256 = (b: Uint8Array): string =>
 function baselinePath(mount: string, tag: string, spikeDir?: string): string {
   const root =
     spikeDir ??
-    process.env.MEGADJ_SPIKE_DIR ??
+    nonEmptyEnv("MEGADJ_SPIKE_DIR") ??
     join(process.env.HOME ?? "/tmp", ".local", "state", "megadj", "spike");
   mkdirSync(root, { recursive: true });
   return join(

@@ -16,6 +16,7 @@ import { fetchImage } from "../sources/art-sources";
 import type { QueueEntry } from "../../getdat/commands/ingest-art";
 export { type QueueEntry } from "../../getdat/commands/ingest-art";
 import { commandLog } from "../../shared/progress";
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { writeJson, setExit } from "../../shared/cli-output";
 import { errMessage } from "../../shared/leaf/fmt";
 
@@ -31,7 +32,7 @@ export interface ArtworkOptions {
 
 const DEFAULT_MODEL = "nano-banana-2-lite"; // $0.034/img — "a few cents max"
 const QUEUE_PATH = () =>
-  process.env.MEGADJ_ART_QUEUE ??
+  nonEmptyEnv("MEGADJ_ART_QUEUE") ??
   `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
 const DONE_PATH = () => `${QUEUE_PATH()}.done`;
 

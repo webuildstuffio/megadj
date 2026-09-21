@@ -29,3 +29,18 @@ export function isNonNegativeInteger(value: unknown): value is number {
     value >= 0
   );
 }
+
+/** The non-empty-string env read for filesystem paths. Sep 20 incident
+ * (#281 class): `MEGADJ_MUSIC_DIR="$SHELF"` with `$SHELF` unset expands to
+ * the EMPTY string, `??` only catches `undefined`, so `MUSIC_DIR` became
+ * `""` and the dated batch folder resolved CWD-relative — 20 downloads
+ * landed in the repo root. A present-but-empty env var is a typo, never a
+ * deliberate override: treat it exactly like absent. Import-leaf only (no
+ * deps) so every process-boundary reader can use it without breaking the
+ * #222 boundary-direction census. */
+export function nonEmptyEnv(name: string): string | undefined {
+  const raw = process.env[name];
+  if (raw === undefined) return undefined;
+  const trimmed = raw.trim();
+  return trimmed === "" ? undefined : raw;
+}

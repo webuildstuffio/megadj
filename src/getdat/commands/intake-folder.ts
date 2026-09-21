@@ -19,7 +19,7 @@
  *  - `organize` treats a batch folder as already-organized (a file inside
  *    one is left alone; genre-folder layout is a separate, opt-in flow).
  */
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 
 /** Extract the batch slug from a source folder name: date-prefixed dumps
  * ("new dump sept 9") → date "2026-09-09" + slug "new dump" (the month/day
@@ -106,12 +106,21 @@ function isoDate(d: Date): string {
  *  name it after). Sep 19 policy: every download lands in `<date> <label>`
  *  under the archive, never loose at the root, never in a genre folder —
  *  the same convention `intakeFolderName` gives drag-in dumps. Same-day
- *  re-runs reuse the folder (idempotent). */
+ *  re-runs reuse the folder (idempotent).
+ *  #281 backstop: a RELATIVE archiveDir is always a misconfiguration (the
+ *  empty-env trap made MUSIC_DIR="" resolve CWD-relative and drop a batch
+ *  folder in the repo root). Download batches live under the archive
+ *  mount or $HOME — throw loudly instead of writing into CWD. */
 export function downloadBatchDir(
   archiveDir: string,
   label: string,
   now = new Date(),
 ): string {
+  if (!isAbsolute(archiveDir)) {
+    throw new Error(
+      `download batch dir: archiveDir must be an absolute path (got "${archiveDir}") — MEGADJ_MUSIC_DIR is empty or relative; refusing to write into CWD`,
+    );
+  }
   const slug = label.trim().replace(/\s+/g, " ").slice(0, 30) || "downloads";
   return resolveIntakeDir(archiveDir, `${isoDate(now)} ${slug} downloads`);
 }

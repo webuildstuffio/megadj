@@ -25,6 +25,7 @@ import {
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { setExit, writeJson } from "../shared/cli-output";
+import { isUnknownArray, nonEmptyEnv } from "../shared/leaf/guards";
 import type {
   CheckCtx,
   DbContentRow,
@@ -41,7 +42,6 @@ import { errMessage as errorText } from "../shared/leaf/fmt";
 import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
-import { isUnknownArray } from "../shared/leaf/guards";
 
 /**
  * The one pyrekordbox read for the DB-vs-disk checks (truncated-name):
@@ -299,7 +299,7 @@ export async function shelfHygiene(
 ): Promise<void> {
   const {
     shelfVolume = resolveShelfVolume(),
-    dbPath = process.env.MEGADJ_DB ??
+    dbPath = nonEmptyEnv("MEGADJ_DB") ??
       `${process.env.HOME}/.local/state/megadj/archive.db`,
     confirm = [],
     dismiss = [],

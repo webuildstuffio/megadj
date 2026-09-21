@@ -31,6 +31,7 @@ import {
 import { nameSimilarity } from "../archive/hygiene/checks/similarity";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
+import { nonEmptyEnv } from "../shared/leaf/guards";
 import { writeJson, setExit } from "../shared/cli-output";
 import { walkAudioDir } from "../shared/audio-walk";
 
@@ -81,7 +82,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     jobs = 8,
     json = false,
     log = (s) => console.log(s),
-    dbPath = process.env.MEGADJ_DB ??
+    dbPath = nonEmptyEnv("MEGADJ_DB") ??
       `${process.env.HOME}/.local/state/megadj/archive.db`,
     quarantine = false,
     yes = false,
