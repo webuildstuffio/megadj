@@ -11,12 +11,12 @@
 //   title+artist — fallback join when a track lives at different paths on
 //              different sticks (B6's "same track, different folder" case).
 
-import type { CoverageResult, TrackCoverage, TrackRow } from "../shared/types";
+import type { CoverageResult, TrackCoverage, TrackRow } from "../../shared/types";
 export {
   type ManifestRow,
   type PlaylistEntryRow,
   type TrackRow,
-} from "../shared/types";
+} from "../../shared/types";
 // fold + metaKey: the #201 one-definition module (was a byte-identical
 // twin here, radar.ts, coverage_fleet.ts).
 import { fold, metaKey } from "./coverage-fleet";

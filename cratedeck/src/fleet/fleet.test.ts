@@ -2,17 +2,17 @@
 // round-trips for the fleet tables (setSnapshot → queries).
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { tempDir } from "./testutil";
+import { tempDir } from "../../test/testutil";
 import {
   coverage,
   trackLocations,
   type TrackRow,
   type PlaylistEntryRow,
   type ManifestRow,
-} from "../src/coverage";
-import { redundancy, diff } from "../src/coverage-fleet";
-import { DB } from "../src/db";
-import type { SnapshotData } from "../shared/types";
+} from "./coverage";
+import { redundancy, diff } from "./coverage-fleet";
+import { DB } from "../db";
+import type { SnapshotData } from "../../shared/types";
 
 const t = tempDir("cratedeck-fleet-").rippable();
 afterAll(() => t.rippleAll());

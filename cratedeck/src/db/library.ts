@@ -1,7 +1,7 @@
 import type { Drive, SnapshotData, VerifyReport } from "../../shared/types";
 import type { LedgerRow as ArchiveLedgerRow } from "../archive/sweep";
-import type { ManifestRow, PlaylistEntryRow, TrackRow } from "../coverage";
-import { FleetStore } from "../fleet-db";
+import type { ManifestRow, PlaylistEntryRow, TrackRow } from "../fleet/coverage";
+import { FleetStore } from "../fleet/db";
 import { DBCore } from "./core";
 
 /** Archive-ledger, fleet, drive, and snapshot responsibilities. */

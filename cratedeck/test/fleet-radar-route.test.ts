@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { tempDir } from "./testutil";
 import { DB } from "../src/db";
-import { radar, type RadarSource } from "../src/radar";
+import { radar, type RadarSource } from "../src/fleet/radar";
 import type { SnapshotData, RadarResult } from "../shared/types";
 
 const t = tempDir("cratedeck-radar-").rippable();

@@ -14,12 +14,12 @@
 // types are canonically defined in shared/types.ts and re-exported here
 // (the FleetDiff precedent; RadarMiss stays import-only here — it's the
 // row type of `missing`, not part of this module's surface).
-import type { RadarMiss, RadarResult } from "../shared/types";
+import type { RadarMiss, RadarResult } from "../../shared/types";
 // fold + metaKey: the #201 one-definition module (was a byte-identical
 // twin here, coverage.ts, coverage_fleet.ts).
 import { fold, metaKey } from "./coverage-fleet";
 
-export type { RadarResult } from "../shared/types";
+export type { RadarResult } from "../../shared/types";
 
 /** One side of the radar comparison, structurally: the two real row
  *  shapes (archive tracks and fleet TrackRow) both fit without casts. */

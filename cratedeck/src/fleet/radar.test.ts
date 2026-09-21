@@ -2,7 +2,7 @@
 // Fixture-tested end to end per the acceptance criteria (delta = archive
 // rows minus snapshot rows); the DB/route layers stay thin.
 import { describe, it, expect } from "bun:test";
-import { radar, archivePathKey, type RadarSource } from "../src/radar";
+import { radar, archivePathKey, type RadarSource } from "./radar";
 
 function arch(
   videoId: string,

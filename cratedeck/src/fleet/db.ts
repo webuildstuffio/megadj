@@ -1,8 +1,8 @@
-// fleet-db.ts — persistence for the fleet superpowers (archived ideas §B6/B7/B8).
+// fleet/db.ts — persistence for the fleet superpowers (archived ideas §B6/B7/B8).
 // Owns the fleet_* tables and every read/write against them; `db.ts` holds a
 // FleetStore instance and delegates, keeping each file single-purpose.
 import type { Database } from "bun:sqlite";
-import type { SnapshotData } from "../shared/types";
+import type { SnapshotData } from "../../shared/types";
 import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./coverage";
 
 const SCHEMA = `

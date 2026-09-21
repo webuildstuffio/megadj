@@ -11,9 +11,9 @@ import type {
   RedundancyResult,
   TrackCoverage,
   TrackRow,
-} from "../shared/types";
+} from "../../shared/types";
 import { coverage } from "./coverage";
-import { nameKey } from "../../src/shared/name-key";
+import { nameKey } from "../../../src/shared/name-key";
 
 // ---- the fleet family's ONE metadata identity join (#201) -------------------
 // Was meta-key.ts (25L, #221): the byte-identical fold + metaKey twins in
