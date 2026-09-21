@@ -147,13 +147,13 @@ applied on top of round 1's, every one verified 12/12-style zero-unmatched.
 **The five sets (v2/v3, all in rekordbox under `MegaSets`, all DB+XML twins,
 zero unmatched):**
 
-| Set                      | Preset     | Genre          | Tracks | Runtime   | avg blend | worst blend | search |
-| ------------------------ | ---------- | -------------- | ------ | --------- | --------- | ----------- | ------ |
-| `v2 warmup house 90min`  | warmup     | house          | 23     | 95.0 min  | 1.110     | 0.920       | beam   |
-| `v3 tropical house 65min`| peak       | tropical house | 12     | ~65 min   | 1.174     | 1.156       | beam   |
-| `v2 deep house afterhours 90min` | afterhours | deep house | 19 | 92.7 min | 1.157     | 1.096       | greedy |
-| `v2 afro house 60min`    | peak       | afro house     | 11     | 66.5 min  | 1.173     | 1.158       | greedy |
-| `v2 peak marathon 120min`| peak       | house          | 19     | 120.4 min | 1.176     | 1.160       | greedy |
+| Set                              | Preset     | Genre          | Tracks | Runtime   | avg blend | worst blend | search |
+| -------------------------------- | ---------- | -------------- | ------ | --------- | --------- | ----------- | ------ |
+| `v2 warmup house 90min`          | warmup     | house          | 23     | 95.0 min  | 1.110     | 0.920       | beam   |
+| `v3 tropical house 65min`        | peak       | tropical house | 12     | ~65 min   | 1.174     | 1.156       | beam   |
+| `v2 deep house afterhours 90min` | afterhours | deep house     | 19     | 92.7 min  | 1.157     | 1.096       | greedy |
+| `v2 afro house 60min`            | peak       | afro house     | 11     | 66.5 min  | 1.173     | 1.158       | greedy |
+| `v2 peak marathon 120min`        | peak       | house          | 19     | 120.4 min | 1.176     | 1.160       | greedy |
 
 A/B evidence captured live: tropical 60min beam beat greedy on runtime
 (62.2 vs 66.5 min) at equal avg transition; deep 90min greedy beat beam on

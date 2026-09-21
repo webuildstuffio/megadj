@@ -205,6 +205,11 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 - [Audit and plan](megaset/08-audit-and-plan.md) — per-item
   implementation sketches, delta-pinned against the re-ranked roadmap;
   current conclusions link to the owners above.
+- [Session report: 5 sets built + applied (Sep 20, #283)](megaset/2026-09-20-megaset-session-five-sets.md) —
+  the `--genre` pool filter shipped end-to-end, four live defects fixed
+  (kit fragments, reconcile payload, title dedupe, silent `--search`
+  no-op), two rounds of sets built/scored/applied to the master with
+  measured quality stats.
 - **Embeddings similarity prior (Sep 16, #171)** — `transitionScore`
   gains a capped bonus (`MEGASET_SIMILARITY_WEIGHT` 0.1) from the
   cosine similarity of both tracks' stored embedding vectors,
