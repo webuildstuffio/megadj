@@ -5,17 +5,17 @@
 // and api_dispatch.ts both import this leaf; the dependency arrow runs
 // one way again.
 
-import type { DB } from "./db";
-import type { Registry } from "./registry";
-import type { JobEngine } from "./jobs";
-import type { CrateConfig } from "./config";
-import type { ArchiveReader } from "./archive";
-import type { ImageService } from "./image/store";
-import type { makeFixesRoutes } from "./fixes/routes";
-import type { makeHygieneRoutes } from "./hygiene/routes";
-import type { makeGridHealthRoutes } from "./grid/routes";
-import type { ReportDeps } from "./report/inputs";
-import type { DumpReader } from "./dump-reader";
+import type { DB } from "../db";
+import type { Registry } from "../registry";
+import type { JobEngine } from "../jobs";
+import type { CrateConfig } from "../config";
+import type { ArchiveReader } from "../archive";
+import type { ImageService } from "../image/store";
+import type { makeFixesRoutes } from "../fixes/routes";
+import type { makeHygieneRoutes } from "../hygiene/routes";
+import type { makeGridHealthRoutes } from "../grid/routes";
+import type { ReportDeps } from "../report/inputs";
+import type { DumpReader } from "../dump-reader";
 
 /** The HTTP API's dependency bundle: built once in index.ts, threaded
  *  through every route family and the dynamic dispatch tail. */

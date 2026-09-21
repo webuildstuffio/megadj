@@ -44,36 +44,36 @@ export function portView(drives: Drive[]): PortInfo[] {
   }));
 }
 
-import type { Drive, PortInfo } from "../shared/types";
-import { buildPreflight } from "./preflight/preflight";
-import { allPreflightInputs } from "./report/inputs";
-import { VERIFY_HELP } from "./verify/help";
-import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
+import type { Drive, PortInfo } from "../../shared/types";
+import { buildPreflight } from "../preflight/preflight";
+import { allPreflightInputs } from "../report/inputs";
+import { VERIFY_HELP } from "../verify/help";
+import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../../shared/help";
 import {
   archiveDispatch,
   driveDispatch,
   hygieneFixesDispatch,
   jobDispatch,
-} from "./api-dispatch";
-import { intakeCandidateDirs, intakeWatchDir } from "./intake-run";
-import { fetchFeedSince } from "./fetch-feed";
+} from "./dispatch";
+import { intakeCandidateDirs, intakeWatchDir } from "../intake-run";
+import { fetchFeedSince } from "../fetch-feed";
 import {
   boothFleetPayload,
   parseBoothFleetRequest,
   writeConfigBoothFleet,
-} from "./booth-routes";
-import { errMessage as errorText } from "../../src/shared/leaf/fmt";
+} from "../booth-routes";
+import { errMessage as errorText } from "../../../src/shared/leaf/fmt";
 // ApiDeps/Handler moved to the api_deps leaf (#173 madge pass): dispatch's
 // type-only back-edge into this file WAS a cycle. Both sides import the
 // leaf now; the dependency arrow runs one way again.
-import type { ApiDeps, Handler } from "./api-deps";
+import type { ApiDeps, Handler } from "./deps";
 
 /** The shared services the /api slices read — canonically DEFINED in
  *  ./api_deps (this re-export keeps existing `from "./api-routes"`
  *  consumers on the same symbol, never a twin). Handler is internal:
  *  it has no importer outside these two modules, so it is NOT
  *  re-exported (knip would flag a dead twin). */
-export type { ApiDeps } from "./api-deps";
+export type { ApiDeps } from "./deps";
 
 /** Front-page aggregate: interlock + drives + jobs in one read — the
  *  deckctl status / deck_status REST twin. Wire shape is exactly what

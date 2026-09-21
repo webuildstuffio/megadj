@@ -81,8 +81,8 @@ function httpApiRoutes(): string[] {
   // census reads ALL of them so a literal can't hide in a new file
   const index = [
     "cratedeck/src/index.ts",
-    "cratedeck/src/api-routes.ts",
-    "cratedeck/src/api-dispatch.ts",
+    "cratedeck/src/api/routes.ts",
+    "cratedeck/src/api/dispatch.ts",
     "cratedeck/src/drive-routes.ts",
     "cratedeck/src/fleet-routes.ts",
   ]
@@ -631,7 +631,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
       .join("\n");
     expect(ui).toContain("../../shared/help");
     // server: GET /api/help serves the same content
-    const server = ["cratedeck/src/index.ts", "cratedeck/src/api-routes.ts"]
+    const server = ["cratedeck/src/index.ts", "cratedeck/src/api/routes.ts"]
       .map((f) => readFileSync(join(ROOT, f), "utf8"))
       .join("\n");
     expect(server).toContain('"/help"');
