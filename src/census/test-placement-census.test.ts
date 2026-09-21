@@ -79,6 +79,13 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#220: subject ingest.ts upgrade-row arm",
   "src/getdat/commands/intake-folders.e2e.test.ts":
     "#220: subject ingest.ts intake-folders flow",
+  // ---- cratedeck #214 slices: domain-dir contract tests that span several
+  // subjects (no single same-stem owner) — co-located to the DOMAIN, and
+  // the domain dir IS the subject class:
+  "cratedeck/src/hygiene/api.test.ts":
+    "#214: reader+routes wire contract pair (domain-dir test)",
+  "cratedeck/src/verify/phases.test.ts":
+    "#214: verifyPhase progress contract (subject lives in jobs/job-runtime)",
 };
 
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */

@@ -34,7 +34,7 @@ test("#48: both hygiene readers hydrate rows through the shared contract", () =>
     "utf8",
   );
   const spoke = readFileSync(
-    join(root, "cratedeck/src/hygiene-reader.ts"),
+    join(root, "cratedeck/src/hygiene/reader.ts"),
     "utf8",
   );
 
