@@ -11,9 +11,9 @@ import type { JobEngine } from "./jobs";
 import type { CrateConfig } from "./config";
 import type { ArchiveReader } from "./archive";
 import type { ImageService } from "./image/store";
-import type { makeFixesRoutes } from "./fixes-routes";
+import type { makeFixesRoutes } from "./fixes/routes";
 import type { makeHygieneRoutes } from "./hygiene/routes";
-import type { makeGridHealthRoutes } from "./grid-health-routes";
+import type { makeGridHealthRoutes } from "./grid/routes";
 import type { ReportDeps } from "./report/inputs";
 import type { DumpReader } from "./dump-reader";
 

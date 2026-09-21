@@ -3,7 +3,7 @@
 // this module was its byte-twin until jscpd flagged it). Scope: booth-fix
 // runs against the shelf Contents when mountPoint is a shelf volume
 // (MEGADJ_MUSIC_DIR).
-import { runCliJobLeg, summaryCount, type CliJobDeps } from "./cli-job-leg";
+import { runCliJobLeg, summaryCount, type CliJobDeps } from "../cli-job-leg";
 
 /** Kept as a named alias — the deps shape is the shared CliJobDeps. */
 export type FixesJobDeps = CliJobDeps;

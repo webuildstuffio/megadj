@@ -4,7 +4,7 @@
 // job (never a silently empty/healthy card), and the buckets census is
 // complete or rejected.
 import { describe, it, expect } from "bun:test";
-import { summarizeGridHealth } from "../src/grid-health-parse";
+import { summarizeGridHealth } from "./parse";
 
 /** A faithful copy of `megadj rb-grid-triage --json`'s summary shape
  *  (GridTriageResult in src/rekordbox/grid-triage.ts). */

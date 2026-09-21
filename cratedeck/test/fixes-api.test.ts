@@ -4,7 +4,7 @@
 // (covered by src/commands/booth-fix*.test.ts) — this file only proves
 // the CrateDeck wiring.
 import { describe, expect, test } from "bun:test";
-import { makeFixesRoutes, recordFixes } from "../src/fixes-routes";
+import { makeFixesRoutes, recordFixes } from "../src/fixes/routes";
 import type { FixesPayload } from "../../src/shared/leaf/fixes";
 
 function makeApi(enqueued: string[] = []) {

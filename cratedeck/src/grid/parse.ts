@@ -7,7 +7,7 @@ import type {
   GridBucket,
   GridHealthPayload,
   GridHealthRow,
-} from "../shared/grid-health";
+} from "../../shared/grid-health";
 
 const BUCKETS: GridBucket[] = [
   "A-OK",

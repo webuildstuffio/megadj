@@ -1,10 +1,10 @@
-// grid_health_routes.ts — the /api/grid-health family (GA-05c, #167):
+// grid/routes.ts — the /api/grid-health family (GA-05c, #167):
 // the CrateDeck READ surface over `megadj rb-grid-triage`. Heavy work
 // NEVER runs in the request leg — it enqueues a job whose leg spawns the
 // megadj CLI (the engine SSOT, same pattern as fixes_routes); the reads
 // come from the last-run cache. Record happens in jobs.ts's leg via
 // recordGridHealth() (leaf import — no cycle).
-import type { GridHealthPayload } from "../shared/grid-health";
+import type { GridHealthPayload } from "../../shared/grid-health";
 
 /** Last completed triage run per drive id (module state; null = never). */
 const lastRuns = new Map<string, GridHealthPayload>();

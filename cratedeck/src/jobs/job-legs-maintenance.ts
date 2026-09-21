@@ -2,8 +2,8 @@ import type { FixesPayload } from "../../../src/shared/leaf/fixes";
 import { fmtBytes } from "../../../src/shared/leaf/fmt";
 import { benchmarkDrive, checksumLedger, speedProbe } from "../bench";
 import { runCliJob } from "../cli-job-leg";
-import { recordGridHealth } from "../grid-health-routes";
-import { summarizeGridHealth } from "../grid-health-parse";
+import { recordGridHealth } from "../grid/routes";
+import { summarizeGridHealth } from "../grid/parse";
 import { finiteJobNumber } from "./job-legs-parse";
 import { drain, drainText } from "./job-runtime";
 import type { LegArgs } from "./job-legs-types";
@@ -168,10 +168,10 @@ function toPayload(
 }
 
 export async function runFixes(args: LegArgs, apply: boolean) {
-  const jobs = await import("../fixes-jobs");
+  const jobs = await import("../fixes/jobs");
   const run = apply ? jobs.runFixesApply : jobs.runFixesScan;
   const summary = await run(cliDeps(args), args.mountPoint, args.handle);
-  const { recordFixes } = await import("../fixes-routes");
+  const { recordFixes } = await import("../fixes/routes");
   if (apply) {
     const after = await jobs.runFixesScan(
       cliDeps(args),
