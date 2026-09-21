@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseVerifyReport } from "../src/jobs";
+import { parseVerifyReport } from "../src/jobs/engine";
 
 describe("issue #30: verify names ANLZ consistency honestly", () => {
   test("parses the non-authoritative ANLZ consistency field and wording", () => {

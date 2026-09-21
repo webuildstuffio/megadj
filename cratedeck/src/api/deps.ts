@@ -7,7 +7,7 @@
 
 import type { DB } from "../db";
 import type { Registry } from "../registry";
-import type { JobEngine } from "../jobs";
+import type { JobEngine } from "../jobs/engine";
 import type { CrateConfig } from "../config";
 import type { ArchiveReader } from "../archive";
 import type { ImageService } from "../image/store";

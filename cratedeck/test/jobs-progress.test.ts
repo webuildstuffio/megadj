@@ -11,7 +11,7 @@
 //      a job that never finished;
 //   4. phase strings were machine-speak ("phase-2") in a human dock.
 import { describe, it, expect } from "bun:test";
-import { createEtaEstimator, ownsRunningJob, verifyPhase } from "../src/jobs";
+import { createEtaEstimator, ownsRunningJob, verifyPhase } from "../src/jobs/engine";
 
 describe("createEtaEstimator", () => {
   it("returns null until a full sample window exists (primed, not frozen)", () => {

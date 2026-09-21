@@ -2,11 +2,11 @@
 // and the rekordbox interlock (refuse everything while rekordbox runs).
 // Verify-output parsing lives in verify_report.ts (same job family, pure
 // functions) — re-exported here for import-path stability.
-import type { CrateConfig } from "./config";
-import type { DB } from "./db";
-import type { Guard } from "./guard";
-import type { Job, JobKind, VerifyReport } from "../shared/types";
-import { executeJob } from "./jobs/job-execution";
+import type { CrateConfig } from "../config";
+import type { DB } from "../db";
+import type { Guard } from "../guard";
+import type { Job, JobKind, VerifyReport } from "../../shared/types";
+import { executeJob } from "./job-execution";
 import {
   createEtaEstimator,
   type JobLog,
@@ -14,9 +14,9 @@ import {
   recordProgressIncrease,
   type RunHandle,
   withJobBudget,
-} from "./jobs/job-runtime";
-import { progressFromLine, rekordboxRunning } from "./rb";
-import { verifyDeltas } from "./verify/report";
+} from "./job-runtime";
+import { progressFromLine, rekordboxRunning } from "../rb";
+import { verifyDeltas } from "../verify/report";
 
 export type Emit = (channel: string, data: unknown) => void;
 
@@ -406,7 +406,7 @@ export class JobEngine {
   }
 }
 
-export { createEtaEstimator, drain, verifyPhase } from "./jobs/job-runtime";
+export { createEtaEstimator, drain, verifyPhase } from "./job-runtime";
 
-export { sanitizeVerifyReport, verifyDeltas } from "./verify/report";
-export { parseVerifyReport } from "./verify/parse";
+export { sanitizeVerifyReport, verifyDeltas } from "../verify/report";
+export { parseVerifyReport } from "../verify/parse";

@@ -3,7 +3,7 @@
 // failing check carries a meaning + fix, passes are included (not silent),
 // and the check ids stay stable for the UI/CLI.
 import { describe, expect, it } from "bun:test";
-import { parseVerifyReport, sanitizeVerifyReport, verifyDeltas } from "../jobs";
+import { parseVerifyReport, sanitizeVerifyReport, verifyDeltas } from "../jobs/engine";
 import type { VerifyReport } from "../../shared/types";
 
 const PASS_OUTPUT = `

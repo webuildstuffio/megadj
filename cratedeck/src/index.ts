@@ -9,7 +9,7 @@ import { DB } from "./db";
 import { Guard } from "./guard";
 import { watchVolumes } from "./detect/detect";
 import { Registry } from "./registry";
-import { JobEngine } from "./jobs";
+import { JobEngine } from "./jobs/engine";
 import { ImageService } from "./image/store";
 import { ShelfSweepReader } from "./shelf-sweep-reader";
 import { HygieneReader } from "./hygiene/reader";

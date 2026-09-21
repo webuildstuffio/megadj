@@ -4,7 +4,7 @@
 // carry on every iteration — the captured verify output grew duplicated
 // text through the whole report (summary, raw log, offender context).
 import { describe, it, expect } from "bun:test";
-import { drain } from "../src/jobs";
+import { drain } from "../src/jobs/engine";
 
 function spawnWriter(
   chunks: string[],

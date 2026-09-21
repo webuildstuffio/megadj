@@ -7,7 +7,7 @@
 //      instead of the absolute `from`.
 // verifyPhase() is the extracted pure mapping; tests pin the contract.
 import { describe, it, expect } from "bun:test";
-import { verifyPhase } from "../jobs";
+import { verifyPhase } from "../jobs/engine";
 
 describe("verifyPhase", () => {
   it("matches indent-sensitive script lines even when untrimmed", () => {

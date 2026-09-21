@@ -5,7 +5,7 @@
 // engine SSOT — both tools run it through the ONE runCliJob seam
 // (cli_job_leg.ts) and return the CLI's own JSON summary.
 import { loadConfig } from "./config";
-import { drain } from "./jobs";
+import { drain } from "./jobs/engine";
 import { runCliJob } from "./cli-job-leg";
 import { str, RpcParamError, obj, s, b } from "./mcp/params";
 import type { ToolDef } from "./mcp/server";

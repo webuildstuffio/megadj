@@ -10,7 +10,7 @@ import {
 import type { DB } from "./db";
 import type { Registry } from "./registry";
 import type { ImageService } from "./image/store";
-import type { JobEngine } from "./jobs";
+import type { JobEngine } from "./jobs/engine";
 import type { CrateConfig } from "./config";
 
 export function makeServerLifecycle(deps: {
