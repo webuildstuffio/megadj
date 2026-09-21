@@ -9,7 +9,7 @@ import type { Database } from "bun:sqlite";
 import type { Drive, SnapshotData, VerifyReport } from "../../shared/types";
 import { parseSnapshotJson } from "../../shared/badges";
 import { errMessage } from "../../../src/shared/leaf/fmt";
-import { sanitizeVerifyReport } from "../verify-report";
+import { sanitizeVerifyReport } from "../verify/report";
 
 /** Stable stringify: key-sorted at EVERY depth, arrays kept in order, every
  *  key included. Used by the setSnapshot change-detector, which must SEE

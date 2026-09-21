@@ -16,7 +16,7 @@ import {
   withJobBudget,
 } from "./jobs/job-runtime";
 import { progressFromLine, rekordboxRunning } from "./rb";
-import { verifyDeltas } from "./verify-report";
+import { verifyDeltas } from "./verify/report";
 
 export type Emit = (channel: string, data: unknown) => void;
 
@@ -408,5 +408,5 @@ export class JobEngine {
 
 export { createEtaEstimator, drain, verifyPhase } from "./jobs/job-runtime";
 
-export { sanitizeVerifyReport, verifyDeltas } from "./verify-report";
-export { parseVerifyReport } from "./verify-parse";
+export { sanitizeVerifyReport, verifyDeltas } from "./verify/report";
+export { parseVerifyReport } from "./verify/parse";

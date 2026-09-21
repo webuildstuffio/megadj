@@ -196,6 +196,10 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   synthesis (📐 proposal): cross-shop invariants, the four evidenced v2
   layers, and the reject list (all 19 DIV diversity experiments dead —
   diversity ships as hard caps only).
+- [Playlist generator v3](megaset/12-playlist-generator-v3.md) — 📐 deep
+  re-architecture proposal: two-stage plan-and-fill, the transition grammar,
+  a strict quality contract, and resumable sessions; absorbs #107 and v2's
+  open layers.
 - [Audit and plan](megaset/08-audit-and-plan.md) — per-item
   implementation sketches, delta-pinned against the re-ranked roadmap;
   current conclusions link to the owners above.
@@ -269,10 +273,10 @@ Archived files are historical evidence, not current instructions:
 - [Archived roadmap index](archive/roadmap-index-2026-09-15.md) — the former
   product-categorized issue index; superseded by GitHub labels/search.
 - [Codebase quality snapshot](archive/codebase-quality-report.md)
-- [Code quality progress report (Sep 17)](code-quality-2026-09-17.md) — measured
-  push summary (60 issues/3 days), remaining-refactor projection, and the
-  honest 75k-census verdict; the live trend lives in the megadj-quality-trend
-  canvas.
+- [Code quality progress report (Sep 17 → Sep 20)](code-quality-2026-09-17.md) — measured
+  push summaries (60 issues/3 days, then the Sep 20 scorecard: reorg program
+  closed 6/7, gates at best-ever, 8 issues open) and the honest 75k-census
+  verdict; the live trend lives in the megadj-quality-trend canvas.
 - [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
   2026-09-14; the old-path redirect stub was removed 2026-09-15, so this
   archive path is the only reference.

@@ -46,8 +46,8 @@ export function portView(drives: Drive[]): PortInfo[] {
 
 import type { Drive, PortInfo } from "../shared/types";
 import { buildPreflight } from "./preflight";
-import { allPreflightInputs } from "./report-inputs";
-import { VERIFY_HELP } from "./verify-help";
+import { allPreflightInputs } from "./report/inputs";
+import { VERIFY_HELP } from "./verify/help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
 import {
   archiveDispatch,

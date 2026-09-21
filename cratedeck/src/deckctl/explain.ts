@@ -1,4 +1,4 @@
-import { VERIFY_HELP } from "../verify-help";
+import { VERIFY_HELP } from "../verify/help";
 import { KIND_DOCS, printKindDoc } from "./docs";
 import { JSON_MODE, emitJson, errOut, log } from "./runtime";
 

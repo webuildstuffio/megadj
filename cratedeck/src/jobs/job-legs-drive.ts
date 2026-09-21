@@ -3,8 +3,8 @@ import { lastFinalLine, requireSuccessfulExit } from "./job-legs-parse";
 import { drain, drainText, verifyPhase } from "./job-runtime";
 import { rbSnapshot, spawnMirror, spawnVerify } from "../rb";
 import { scanVolume } from "../scan";
-import { lastLines } from "../verify-report";
-import { parseVerifyReport } from "../verify-parse";
+import { lastLines } from "../verify/report";
+import { parseVerifyReport } from "../verify/parse";
 import type { LegArgs } from "./job-legs-types";
 
 export async function runScan({

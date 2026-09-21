@@ -10,9 +10,9 @@ import type { ImageService } from "./image-store";
 import type { CrateConfig } from "./config";
 import { freeBytes } from "./scan";
 import { driveBadges, parseSnapshotJson, syncBadge } from "../shared/badges";
-import { buildReport, buildReportSummary, overall } from "./report";
-import { VERIFY_HELP } from "./verify-help";
-import { exportDossier, reportInput, type ReportDeps } from "./report-inputs";
+import { buildReport, buildReportSummary, overall } from "./report/report";
+import { VERIFY_HELP } from "./verify/help";
+import { exportDossier, reportInput, type ReportDeps } from "./report/inputs";
 import { driveCompatibility } from "./players";
 import {
   normalizeNote,

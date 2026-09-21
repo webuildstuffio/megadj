@@ -21,7 +21,7 @@ import {
 } from "./params";
 import { apiGetJson, apiGetJsonT, resolveDrive } from "../deckapi";
 import { KIND_DOCS } from "../deckctl/docs";
-import { VERIFY_HELP } from "../verify-help";
+import { VERIFY_HELP } from "../verify/help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../../shared/help";
 import type { CoverageResponse, RedundancyResult } from "../../shared/types";
 import type { ToolDef } from "./server";
