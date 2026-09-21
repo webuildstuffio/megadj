@@ -83,10 +83,41 @@ or filed (§4):
    `setCandidates` → honest phases on the wire.
 6. **N-candidates compare mode (#107 item 4, S14)**: still the biggest
    missing product capability — the engine is deterministic, so N chains
-   need only seeded/strategy variants + a compare view.
+   need only seeded/strategy variants + a compare view. Split into the
+   actionable slice as
+   [#288](https://github.com/webuildstuffio/megadj/issues/288).
 7. **Analysis freshness action**: beats/mood at 21 h with new imports
    waiting — the freshness line says "run `megadj beats` + `megadj mood`";
-   the web could link the run instead of telling.
+   the web could link the run instead of telling. One catch-up gap pass:
+   [#289](https://github.com/webuildstuffio/megadj/issues/289).
+
+## 4b. Issue batch from this audit (Sep 21, filed same evening)
+
+- [#287](https://github.com/webuildstuffio/megadj/issues/287) — superseded-set
+  cleanup (the two broken tropical sets), the §4 item 3 write-session op.
+- [#288](https://github.com/webuildstuffio/megadj/issues/288) — N-candidates
+  compare mode, actionable slice of #107 item 4 (§4 item 6).
+- [#289](https://github.com/webuildstuffio/megadj/issues/289) — one beats/mood
+  catch-up gap pass; ledgered==analyzed short-circuit respected (§4 item 7).
+- [#290](https://github.com/webuildstuffio/megadj/issues/290) — CLI unknown
+  `--genre` guard: nearest-family suggestion instead of silent empty pool
+  (CLI twin of #285, same `MEGASET_GENRE_FAMILIES` source).
+- [#291](https://github.com/webuildstuffio/megadj/issues/291) — "set budget
+  filled" is a status, not an exclusion: 3,541 uninformative rows currently
+  drown the 138 real quality exclusions; report it outside `excluded_groups`.
+- [#292](https://github.com/webuildstuffio/megadj/issues/292) — plain M3U8
+  export for a finished chain (non-RB booths, USB-key players, sharing).
+- [#293](https://github.com/webuildstuffio/megadj/issues/293) — load a saved
+  draft back into the web builder (save→load→rebuild round-trip).
+- [#294](https://github.com/webuildstuffio/megadj/issues/294) — transition
+  score magnitude inline in the web chain, not hover-only (stopgap until
+  #284's per-component evidence).
+- [#295](https://github.com/webuildstuffio/megadj/issues/295) — genre-cohort
+  builder runs: one reusable command for warmup/peak pairs per family, from
+  the measured genre spread in §1.
+- [#296](https://github.com/webuildstuffio/megadj/issues/296) — genre backfill
+  for the 198 blank-genre downloaded rows via the #173 vote ladder (real
+  sources only, missing stays missing).
 
 ## 5. Receipts
 
