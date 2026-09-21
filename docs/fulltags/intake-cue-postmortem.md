@@ -1,8 +1,10 @@
 # Postmortem & Master Improvement Plan — Sep 2026 intake/cue marathon
 
 **Status:** 🧭 ACTIVE — rev 5 repairs and doctor gates executed on 2026-09-14;
-F5's unified census is tracked in
-[#238](https://github.com/webuildstuffio/megadj/issues/238).
+F5's unified census SHIPPED as `megadj intake-status` (Sep 18) and its
+tracker [#238](https://github.com/webuildstuffio/megadj/issues/238) closed
+COMPLETED; the remaining detectors stay with
+[#37](https://github.com/webuildstuffio/megadj/issues/37).
 
 **Execution receipt:** F6/F1/F2/F3-surface/F7 shipped as commands + doctor
 gates; the SHELF1 applies ran and all three repair exit gates were green. Rev

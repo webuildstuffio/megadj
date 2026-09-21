@@ -192,7 +192,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   leaving all fleet tables permanently empty (`cratedeck/src/fleet/fleet.test.ts`).
 - **Census totals.** `skipCensus` once summed its LIMIT-clamped buckets, so
   totals undercounted whenever there were more distinct reasons than the
-  limit (599 shown vs 602 true; `cratedeck/test/archive.test.ts`).
+  limit (599 shown vs 602 true; `cratedeck/src/archive/reader.test.ts`).
 - **deckctl help details.** `help`/`--help` work with the server DOWN —
   `help` reads `shared/help.ts` directly and must dispatch BEFORE
   `ensureServer`; `--help` prints to stdout with exit 0 (usage text is not

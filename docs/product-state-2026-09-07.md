@@ -48,8 +48,10 @@ The order below summarizes outcomes, not issue status. GitHub issues are the
 execution tracker and the roadmap SSOT (the former ideas catalog is archived
 at [archive/ideas-2026-09-15.md](archive/ideas-2026-09-15.md)).
 
-1. Complete the hardware-gated safety work: evacuate the failing Extra volume
-   and establish the first verified cold backup using the committed runbooks.
+1. Complete the hardware-gated safety work: evacuate the failing Extra
+   volume (runbook 0a). Cold backup is SHELVED by owner decision (#2
+   closed NOT_PLANNED Sep 20): the shelf IS the backup — `shelf-sync`
+   to SHELF1 keeps every track on two physical copies.
 2. Run the rekordbox write-path spike and record its four observations before
    any automated grid-repair route is selected.
 3. Finish the gold annotations that unlock calibrated grid, structure, and cue

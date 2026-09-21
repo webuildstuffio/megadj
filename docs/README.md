@@ -57,7 +57,9 @@ document for the topic you are changing.
   gate math, and the pre-flight/verification checklist.
 
 Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
-`ACTIVE`, 🟡 `BLOCKED`, and 🗄️ `ARCHIVED`.
+`ACTIVE`, 🟡 `BLOCKED`, 🗄️ `ARCHIVED`, and 🗄️ `SHELVED` (retained on
+purpose by an owner decision — the runbook/procedure stays for a
+revisited decision).
 
 ## Roadmap on GitHub
 
@@ -211,11 +213,12 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   candidates — it never rescues a clash. Tracks without stored vectors
   get no bonus, never a penalty (honest-gap rule).
 - [Embedding learnings from megamem (Sep 17)](megaset/embedding-learnings-from-megamem-2026-09-17.md)
-  — cross-pollination review of the megamem dev-docs corpus (1786
-  experiments, 127 model-swap MDLs) for MegaSet's embedding prior:
-  whitening/hubness convergence with our tier-0 results, prior-weight
-  and A/B methodology (Wilcoxon), what doesn't transfer, and 5 ranked
-  actions (ledger model column, pre-registered A/B, spectral diagnostic).
+  — cross-pollination review of the megamem dev-docs corpus (2,003
+  experiments at the Sep 18 v2 re-census, 127 model-swap MDLs) for
+  MegaSet's embedding prior: whitening/hubness convergence with our
+  tier-0 results, prior-weight and A/B methodology (Wilcoxon), what
+  doesn't transfer, and a ranked top-10 of actions (ledger model
+  column, pre-registered A/B, spectral diagnostic).
 
 ### CrateDeck
 
@@ -242,7 +245,9 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 
 - [0a — evacuate Extra](runbooks/0a-evacuate-extra.md) — blocked until the
   volume mounts.
-- [0b — cold backup](runbooks/0b-cold-backup.md) — blocked on the cloud target.
+- [0b — cold backup](runbooks/0b-cold-backup.md) — SHELVED: the shelf is
+  the backup (owner call, #2 closed NOT_PLANNED Sep 20); the rclone
+  procedure is retained for a revisited decision.
 - [0c — BACKUP2 verdict](runbooks/0c-orphan-verdict.md) — completed decision;
   procedure retained for evidence.
 - [0d — rekordbox write-path spike](runbooks/0d-write-path-spike.md) — harness

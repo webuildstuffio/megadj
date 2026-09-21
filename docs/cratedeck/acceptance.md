@@ -36,7 +36,7 @@ that trust", architecture §9). Last audited: 2026-09-17.
   `python/rb_read.py`, light scan in `src/scan.ts`
 - **F5 sync status** — master/mirror parity in `src/report/report.ts`
   (`mirror parity` checks, superset tolerance)
-- **F6 jobs & interlock** — `src/jobs.ts`, `src/bench.ts`, `GET /jobs`,
+- **F6 jobs & interlock** — `src/jobs/engine.ts`, `src/bench.ts`, `GET /jobs`,
   interlock route + banner
 - **F7 health & corruption** — `src/report/report.ts` (dual-DB gate, grids, space,
   bitrot ledger, junk), junk detection in `src/scan.ts`

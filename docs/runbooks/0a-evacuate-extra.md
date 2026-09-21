@@ -80,4 +80,6 @@ Then close [issue #1](https://github.com/webuildstuffio/megadj/issues/1).
 ## 4. Only after EVAC-VERIFIED
 
 Triage contents (what feeds §0c's orphan verdict). The dying drive itself
-is then retired — wipe/repurpose only after the §0b cold backup exists.
+is then retired — wipe/repurpose only after the §0b cold backup exists
+(0b is SHELVED — owner decision #2, the shelf is the backup; revisit
+this gate with the owner before any wipe).

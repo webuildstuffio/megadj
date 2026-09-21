@@ -1,15 +1,16 @@
 # 0b — Cold backup of the master library — runbook
 
-**Status:** 🟡 BLOCKED — waiting on the cloud target (B2/R2 bucket); the
-procedure is ready to execute once it exists.
+**Status:** 🗄️ SHELVED — the backup decision is RECORDED (owner call,
+Sep 19; issue #2 closed NOT_PLANNED Sep 20): the shelf IS the backup —
+`shelf-sync` to SHELF1 gives every track two physical copies. No cloud
+backup infra exists or runs, and none is planned. This procedure is
+retained as the ready-to-execute plan if that decision is ever revisited
+(a foreign-copy hazard like ransomware or a double-drive failure would
+be the reason to).
 
 The only protection against all local drives failing at once — the one
 failure that ends the archive. B2 or R2 of `Contents/` + the archive DB
 via rclone; read-only on the drives, versioned on the cloud side.
-
-**Status:** 🟡 BLOCKED — no cloud backup exists. `rclone` is installed, but its
-configuration is absent and `rclone listremotes` returns no remotes. Account
-credentials and a target must be configured before this runbook can execute.
 
 | option        | setup                                                 | current billing distinction                                                                   |
 | ------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -54,5 +55,6 @@ One run right after each sync/rekordbox export session is enough while the
 library churns; monthly once it settles. Add the run to
 `docs/usb-sync-log.md` (`## YYYY-MM-DD — cold backup: N files, check clean`).
 
-Close [issue #2](https://github.com/webuildstuffio/megadj/issues/2) after
-the first verified `rclone check --download`.
+[Issue #2](https://github.com/webuildstuffio/megadj/issues/2) is CLOSED
+(NOT_PLANNED, Sep 20) — the trigger condition for reopening is a
+recorded owner decision, not this file.

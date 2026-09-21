@@ -88,8 +88,10 @@ re-download "Eat Me Better".
 `open → confirmed → applied` or `open → dismissed`; **only `safe` findings
 ever auto-apply**, and apply means quarantine. The current per-finding receipt
 checks keeper presence and size, live MD5 equality for byte twins, and the
-file-count delta. It does not yet re-fingerprint quarantined acoustic twins or
-provide one-click revert; those remain in [issue #35](https://github.com/webuildstuffio/megadj/issues/35).
+file-count delta. Since Sep 19 (#35), apply receipts additionally verify
+the keeper after apply, and one-click revert exists end to end —
+`shelf-restore <finding-id|path>` (MD5-gated) below plus the Hygiene
+tab's failed-row Revert (`/api/hygiene/restore`).
 
 `megadj shelf-restore <finding-id|path> [--into F]` restores a quarantined
 file through the ledger and hash gates. **Sep 19 (rev-43, #35/#36): the

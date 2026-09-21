@@ -59,13 +59,13 @@ function methodMetrics(path: string, methodName: string): MethodMetrics {
 }
 
 test("#40: JobEngine stays a small orchestrator", () => {
-  const jobsPath = join(import.meta.dir, "..", "src", "jobs.ts");
+  const jobsPath = join(import.meta.dir, "..", "src", "jobs", "engine.ts");
   const source = readFileSync(jobsPath, "utf8");
   const metrics = methodMetrics(jobsPath, "executeInner");
 
   expect(
     source.trimEnd().split("\n").length,
-    "jobs.ts must be at most 500 lines",
+    "jobs/engine.ts must be at most 500 lines",
   ).toBeLessThanOrEqual(500);
   expect(
     metrics.lines,

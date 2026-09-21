@@ -62,4 +62,6 @@ that sentence in the append-only log makes the death official.
 
 Close [issue #3](https://github.com/webuildstuffio/megadj/issues/3) with
 the adopted/dead counts. BACKUP2 then graduates from "keep until verdict"
-to ordinary spare (wipe only after 0b's cold backup exists and verifies).
+to ordinary spare (wipe only after 0b's cold backup exists and verifies;
+0b is SHELVED — owner decision #2, so this gate needs an owner call
+before any wipe).
