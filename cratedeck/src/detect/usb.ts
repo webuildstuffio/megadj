@@ -7,7 +7,7 @@ import {
   isFiniteNumber,
   isRecord,
   isUnknownArray,
-} from "../../src/shared/leaf/guards";
+} from "../../../src/shared/leaf/guards";
 
 export interface UsbDevice {
   product: string;

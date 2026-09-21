@@ -6,7 +6,7 @@ import { describe, it, expect, afterAll } from "bun:test";
 import { tempDir } from "./testutil";
 import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { usbLinkClass } from "../src/detect";
+import { usbLinkClass } from "../src/detect/detect";
 import { speedProbe } from "../src/bench";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).

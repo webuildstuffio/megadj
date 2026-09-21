@@ -6,20 +6,20 @@
 // check needs comes from data cratedeck already measures — preflight is the
 // aggregated read, not a new measurement pass.
 //
-// The individual check builders live in preflight_checks.ts (one builder
+// The individual check builders live in preflight/checks.ts (one builder
 // per rule); this module owns the role-matrix filter, aggregation, and the
 // report wire shapes.
 import type {
   HealthCheck,
   PreflightDriveResult,
   PreflightReport,
-} from "../shared/types";
+} from "../../shared/types";
 export {
   type PreflightDriveResult,
   type PreflightReport,
-} from "../shared/types";
-import { checkApplies, type CheckId } from "../shared/check-matrix";
-import { firmwareAdvisories } from "./players";
+} from "../../shared/types";
+import { checkApplies, type CheckId } from "../../shared/check-matrix";
+import { firmwareAdvisories } from "../players";
 import {
   benchCheck,
   bitrotCheck,
@@ -30,7 +30,7 @@ import {
   spaceCheck,
   verifyCheck,
   type PreflightInput,
-} from "./preflight-checks";
+} from "./checks";
 
 // PreflightDriveResult/PreflightReport (the B12 wire shapes) are DEFINED in
 // shared/types.ts — the dependency leaf — and imported above. Re-exported
@@ -41,7 +41,7 @@ import {
 // builder split — a split-out module must never import its parent's types
 // back: madge counts a type-only back-edge as a cycle). Re-exported so
 // existing `from "./preflight"` sites hold.
-export type { PreflightInput } from "./preflight-checks";
+export type { PreflightInput } from "./checks";
 
 /** Worst-status-wins aggregation tuned for gig night: a fail is "don't take
  *  this drive" (not-ready), a warn is "usable, but know about it". */

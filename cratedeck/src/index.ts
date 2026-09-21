@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { loadConfig } from "./config";
 import { DB } from "./db";
 import { Guard } from "./guard";
-import { watchVolumes } from "./detect";
+import { watchVolumes } from "./detect/detect";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./image/store";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { renderWeeklyPrep, type WeeklyPrepInput } from "../src/weekly-prep";
-import type { PreflightReport } from "../src/preflight";
+import type { PreflightReport } from "../src/preflight/preflight";
 import type { Drive } from "../shared/types";
 
 function drive(over: Partial<Drive> = {}): Drive {

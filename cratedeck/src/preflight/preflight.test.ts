@@ -3,8 +3,8 @@ import {
   buildPreflight,
   preflightForDrive,
   type PreflightInput,
-} from "../src/preflight";
-import type { Drive, SnapshotData } from "../shared/types";
+} from "./preflight";
+import type { Drive, SnapshotData } from "../../shared/types";
 
 const NOW = 1_800_000_000_000;
 const DAY = 86_400_000;

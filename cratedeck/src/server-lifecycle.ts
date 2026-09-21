@@ -1,7 +1,7 @@
 // server_lifecycle.ts — the reconcile loop, auto-schedule decisions, and
 // drive-photo mount re-sync, extracted from index.ts (complexity hot-spot
 // split, #42). Pure orchestration over injected deps: no HTTP, no globals.
-import { listMountedVolumes } from "./detect";
+import { listMountedVolumes } from "./detect/detect";
 import {
   shouldAutoScan,
   shouldAutoVerify,

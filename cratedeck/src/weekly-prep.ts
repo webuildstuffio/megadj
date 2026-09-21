@@ -11,7 +11,7 @@
 // it (fetch + render + write); a cron/agent loop just calls that command.
 
 import type { RedundancyVerdict } from "../shared/types";
-import type { PreflightReport } from "./preflight";
+import type { PreflightReport } from "./preflight/preflight";
 
 /** The weekly digest consumes the server's full PreflightReport directly —
  *  one type from producer to renderer, no structural-minimum drift. */

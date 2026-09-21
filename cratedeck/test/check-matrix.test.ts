@@ -11,7 +11,7 @@ import {
   TIER_EXPLANATION,
   type CheckId,
 } from "../shared/check-matrix";
-import { preflightForDrive } from "../src/preflight";
+import { preflightForDrive } from "../src/preflight/preflight";
 import { driveBadges } from "../shared/badges";
 import type { Drive, HealthCheck, SnapshotData } from "../shared/types";
 

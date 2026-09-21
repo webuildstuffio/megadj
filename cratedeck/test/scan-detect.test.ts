@@ -7,12 +7,12 @@ import {
   parsePlist,
   isPhysicalExternal,
   listMountedVolumes,
-} from "../src/detect";
+} from "../src/detect/detect";
 import {
   parseUsbTreeJson,
   pickUsbDevice,
   type UsbDevice,
-} from "../src/detect-usb";
+} from "../src/detect/usb";
 import { progressFromLine } from "../src/rb";
 
 // ---- fixtures -------------------------------------------------------------

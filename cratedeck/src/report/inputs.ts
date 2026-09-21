@@ -9,7 +9,7 @@ import type { CrateConfig } from "../config";
 import { driveCompatibility } from "../players";
 import type { Drive, PlayerSpec, SnapshotData } from "../../shared/types";
 import { buildReport } from "./report";
-import type { PreflightInput } from "../preflight";
+import type { PreflightInput } from "../preflight/preflight";
 import { parseSnapshotJson } from "../../shared/badges";
 
 export interface ReportDeps {

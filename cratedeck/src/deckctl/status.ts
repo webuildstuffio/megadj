@@ -1,5 +1,5 @@
 import { apiPost, resolveDrive, type Drive, type Job } from "../deckapi";
-import type { PreflightReport } from "../preflight";
+import type { PreflightReport } from "../preflight/preflight";
 import type { InterlockState } from "../../shared/types";
 import { collectPlayers } from "./players";
 import { JSON_MODE, emitJson, errOut, getJson, log } from "./runtime";
