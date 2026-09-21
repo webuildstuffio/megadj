@@ -137,9 +137,10 @@ the refold's dry-run proposal census lists unmapped labels by frequency
 guess. No LLM mapping, no cloud genre APIs (the one-shot residue pass
 in §6 of [genre-taxonomy-sources](genre-taxonomy-sources.md) is the
 single, constrained exception — its issue #65 closed Sep 16 WITHOUT
-the verb shipping; no `genre --residue` exists; the work is re-filed
+the verb shipping; no `genre --residue` exists; the work was re-filed
 as [#237](https://github.com/webuildstuffio/megadj/issues/237),
-see the roadmap rev 7.13).
+which closed COMPLETED Sep 19 (mechanical alias-depth portion folded
+into #155; the `--residue` verb itself never shipped).
 
 ### Is generic-better or specific-better?
 

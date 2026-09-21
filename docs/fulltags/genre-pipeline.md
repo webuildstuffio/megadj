@@ -228,7 +228,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
   them as queries; W1 no longer mints new ones (fixed Sep 15). The
   operator `--apply` pass on the live DB is the remaining step — until
   it runs, the 154 rows still sit in the column (measured 2026-09-17;
-  tracked on the roadmap rev 7.13 queue).
+  tracked on the roadmap queue — current rev 7.14).
 - **Orphaned `sc_genre_ids` cache — DROPPED 2026-09-15 (issue #108)**:
   the table existed in `archive.db` (269 resolved IDs, last resolved
   2026-09-12) but **no code in the repo read or wrote it** — the one-off

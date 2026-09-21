@@ -262,9 +262,9 @@ towers on demand.
 3. ~~LLM residue pass (S, one-shot)~~ — its issue #65 closed Sep 16
    WITHOUT the verb shipping (no `genre --residue` exists in code); the
    live tail is 63 labels / 265 rows / 93.0% family coverage
-   (2026-09-17), and the work is re-filed on GitHub as
+   (2026-09-17), and the work was re-filed on GitHub as
    [#237](https://github.com/webuildstuffio/megadj/issues/237)
-   (roadmap rev 7.13).
+   (closed COMPLETED Sep 19 — alias-depth portion landed via #155).
    Design stands: OpenRouter, temp 0, vocabulary-constrained; **fed by a
    web-search (exa/brave) research arm for disputed imprint→scene
    confirmations — harness-only, never a runtime ladder dependency**
