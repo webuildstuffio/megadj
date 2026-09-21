@@ -65,8 +65,8 @@ engine. If a variable isn't in these tables, the engine doesn't see it.
 | S10 | tie-break                | —                                    | `(score, videoId)` lexicographic        | engine const                  | ✅ v0                                                                                       | determinism guarantee                                                                                             |
 | S11 | score weights            | `tempo/key/fit`                      | `0.45 / 0.30 / 0.25`                    | engine consts                 | ✅ v0, **deliberately not a param**                                                         | E6: 5 variants moved meanTr 0.989↔0.9945 at archive scale — user-facing weights would be a knob that does nothing |
 | S12 | search strategy          | `"greedy" \| "beam"`                 | greedy; **beam-B8 when pool < ~250**    | benchmark-derived             | ✅ **shipped 2026-09-14**                                                                   | E7: beam +59% chain length in sparse pools, 0 ms cost; auto-picked, `search` on the wire, `?search=` forces A/B   |
-| S13 | `--track <id>` landmarks | `videoId[]`                          | none                                    | repeatable                    | 🔨 planned ([#107](https://github.com/webuildstuffio/megadj/issues/107))                    | must-plays sequenced at arc-right positions                                                                       |
-| S14 | `candidates N`           | `int`                                | 1                                       | 2–5 sensible                  | 🔨 planned ([#107](https://github.com/webuildstuffio/megadj/issues/107) item 4 — #59 consolidated into it Sep 19, still missing verified) | N alternatives + quality score to compare                                                        |
+| S13 | `--track <id>` landmarks | `videoId[]`                          | none                                    | repeatable                    | 🔨 planned ([#107](https://github.com/webuildstuffio/megadj/issues/107), scope refreshed Sep 21) | must-plays sequenced at arc-right positions                                                                       |
+| S14 | `candidates N`           | `int`                                | 1                                       | 2–5 sensible                  | 🔨 planned ([#288](https://github.com/webuildstuffio/megadj/issues/288), sliced from #107 Sep 21)                            | N alternatives + compare view; #283 shipped the set-level quality stats it consumes               |
 | S15 | lock/keep tracks         | `videoId[]`                          | none                                    | —                             | ❌ closed NOT_PLANNED ([#176](https://github.com/webuildstuffio/megadj/issues/176), Sep 16) | regenerate around frozen picks — the landmarks half lives in #107 (S13)                                           |
 | S16 | beam width `B`           | `int`                                | 8 when active (`SET_BEAM_WIDTH`)        | 4–16                          | ✅ **shipped 2026-09-14**                                                                   | cost ≈ B× greedy; `SET_BEAM_POOL_MAX` sets the crossover                                                          |
 | S17 | diversity knobs          | thresholds                           | artist-adjacent = 0, family-run ≤3      | —                             | 🔨 planned (B6)                                                                             | soft penalties, counters exposed                                                                                  |
@@ -113,15 +113,22 @@ Legend: **✅ used in v0** · **🔶 measured, scoring planned** · **🔮 measu
 ### 2c. Application order (the pipeline, stated once)
 
 **Pool construction** (`setCandidates`, in order): census by status →
-file existence w/ shelf rebase → NFC/casefold duplicate collapse →
+file existence w/ shelf rebase → duplicate collapse (NFC/casefold +
+`poolTitleKey` v3 since the Sep 21 audit: extension strip, bare
+release-form equivalence, head-credit collapse — pinned in
+`pool.test.ts`) →
 duration floor/cap (S7) → per-rejection counters. **Opener**: requested
 `opener` (S3) if playable → else arc-start arousal among candidates with
 ≥15 tempo-neighbors (S8) → else best-effort, honestly flagged. **Chain**:
 hard gates first (tempo S6, then key — cheap negative checks first), then
-the weighted blend (0.45·tempo + 0.3·key + 0.25·fit over arousal+dance),
-tie-break (S10). **Termination**: budget fill → leftovers excluded with
-reasons; nothing silently dropped. Every counter (pool, missing,
-duplicate, relocated, excluded_total) rides the payload.
+the weighted blend (0.45·tempo + 0.3·key + 0.25·fit over arousal+dance)
+plus the capped embeddings-similarity bonus (#171), tie-break (S10).
+**Termination**: budget fill → leftovers excluded with reasons; nothing
+silently dropped. Every counter (pool, missing,
+duplicate, relocated, excluded_total) rides the payload; `excluded_groups`
+buckets by `megasetReasonClass` (stable classes, not raw reason strings —
+#283) and the wire's mix bands (`MEGASET_TIGHT_FLOOR`/`MEGASET_CLEAN_FLOOR`
+via `megasetTransitionBand`) are the one calibration shared by CLI and web.
 
 ## 3. The invariants
 
