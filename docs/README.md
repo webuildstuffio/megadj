@@ -145,6 +145,10 @@ tracker is one of those — the recipes stay in the acceptance doc).
   `--agree`/`--keep`, #64)**, inference discipline, scoring read path, the ≥65%
   gate, the tag census/compare surfaces, 11 invariants, design
   rationale, and live state. Start here for "where does genre come from?"
+- [FullTags + GetDat merge proposal (Sep 20)](fulltags/fulltags-getdat-merge-2026-09-20.md) —
+  📋 measured merge proposal (not owner-approved, nothing moved): one
+  directional module graph, ~−430 LOC projection, phased plan with
+  census pins.
 - **Weighted genre vote ladder (Sep 16, #173)** — the fetch ladder no
   longer writes first-win: every rung (SC / Beatport / Bandcamp /
   imprint prior / AI / MusicBrainz / file tags / sync category) casts a
