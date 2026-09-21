@@ -269,6 +269,10 @@ export interface ArchiveSetCandidates {
   keyReadFailures: number;
   candidates: ArchiveSetCandidate[];
   freshness: ArchiveFreshness;
+  /** #283 genre pool filter: matched-row count when a `?genre=` filter
+   *  ran; 0 = unfiltered. The UI/CLI surface it so a filtered pool is
+   *  visible, never a silent subset. */
+  genreFiltered: number;
 }
 
 // ---- tag census (fulltags vs rekordbox side-by-side) -----------------------

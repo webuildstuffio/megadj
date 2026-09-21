@@ -323,7 +323,7 @@ const similar: CliCommandHandler = async (rest, { state }) => {
 const megaset: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
-    ["preset", "minutes", "opener", "limit", "search"],
+    ["preset", "minutes", "opener", "limit", "search", "genre"],
     ["json"],
   );
   if (nonNegOptInvalid(flags, "minutes", "megaset", flags.bools.has("json")))
@@ -357,6 +357,8 @@ const megaset: CliCommandHandler = async (rest) => {
     opener: flags.strings.get("opener"),
     limit,
     search: searchRaw,
+    // #283 genre pool filter — the family matcher lives in shared/megaset
+    genre: flags.strings.get("genre"),
     json: flags.bools.has("json"),
   });
 };

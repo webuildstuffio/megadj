@@ -247,7 +247,7 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
   // dry-run default, post-verify.
   const flags = parseFlags(
     rest,
-    ["playlist", "group", "preset", "minutes", "opener", "limit"],
+    ["playlist", "group", "preset", "minutes", "opener", "limit", "genre"],
     ["apply", "yes", "json"],
   );
   const args = positionalArgs(rest, [
@@ -257,6 +257,7 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
     "minutes",
     "opener",
     "limit",
+    "genre",
   ]);
   const mount = mountFrom(args[0]);
   const json = jsonFlag(flags);
@@ -275,6 +276,8 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
     minutes,
     opener: flags.strings.get("opener"),
     limit,
+    // #283 genre pool filter — same family matcher as megaset
+    genre: flags.strings.get("genre"),
     ...rbWriteOpts(flags, json),
   });
   await emitResult(json, r, printRbPlaylistReport);

@@ -10,6 +10,11 @@ import {
   isFiniteNumberArray,
   isRecord,
 } from "../../../src/shared/leaf/guards";
+import {
+  megasetGenreTerms,
+  MEGASET_BEAM_POOL_MAX,
+  MEGASET_GENRE_FALLBACKS,
+} from "../../shared/megaset";
 import type {
   ArchiveFreshness,
   ArchiveSetCandidates,
@@ -20,6 +25,31 @@ import type { ArchiveQuery } from "./types";
  * archive rows cannot propose the same physical shelf file twice. */
 const physicalPathKey = (path: string): string =>
   resolve(path).normalize("NFC").toLocaleLowerCase("en-US");
+
+/** #283 title dedupe key: NFC + casefold + punctuation-strip of the
+ * artist|title pair, with release-form parentheticals stripped FIRST —
+ * "blue lake (original mix)" and "Blue Lake" are the SAME song on two
+ * releases, and a set landing both is a broken proposal. REMIX
+ * attributions ("(John Summit remix)") stay: a remix is a different
+ * playable track by DJ convention. Pure + module-level (scoping rule). */
+const poolTitleKey = (row: {
+  title: string | null;
+  artist: string | null;
+}): string =>
+  `${poolNormText(row.artist ?? "")}|${poolNormText(row.title ?? "")}`;
+
+/** NFC + casefold + release-form strip + punctuation collapse, shared by
+ *  both halves of poolTitleKey (module-level: scoping rule). */
+const poolNormText = (s: string): string =>
+  s
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(
+      /\((?:original|extended|club|radio|album|single|vocal)\s+(?:mix|edit|version)\)/gu,
+      " ",
+    )
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 
 /** Resolve a historical ~/Music/DJ-Imports path against the configured shelf
  * Contents root. The archive DB remains untouched; callers receive the live
@@ -156,7 +186,48 @@ export function setCandidates(
   reader: ArchiveQuery,
   limit?: number,
   shelfContents?: string,
+  /** #283 genre pool filter: raw `?genre=` value. Absent/blank = no
+   *  filter (byte-identical census); a value becomes case-folded LIKE
+   *  terms derived from the shared family table (megasetGenreTerms). */
+  genre?: string | undefined,
 ): ArchiveSetCandidates {
+  // Escape LIKE wildcards so a literal "% house" query is a substring,
+  // never a pattern (SQLite LIKE has no ESCAPE default here — strip).
+  const strictTerms = megasetGenreTerms(genre).map((t) =>
+    t.replace(/[%_]/g, ""),
+  );
+  // Starvation fallback: when the strict family matches fewer rows than
+  // the beam-search activation threshold, widen with the family's
+  // fallback terms (e.g. tropical house → house) so the chain doesn't
+  // dead-end on a 10-row pool. A second COUNT query, only when a filter
+  // is active — free-form values (no fallback entry) keep strict-only.
+  const family = genre?.trim().toLowerCase() ?? "";
+  const fallbacks =
+    family !== "" ? (MEGASET_GENRE_FALLBACKS[family] ?? null) : null;
+  let genreTerms = strictTerms;
+  if (fallbacks !== null && fallbacks.length > 0) {
+    const strictCount = reader.row<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM tracks t
+       WHERE t.status = 'downloaded'
+         AND (${strictTerms
+           .map(() => `LOWER(t.genre) LIKE '%' || ? || '%'`)
+           .join(" OR ")})`,
+      ...strictTerms,
+    )?.n;
+    if ((strictCount ?? 0) < MEGASET_BEAM_POOL_MAX) {
+      genreTerms = [
+        ...strictTerms,
+        ...fallbacks.map((t) => t.replace(/[%_]/g, "")),
+      ];
+    }
+  }
+  const genreWhere =
+    genreTerms.length > 0
+      ? ` AND (${genreTerms
+          .map(() => `LOWER(t.genre) LIKE '%' || ? || '%'`)
+          .join(" OR ")})`
+      : "";
+  const genreParams = genreTerms;
   const hasRekordboxContent =
     reader.row<{ present: number }>(
       `SELECT 1 AS present FROM sqlite_master
@@ -224,9 +295,10 @@ export function setCandidates(
      ${cuesJoin}
      ${embJoin}
      ${rekordboxJoin}
-     WHERE t.status = 'downloaded'
+     WHERE t.status = 'downloaded'${genreWhere}
      ORDER BY t.updated_at DESC
      ${limit !== undefined && limit > 0 ? "LIMIT ?" : ""}`,
+    ...(genreParams.length > 0 ? genreParams : []),
     ...(limit !== undefined && limit > 0 ? [limit] : []),
   );
   /** B1 (#104): a row whose FILE is gone can still be scored when
@@ -268,13 +340,31 @@ export function setCandidates(
   const missingFiles = rows.length - existingRows.length;
   const metadataOnlyCount = metadataRows.length;
   const seenFiles = new Set<string>();
-  const actualRows = [...existingRows, ...metadataRows].filter((row) => {
-    if (row.file_path === null) return true; // metadata-only: no path to dedupe
-    const key = physicalPathKey(row.file_path);
-    if (seenFiles.has(key)) return false;
-    seenFiles.add(key);
-    return true;
-  });
+  // #283-live find: same AUDIO can sit at two DIFFERENT paths (shelf-rescue
+  // strays vs the organised copy — "York - On The Beach · … (Kryder…).mp3"
+  // vs "York/On The Beach/on the beach (kryder extended remix).mp3"). Path
+  // dedupe can't catch those, and a set that lands the same track twice is
+  // a broken proposal. TitleKey dedupe: NFC + casefold + strip punctuation
+  // of "artist - title" (basename sans extension when artist is null).
+  // The FIRST row in updated_at order wins (newest first — same recency
+  // rule the pool already orders by). Module-level below — the linter's
+  // consistent-function-scoping rule wants pure helpers out of the closure.
+  const seenTitles = new Set<string>();
+  const actualRows = [...existingRows, ...metadataRows]
+    .filter((row) => {
+      if (row.file_path === null) return true; // metadata-only: no path to dedupe
+      const key = physicalPathKey(row.file_path);
+      if (seenFiles.has(key)) return false;
+      seenFiles.add(key);
+      return true;
+    })
+    .filter((row) => {
+      if (row.title === null || row.title.trim() === "") return true;
+      const tk = poolTitleKey(row);
+      if (seenTitles.has(tk)) return false;
+      seenTitles.add(tk);
+      return true;
+    });
   const duplicateFiles =
     existingRows.length - (actualRows.length - metadataRows.length);
   const relocatedFiles = actualRows.filter((row) => row.relocated).length;
@@ -353,6 +443,9 @@ export function setCandidates(
     keyReads,
     keyReadFailures,
     candidates,
+    /** #283: the filter's row count is the census row count itself when a
+     *  genre filter ran — surface it so a filtered build is visible. */
+    genreFiltered: genreParams.length > 0 ? rows.length : 0,
     freshness: poolFreshness(reader),
   };
 }

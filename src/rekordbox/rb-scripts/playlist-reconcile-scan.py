@@ -17,18 +17,25 @@ def main() -> None:
     rows: list[dict[str, Any]] = []
     try:
         for p in db.query(DjmdPlaylist).all():
+            # Root-level playlists carry ParentID 0 in the DB but their
+            # NODE parents resolve to the ROOT element — emit "0" so the
+            # TS parser's numeric-parentId contract holds (the XML side
+            # maps parent="root" to "0" in parsePlaylistXmlNodes).
+            raw_parent = str(p.ParentID or 0)
             rows.append(
                 {
                     "id": str(p.ID),
                     "name": p.Name or "",
-                    "parentId": str(p.ParentID or 0),
+                    "parentId": "0" if raw_parent == "root" else raw_parent,
                     "attribute": p.Attribute or 0,
                     "seq": p.Seq or 0,
                 }
             )
     finally:
         db.close()
-    print(json.dumps(rows))
+    # The parser's boundary contract is {"db": [...]} — never a bare array
+    # (a bare list made every reconcile dry-run fail its own payload check).
+    print(json.dumps({"db": rows}))
 
 
 if __name__ == "__main__":

@@ -530,8 +530,11 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     return genreWhyImpl(this, videoId);
   }
 
-  setCandidates(limit?: number): ArchiveSetCandidates {
-    return setCandidatesImpl(this, limit, this.shelfContents);
+  setCandidates(
+    limit?: number,
+    genre?: string | undefined,
+  ): ArchiveSetCandidates {
+    return setCandidatesImpl(this, limit, this.shelfContents, genre);
   }
 
   /** Newest beats/mood ledger timestamps — set-builder staleness UX.

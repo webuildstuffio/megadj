@@ -90,7 +90,16 @@ function resolveSetBuild(
     limit = clampMegasetPool(parsedLimit);
   }
 
-  const census = archive.setCandidates(limit);
+  // #283 genre pool filter: `?genre=` narrows the candidate pool by
+  // case-folded substring families (shared megasetGenreTerms — "house"
+  // matches House/Tech House/Deep-house; "tropical" → the tropical-house
+  // family). Absent/blank = no filter, byte-identical census. A value
+  // that matches ZERO rows builds from an empty pool and reports the
+  // honest empty-chain diagnosis (never a silent whole-library fallback).
+  const census = archive.setCandidates(
+    limit,
+    url.searchParams.get("genre") ?? undefined,
+  );
   return {
     census,
     built: buildMegaset({
@@ -328,6 +337,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         rekordboxBpmHits,
         keyReads,
         keyReadFailures,
+        genreFiltered,
         freshness,
       } = resolved.census;
       const { built } = resolved;
@@ -348,6 +358,9 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         // ledger ages (newest beats/mood analysis) — the UI staleness
         // line derives from this, never a hand-copied clock read
         freshness,
+        // #283: matched-row count when a ?genre= filter ran (0 = none) —
+        // the UI/CLI show it so a filtered pool is visible
+        genre_filtered: genreFiltered,
         // the wire contract is the preset ID (MegasetPayload.preset: string)
         // — consumers resolve labels from the shared MEGASET_PRESET_DEFS registry
         preset: built.preset,

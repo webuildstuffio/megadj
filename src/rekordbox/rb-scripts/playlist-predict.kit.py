@@ -8,7 +8,9 @@ ships pre-indented at 4 spaces for the `for track in chain:` body.
 """
 
 import json
+import os
 import sys
+import unicodedata
 
 from pyrekordbox import Rekordbox6Database  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]

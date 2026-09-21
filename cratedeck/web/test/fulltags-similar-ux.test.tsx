@@ -455,6 +455,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     rekordbox_bpm_hits: 3015,
     key_reads: 201,
     key_read_failures: 0,
+    genre_filtered: 0,
     freshness: { beatsAt: null, moodAt: null },
     search: "greedy",
   };

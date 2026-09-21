@@ -84,6 +84,7 @@ function requestQuery(
   searchChoice: MegasetSearchChoice,
   poolLimit: number | null,
   opener: TrackPick | null,
+  genre: string,
 ): URLSearchParams {
   const q = new URLSearchParams({
     preset: preset.id,
@@ -92,6 +93,8 @@ function requestQuery(
   if (searchChoice !== "auto") q.set("search", searchChoice);
   if (poolLimit !== null) q.set("limit", String(poolLimit));
   if (opener) q.set("opener", opener.video_id);
+  // #283 genre pool filter — a trimmed non-empty value narrows the pool
+  if (genre.trim() !== "") q.set("genre", genre.trim());
   return q;
 }
 
@@ -101,6 +104,7 @@ async function requestMegaset(
   searchChoice: MegasetSearchChoice,
   poolLimit: number | null,
   opener: TrackPick | null,
+  genre: string,
   setBuild: SetBuild,
 ): Promise<void> {
   setBuild({
@@ -117,6 +121,7 @@ async function requestMegaset(
       searchChoice,
       poolLimit,
       opener,
+      genre,
     );
     setBuild({
       data: await api<MegasetPayload>(`/api/archive/megaset?${query}`, {
@@ -154,6 +159,7 @@ function exportHref(
   opener: TrackPick | null,
   searchChoice: MegasetSearchChoice,
   poolLimit: number | null,
+  genre: string,
 ): string | null {
   if (!build.data) return null;
   const q = new URLSearchParams({
@@ -164,6 +170,7 @@ function exportHref(
   if (opener) q.set("opener", opener.video_id);
   if (searchChoice !== "auto") q.set("search", searchChoice);
   if (poolLimit !== null) q.set("limit", String(poolLimit));
+  if (genre.trim() !== "") q.set("genre", genre.trim());
   return `/api/archive/megaset?${q}`;
 }
 
@@ -172,6 +179,7 @@ export function useMegasetBuilder() {
   const [minutesInput, setMinutesInput] = useState("60");
   const [searchChoice, setSearchChoice] = useState<MegasetSearchChoice>("auto");
   const [poolLimitInput, setPoolLimitInput] = useState("");
+  const [genreInput, setGenreInput] = useState("");
   const [opener, setOpener] = useState<TrackPick | null>(null);
   const [openerQuery, setOpenerQuery] = useState("");
   const [build, setBuild] = useState<MegasetBuildState>(initialBuild);
@@ -191,6 +199,7 @@ export function useMegasetBuilder() {
     searchChoice,
     poolLimitInput,
     poolLimit,
+    genreInput,
     opener,
     openerQuery,
     openerSearch,
@@ -198,7 +207,7 @@ export function useMegasetBuilder() {
     steps,
     keyGlide: keyGlideOf(steps),
     buildLabel: buildLabel(build, minutes, preset),
-    exportHref: exportHref(build, opener, searchChoice, poolLimit),
+    exportHref: exportHref(build, opener, searchChoice, poolLimit, genreInput),
     choosePreset: (next: MegasetPresetDef) => {
       setPreset(next);
       invalidateProposal();
@@ -217,6 +226,11 @@ export function useMegasetBuilder() {
       invalidateProposal();
     },
     commitPoolLimit: () => setPoolLimitInput(String(poolLimit ?? "")),
+    // #283 genre filter — live invalidate so the Build button re-scores
+    setGenreInput: (next: string) => {
+      setGenreInput(next);
+      invalidateProposal();
+    },
     setOpenerQuery,
     chooseOpener: (next: TrackPick | null) => {
       setOpener(next);
@@ -229,6 +243,7 @@ export function useMegasetBuilder() {
         searchChoice,
         poolLimit,
         opener,
+        genreInput,
         setBuild,
       ),
   };

@@ -222,6 +222,26 @@
   align-items: stretch;
   margin: 2px 0 12px;
 }
+
+/* #283 genre pool filter — input + matched-row count */
+.megaset-genre-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface2);
+  font-size: 12px;
+}
+.megaset-genre-input:focus {
+  outline: 1px solid var(--accent, var(--stroke));
+}
+.megaset-genre-count {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-2, var(--text));
+}
+
 .megaset-minutes {
   display: flex;
   align-items: center;

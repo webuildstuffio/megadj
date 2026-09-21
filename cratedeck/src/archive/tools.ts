@@ -207,6 +207,9 @@ export function archiveTools(): Record<string, ToolDef> {
           enum: ["greedy", "beam"],
           description: `force a sequencer strategy (A/B compare); omitted = automatic (pools under ${MEGASET_BEAM_POOL_MAX} run the deep 'beam' search, larger keep greedy)`,
         },
+        genre: s(
+          "#283 genre pool filter — narrows candidates by case-folded substring family ('house' matches House/Tech House/Deep-house, 'tropical' → tropical house). Omitted = whole downloaded library",
+        ),
       }),
       run: async (args: Record<string, unknown>) => {
         // same validation as the HTTP route (parseMegasetQuery): unknown
@@ -235,6 +238,12 @@ export function archiveTools(): Record<string, ToolDef> {
             throw new RpcParamError('search must be "greedy" or "beam"');
           q.set("search", searchRaw);
         }
+        // #283 genre filter: pass-through; the route's shared family
+        // matcher validates semantics (unknown families match literally —
+        // an empty pool + honest diagnosis, never a silent whole-library
+        // fallback)
+        const genre = str(args, "genre");
+        if (genre !== undefined) q.set("genre", genre);
         const rawLimit = args.limit;
         if (rawLimit !== undefined) {
           const parsedLimit = num(args, "limit");

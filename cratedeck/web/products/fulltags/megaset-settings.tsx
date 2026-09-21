@@ -97,11 +97,42 @@ function DurationSettings(props: { model: MegasetBuilder }) {
   );
 }
 
+function GenreSettings(props: { model: MegasetBuilder }) {
+  const { model } = props;
+  const filtered = model.build.data?.genre_filtered ?? 0;
+  return (
+    <fieldset class="megaset-length" disabled={model.build.loading}>
+      <StepTitle
+        n={3}
+        title="Genre"
+        hint="narrow the pool to a genre family — blank means everything"
+      />
+      <input
+        type="search"
+        class="megaset-genre-input"
+        placeholder="e.g. tropical house, house, techno, dnb…"
+        aria-label="Genre filter (substring match, blank = whole library)"
+        value={model.genreInput}
+        onInput={(event) =>
+          model.setGenreInput((event.target as HTMLInputElement).value)
+        }
+      />
+      {filtered > 0 && (
+        <p class="megaset-genre-count" role="status">
+          pool narrowed to <strong>{filtered}</strong>{" "}
+          {filtered === 1 ? "track" : "tracks"} matching “
+          {model.genreInput.trim()}”
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
 function SequencerSettings(props: { model: MegasetBuilder }) {
   const { model } = props;
   return (
     <fieldset class="megaset-length" disabled={model.build.loading}>
-      <StepTitle n={3} title="Sequencer" />
+      <StepTitle n={4} title="Sequencer" />
       <SequencerRow
         searchChoice={model.searchChoice}
         onChoice={model.chooseSearch}
@@ -159,6 +190,7 @@ export function MegasetSettings(props: {
     >
       <PresetSettings model={props.model} />
       <DurationSettings model={props.model} />
+      <GenreSettings model={props.model} />
       <SequencerSettings model={props.model} />
       <BuildControls model={props.model} openerPicker={props.openerPicker} />
     </form>

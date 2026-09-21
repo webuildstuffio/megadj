@@ -70,6 +70,8 @@ export interface RbPlaylistOptions {
   minutes?: number | undefined;
   opener?: string | undefined;
   limit?: number | undefined;
+  /** #283 genre pool filter (raw value; shared family matcher). */
+  genre?: string | undefined;
   /** Playlist name (defaults to "megaset <preset> <minutes>min <date>"). */
   playlist?: string | undefined;
   /** Parent playlist group (defaults to the proven "DJ-Imports"). */
@@ -128,6 +130,8 @@ function buildChain(
     if (!archive.available()) return { error: `no archive at ${DB_PATH}` };
     const { candidates } = archive.setCandidates(
       clampMegasetPool(opts.limit ?? null),
+      // #283 genre pool filter — same family matcher as megaset CLI/web
+      opts.genre,
     );
 
     const built = buildMegaset({

@@ -41,6 +41,8 @@ export interface MegasetOptions {
   limit?: number | undefined;
   /** Force a sequencer strategy (A/B compare); undefined = automatic. */
   search?: SetSearchOverride | undefined;
+  /** #283 genre pool filter (raw value; family-matched via megasetGenreTerms). */
+  genre?: string | undefined;
   json?: boolean | undefined;
   /** Log sink override (tests); default = commandLog routing. */
   onProgress?: ((msg: string) => void) | undefined;
@@ -96,11 +98,14 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       candidates,
       keyReads,
       keyReadFailures,
+      genreFiltered,
       freshness,
     } = reader.setCandidates(
       // shared clamp — an explicit --limit is bounded by the same contract
       // as the route/MCP (1–1000); absent → whole analyzed library
       clampMegasetPool(opts.limit ?? null),
+      // #283 genre pool filter — same family matcher as the route/MCP
+      opts.genre,
     );
     const built = buildMegaset({
       candidates,
@@ -130,6 +135,8 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       excluded_groups: built.excluded_groups,
       excluded_total: built.excluded.length,
       metadata_only: metadataOnly,
+      // #283: matched rows when a --genre filter ran (0 = unfiltered)
+      genre_filtered: genreFiltered,
       freshness,
       search: built.search,
     };

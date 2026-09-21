@@ -127,6 +127,10 @@ export interface MegasetPayload extends MegasetResult {
   /** Key-tag reads that failed; affected tracks are scored without key. */
   key_read_failures: number;
   excluded_total: number;
+  /** #283 genre pool filter: rows the `?genre=` LIKE matched BEFORE the
+   *  filesystem census. 0 when no filter was passed — a filtered build
+   *  is always visible, never a silent subset. */
+  genre_filtered: number;
   /** Ledger ages for the newest beats/mood analysis — a stale pool is
    *  VISIBLE ("proposed from analysis older than your latest drops"),
    *  never silent. Null when that ledger is empty. */
@@ -356,6 +360,65 @@ export const MEGASET_POOL_MIN = 1;
 export const MEGASET_POOL_MAX = 1000;
 /** Sentinel for an absent limit: inspect the whole downloaded DB census. */
 export const MEGASET_POOL_UNLIMITED = 0;
+
+// ---- #283 genre pool filter (one family matcher, all surfaces) -------------
+/** Case-folded substring families: a `?genre=` value matches when ANY of
+ *  these substrings appears in the track's genre — "house" matches "House",
+ *  "Tech House", "Deep-house"; "tropical house" matches "Tropical Disco"-class
+ *  strays only via its synonyms. One matcher: the SQL WHERE builder and the
+ *  JS fallback both derive from THIS table — never a twin list. */
+export const MEGASET_GENRE_FAMILIES: Record<string, string[]> = {
+  house: ["house"],
+  techno: ["techno"],
+  "tropical house": ["tropical house", "tropical", "latin house", "baile"],
+  "deep house": ["deep house", "deep-house"],
+  "tech house": ["tech house", "tech-house"],
+  "progressive house": ["progressive house", "prog house"],
+  edm: ["edm", "electro house", "big room"],
+  "hip-hop": ["hip-hop", "hip hop", "hiphop", "rap"],
+  pop: ["pop"],
+  trance: ["trance"],
+  dnb: ["drum and bass", "drum & bass", "dnb", "jungle"],
+  dubstep: ["dubstep"],
+  disco: ["disco", "funky"],
+  afrohouse: ["afro house", "afro-house", "afro latin house", "afro"],
+};
+
+/** Resolve a raw `?genre=` / `--genre` / MCP `genre` value to a match-term
+ *  list. Exact family id wins ("tropical house"); then a family whose id or
+ *  synonyms appear in the raw value ("tropical" → "tropical house"); last
+ *  resort the raw value IS the substring (free-form, e.g. "gqom"). Empty
+ *  for absent/blank: no filter — the unfiltered census, byte-identical. */
+export function megasetGenreTerms(raw: string | null | undefined): string[] {
+  const trimmed = raw?.trim().toLowerCase() ?? "";
+  if (trimmed === "") return [];
+  if (trimmed in MEGASET_GENRE_FAMILIES)
+    return [trimmed, ...MEGASET_GENRE_FAMILIES[trimmed]!];
+  for (const [family, synonyms] of Object.entries(MEGASET_GENRE_FAMILIES)) {
+    if (trimmed.includes(family) || synonyms.some((s) => trimmed.includes(s))) {
+      return [family, ...synonyms];
+    }
+  }
+  return [trimmed];
+}
+
+/** #283 pool-starvation fallbacks: when a resolved family matches fewer
+ *  than MEGASET_BEAM_POOL_MAX rows the matcher WIDENS to these parent
+ *  families (strict terms first, then the fallbacks' terms appended in
+ *  order — LIKE OR, so a row matching either counts). "tropical house"
+ *  measured 10 strict rows (beam dead-end at 1 step); widening to house
+ *  recovers a 1,436-row pool while tropical-labelled tracks still sort
+ *  first in recency. Absent entry = no widening (free-form values stay
+ *  literal). */
+export const MEGASET_GENRE_FALLBACKS: Record<string, string[]> = {
+  "tropical house": ["house"],
+  "deep house": ["house"],
+  "tech house": ["house"],
+  "progressive house": ["house"],
+  afrohouse: ["house"],
+  dnb: [],
+  dubstep: [],
+};
 
 /** Beam-search activation threshold: pools BELOW this size run a beam
  * continuation (width MEGASET_BEAM_WIDTH) instead of pure greedy — the

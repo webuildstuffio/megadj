@@ -37,6 +37,8 @@ out = {"linked": 0, "unmatched": [], "playlistId": None, "parentId": None, "erro
 
 # @kit(pyPathKeyFn)
 
+# @kit(PY_RID_FN)
+
 # Exact normalized path wins. Basename fallback is allowed only when it is
 # unique; duplicate filenames across artist folders are ambiguous and must
 # never silently link the arbitrary first row.
