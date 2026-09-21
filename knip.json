@@ -33,7 +33,7 @@
       "entry": [
         "src/deckctl.ts",
         "src/mcp.ts",
-        "src/*.test.ts",
+        "src/**/*.{test.ts,test.ts}",
         "test/*.test.ts",
         "test/testutil.ts",
         "shared/types.ts"

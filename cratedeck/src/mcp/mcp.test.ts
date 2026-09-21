@@ -45,7 +45,12 @@ const proc = Bun.spawn(
       CRATEDECK_NO_AUTOSTART: "1",
       CRATEDECK_OFFLINE: "1",
       CRATEDECK_PORT: "59999",
-      CRATEDECK_DATA: join(import.meta.dir, "..", "..", "data-test-mcp-protocol"),
+      CRATEDECK_DATA: join(
+        import.meta.dir,
+        "..",
+        "..",
+        "data-test-mcp-protocol",
+      ),
       CRATEDECK_ROOT: join(import.meta.dir, "..", ".."),
       CRATEDECK_VOLUMES: join(
         import.meta.dir,

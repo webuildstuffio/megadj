@@ -11,7 +11,11 @@
 //   title+artist — fallback join when a track lives at different paths on
 //              different sticks (B6's "same track, different folder" case).
 
-import type { CoverageResult, TrackCoverage, TrackRow } from "../../shared/types";
+import type {
+  CoverageResult,
+  TrackCoverage,
+  TrackRow,
+} from "../../shared/types";
 export {
   type ManifestRow,
   type PlaylistEntryRow,
