@@ -9,11 +9,8 @@ import { extname, join, relative } from "node:path";
 import { isRecord, isUnknownArray } from "../shared/leaf/guards";
 import { probeMediaSync } from "../fulltags/media-probe";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
-import {
-  lastJsonLine,
-  parseJsonBoundary,
-  rbPythonFile,
-} from "./rb-command-kit.js";
+import { rbPythonFile } from "./rb-python-file.js";
+import { lastJsonLine, parseJsonBoundary } from "./rb-command-kit.js";
 // AUDIO_EXTS: the #69 SSOT — the private set that lived in rb-import.ts
 // missed .alac, so an ALAC rip reaching intake was invisible to
 // discovery (issue #200: the #69 drift class, regrown).

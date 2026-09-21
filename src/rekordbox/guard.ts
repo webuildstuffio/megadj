@@ -22,7 +22,7 @@ import {
   rmSync,
   statSync,
 } from "node:fs";
-import { rbPythonFile } from "./rb-command-kit.js";
+import { rbPythonFile } from "./rb-python-file.js";
 
 /** True while the rekordbox app is running (its live WAL silently
  *  overwrites external DB edits on quit — never write while open). */

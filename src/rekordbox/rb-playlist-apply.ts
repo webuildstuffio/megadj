@@ -4,7 +4,8 @@
 // verify) and the apply-leg result shape. rb-playlist.ts keeps the
 // gates, chain build, read-only predict probe, and the rbPlaylist
 // sequencer; this module owns everything that writes the master DB.
-import { lastJsonLine, rbPythonFile } from "./rb-command-kit.js";
+import { rbPythonFile } from "./rb-python-file.js";
+import { lastJsonLine } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 import {

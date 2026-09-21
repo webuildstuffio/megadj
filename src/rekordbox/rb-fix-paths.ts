@@ -36,6 +36,7 @@ import {
   restoreMasterBackup,
   sleepSync,
 } from "./guard.js";
+import { rbPythonFile } from "./rb-python-file.js";
 import {
   applyConfirmationRefusal,
   DECIMAL_ID_RE,
@@ -43,7 +44,6 @@ import {
   makeFail,
   parseJsonBoundary,
   printResult,
-  rbPythonFile,
 } from "./rb-command-kit.js";
 import { masterDbPath, normalizeMount } from "./master-path.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";

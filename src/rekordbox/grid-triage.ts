@@ -31,12 +31,8 @@ import { parseAnlzGrid } from "../fulltags/anlz";
 import { MUSIC_DIR } from "../cli-env";
 import { nameKey } from "../shared/name-key";
 import { masterDbPath, normalizeMount } from "./master-path.js";
-import {
-  lastJsonLine,
-  makeFail,
-  printResult,
-  rbPythonFile,
-} from "./rb-command-kit.js";
+import { rbPythonFile } from "./rb-python-file.js";
+import { lastJsonLine, makeFail, printResult } from "./rb-command-kit.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
