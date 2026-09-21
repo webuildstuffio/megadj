@@ -3,7 +3,7 @@ import {
   isTrustedMutationRequest,
   withSecurityHeaders,
 } from "../src/http-security";
-import { photoUpload } from "../src/drive-job-routes";
+import { photoUpload } from "../src/drive/job-routes";
 import { MAX_IMAGE_BYTES } from "../src/image/store";
 
 describe("CrateDeck HTTP browser boundary", () => {

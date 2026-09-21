@@ -68,7 +68,7 @@ function serverRoutes(): Set<string> {
 
   // Drive subroutes: sub === literals in drive_routes.ts + the regex
   // shapes the sub matcher uses (the noteMatch dismiss arm).
-  const driveRoutes = read("cratedeck/src/drive-routes.ts");
+  const driveRoutes = read("cratedeck/src/drive/routes.ts");
   for (const m of driveRoutes.matchAll(/sub === "(\/[a-z/-]+)"/g))
     if (m[1]) routes.add(`/drives/:id${m[1]}`);
   if (driveRoutes.includes("const noteMatch = sub.match"))

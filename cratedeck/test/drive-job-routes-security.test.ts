@@ -7,7 +7,7 @@ import {
   makeEnqueueDriveJob,
   photoUpload,
   resolveMountPoint,
-} from "../src/drive-job-routes";
+} from "../src/drive/job-routes";
 import { DRIVE_JOB_KINDS, type Drive } from "../shared/types";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).

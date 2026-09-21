@@ -24,9 +24,9 @@ import { megadjCliPath } from "./intake-run";
 import { isTrustedMutationRequest, withSecurityHeaders } from "./http-security";
 import { makeServerLifecycle } from "./server-lifecycle";
 import { makeFleetRoutes } from "./fleet/routes";
-import { makeDriveRoutes } from "./drive-routes";
+import { makeDriveRoutes } from "./drive/routes";
 import { makeApiRouter } from "./api/routes";
-import { photoUpload, makeEnqueueDriveJob } from "./drive-job-routes";
+import { photoUpload, makeEnqueueDriveJob } from "./drive/job-routes";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);

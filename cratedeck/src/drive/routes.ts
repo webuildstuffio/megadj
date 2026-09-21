@@ -4,23 +4,23 @@
 // collapses into one helper. Route literals stay `sub === "…"` shaped so the
 // surface-parity census (surface-parity.test.ts httpApiRoutes) keeps seeing
 // them.
-import type { DB } from "./db";
-import type { Registry } from "./registry";
-import type { ImageService } from "./image/store";
-import type { CrateConfig } from "./config";
-import { freeBytes } from "./scan";
-import { driveBadges, parseSnapshotJson, syncBadge } from "../shared/badges";
-import { buildReport, buildReportSummary, overall } from "./report/report";
-import { VERIFY_HELP } from "./verify/help";
-import { exportDossier, reportInput, type ReportDeps } from "./report/inputs";
-import { driveCompatibility } from "./players";
+import type { DB } from "../db";
+import type { Registry } from "../registry";
+import type { ImageService } from "../image/store";
+import type { CrateConfig } from "../config";
+import { freeBytes } from "../scan";
+import { driveBadges, parseSnapshotJson, syncBadge } from "../../shared/badges";
+import { buildReport, buildReportSummary, overall } from "../report/report";
+import { VERIFY_HELP } from "../verify/help";
+import { exportDossier, reportInput, type ReportDeps } from "../report/inputs";
+import { driveCompatibility } from "../players";
 import {
   normalizeNote,
   addAgentNote,
   dismissAgentNote,
   agentNotes,
-} from "./notes";
-import type { Drive, NoteSeverity, SnapshotData } from "../shared/types";
+} from "../notes";
+import type { Drive, NoteSeverity, SnapshotData } from "../../shared/types";
 
 /** Server-side badge computation glue (#221: was badges_view.ts, 26L —
  *  merged into its only consumer; shared rules live in shared/badges.ts,
