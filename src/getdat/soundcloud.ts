@@ -49,6 +49,16 @@ export function scTrackIdFromUrl(url: string): string | null {
   return m?.[1] ?? null;
 }
 
+/** The SyncSource kind for a soundcloud.com URL: a /sets/<slug> page is
+ *  a SET (fan-out + per-set provenance label); everything else is a
+ *  single track. Liked/user pages go through their own explicit flags —
+ *  a bare URL is never silently re-classed. (Sep 21: `sync --sc-url`
+ *  repeated for the parvati sets was reading only the LAST url and
+ *  ripping it as one track — 4 playlists, 3 silently dropped.) */
+export function scSourceKindFor(url: string): "sc-set" | "sc-track" {
+  return /soundcloud\.com\/.+\/sets\//.test(url) ? "sc-set" : "sc-track";
+}
+
 /** Expand a /sets/<slug> URL into its track ids via the api-v2 resolve
  *  endpoint (OUR client-id seam, not yt-dlp's -J dump: the dump full-
  *  resolves every entry and one MONETIZE entry's 403 kills the whole

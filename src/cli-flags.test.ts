@@ -5,6 +5,7 @@ import {
   nonNegOptInvalid,
   parseFlags,
   positionalArgs,
+  repeatedOf,
 } from "./cli-flags";
 
 describe("CLI flag parsing", () => {
@@ -82,5 +83,24 @@ describe("nonNegOpt — the loud numeric boundary (numOpt retired)", () => {
     const flags = parseFlags(["--limit", "0"], ["limit"], []);
     expect(nonNegOpt(flags, "limit", "cmd")).toBe(0);
     expect(nonNegOptInvalid(flags, "limit", "cmd")).toBe(false);
+  });
+
+  test("repeatedOf collects REPEATED space-form values (parseFlags is last-wins)", () => {
+    // The Sep 21 sync bug: `--sc-url A --sc-url B --sc-url C --sc-url D`
+    // synced only D — the strings map kept the last value.
+    expect(
+      repeatedOf(
+        ["--sc-url", "https://a", "--limit", "5", "--sc-url", "https://b"],
+        "sc-url",
+      ),
+    ).toEqual(["https://a", "https://b"]);
+    // eq-form and mixed forms both count
+    expect(
+      repeatedOf(["--sc-url=https://c", "--sc-url", "https://d"], "sc-url"),
+    ).toEqual(["https://c", "https://d"]);
+    // a flag-shaped token is a VALUE boundary, not a value (parseFlags rule)
+    expect(repeatedOf(["--sc-url", "--force-rip"], "sc-url")).toEqual([]);
+    // other keys untouched
+    expect(repeatedOf(["--cookies", "f.txt"], "sc-url")).toEqual([]);
   });
 });

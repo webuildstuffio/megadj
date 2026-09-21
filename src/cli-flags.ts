@@ -150,3 +150,31 @@ export function manyOf(rest: string[], key: string): string[] {
     .map((a) => a.slice(key.length + 3))
     .filter((v): v is string => v.length > 0);
 }
+
+/** Space-form REPEATS of one string option (`--sc-url A --sc-url B`).
+ *  parseFlags' strings map is last-wins, so repeated space-form flags
+ *  silently dropped all but the last value (Sep 21: `sync --sc-url` × 4
+ *  playlists synced only the fourth). Complements manyOf (which covers
+ *  the --key=value form only): same consumption rule — a flag token's
+ *  next non-flag token is its value. */
+export function repeatedOf(args: string[], key: string): string[] {
+  const values: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === undefined) continue;
+    if (arg === "--") break;
+    const eq = arg.indexOf("=");
+    if (eq > 0) {
+      if (arg.slice(2, eq) === key) values.push(arg.slice(eq + 1));
+      continue;
+    }
+    if (arg === `--${key}`) {
+      const next = args[i + 1];
+      if (next !== undefined && !next.startsWith("--")) {
+        values.push(next);
+        i++;
+      }
+    }
+  }
+  return values;
+}

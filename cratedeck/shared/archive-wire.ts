@@ -38,7 +38,9 @@ export interface ArchiveIngestStatus {
    *  (source_links JSON parsed — first URL wins as `url`, the full list
    *  rides in `links`). Distinct list — surfaced is an HONEST terminal
    *  state, never folded into downloaded. `done` = the user's checklist
-   *  (clicked + saved into the downloads folder). */
+   *  (clicked + saved into the downloads folder). `source` names the
+   *  set/playlist the row came from ("soundcloud:<slug>" or plain
+   *  "soundcloud"). */
   surfaced: {
     video_id: string;
     title: string | null;
@@ -51,6 +53,18 @@ export interface ArchiveIngestStatus {
     done: boolean;
     /** ISO time the user checked it off (null while open). */
     done_at: string | null;
+    /** Set/playlist provenance ("soundcloud:mmw-2026", "soundcloud"). */
+    source: string;
+  }[];
+  /** Per-set census (Sep 21): every scraped `soundcloud:<slug>` set with
+   *  its row decomposition — the playlists-to-go-through strip. */
+  sc_sets: {
+    slug: string;
+    total: number;
+    downloaded: number;
+    gone: number;
+    surfaced: number;
+    pending: number;
   }[];
 }
 

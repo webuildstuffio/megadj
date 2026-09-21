@@ -836,3 +836,92 @@ a.surfaced-link:hover {
   color: var(--text-1, inherit);
   min-width: 260px;
 }
+
+/* Clickable stat cards + share-bar segs (Sep 21): the archive's five
+   counters jump to their matching list. Cursor + focus affordance. */
+.stat.clickable {
+  cursor: pointer;
+}
+
+.stat.clickable:hover {
+  border-color: var(--accent, #4aa3ff);
+}
+
+.arch-seg.clickable {
+  cursor: pointer;
+}
+
+.arch-legend span.clickable {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+/* Surfaced card pagination (Sep 21: 70 rows, was capped at 50). */
+.surfaced-pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--dim, var(--text-2));
+}
+
+.surfaced-pager button {
+  font-size: 12px;
+  padding: 3px 10px;
+}
+
+/* Per-row set provenance chip. */
+.surfaced-src {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  color: var(--dim, var(--text-2));
+  vertical-align: middle;
+}
+
+/* The playlists-to-go-through strip (sc_sets census). */
+.sc-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sc-set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+}
+
+.sc-set-row b {
+  min-width: 120px;
+}
+
+.sc-set-progress {
+  color: var(--dim, var(--text-2));
+}
+
+.sc-set-progress i.have {
+  color: var(--ok, #3ecf8e);
+  font-style: normal;
+}
+
+.sc-set-progress i.surf {
+  color: var(--accent, #4aa3ff);
+  font-style: normal;
+}
+
+.sc-set-progress i.gone {
+  color: var(--bad, #ff6b6b);
+  font-style: normal;
+}

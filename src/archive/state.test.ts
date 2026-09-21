@@ -433,6 +433,24 @@ describe("link_surfaced ledger state (#256)", () => {
     expect(scState.markSurfacedDoneExists("nonexistent")).toBe(false);
   });
 
+  test("upsertTrackFromPlaylist relabel=true re-keys provenance; default stays first-label-wins", () => {
+    // The Sep 21 bug: parvati-set rows predated soundcloud:<slug> labels
+    // and re-scraping the set could never fix them (ON CONFLICT skipped
+    // source), so per-set progress was underivable.
+    scState.upsertTrackFromPlaylist("270000020", 0, "Old", "soundcloud");
+    scState.upsertTrackFromPlaylist(
+      "270000020",
+      1,
+      "Old",
+      "soundcloud:mmw-2026",
+      true,
+    );
+    expect(scState.trackById("270000020")?.source).toBe("soundcloud:mmw-2026");
+    // Default: a YT playlist refresh must NOT re-key an existing row
+    scState.upsertTrackFromPlaylist("270000020", 2, "Old", "liked");
+    expect(scState.trackById("270000020")?.source).toBe("soundcloud:mmw-2026");
+  });
+
   test("markForcedRip keeps the decision without changing status", () => {
     scState.upsertTrackFromPlaylist("270000001", 0, "Track", "soundcloud");
     scState.markForcedRip(

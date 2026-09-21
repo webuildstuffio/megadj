@@ -399,6 +399,9 @@ async function prepareQueue(
           index,
           entry.title,
           entry.label,
+          // Relabel: a set re-scrape re-establishes soundcloud:<slug>
+          // provenance (the parvati rows predate per-set labels).
+          true,
         );
       }
       pendingPreview.push({

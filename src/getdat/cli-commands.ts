@@ -12,7 +12,7 @@
 // numeric input = json-safe exit 2, zero work.
 import type { OrganizeOptions } from "./commands/organize";
 import { sync, type PlaylistSource } from "./commands/sync";
-import { SC_SOURCE, isSoundCloudUrl } from "./soundcloud";
+import { SC_SOURCE, isSoundCloudUrl, scSourceKindFor } from "./soundcloud";
 import { RateLimiter } from "./ratelimit";
 import {
   firstPositional,
@@ -20,6 +20,7 @@ import {
   nonNegOptInvalid,
   parseFlags,
   positionalArgs,
+  repeatedOf,
 } from "../cli-flags";
 import type { CliCommandHandler } from "../cli-dispatch";
 import { listJson, listTracks, status, statusJson } from "../shared/status";
@@ -98,6 +99,28 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
       return;
     }
     sources = [{ kind: "sc-track", url: scUrl, label: SC_SOURCE }];
+  }
+  // Repeatable --sc-url (Sep 21): parseFlags is last-wins, so four
+  // `--sc-url` playlists synced only the fourth. Each URL is classed by
+  // SHAPE — a /sets/<slug> page is a SET (fan-out + per-set provenance),
+  // anything else a single track.
+  const scUrls = repeatedOf(rest, "sc-url");
+  if (scUrls.length > 0) {
+    const bad = scUrls.find((u) => !isSoundCloudUrl(u));
+    if (bad !== undefined) {
+      await finishCommandError({
+        command: "sync",
+        json: flags.bools.has("json"),
+        error: `--sc-url wants a soundcloud.com URL, got: ${bad}`,
+        exitCode: 2,
+      });
+      return;
+    }
+    sources = scUrls.map((u) => ({
+      kind: scSourceKindFor(u),
+      url: u,
+      label: SC_SOURCE,
+    }));
   }
   await sync({
     state: context.state,

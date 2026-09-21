@@ -12,38 +12,14 @@
 //      decomposes downloaded vs finished — no-genre meter, raw batch
 //      folders with one-click intake, and the genre-pass jump. The
 //      surfaced batch button navigates to the Intake tab (job-based).
+// The surfaced-card pins moved to products/getdat/surfaced-card.test.tsx
+// (test-placement #246: co-located beside the extracted subject).
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
 import { FetchedGate } from "../ui/useFetched";
-import {
-  EnrichmentFunnel,
-  SurfacedLinksCard,
-} from "../products/getdat/getdat-tabs";
-
-const canvasCss = readFileSync(
-  join(import.meta.dir, "../styles/canvas.css"),
-  "utf8",
-);
-const tokensCss = readFileSync(
-  join(import.meta.dir, "../styles/tokens.css"),
-  "utf8",
-);
-const tabsSrc = readFileSync(
-  join(import.meta.dir, "../products/getdat/getdat-tabs.tsx"),
-  "utf8",
-);
-
-const surfacedRow = {
-  video_id: "123",
-  title: "Shelter",
-  artist: "Porter Robinson",
-  url: "https://example.com/buy",
-  links: [{ kind: "purchase_url", url: "https://example.com/buy" }],
-  done: false,
-  done_at: null,
-};
+import { EnrichmentFunnel } from "../products/getdat/getdat-tabs";
 
 describe("FetchedGate shared states (Sep 19 polish)", () => {
   test("loading spins — motion implies work, static text implied a hang", () => {
@@ -65,72 +41,6 @@ describe("FetchedGate shared states (Sep 19 polish)", () => {
     expect(html).toContain("archive offline");
     expect(html).toContain("note bad");
     expect(html).toContain("lucide-circle-x");
-  });
-});
-
-describe("surfaced-link cohort in the web UI (#256 parity)", () => {
-  test("SurfacedLinksCard renders clickable URLs, checkbox and the CLI pointer", () => {
-    const html = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="ledger" />,
-    );
-    expect(html).toContain("Shelter");
-    expect(html).toContain("Porter Robinson");
-    // URL-first: the bare link, rendered as a real anchor
-    expect(html).toContain('href="https://example.com/buy"');
-    expect(html).toContain("example.com/buy");
-    expect(html).toContain('type="checkbox"');
-    expect(html).toContain("megadj surfaced-note");
-  });
-
-  test("the two contexts frame the same rows differently (one component)", () => {
-    const ledger = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="ledger" />,
-    );
-    const backlog = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="backlog" />,
-    );
-    expect(ledger).toContain("go through them instead of ripping");
-    expect(backlog).toContain("yours to click");
-  });
-
-  test("backlog context exposes the batch finalize (fulltags ingest) flow", () => {
-    const backlog = render(
-      <SurfacedLinksCard
-        rows={[{ ...surfacedRow, done: true, done_at: "2026-09-19T22:00:00Z" }]}
-        context="backlog"
-      />,
-    );
-    expect(backlog).toContain("surfaced-batch");
-    expect(backlog).toContain("Music/Downloads");
-    // an UNDONE row renders without the batch row (nothing to finalize)
-    const open = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="backlog" />,
-    );
-    expect(open).not.toContain("surfaced-batch");
-  });
-
-  test("both GetDat tabs key off ingest.surfaced (the producer-filled wire)", () => {
-    expect(tabsSrc).toContain("ingest.surfaced");
-    // pipeline renders it as ledger context, backlog as the work item
-    expect(tabsSrc).toContain('context="ledger"');
-    expect(tabsSrc).toContain('context="backlog"');
-  });
-
-  test("pipeline share-bar has a surfaced seg wired to the info color", () => {
-    expect(tabsSrc).toContain('cls: "surfaced"');
-    const fleetCss = readFileSync(
-      join(import.meta.dir, "../styles/fleet-tabs.css"),
-      "utf8",
-    );
-    expect(fleetCss).toContain(".arch-seg.surfaced");
-    expect(fleetCss).toContain(".arch-legend i.surfaced");
-  });
-
-  test("canvas.css reads the primary-button tokens (raw greens retired)", () => {
-    expect(tokensCss).toContain("--accent-btn-bg");
-    expect(canvasCss).toContain("var(--accent-btn-bg)");
-    expect(canvasCss).not.toContain("#0f2b1e");
-    expect(canvasCss).not.toContain("#256b49");
   });
 });
 

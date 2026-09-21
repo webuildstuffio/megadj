@@ -18,6 +18,7 @@ import {
   scRawTrackLinks,
   scSetTrackIds,
   scTrackIdFromUrl,
+  scSourceKindFor,
   scTrackUrl,
   scUserGateNeeded,
   setScClientIdForTest,
@@ -57,6 +58,22 @@ describe("SC URL forms (#255)", () => {
     );
     expect(scTrackIdFromUrl(scTrackUrl("42"))).toBe("42");
     expect(scTrackIdFromUrl("https://soundcloud.com/artist/slug")).toBeNull();
+  });
+
+  test("scSourceKindFor classes /sets/ URLs as sets, everything else a track", () => {
+    // The Sep 21 bug: `sync --sc-url` × 4 playlists synced only the LAST
+    // one, as a single TRACK. The kind drives set fan-out + provenance.
+    expect(
+      scSourceKindFor(
+        "https://soundcloud.com/parvati-rajesh/sets/mmw-2026?ref=sms&utm_source=sms",
+      ),
+    ).toBe("sc-set");
+    expect(scSourceKindFor("https://soundcloud.com/artist/track-name")).toBe(
+      "sc-track",
+    );
+    expect(
+      scSourceKindFor("https://on.soundcloud.com/1RZJQeTMpW9ODmIlGb"),
+    ).toBe("sc-track");
   });
 });
 

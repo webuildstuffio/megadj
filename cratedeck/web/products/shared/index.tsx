@@ -94,9 +94,17 @@ export function Verdict(props: {
   );
 }
 
-/** Horizontal segmented share bar + legend (the archive pipeline pie). */
+/** Horizontal segmented share bar + legend (the archive pipeline pie).
+ *  Segments/legend entries accept an optional onClick (Sep 21): clicking
+ *  a seg jumps to that cohort's list — the bar is a legend AND a nav. */
 export function ShareBar(props: {
-  segs: { n: number; cls: string; label: string; title: string }[];
+  segs: {
+    n: number;
+    cls: string;
+    label: string;
+    title: string;
+    onClick?: () => void;
+  }[];
   total: number;
 }) {
   const total = props.total || 1;
@@ -112,9 +120,11 @@ export function ShareBar(props: {
           .map((s) => (
             <div
               key={s.cls}
-              class={`arch-seg ${s.cls}`}
+              class={`arch-seg ${s.cls}${s.onClick ? " clickable" : ""}`}
               style={{ width: `${(s.n / total) * 100}%` }}
               title={`${s.title}: ${s.n.toLocaleString()}`}
+              role={s.onClick ? "button" : undefined}
+              onClick={s.onClick}
             />
           ))}
       </div>
@@ -122,7 +132,11 @@ export function ShareBar(props: {
         {props.segs
           .filter((s) => s.n > 0)
           .map((s) => (
-            <span key={s.cls}>
+            <span
+              key={s.cls}
+              class={s.onClick ? "clickable" : undefined}
+              onClick={s.onClick}
+            >
               <i class={s.cls} /> {s.label} <em>{s.n.toLocaleString()}</em>
             </span>
           ))}

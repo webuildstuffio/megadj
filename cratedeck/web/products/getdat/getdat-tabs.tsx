@@ -39,9 +39,16 @@ import {
   Verdict,
   TrackTitle,
 } from "../shared";
+import { SurfacedLinksCard } from "./surfaced-card";
 import { fmtBytes } from "../../../../src/shared/leaf/fmt";
 
 // ---- pipeline ---------------------------------------------------------------
+
+/** Scroll to an in-page list section (the stat-card jump). No-op when
+ *  the target is gone (cohort emptied since render). */
+function jumpTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+}
 
 export function PipelineTab() {
   const page = useFetched<
@@ -100,29 +107,34 @@ export function PipelineTab() {
               v={inArchive.toLocaleString()}
               l="in the archive — playable"
               icon="disc"
+              onClick={() => navigateProduct("getdat", "library")}
             />
             <CountStat
               n={broken}
               l="failed + gone — the retry backlog"
               icon="warn"
               title="Failed downloads are retryable; gone-from-source needs a new source. Work it in the Backlog tab."
+              onClick={() => navigateProduct("getdat", "backlog")}
             />
             <StatCard
               v={waiting.toLocaleString()}
               l="waiting to download"
               icon="clock"
               title="The queue `megadj sync` works through next — review it in the Backlog tab and mark anything that isn't music out."
+              onClick={() => navigateProduct("getdat", "backlog")}
             />
             <StatCard
               v={surfaced.toLocaleString()}
               l="links surfaced — go through them"
               icon="compass"
               title="SoundCloud tracks that offer an official download/purchase link: the rip was skipped on purpose. The card below lists the URLs."
+              onClick={() => jumpTo("pipeline-surfaced")}
             />
             <StatCard
               v={movedOn.toLocaleString()}
               l="removed / skipped (bookkeeping)"
               icon="doc"
+              onClick={() => navigateProduct("getdat", "backlog")}
             />
           </div>
 
@@ -135,12 +147,14 @@ export function PipelineTab() {
                   cls: "have",
                   label: "in the archive",
                   title: "playable, analyzable, gig-eligible",
+                  onClick: () => navigateProduct("getdat", "library"),
                 },
                 {
                   n: broken,
                   cls: "broken",
                   label: "broken (failed/gone)",
                   title: "the re-download backlog",
+                  onClick: () => navigateProduct("getdat", "backlog"),
                 },
                 {
                   n: surfaced,
@@ -148,18 +162,21 @@ export function PipelineTab() {
                   label: "links surfaced",
                   title:
                     "an official link exists — rip skipped on purpose (#256)",
+                  onClick: () => jumpTo("pipeline-surfaced"),
                 },
                 {
                   n: waiting,
                   cls: "waiting",
                   label: "waiting to download",
                   title: "still in the queue",
+                  onClick: () => navigateProduct("getdat", "backlog"),
                 },
                 {
                   n: movedOn,
                   cls: "moved",
                   label: "removed/skipped",
                   title: "bookkeeping, not backlog",
+                  onClick: () => navigateProduct("getdat", "backlog"),
                 },
               ]}
             />
@@ -167,10 +184,12 @@ export function PipelineTab() {
 
           {stages && <EnrichmentFunnel stages={stages} />}
 
+          <div id="pipeline-surfaced" />
           {surfacedRows.length > 0 && (
             <SurfacedLinksCard
               rows={surfacedRows}
               context="ledger"
+              sets={ingest.sc_sets}
               onChanged={() => page.refresh?.()}
             />
           )}
@@ -453,6 +472,7 @@ export function BacklogTab() {
             <SurfacedLinksCard
               rows={surfaced}
               context="backlog"
+              sets={ingest.available ? ingest.sc_sets : []}
               onChanged={() => page.refresh?.()}
             />
           )}
@@ -547,168 +567,6 @@ export function PendingQueueCard(props: {
       <div class="arch-fix">
         CLI equivalent: <code>megadj skip &lt;video_id…&gt;</code> — bulk-mark
         from a terminal
-      </div>
-    </div>
-  );
-}
-
-/** SurfacedLinksCard — ONE component for the #256 surfaced-link cohort on
- *  both GetDat tabs that show it (Pipeline = the ledger view; Backlog =
- *  the "yours to click" work view). Same rows, same wire
- *  (ArchiveIngestStatus.surfaced), same rendering — only the framing text
- *  changes per context. Extracted when the two hand-rolled copies started
- *  drifting (the DRY rule that bit the route table, Sep 17). */
-/** Clickable acquisition links for one surfaced row (module scope — pure
- *  render, nothing captured). Bare URL, no "purchase_url" label. */
-function renderLinks(s: ArchiveIngestStatus["surfaced"][number]) {
-  if (s.links.length === 0) return <span class="dt-sub">link available</span>;
-  return (
-    <span class="surfaced-links">
-      {s.links.map((l) => (
-        <a
-          key={l.url}
-          href={l.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="btn btn-sm surfaced-link"
-        >
-          {l.url.replace(/^https?:\/\//, "")} ↗
-        </a>
-      ))}
-    </span>
-  );
-}
-
-export function SurfacedLinksCard(props: {
-  rows: ArchiveIngestStatus["surfaced"];
-  context: "ledger" | "backlog";
-  onChanged?: () => void;
-}) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [batchBusy, setBatchBusy] = useState(false);
-  // Default batch folder: the user's real downloads home (the intake
-  // watch dir, ~/Music/Downloads — editable to wherever the saved files
-  // actually sit). Plain literal: the browser bundle has no process.env,
-  // and the route validates the path.
-  const [folder, setFolder] = useState("/Users/nick/Music/Downloads");
-  const n = props.rows.length;
-  const doneCount = props.rows.filter((r) => r.done).length;
-  const openRows = props.rows.filter((r) => !r.done);
-  const copy = {
-    ledger: {
-      title: "Surfaced links — go through them instead of ripping",
-      hint: "These tracks advertise an official purchase or free-download link, so megadj skipped the rip and parked the URL here (--force-rip overrides, per drop). Surfaced rows are never counted as downloaded library.",
-    },
-    backlog: {
-      title: "Links surfaced — yours to click",
-      hint: "No code fixes these: the track advertises an official download/purchase link, the rip was skipped on purpose. Click through, save the file, check it off, then run the batch to fulltags-process everything you saved.",
-    },
-  }[props.context];
-  const setDone = async (videoId: string, done: boolean) => {
-    setBusy(videoId);
-    try {
-      await apiPost(`/api/archive/surfaced-note`, { id: videoId, done });
-      props.onChanged?.();
-    } finally {
-      setBusy(null);
-    }
-  };
-  const finalizeBatch = async () => {
-    setBatchBusy(true);
-    try {
-      // Job-based now: the route enqueues the intake job and returns at
-      // once — no 600s client deadline, progress/cancel live in the dock.
-      const batch = await apiPost<{
-        ok: boolean;
-        jobId?: string;
-        submitted: number;
-      }>(
-        `/api/archive/surfaced-batch`,
-        {
-          folder,
-          ids: props.rows.filter((row) => row.done).map((row) => row.video_id),
-        },
-        { timeoutMs: 30_000 },
-      );
-      if (batch.jobId)
-        toast(
-          `Processing ${batch.submitted} saved file${batch.submitted === 1 ? "" : "s"} — job ${batch.jobId.slice(0, 8)}`,
-          "ok",
-        );
-      navigateProduct("getdat", "intake");
-      props.onChanged?.();
-    } catch (e: unknown) {
-      toast(
-        `batch refused: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
-    } finally {
-      setBatchBusy(false);
-    }
-  };
-  return (
-    <div class="card">
-      <ListHead
-        icon="compass"
-        title={copy.title}
-        n={n}
-        hint={copy.hint}
-        lines={[
-          `${doneCount} checked off · ${openRows.length} open`,
-          ...props.rows
-            .slice(0, 3)
-            .map((s) => `${s.title ?? s.video_id} — ${s.url ?? "link"}`),
-        ]}
-      />
-      <KVRows>
-        {props.rows.slice(0, 50).map((s) => (
-          <KVRow key={s.video_id} class={s.done ? "surfaced-done" : ""}>
-            <KVKey>
-              <label class="surfaced-check">
-                <input
-                  type="checkbox"
-                  checked={s.done}
-                  disabled={busy === s.video_id}
-                  onChange={(e) =>
-                    setDone(s.video_id, (e.target as HTMLInputElement).checked)
-                  }
-                />
-                <TrackTitle
-                  title={s.title}
-                  videoId={s.video_id}
-                  artist={s.artist}
-                />
-              </label>
-            </KVKey>
-            <KVVal>{renderLinks(s)}</KVVal>
-          </KVRow>
-        ))}
-        {n > 50 && <Truncated shown={50} total={n} />}
-      </KVRows>
-      {props.context === "backlog" && doneCount > 0 && (
-        <div class="surfaced-batch">
-          <label class="surfaced-folder">
-            batch folder
-            <input
-              type="text"
-              value={folder}
-              onInput={(e) => setFolder((e.target as HTMLInputElement).value)}
-            />
-          </label>
-          <button
-            class="btn primary"
-            disabled={batchBusy}
-            onClick={() => void finalizeBatch()}
-          >
-            {batchBusy
-              ? "processing…"
-              : `Fulltags-process ${doneCount} saved file${doneCount === 1 ? "" : "s"}`}
-          </button>
-        </div>
-      )}
-      <div class="arch-fix">
-        click a link → save the file into the downloads folder → check it off →
-        run the batch. Ledger: <code>megadj surfaced-note &lt;id&gt;</code>
       </div>
     </div>
   );

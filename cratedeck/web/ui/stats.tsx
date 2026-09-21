@@ -16,9 +16,26 @@ export function StatCard(props: {
   tone?: StatTone | undefined;
   /** small muted suffix after the label (e.g. the mood gloss) */
   em?: string | undefined;
+  /** Click affordance (Sep 21): the archive counters jump to their
+   *  matching list — the stat becomes a button. */
+  onClick?: (() => void) | undefined;
 }) {
+  const clickable = props.onClick !== undefined;
   return (
-    <div class={`stat ${props.tone ?? ""}`} title={props.title}>
+    <div
+      class={`stat ${props.tone ?? ""}${clickable ? " clickable" : ""}`}
+      title={props.title}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? props.onClick : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") props.onClick?.();
+            }
+          : undefined
+      }
+    >
       <div class="v">
         {props.icon && <Icon name={props.icon} size={13} />} {props.v}
       </div>
@@ -38,7 +55,10 @@ export function CountStat(props: {
   icon: IconName | string;
   title: string;
   /** "bad when >0" (default) or "ok when >0" */
-  invert?: boolean;
+  invert?: boolean | undefined;
+  /** Click affordance — forwarded to StatCard (the stat jumps to its
+   *  matching list). */
+  onClick?: (() => void) | undefined;
 }) {
   const tone: StatTone = props.invert
     ? props.n > 0
@@ -54,6 +74,7 @@ export function CountStat(props: {
       icon={props.icon}
       title={props.title}
       tone={tone}
+      onClick={props.onClick}
     />
   );
 }

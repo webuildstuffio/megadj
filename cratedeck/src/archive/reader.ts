@@ -312,6 +312,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
         recent_runs: [],
         recent_tracks: [],
         surfaced: [],
+        sc_sets: [],
       };
     }
     const countRows = this.rows<{
@@ -337,16 +338,20 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     // Surfaced-link workflow (Sep 19): source_links JSON is the URL
     // source of truth (last_error is prose); surfaced_done_at is the
     // user's checklist. Parsed here so every client gets typed URLs.
+    // Sep 21: full cohort (no LIMIT — the UI paginates) + the row's
+    // `source` so the UI can show WHICH set/playlist each surfaced
+    // track came from (soundcloud:<slug> set provenance).
     const surfacedRaw = this.rows<{
       video_id: string;
       title: string | null;
       artist: string | null;
       source_links: string | null;
       surfaced_done_at: string | null;
+      source: string;
     }>(
-      `SELECT video_id, title, artist, source_links, surfaced_done_at
+      `SELECT video_id, title, artist, source_links, surfaced_done_at, source
        FROM tracks WHERE status = 'link_surfaced'
-       ORDER BY surfaced_done_at IS NOT NULL, updated_at DESC LIMIT 200`,
+       ORDER BY surfaced_done_at IS NOT NULL, updated_at DESC`,
     );
     const surfaced = surfacedRaw.map((r) => {
       let links: { kind: string; url: string }[] = [];
@@ -377,8 +382,53 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
         links,
         done: r.surfaced_done_at !== null,
         done_at: r.surfaced_done_at,
+        // Set/playlist provenance (Sep 21): "soundcloud:mmw-2026" etc.;
+        // plain "soundcloud" = single/likes rows with no set.
+        source: r.source,
       };
     });
+    // Per-set census (Sep 21): the playlists-to-go-through strip. Every
+    // `soundcloud:<slug>` label IS a set the user scraped; decompose its
+    // rows by status so progress ("29 of 34 handled") is derivable from
+    // the ledger, never hand-kept.
+    const setRows = this.rows<{
+      source: string;
+      status: string;
+      n: number;
+    }>(
+      `SELECT source, status, COUNT(*) n FROM tracks
+       WHERE source LIKE 'soundcloud:%' GROUP BY source, status`,
+    );
+    const setMap = new Map<
+      string,
+      {
+        slug: string;
+        total: number;
+        downloaded: number;
+        gone: number;
+        surfaced: number;
+        pending: number;
+      }
+    >();
+    for (const r of setRows) {
+      const slug = r.source.slice("soundcloud:".length);
+      const entry = setMap.get(slug) ?? {
+        slug,
+        total: 0,
+        downloaded: 0,
+        gone: 0,
+        surfaced: 0,
+        pending: 0,
+      };
+      entry.total += r.n;
+      if (r.status === "downloaded") entry.downloaded += r.n;
+      else if (r.status === "gone") entry.gone += r.n;
+      else if (r.status === "link_surfaced") entry.surfaced += r.n;
+      else if (r.status === "pending" || r.status === "failed")
+        entry.pending += r.n;
+      setMap.set(slug, entry);
+    }
+    const sc_sets = [...setMap.values()].toSorted((a, b) => b.total - a.total);
     const counts = Object.fromEntries(countRows.map((r) => [r.status, r.n]));
     return {
       available: true,
@@ -387,6 +437,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
       recent_runs: runs,
       recent_tracks: recent,
       surfaced,
+      sc_sets,
     };
   }
 

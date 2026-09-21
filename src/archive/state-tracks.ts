@@ -14,6 +14,14 @@ export class ArchiveTracks extends ArchiveCore {
     position: number,
     title: string | null,
     source = "liked",
+    /** Relabel (Sep 21): when true, an EXISTING row's source is updated
+     *  to this call's label. Default false keeps the historical
+     *  first-label-wins contract (a YT playlist refresh must never
+     *  re-key rows). The SC set arms pass true so re-scraping a set
+     *  re-establishes its `soundcloud:<slug>` provenance — without it
+     *  the parvati-set rows kept their pre-labeling plain "soundcloud"
+     *  forever and per-set progress was underivable. */
+    relabel = false,
   ): void {
     const now = this.now();
     this.db
@@ -23,9 +31,10 @@ export class ArchiveTracks extends ArchiveCore {
          ON CONFLICT(video_id) DO UPDATE SET
            liked_position = excluded.liked_position,
            title = COALESCE(excluded.title, tracks.title),
+           source = CASE WHEN ? THEN excluded.source ELSE tracks.source END,
            updated_at = excluded.updated_at`,
       )
-      .run(videoId, position, title, source, now, now);
+      .run(videoId, position, title, source, now, now, relabel ? 1 : 0);
   }
 
   /** Read one row by its ledger id (the sync loop's per-track reads). */
