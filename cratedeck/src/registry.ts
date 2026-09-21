@@ -4,7 +4,7 @@ import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Drive, SearchResult, SnapshotData } from "../shared/types";
 import { parseSnapshotJson } from "../shared/badges";
-import { legacySyncVerdict } from "./report";
+import { legacySyncVerdict } from "./report/report";
 import type { listMountedVolumes, MountedVolume } from "./detect";
 
 export type Emit = (channel: string, data: unknown) => void;

@@ -170,7 +170,11 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     audited: 69,
     guarded: 53,
     sanctioned: 16,
-    digest: "669f9ab383bff9006caf00c692d4728b0513f32dc80cc45426c7e404b71ae1c5",
+    // Sep 20 (#214 verify/hygiene/report slices): pure re-homes —
+    // cratedeck/src/{verify,hygiene,report}-* moved into verify/ hygiene/
+    // report/ subdirs (tests co-located); same calls, same guards, same
+    // counts, new file paths in the digest input.
+    digest: "c8d92019301c392fa2c5fd83a59635325a1582f2bf45918a735e237634adcb3e",
   });
 });
 

@@ -34,11 +34,11 @@ that trust", architecture §9). Last audited: 2026-09-17.
   `web/products/cratedeck/PhotoTab.tsx`, cached under `data/images/`
 - **F4 rekordbox introspection** — `src/rb.ts` (the seam) +
   `python/rb_read.py`, light scan in `src/scan.ts`
-- **F5 sync status** — master/mirror parity in `src/report.ts`
+- **F5 sync status** — master/mirror parity in `src/report/report.ts`
   (`mirror parity` checks, superset tolerance)
 - **F6 jobs & interlock** — `src/jobs.ts`, `src/bench.ts`, `GET /jobs`,
   interlock route + banner
-- **F7 health & corruption** — `src/report.ts` (dual-DB gate, grids, space,
+- **F7 health & corruption** — `src/report/report.ts` (dual-DB gate, grids, space,
   bitrot ledger, junk), junk detection in `src/scan.ts`
 - **F8 timeline** — events table + `GET /drives/:id/timeline`,
   `web/products/cratedeck/TimelineTab.tsx` (day grouping, event icons, kind chips)
