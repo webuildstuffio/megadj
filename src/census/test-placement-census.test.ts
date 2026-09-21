@@ -86,6 +86,10 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#214: reader+routes wire contract pair (domain-dir test)",
   "cratedeck/src/verify/phases.test.ts":
     "#214: verifyPhase progress contract (subject lives in jobs/job-runtime)",
+  "cratedeck/src/fleet/fleet.test.ts":
+    "#214: coverage+coverage-fleet+fleet-db engine round-trip (domain test)",
+  "cratedeck/src/mcp/mcp.test.ts":
+    "#214: mcp stdio protocol over spawned server (domain-dir test)",
 };
 
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */

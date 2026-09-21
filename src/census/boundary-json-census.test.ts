@@ -174,7 +174,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // cratedeck/src/{verify,hygiene,report}-* moved into verify/ hygiene/
     // report/ subdirs (tests co-located); same calls, same guards, same
     // counts, new file paths in the digest input.
-    digest: "c8d92019301c392fa2c5fd83a59635325a1582f2bf45918a735e237634adcb3e",
+    digest: "c454d6e293a403d48bd96df0d9ea4a5d97c7b9f9a62dd1932b154697c188306a",
   });
 });
 

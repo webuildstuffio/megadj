@@ -28,9 +28,9 @@ that trust", architecture §9). Last audited: 2026-09-17.
 
 - **F1 registry & ghosts** — `src/registry.ts`, `src/db.ts` (drives/events/
   snapshots tables), ghost rendering in `web/app/App.tsx`
-- **F2 detection & ports** — `src/detect.ts` (FSEvents + diskutil), port
+- **F2 detection & ports** — `src/detect/detect.ts` (FSEvents + diskutil), port
   route `GET /ports`, `python/usb_tree.py`
-- **F3 photo identity** — `src/image-store.ts`, picker in
+- **F3 photo identity** — `src/image/store.ts`, picker in
   `web/products/cratedeck/PhotoTab.tsx`, cached under `data/images/`
 - **F4 rekordbox introspection** — `src/rb.ts` (the seam) +
   `python/rb_read.py`, light scan in `src/scan.ts`
@@ -53,7 +53,7 @@ that trust", architecture §9). Last audited: 2026-09-17.
   exit codes); gig mode was closed NOT_PLANNED (#140); new-music radar
   shipped (#148, see below)
 - **F10 radar (SHIPPED 2026-09-16, #148)** — archive-vs-drive delta over
-  one pure engine (`cratedeck/src/radar.ts`, folded-path + artist-title
+  one pure engine (`cratedeck/src/fleet/radar.ts`, folded-path + artist-title
   fallback): `/api/fleet/radar`, `deckctl radar`, `deck_radar` MCP, Fleet
   ⌗ Radar tab. Copy-only (`megadj shelf-sync`); per-drive `snapshotAt`
   freshness; never-scanned/light-scan drives read "unknown", never

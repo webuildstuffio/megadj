@@ -189,7 +189,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - **FleetStore.sync** inserts playlist entries `OR IGNORE` — one duplicate
   row in a dirty drive snapshot (rekordbox can genuinely carry the same
   track twice in one playlist) once crashed the whole INSERT transaction,
-  leaving all fleet tables permanently empty (`cratedeck/test/fleet.test.ts`).
+  leaving all fleet tables permanently empty (`cratedeck/src/fleet/fleet.test.ts`).
 - **Census totals.** `skipCensus` once summed its LIMIT-clamped buckets, so
   totals undercounted whenever there were more distinct reasons than the
   limit (599 shown vs 602 true; `cratedeck/test/archive.test.ts`).
@@ -347,9 +347,9 @@ the ideas catalog (now archived at `docs/archive/ideas-2026-09-15.md`),
   AGENTS.md; this was the live catch that produced it.
 - **v0.2.0 was announced and never tagged** (82a37760, Sep 5): the
   CHANGELOG shipped, the tag was deferred pending a word, no word ever
-   came. Zero tags exist local or remote. → #29 (CLOSED 2026-09-15: the
-   release policy resolved with the `v0.2.0` tag pushed — see
-   `docs/cratedeck/acceptance.md`).
+  came. Zero tags exist local or remote. → #29 (CLOSED 2026-09-15: the
+  release policy resolved with the `v0.2.0` tag pushed — see
+  `docs/cratedeck/acceptance.md`).
 - **Complexity hotspots were lizard-ranked and top-down refactored**
   (39ea1b81, Sep 10): `canon` (db.ts, CCN 75) and the next ~9 functions
   were split across dedicated passes; db.ts is now 614 lines and
