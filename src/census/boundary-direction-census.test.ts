@@ -32,7 +32,7 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   // ---- src → cratedeck/src seams (config/archive/megaset/server): #225A
   "cratedeck/src/config": "#225A shared-only fold",
   "cratedeck/src/archive": "#225A shared-only fold",
-  "cratedeck/src/megaset": "#225A shared-only fold",
+  "cratedeck/src/megaset/engine": "#225A shared-only fold",
   "cratedeck/src/server-port": "#225A shared-only fold",
   // ---- the remaining cratedeck/shared declared leaves (AGENTS.md pins
   // types.ts as the declared import leaf; hygiene/ledger-freshness are the

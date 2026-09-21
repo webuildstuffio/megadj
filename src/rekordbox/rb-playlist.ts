@@ -35,7 +35,7 @@ import {
   parseMegasetQuery,
   SET_PRESETS,
   type MegasetPresetId,
-} from "../../cratedeck/src/megaset";
+} from "../../cratedeck/src/megaset/engine";
 import { clampMegasetPool } from "../../cratedeck/shared/types";
 import { DB_PATH } from "../cli-env";
 import {

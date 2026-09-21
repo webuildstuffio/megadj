@@ -25,7 +25,7 @@ status (v0 uses / planned / rejected) and the exact order things are applied
    setCandidates() ── pool census w/ honest counters (cratedeck/src/archive/pool.ts)
         │
         ▼
-   buildMegaset() ── pure engine, zero I/O (cratedeck/src/megaset.ts)
+   buildMegaset() ── pure engine, zero I/O (cratedeck/src/megaset/engine.ts)
         │          score = 0.45·tempo + 0.3·key + 0.25·energy-fit
         │          hard gates: ±6% tempo, Camelot clash, opener neighborhood
         ▼

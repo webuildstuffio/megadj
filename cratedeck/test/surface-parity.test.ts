@@ -466,7 +466,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const cli = read("src/fulltags/cli-commands.ts").join("\n");
     expect(cli).toMatch(/^\s{2}megaset,$/m);
     expect(read("src/fulltags/megaset.ts").join("\n")).toContain(
-      'from "../../cratedeck/src/megaset"',
+      'from "../../cratedeck/src/megaset/engine"',
     );
   });
 

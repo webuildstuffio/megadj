@@ -25,7 +25,7 @@ analysis says the market pays for and MegaSet still lacks.
 
 | Thing | State | Source of truth |
 | --- | --- | --- |
-| Engine | Pure, deterministic, 6 ms @ 3.6k; greedy + beam-B8 auto-pick (`searchOverride` A/B hook) | `cratedeck/src/megaset.ts` + `megaset/scoring.ts` + `megaset/search.ts` (1,090 LOC total with CLI/report) |
+| Engine | Pure, deterministic, 6 ms @ 3.6k; greedy + beam-B8 auto-pick (`searchOverride` A/B hook) | `cratedeck/src/megaset/engine.ts` + `megaset/scoring.ts` + `megaset/search.ts` (1,090 LOC total with CLI/report) |
 | Weights | Frozen `0.45/0.30/0.25` + anchor 0.15 + similarity 0.1 (E6 law) | `MEGASET_TRANSITION_WEIGHTS`, `shared/megaset.ts` |
 | Tempo anchor + drift budget | **Shipped** (B2): ±12% anchor budget, half/double-time branch lane at ±6% (B8 partially in: the *branch lane* exists in `withinAnchorBudget`, but `bpmScore` itself still scores 0 for a raw 87↔174 pair outside the branch window) | `megaset/scoring.ts` |
 | Phrase handoffs (Phase D item 16) | **Shipped** (#106): `mixInCue`/`mixOutCue` per step, `#EXTREM` in M3U8, dry-run rows, hover cards | `megasetMixInCue`/`megasetMixOutCue` |

@@ -8,7 +8,7 @@
 
 import { apiGet } from "../deckapi";
 import type { ToolDef } from "../mcp/server";
-import { parseMegasetQuery } from "../megaset";
+import { parseMegasetQuery } from "../megaset/engine";
 import {
   clampMegasetPool,
   isMegasetSearchOverride,

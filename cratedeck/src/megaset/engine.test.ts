@@ -11,14 +11,14 @@ import {
   keyScore,
   withinAnchorBudget,
   type SetCandidate,
-} from "../src/megaset";
+} from "./engine";
 import {
   MEGASET_ANCHOR_WEIGHT,
   MEGASET_AROUSAL_EPSILON,
   MEGASET_DRIFT_BUDGET,
   MEGASET_PRESET_DEFS,
   MEGASET_BEAM_POOL_MAX,
-} from "../shared/types";
+} from "../../shared/types";
 
 const cand = (over: Partial<SetCandidate>): SetCandidate => ({
   videoId: "x",

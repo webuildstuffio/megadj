@@ -20,7 +20,7 @@ import {
   buildMegaset,
   parseMegasetQuery,
   SET_PRESETS,
-} from "../../cratedeck/src/megaset";
+} from "../../cratedeck/src/megaset/engine";
 import {
   clampMegasetPool,
   MEGASET_EXCLUDED_PREVIEW_MAX,

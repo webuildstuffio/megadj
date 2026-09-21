@@ -4,7 +4,7 @@
 // (file-length guard); the pure-engine scoring/sequencing tests stay
 // in megaset.test.ts.
 import { describe, expect, test } from "bun:test";
-import { bpmScore, parseMegasetQuery } from "../src/megaset";
+import { bpmScore, parseMegasetQuery } from "../src/megaset/engine";
 import {
   isShelfOffline,
   clampMegasetPool,

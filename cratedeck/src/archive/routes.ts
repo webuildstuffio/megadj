@@ -7,7 +7,7 @@
 // URL already sliced to the route part ("/archive/..."). Returns null when
 // no archive route matched so index.ts can fall through.
 import type { ArchiveReader } from "../archive";
-import { SET_PRESETS, buildMegaset, parseMegasetQuery } from "../megaset";
+import { SET_PRESETS, buildMegaset, parseMegasetQuery } from "../megaset/engine";
 import {
   clampMegasetPool,
   isMegasetSearchOverride,
