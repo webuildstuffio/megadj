@@ -5,11 +5,16 @@ detector (the #9/#37 slice) shipped Sep 17: prefix20 rename ladder +
 pyrekordbox row seam + a real `--kind` filter (was parsed-then-dropped;
 unknown kinds now exit 2). This snapshot previously overstated detector
 and restore-surface coverage. `megadj shelf-hygiene` +
-`deckctl hygiene` + `deck_hygiene` + the Hygiene tab are live, and
-`megadj shelf-restore` is the CLI-only restore seam. The landed code is the truth:
-`src/archive/hygiene/` (engine/store/apply), `cratedeck/src/hygiene_*.ts` (API/job/
-reader), parity pinned by `cratedeck/test/surface-parity.test.ts`; current
-state lives in [product-state-2026-09-07.md](../product-state-2026-09-07.md),
+`deckctl hygiene` + `deck_hygiene` + the Hygiene tab are live; the
+restore loop CLOSED Sep 19 (rev-43, #35/#36): `shelf-restore` /
+`shelf-restore-all` / `shelf-quarantine` / `shelf-quarantine-empty --yes`
+plus the QuarantinePanel (`/api/hygiene/*`), and empty flips rows to
+`archived` behind the typed-confirm gate. Remaining detectors
+(`stale-pointer`, `orphan-audio`, `re-download`) stay with #37. The landed
+code is the truth: `src/archive/hygiene/` (engine/store/apply),
+`cratedeck/src/hygiene_*.ts` (API/job/reader), parity pinned by
+`cratedeck/test/surface-parity.test.ts`; current state lives in
+[product-state-2026-09-07.md](../product-state-2026-09-07.md),
 surface rows in [surface-parity.md](../surface-parity.md).**
 
 Full record of the Sep 9 data work on SHELF1, the traps hit, and the
@@ -87,14 +92,19 @@ file-count delta. It does not yet re-fingerprint quarantined acoustic twins or
 provide one-click revert; those remain in [issue #35](https://github.com/webuildstuffio/megadj/issues/35).
 
 `megadj shelf-restore <finding-id|path> [--into F]` restores a quarantined
-file through the ledger and hash gates. Restore is not implemented in the
-Hygiene tab, API, or MCP, and no empty-quarantine path exists. The `truncated-name`
-detector shipped Sep 17 (#9/#37 slice 3): dead master-DB rows joined to
-same-directory disk files by the rb-fix-paths prefix20 ladder propose
-human-gated same-dir renames (`review`, never auto-safe); the planned
-`stale-pointer`, `orphan-audio`, and `re-download` detectors
-are not registered; the planned `spelling-typo` kind is also absent (the live
-`folder-variant` check handles token-set variants, not typo heuristics).
+file through the ledger and hash gates. **Sep 19 (rev-43, #35/#36): the
+restore loop closed** — `shelf-restore-all`, `shelf-quarantine` (census),
+and `shelf-quarantine-empty --yes` (typed `{confirm:"DELETE"}` gate,
+applied rows flip to `archived`, receipt kept) shipped, with the
+QuarantinePanel + `/api/hygiene/restore|restore-all|quarantine[/empty]`
+routes; the web tab is a remote control over the engine-owned CLI. The
+`truncated-name` detector shipped Sep 17 (#9/#37 slice 3): dead master-DB
+rows joined to same-directory disk files by the rb-fix-paths prefix20
+ladder propose human-gated same-dir renames (`review`, never auto-safe);
+the planned `stale-pointer`, `orphan-audio`, and `re-download` detectors
+are not registered (still with #37); the planned `spelling-typo` kind is
+also absent (the live `folder-variant` check handles token-set variants,
+not typo heuristics).
 
 The web surface provides the verdict, fix queue, and evidence-backed
 confirmation flow for the live checks.

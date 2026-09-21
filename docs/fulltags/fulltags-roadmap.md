@@ -1,6 +1,22 @@
-# FullTags — Prioritized Roadmap (rev 7.13)
+# FullTags — Prioritized Roadmap (rev 7.14)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.14, 2026-09-20: **the ladder met library scale — `--revote` shipped and
+ran.** #260 closed: `fetch --revote` re-runs the #173 vote ladder over exactly
+the old-system rows (file genre present, `genre_votes` empty), guarded by a
+downgrade rule in `stageGenreElection` (an imprint-only family election can
+never overwrite a curated label — only a catalog-rung winner replaces it).
+The Sep 20 full-pipeline run (runbook 0e / `ops/full-pipeline.sh`) elected
+**2,794** rows (from 169) before the pass; 1,335 old-system rows remain for
+future runs. Gate re-measured same day, post-revote: baseline **57.0%** /
+arbitration **66.6%** (n=3,192, ≥65% PASS) — both arms moved ~2.7 pts down
+from the Sep 17 measure as the vote cohort widened. Mood-embedding backfill
+landed 276 rows; 84 stale ledger paths healed via `adopt --shelf` before the
+chain (the stale-path pre-flight is now runbook 0e's step zero). Remaining
+queue, re-checked: #62 (cluster-proposed labels), #250 (the LL pile), and
+#37's hygiene detectors; #61/#63/#65/#237 are closed (the residue tail's
+issue closed 2026-09-20 consolidated into #155)._
 
 _Rev 7.13, 2026-09-17: **explainability shipped end to end + the queue
 re-grounded on live numbers.** #215 closed: `megadj genre-why` (CLI /
@@ -227,11 +243,10 @@ a scoring-policy bug, not bad labels; unanimity keeps the dispute
 census reviewable; label hygiene cleaned provenance, not the score.
 Architecture walkthrough:
 [genre-pipeline.md](genre-pipeline.md). Next highest-value queue (Sep 15
-at the time; #61 unstrand and the vote ladder have since shipped —
-current state: rev 7.13): #61
-(Music-placeholder unstrand), #62 (cluster-proposed labels — the only
-fix that attacks the remaining `house→techno` mass), #63 (ranked
-secondaries), then the multi-source vote ladder._
+at the time; superseded — see rev 7.14 for the live queue): #61
+(Music-placeholder unstrand, SHIPPED in code), #62 (cluster-proposed labels — still
+open, the only fix that attacks the remaining `house→techno` mass), #63 (ranked
+secondaries, closed NOT_PLANNED Sep 19), then the multi-source vote ladder (SHIPPED #173)._
 
 _Rev 6.9, 2026-09-15: **demote-and-flag pass shipped and applied live**
 (genre-audit §5b.3 step 2): `megadj genre --flag` flags labels that

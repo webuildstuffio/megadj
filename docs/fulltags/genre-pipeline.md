@@ -1,4 +1,4 @@
-# FullTags — Genre Pipeline Architecture (Sep 16, 2026, rev 6)
+# FullTags — Genre Pipeline Architecture (Sep 16, 2026, rev 6; rev 7 — Sep 20 revote)
 
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
@@ -262,20 +262,28 @@ gate; transparency surfaces (T) let a human see what any track claims.
   never bulk. `--note "…"` appends an audit trail (flag becomes
   `resolved:<note>`).
 
-## 6. Live state (measured 2026-09-17 22:55 + 23:20 eval rerun, `~/.local/state/megadj/archive.db`)
+## 6. Live state (measured 2026-09-20, post-`--revote` library-scale run, `~/.local/state/megadj/archive.db`)
+
+> **Sep 20 update:** the vote ladder met its first library-scale write — the
+> #260 `--revote` pass re-ran the ladder over the old first-win rows (file
+> genre present, `genre_votes` empty). The `genre_votes` population jumped
+> 0 → 2,794 rows and the label distribution re-elected accordingly (EDM is
+> now the top label, unseating House's 833-row first-win lead). The
+> measured LOO gate re-computed same day (§6 last row).
 
 | Metric                     | Value                                                                                                                                                                |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ledger rows                | 5,921 (decomposed: 3,664 downloaded · 1,100 pending · 602 skipped-not-music · 464 deleted · 90 gone) — ledger ≠ library size                                         |
-| Downloaded cohort          | 3,664 tracks; 3,458 labeled (94.4%)                                                                                                                                  |
-| Embedded (effnet 1280-d)   | 3,618 (98.8% of the cohort)                                                                                                                                          |
+| Ledger rows                | 6,216 (Sep 20 measured; Sep 18 audit decomposition: 5,921 = 3,133 rekordbox · 750 ingest · 1,883 liked-videos · 135 liked · 20 playlist — the live table decomposes per `source`+`status`) — ledger ≠ library size |
+| Downloaded cohort          | 3,994 tracks; 3,774 labeled (94.5%)                                                                                                                                  |
+| Embedded (effnet 1280-d)   | 3,720 (Sep 20, after the `mood --embeddings` backfill)                                                                                                               |
+| `genre_votes` breakdowns   | **2,794 rows** (Sep 20) — was 0 at the Sep 17 measure below; the #260 `--revote` pass populated the old first-win cohort while preserving the downgrade guard (an imprint-only family election never overwrites a curated label) |
+| Old first-win rows left    | 1,335 (file genre present, votes still empty — the remaining `--revote` surface)                                                                                     |
 | Disputed flags             | 92 live (96 at the Sep 15 flag pass; 4 resolved through the #64 review verbs — review re-computes the live count on every run)                                       |
-| Distinct raw labels        | 240 (cohort)                                                                                                                                                         |
-| Top labels                 | House 833 · Techno 337 · EDM 299 · Tech House 221 · Dance 156 · Music 154 · Pop 131                                                                                  |
-| LOO baseline / arbitration | 61.9% / **69.3%** (re-measured 2026-09-17: `genre --eval --refold --json`, n=2,982; ship gate ≥65% PASS)                                                             |
-| top-2 accuracy             | 77.6% (2026-09-17 diagnostics rerun; label noise still RANDOM, no artist leakage, hub tail unchanged)                                                                |
-| Family coverage            | 93.0% (3,533/3,798 labeled rows ledger-wide; 63 unmapped labels covering 265 rows — the #65-class tail, [#237](https://github.com/webuildstuffio/megadj/issues/237)) |
-| `genre_votes` breakdowns   | 0 rows — the ladder shipped Sep 16 21:00, the last fetch ran Sep 16 07:20; breakdowns populate on the next real fetch run                                            |
+| Distinct raw labels        | 249 (downloaded cohort, Sep 20)                                                                                                                                      |
+| Top labels                 | EDM 677 · House 629 · Techno 498 · Tech House 326 · Pop 209 · Hip-Hop 164 · Progressive House 157 (downloaded cohort, Sep 20)                                        |
+| LOO baseline / arbitration | 57.0% / **66.6%** (re-measured 2026-09-20, post-revote: `genre --eval --refold --json`, n=3,192, refusal 27.9%, arbitration Δ +9.7; ship gate ≥65% PASS — the Sep 17 measure below was 61.9%/69.3% pre-revote) |
+| top-2 accuracy             | 77.6% (2026-09-17 diagnostics rerun; label noise still RANDOM, no artist leakage, hub tail unchanged — not re-measured post-revote)                                   |
+| Family coverage            | 93.0% at the Sep 17 measure (63 unmapped labels / 265 rows); the residue-work issue #237 closed 2026-09-20 consolidated into #155 (the mechanical alias-expansion half) |
 
 ## 7. Where everything lives
 
@@ -294,7 +302,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Vote ladder weights + election + (de)serialization (#173)                                                                                          | `src/fulltags/genre/genre-vote.ts`                                                                                                                                                      |
 | Explainability read — CLI `genre-why` (#215; MCP/UI ride the same `electGenre` replay)                                                             | `src/fulltags/genre/genre-why.ts`                                                                                                                                                       |
 | Live-run event protocol (`fetch --json` stderr `@event` lines, #215)                                                                               | `src/fulltags/fetch/fetch-events.ts`                                                                                                                                                    |
-| Run-tab server side: `fetch` job kind, feed ring, `/api/fetch/start` + `/api/fetch/feed` (#215)                                                    | `cratedeck/src/job-legs.ts` (`runFetchJob`) + `cratedeck/src/fetch-feed.ts` + `cratedeck/src/api-routes.ts` (`fetchRoutes`)                                                             |
+| Run-tab server side: `fetch` job kind, feed ring, `/api/fetch/start` + `/api/fetch/feed` (#215)                                                    | `cratedeck/src/jobs/job-legs-fetch.ts` (`runFetchJob`, re-exported by `job-legs.ts`) + `cratedeck/src/fetch-feed.ts` + `cratedeck/src/api-routes.ts` (`fetchRoutes`)                                                             |
 | Run-tab UI (the ladder deciding live: per-track votes, elections, tally)                                                                           | `cratedeck/web/products/fulltags/GenreRunTab.tsx`; rung display defs: `cratedeck/shared/genre-vote-rungs.ts` (census-pinned to `GENRE_VOTE_WEIGHTS`)                                    |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                                                                                    | `src/fulltags/sources/bandcamp.ts`                                                                                                                                                      |
 | Name-matching SSOT (artist gate, title overlap, tokens)                                                                                            | `src/fulltags/sources/name-match.ts`                                                                                                                                                    |

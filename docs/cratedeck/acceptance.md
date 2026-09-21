@@ -50,9 +50,8 @@ that trust", architecture §9). Last audited: 2026-09-17.
   is the drive page.
 - **F10 extras** — dossier export (`GET /drives/:id/export` incl. report),
   deckctl CLI (`cratedeck/src/deckctl.ts`, agent-facing with interlock
-  exit codes); gig mode + new-music radar remain →
-  [#148](https://github.com/webuildstuffio/megadj/issues/148) (radar);
-  gig mode was closed NOT_PLANNED (#140)
+  exit codes); gig mode was closed NOT_PLANNED (#140); new-music radar
+  shipped (#148, see below)
 - **F10 radar (SHIPPED 2026-09-16, #148)** — archive-vs-drive delta over
   one pure engine (`cratedeck/src/radar.ts`, folded-path + artist-title
   fallback): `/api/fleet/radar`, `deckctl radar`, `deck_radar` MCP, Fleet

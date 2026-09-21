@@ -386,9 +386,11 @@ ground-truth philosophy unchanged.
 --json`. Calibration note kept: **0.65–0.75
    is the realistic aspiration band** (best published EDM-subgenre result:
    60.6% @ 30 classes, 75K songs), with ≥65% remaining the ship gate.
-   Current live readout (re-measured 2026-09-17): **69.3% arbitration —
-   PASS** (baseline arm 61.9%, n=2,982; the Sep 15 pass measured
-   69.2%/61.7% — the small drift is label-column churn, gate unchanged).
+   Current live readout (re-measured 2026-09-20, post-`--revote`
+   library-scale run): **66.6% arbitration — PASS** (baseline arm 57.0%,
+   n=3,192, refusal 27.9%; the Sep 17 measure was 69.3%/61.9% at n=2,982 —
+   the revote moved both arms down ~2.7 pts by electing on the wider vote
+   cohort, the gate still clears).
 5. **Embedding-neighborhood labels (later, the deep fix)**: cluster the
    3,415 vectors; coherent clusters _propose_ canonical labels from their
    members' consensus, reviewed by a human — new sub-genres enter the

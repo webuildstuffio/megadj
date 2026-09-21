@@ -177,7 +177,8 @@ feed — mutating, confirm first) ·
   `archive_genre_why {video_id}` (replays the genre vote ladder's
   election seam over a row's stored breakdown — `matches_db:false` on
   a drifted row; the read twin of `megadj genre-why`) —
-  43 tools total (23 `deck_*` + 2 `getdat_*` + 18 `archive_*`+`megaset_*`;
+  44 tools total (23 `deck_*` + 3 `getdat_*` + 18 `archive_*`+`megaset_*`
+  — `getdat_intake` joined at rev-43;
   census derives from
   source and is pinned by `cratedeck/test/surface-parity.test.ts`).
   `deck_report {format:"dossier"}` returns the full

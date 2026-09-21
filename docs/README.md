@@ -52,6 +52,9 @@ document for the topic you are changing.
 - [Agent playbook](agent-playbook.md) owns durable failure mechanics. The local
   `docs/usb-sync-log.md` is append-only operator evidence and is intentionally
   gitignored; it is not a repository link or a second status store.
+- [Runbook 0e](runbooks/0e-full-pipeline.md) owns the drive-day full-pipeline
+  command (`ops/full-pipeline.sh`): the Sep 20 serial analysis chain, its
+  gate math, and the pre-flight/verification checklist.
 
 Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 `ACTIVE`, 🟡 `BLOCKED`, and 🗄️ `ARCHIVED`.
@@ -87,10 +90,14 @@ tracker is one of those — the recipes stay in the acceptance doc).
 
 - [Data stores and schemas](getdat/data-model.md) — schema roles, ownership, and
   producer boundaries.
+- [SoundCloud downloads plan (SHIPPED Sep 19)](getdat/soundcloud-downloads-plan.md) —
+  the link-first acquisition design record; SC is a first-class download
+  source (#255–#259, 256k-Plus/160k-anonymous ladder, surface census rev-44–47).
 - [Playing USB boundary](getdat/usb-sync.md) — SHELF1-to-USB handoff rules and
   user-managed export limits.
 - [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10
-  detect/restore record; pending work tracked in #35/#36/#37.
+  detect/restore record; the quarantine loop closed Sep 19 (#35/#36),
+  remaining detectors tracked in #37.
 
 ### FullTags and analysis
 
@@ -181,6 +188,10 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   the executed `setbuild → megaset` identifier rename; superseded 2026-09-15
   (the product name is MegaSet) and archived with the Sequencing benchmarks
   ([archive/set-04-sequencing-benchmarks-2026-09-14.md](archive/set-04-sequencing-benchmarks-2026-09-14.md)).
+- [Master architecture v2](megaset/11-master-architecture-v2.md) — the v2
+  synthesis (📐 proposal): cross-shop invariants, the four evidenced v2
+  layers, and the reject list (all 19 DIV diversity experiments dead —
+  diversity ships as hard caps only).
 - [Audit and plan](megaset/08-audit-and-plan.md) — per-item
   implementation sketches, delta-pinned against the re-ranked roadmap;
   current conclusions link to the owners above.
@@ -213,7 +224,8 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 - [Intake and cue postmortem](fulltags/intake-cue-postmortem.md) — executed incident
   analysis and remaining follow-up.
 - [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10 record
-  with detector and restore-surface limits; live work is #35/#36/#37.
+  with detector and restore-surface limits; the loop closed Sep 19 (#35/#36);
+  live work is #37.
 - [Source-layout refactor](archive/src-layout-refactor.md) — completed proposal
   and migration receipt, archived 2026-09-14; historical paths in the proposal
   are labeled as such.
@@ -227,6 +239,8 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   procedure retained for evidence.
 - [0d — rekordbox write-path spike](runbooks/0d-write-path-spike.md) — harness
   shipped; hardware observations remain.
+- [0e — drive-day full pipeline](runbooks/0e-full-pipeline.md) — the one
+  command (`ops/full-pipeline.sh`) encoding the Sep 20 analysis chain.
 
 ## Package entry points
 

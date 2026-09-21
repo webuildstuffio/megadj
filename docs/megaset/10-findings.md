@@ -148,6 +148,15 @@ lost to kNN (item 3 below), so the readout thread is closed.**
    minutes of compute on cached embeddings buys per-track ranked styles for
    MegaSet's "deep end of the family" pools and the B6 family-union fix — the
    single biggest quality-per-hour item left.
+
+**Sep 20 status note:** the genre/readout thread above resolved differently
+than planned — the probe lost to kNN (item 3, DONE), the refold + flag pass
+shipped (item 2, DONE), and the Sep 20 `--revote` library-scale run populated
+the vote ledger (2,794 rows; gate re-measured 57.0% baseline / 66.6%
+arbitration — PASS, see
+[genre-pipeline §6](../fulltags/genre-pipeline.md#6-live-state-measured-2026-09-20-post---revote-library-scale-run-localstatemegadjarchivedb)).
+Item 5 (Discogs-400 ranked secondaries) remains the top open quality item;
+item 4 (`--apply` the unlabeled tail) rides #250's cohort decisions.
 6. **Multi-source genre vote ladder + Bandcamp arm + transition-window
    similarity** (genre-audit §5b.3.6–7) — the user-directed additions;
    queued right behind the refold/disputed pass they extend.

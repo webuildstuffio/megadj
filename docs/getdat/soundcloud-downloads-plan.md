@@ -17,6 +17,12 @@ links silently ripped before); private likes/user 404s now name the
 cookie remedy; SC payloads' `uploader`/`timestamp` map onto
 artist/date (`scInfoToYtdlpInfo` — SC has no artist/release_date
 fields, measured). Plan text below retained as the design record.
+**Post-ship ladder update (Sep 19, 81d28e51):** the format ladder
+topped up to `hls_aac_256k` for Plus-cookie sessions
+(`SC_FORMAT`: 256k → hls_aac_1_0 → 160k → bestaudio); the
+source-aware LOWQ floor judges against the SC ceiling (160 aac / 128
+mp3) either way — a 256k Premium rip clears outright, 160k anonymous
+stays honest-quiet.
 
 _As of 2026-09-19 (live-verified): yt-dlp 2026.08.19, Chrome cookies
 extracting fine (3,424 cookies), `scsearch` + track `-J` probe + set

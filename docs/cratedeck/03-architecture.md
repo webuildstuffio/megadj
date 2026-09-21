@@ -19,10 +19,13 @@ counts are not architecture and are therefore not recorded here.
 
 ```
 cratedeck/
-  src/            Bun + TS — the whole server (one dir, no nesting)
-  python/         rb_read.py — the ONLY bridge into rekordbox-land (+ usb_tree.py for ports)
-  web/            Preact + Vite page (built assets served by the server)
-  shared/         types.ts + badges.ts + fmt.ts — imported by both sides
+  src/            Bun + TS — the whole server (domain subfolders since #214:
+                  archive/ db/ deckctl/ jobs/ mcp/ megaset/ + root composition)
+  python/         rb_read.py + usb_tree.py — the ONLY bridge into rekordbox-land
+  web/            Preact + Vite page (built assets served by the server);
+                  web/products/ owns the four product canvases
+  shared/         types.ts + badges.ts + fmt.ts + check-matrix.ts + … —
+                  imported by both sides
   testdata/       fixtures (synthetic drive tree, fixture DBs, recorded plists)
   data/           runtime state (gitignored): SQLite, images, logs, scratch
   config.toml     user config (sample committed)
@@ -44,20 +47,23 @@ in the design, not a task.
 ```
 src/
   index.ts            composition root + top-level HTTP dispatcher
-  *_routes.ts         archive, booth, fixes, hygiene, and drive-job routes
+  api-routes.ts / *-routes.ts
+                      archive, booth, fixes, hygiene, grid-health, drive-job,
+                      drive, and fleet route families (flat at src/ root)
   db.ts               stable persistence façade
   db/
     core.ts           connection, base schema, migrations, retention
     activity.ts, drives.ts, library.ts, bench.ts, ledger.ts
                       domain-owned query stores
   jobs.ts             stable job façade and queue state
-  job_{runtime,execution}.ts / *_jobs.ts
-                      execution legs, progress, cancellation, family jobs
+  jobs/               job execution legs + runtime (job-legs-*.ts since #214)
+  archive/            archive-domain readers, tools, pool, routes
+  megaset/            MegaSet engine pieces (scoring, search) beside megaset.ts
+  deckctl/            deckctl verb modules
+  mcp/                MCP registration, schemas, and transport
   detect.ts / registry.ts / scan.ts
                       mount truth, drive identity, and read-only scans
   rb.ts               THE Python seam for rekordbox reads and job wrappers
-  deckctl*.ts         one-way CLI command modules
-  mcp*.ts             MCP registration, schemas, and transport
   guard.ts            allow-list for mounted-drive writes
 ```
 
@@ -135,8 +141,9 @@ GET  /images/search?q=           provider proxy
 GET  /events                     SSE: mounts, job progress, interlock
 ```
 
-`index.ts` owns top-level dispatch; `archive/routes.ts`, `booth_routes.ts`,
-`drive_job_routes.ts`, `fixes_routes.ts`, and `hygiene_routes.ts` own cohesive
+`index.ts` owns top-level dispatch; `archive/routes.ts`, `booth-routes.ts`,
+`drive-job-routes.ts`, `fixes-routes.ts`, `grid-health-routes.ts`, and
+`hygiene-routes.ts` own cohesive
 route families. The list above is the stable core shape, not a route census.
 The exact live surface is derived and pinned in
 [surface parity](../surface-parity.md).
@@ -154,7 +161,9 @@ never re-queried for that drive.
 ## 8. Frontend
 
 Preact + Vite. `web/app/` owns composition and the zero-dependency hash router;
-`web/products/` owns CrateDeck, GetDat, and FullTags canvases; `web/ui/` owns
+`web/products/` owns the CrateDeck, GetDat, FullTags, MegaSet, and shared
+canvases (MegaSet's page rides `#/set` with the form/proposal panel in
+`web/products/fulltags/MegasetPanel.tsx`); `web/ui/` owns
 shared components; `web/styles/` owns per-concern stylesheets. Deep links and
 browser back/forward work without a router dependency. SSE reconnects and
 coalesces job updates. Badge rules live in `shared/badges.ts`, computed
