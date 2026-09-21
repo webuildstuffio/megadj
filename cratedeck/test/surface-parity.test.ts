@@ -668,7 +668,10 @@ describe("surface parity (docs/surface-parity.md)", () => {
   });
 
   test("archive tools stay readonly (the sqlite handle never opens rw)", () => {
-    const src = readFileSync(join(ROOT, "cratedeck/src/archive/reader.ts"), "utf8");
+    const src = readFileSync(
+      join(ROOT, "cratedeck/src/archive/reader.ts"),
+      "utf8",
+    );
     expect(src).toContain("readonly: true");
     expect(src).not.toMatch(/readonly:\s*false/);
   });
