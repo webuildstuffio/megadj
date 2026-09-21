@@ -11,7 +11,7 @@
 // parameterized tool failed with "drive is required".
 import { describe, it, expect, afterAll } from "bun:test";
 import { join } from "node:path";
-import { DECK_MCP_SURFACES } from "./mcp/surfaces";
+import { DECK_MCP_SURFACES } from "./surfaces";
 
 // Use the module-level functions where possible by importing is not possible
 // (mcp.ts runs main() at import), so drive the real process over stdio.
