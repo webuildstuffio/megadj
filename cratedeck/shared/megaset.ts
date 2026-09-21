@@ -268,10 +268,61 @@ export const MEGASET_HANDOFF_INTRO_S = 45;
  *  excluded[] the engine produced — never a hand-copied bucket list.
  *  Per-track rows stay the honest record (`excluded[]` flat preview +
  *  `excluded_total`); the groups give the DJ the SHAPE of what was left
- *  out without scanning 40 identical rows. Biggest bucket first,
- *  examples capped at 4, `sum(count) === excluded_total` when callers
- *  pass the full list (the CLI/web pass the capped preview; `total` is
- *  authoritative). */
+ *  out without scanning hundreds of rows.
+ *
+ *  Sep 21 audit hardening: bucketing by the RAW reason string produced
+ *  130 buckets for 3,681 exclusions on a real build ("68.2-minute…" and
+ *  "68.6-minute…" were separate rows) — noise, not shape. Reasons now
+ *  collapse to a small CLASSES first (sample-too-short / continuous-mix
+ *  / no-beats-BPM / opener-unusable / incompatible / budget / unmeasured
+ *  / other), with the specific numbers staying on the per-track rows.
+ *  Biggest bucket first, examples capped at 4, `sum(count) ===
+ *  excluded_total` when callers pass the full list (the CLI/web pass the
+ *  capped preview; `total` is authoritative). */
+export function megasetReasonClass(reason: string): string {
+  if (reason.startsWith("set budget filled")) return "set budget filled";
+  if (reason.includes("below the") && reason.includes("track floor"))
+    return "too short — audio sample, not a track";
+  if (reason.includes("exceeds the") && reason.includes("track cap"))
+    return "too long — continuous mix, not a single track";
+  if (reason.includes("no beats-ledger BPM"))
+    return "no measured tempo — run `megadj beats`";
+  if (reason.includes("no compatible transition"))
+    return "no compatible transition (key clash / tempo / drift)";
+  if (reason.includes("requested opener")) {
+    return reason.includes("not in the candidate pool")
+      ? "requested opener not in the pool"
+      : "requested opener unusable — no measured tempo";
+  }
+  return reason;
+}
+
+// ---- Sep 21: transition-score band calibration -----------------------------
+// The chain-table pill used FIXED cut-offs (clean ≥0.75 / ok ≥0.5), set
+// when transitionScore's core weights summed to 1.0 with no bonuses. B2
+// (anchor +0.15) and #171 (similarity +0.1) lifted the reachable range —
+// every live blend measured 1.10–1.19, so EVERY row read "clean" and the
+// column carried no information. Bands are now derived from the weighted
+// core's REAL floor and the live scale: "tight" starts below the worst a
+// still-mixable step can score, "ok" sits in the mid band, "clean" in the
+// upper. Derived here (the seam) so every surface quotes the same numbers.
+/** The weighted-core floor for a MIXABLE step: every component at its
+ *  worst passing value (tempo→0 boundary, key→neutral 0.5, arc fit→0)
+ *  ≈ 0.3·0.5 = 0.15. Anything below cannot come from a healthy step. */
+export const MEGASET_TIGHT_FLOOR = 0.5;
+/** Bands: below MEGASET_TIGHT_FLOOR = "tight"; the mid band up to
+ *  core-sum + half the bonus weight = "ok"; above = "clean". Pinned by
+ *  the live measurement (blends 1.10–1.19 across three presets). */
+export const MEGASET_CLEAN_FLOOR = 1.05;
+export function megasetTransitionBand(score: number): {
+  label: "clean" | "ok" | "tight";
+  cls: "ok" | "muted";
+} {
+  if (score >= MEGASET_CLEAN_FLOOR) return { label: "clean", cls: "ok" };
+  if (score >= MEGASET_TIGHT_FLOOR) return { label: "ok", cls: "ok" };
+  return { label: "tight", cls: "muted" };
+}
+
 export function groupMegasetExcluded(
   excluded: readonly {
     videoId: string;
@@ -284,10 +335,13 @@ export function groupMegasetExcluded(
     { reason: string; count: number; examples: string[] }
   >();
   for (const e of excluded) {
-    let bucket = byReason.get(e.reason);
+    // one CLASS per exclusion — the raw string (with per-track numbers)
+    // stays on the excluded[] rows
+    const reason = megasetReasonClass(e.reason);
+    let bucket = byReason.get(reason);
     if (!bucket) {
-      bucket = { reason: e.reason, count: 0, examples: [] };
-      byReason.set(e.reason, bucket);
+      bucket = { reason, count: 0, examples: [] };
+      byReason.set(reason, bucket);
     }
     bucket.count += 1;
     if (bucket.examples.length < 4) bucket.examples.push(e.title ?? e.videoId);

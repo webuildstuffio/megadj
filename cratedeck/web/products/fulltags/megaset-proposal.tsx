@@ -58,7 +58,7 @@ function Exclusions(props: { data: MegasetPayload }) {
   return <ExcludedBreakdown data={props.data} />;
 }
 
-function ProposalBody(props: { model: MegasetBuilder }) {
+function ProposalBody(props: { model: MegasetBuilder; genre: string | null }) {
   const { model } = props;
   const data = model.build.data;
   if (!data) return null;
@@ -71,6 +71,12 @@ function ProposalBody(props: { model: MegasetBuilder }) {
         data={data}
         stale={model.build.stale}
         exportHref={model.exportHref}
+        draftKnobs={{
+          searchChoice: model.searchChoice,
+          poolLimit: model.poolLimit,
+          openerId: model.opener?.video_id ?? null,
+          genre: props.genre,
+        }}
       />
       <MegasetChain
         steps={model.steps}
@@ -82,6 +88,7 @@ function ProposalBody(props: { model: MegasetBuilder }) {
         searchChoice={model.searchChoice}
         poolLimit={model.poolLimit}
         openerId={model.opener?.video_id ?? null}
+        genre={props.genre}
       />
       <Exclusions data={data} />
     </>
@@ -96,7 +103,12 @@ export function MegasetProposal(props: { model: MegasetBuilder }) {
       <StaleNotice stale={build.stale} />
       <ErrorNotice error={build.error} />
       <LoadingNotice loading={build.loading} startedAt={build.startedAt} />
-      <ProposalBody model={props.model} />
+      <ProposalBody
+        model={props.model}
+        genre={
+          build.data?.genre_filtered ? props.model.genreInput.trim() : null
+        }
+      />
     </>
   );
 }

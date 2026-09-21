@@ -139,7 +139,8 @@ export function ExcludedBreakdown(props: { data: MegasetPayload }) {
       </KVRows>
       {shown < data.excluded_total && (
         <div class="fleet-note">
-          showing the first {shown} — save the JSON draft for the full list
+          showing the first {shown} rows — the group counts above cover all{" "}
+          {data.excluded_total.toLocaleString()}
         </div>
       )}
       <details class="megaset-excluded-raw">
@@ -158,12 +159,15 @@ export function ExcludedBreakdown(props: { data: MegasetPayload }) {
 }
 
 /** "Reproduce this build" — the exact CLI line for the chain on screen, so
- * the terminal is always one paste away from the same deterministic draft. */
+ * the terminal is always one paste away from the same deterministic draft.
+ * Sep 21: a genre-filtered build MUST carry `--genre` — the repro used to
+ * drop it, so pasting the line silently rebuilt the unfiltered pool. */
 export function ReproLine(props: {
   data: MegasetPayload;
   searchChoice: "auto" | "greedy" | "beam";
   poolLimit: number | null;
   openerId: string | null;
+  genre: string | null;
 }) {
   const parts = [
     "megadj megaset",
@@ -174,6 +178,8 @@ export function ReproLine(props: {
     parts.push(`--search ${props.searchChoice}`);
   if (props.poolLimit !== null) parts.push(`--limit ${props.poolLimit}`);
   if (props.openerId) parts.push(`--opener ${props.openerId}`);
+  if (props.genre !== null && props.genre.trim() !== "")
+    parts.push(`--genre ${props.genre.trim()}`);
   const cmd = parts.join(" ");
   return (
     <div class="megaset-repro">

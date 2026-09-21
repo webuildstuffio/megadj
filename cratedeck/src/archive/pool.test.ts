@@ -35,4 +35,38 @@ describe("#283 poolTitleKey (release-form + stray folding)", () => {
       key("Shiba San", "I Wanna"),
     );
   });
+
+  // Sep 21 live audit: "Other Side (Extended)" + "Other Side (Extended
+  // Mix)" landed twice in one chain — the BARE release form ("(extended)"
+  // without the trailing noun) keyed differently from the compound form.
+  test("BARE release forms collapse ('(Extended)' ≡ '(Extended Mix)')", () => {
+    expect(key("Azzecca", "Other Side (Extended)")).toBe(
+      key("Azzecca", "Other Side (Extended Mix)"),
+    );
+    expect(key("Azzecca", "Other Side")).toBe(
+      key("Azzecca", "Other Side (Radio Edit)"),
+    );
+  });
+
+  // Sep 21 live audit: multi-credit artist string vs solo credit keyed
+  // differently for the same recording — head credit is the identity.
+  test("multi-credit artist collapses to the HEAD credit", () => {
+    expect(
+      key(
+        "Hugel, Cumbiafrica, Florent Hugel, Lina Rojas",
+        "Morenita (Extended Mix)",
+      ),
+    ).toBe(key("HUGEL", "Morenita"));
+    // a DIFFERENT head credit stays distinct (never a substring merge)
+    expect(key("John Summit", "History of Groove")).not.toBe(
+      key("SecondCity", "History of Groove"),
+    );
+  });
+
+  // Sep 21 live audit: ".mp3" rode INSIDE a tagged title and defeated the key.
+  test("file extension inside a TAGGED title strips too", () => {
+    expect(
+      key("Shakira ft. Wyclef Jean", "Hips Don't Lie (HÄWK VIP Edit).mp3"),
+    ).toBe(key("Shakira ft. Wyclef Jean", "Hips Don't Lie (HÄWK VIP Edit)"));
+  });
 });

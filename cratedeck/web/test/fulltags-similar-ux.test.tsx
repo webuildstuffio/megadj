@@ -267,7 +267,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         }}
       />,
     );
-    expect(capped).toContain("save the JSON draft for the full list");
+    expect(capped).toContain("the group counts above cover all");
   });
 
   test("the repro line reconstructs the exact CLI invocation of the current settings", () => {
@@ -277,11 +277,12 @@ describe("FullTags Similar and Set Builder UX", () => {
         searchChoice="beam"
         poolLimit={250}
         openerId="yt-abc"
+        genre="tropical house"
       />,
     );
     expect(html).toContain("same build from the terminal:");
     expect(html).toContain(
-      "megadj megaset --preset warmup --minutes 45 --search beam --limit 250 --opener yt-abc",
+      "megadj megaset --preset warmup --minutes 45 --search beam --limit 250 --opener yt-abc --genre tropical house",
     );
     // auto/absent knobs stay out of the line
     const htmlMinimal = render(
@@ -290,11 +291,16 @@ describe("FullTags Similar and Set Builder UX", () => {
         searchChoice="auto"
         poolLimit={null}
         openerId={null}
+        genre={null}
       />,
     );
     expect(htmlMinimal).toContain("megadj megaset --preset peak --minutes 60");
     expect(htmlMinimal).not.toContain("--search");
     expect(htmlMinimal).not.toContain("--limit");
+    expect(htmlMinimal).not.toContain("--genre");
+    // Sep 21 regression: a genre build MUST carry --genre (the repro
+    // used to drop it and silently rebuild unfiltered)
+    expect(html).toContain("--genre");
   });
 
   test("the export carries every A/B knob so it reproduces the chain on screen", () => {

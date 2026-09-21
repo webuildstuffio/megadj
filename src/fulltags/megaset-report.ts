@@ -10,6 +10,7 @@ import {
   ledgerFreshness,
 } from "../../cratedeck/shared/ledger-freshness";
 import {
+  groupMegasetExcluded,
   isShelfOffline,
   type MegasetPayload,
   type MegasetResult,
@@ -25,10 +26,18 @@ export interface MegasetCensus {
   rekordboxKeyHits: number;
   rekordboxBpmHits: number;
   keyReads: number;
+  /** #283: rows the `--genre` filter matched BEFORE the filesystem
+   *  census (0 = unfiltered). Rendered so a narrowed pool is visible on
+   *  the terminal, not just on the wire (Sep 21: the header never
+   *  mentioned the filter, so a genre build looked unfiltered). */
+  genreFiltered: number;
 }
 
 /** The one-line proposal header — pool provenance counts ride it so the
- *  numbers the web/MCP payloads carry are visible on the terminal too. */
+ *  numbers the web/MCP payloads carry are visible on the terminal too.
+ *  Sep 21 diet: the 90-word single line moved its per-source plumbing
+ *  counts (relocated/aliases/missing) into the census line, and a
+ *  genre-filtered build says so with the matched-row count. */
 export function logProposalHeader(
   built: MegasetResult,
   freshness: MegasetPayload["freshness"],
@@ -46,9 +55,10 @@ export function logProposalHeader(
     rekordboxKeyHits,
     rekordboxBpmHits,
     keyReads,
+    genreFiltered,
   } = census;
   log(
-    `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search${built.avg_transition !== null ? `, transitions avg ${built.avg_transition.toFixed(3)} / min ${built.min_transition?.toFixed(3)}` : ""} (checked ${sourceTotal} DB rows; ${total} pool tracks; ${metadataOnly} metadata-only${metadataOnly > 0 ? " — shelf offline, scored from mirror tempo" : ""}; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${excludedTotal})`,
+    `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search${built.avg_transition !== null ? `, transitions avg ${built.avg_transition.toFixed(3)} / min ${built.min_transition?.toFixed(3)}` : ""}${genreFiltered > 0 ? ` · genre pool ${genreFiltered} tracks` : ""} (checked ${sourceTotal} DB rows; ${total} pool tracks; ${metadataOnly} metadata-only${metadataOnly > 0 ? " — shelf offline, scored from mirror tempo" : ""}; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${excludedTotal})`,
   );
   if (metadataOnly > 0) {
     log(
@@ -80,6 +90,29 @@ export function logSteps(
     );
   }
   return at;
+}
+
+/** Why-truth line: the exclusion SHAPE, grouped by reason CLASS (the
+ *  shared megasetReasonClass mapping — never a local re-bucketing). The
+ *  flat wire list is capped at 40 rows, so the terminal previously said
+ *  nothing about the other ~3,600 exclusions; the class groups restore
+ *  the shape (Sep 21). Callers pass the FULL excluded list when they
+ *  have it (the engine result carries it before the wire cap). */
+export function logExclusionShape(
+  excluded: MegasetPayload["excluded"],
+  excludedTotal: number,
+  pool: number,
+  log: (m: string) => void,
+): void {
+  if (excludedTotal <= 0) return;
+  const groups = groupMegasetExcluded(excluded);
+  const top = groups
+    .slice(0, 3)
+    .map((g) => `${g.count.toLocaleString()} ${g.reason}`)
+    .join(" · ");
+  log(
+    `  exclusions (${excludedTotal.toLocaleString()} of ${pool.toLocaleString()} candidates): ${top}`,
+  );
 }
 
 /** The three honest empty-pool diagnoses: shelf offline (nothing is

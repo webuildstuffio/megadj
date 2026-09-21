@@ -1,4 +1,8 @@
-import type { MegasetPresetDef, MegasetStep } from "../../../shared/types";
+import {
+  megasetTransitionBand,
+  type MegasetPresetDef,
+  type MegasetStep,
+} from "../../../shared/types";
 import { DataTable, ListHead, type DataTableColumn } from "../../ui/data";
 import { MegasetArcChart } from "./MegasetArcChart";
 
@@ -57,16 +61,20 @@ const columns: DataTableColumn<MegasetStep>[] = [
       step.transition === null ? (
         <span title="Opener — no transition into it">open</span>
       ) : (
-        <span
-          class={`arch-pill ${step.transition >= 0.75 ? "ok" : "muted"}`}
-          title={`transition score into this track: ${step.transition.toFixed(3)} (tempo + key + arc fit)`}
-        >
-          {step.transition >= 0.75
-            ? "clean"
-            : step.transition >= 0.5
-              ? "ok"
-              : "tight"}
-        </span>
+        (() => {
+          // bands derived from the shared seam (calibrated Sep 21 — the
+          // old fixed 0.75/0.5 cut-offs predated the anchor+similarity
+          // bonuses and read "clean" on every live blend)
+          const band = megasetTransitionBand(step.transition);
+          return (
+            <span
+              class={`arch-pill ${band.cls}`}
+              title={`transition score into this track: ${step.transition.toFixed(3)} (tempo + key + arc fit + anchor + similarity)`}
+            >
+              {band.label}
+            </span>
+          );
+        })()
       ),
     sortValue: (step) => step.transition,
   },
@@ -83,7 +91,10 @@ const columns: DataTableColumn<MegasetStep>[] = [
 
 function rowTone(step: MegasetStep): "" | "ok" | "warn" {
   if (step.transition === null) return "";
-  return step.transition >= 0.5 ? "ok" : "warn";
+  // row tone follows the same calibrated band, not a private cut-off
+  return megasetTransitionBand(step.transition).label === "tight"
+    ? "warn"
+    : "ok";
 }
 
 export function MegasetChain(props: {

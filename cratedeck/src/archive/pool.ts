@@ -31,28 +31,61 @@ const physicalPathKey = (path: string): string =>
  * "blue lake (original mix)" and "Blue Lake" are the SAME song on two
  * releases, and a set landing both is a broken proposal. REMIX
  * attributions ("(John Summit remix)") stay: a remix is a different
- * playable track by DJ convention. Pure + module-level (scoping rule). */
+ * playable track by DJ convention.
+ *
+ * Three live misses (Sep 21 audit, caught on the wire) hardened here:
+ * 1. "(Extended)" / "(Extended Mix)" / "(Radio Edit)" BARE form — the
+ *    strip regex only matched the compound "form noun" shape, so
+ *    "Other Side (Extended)" and "Other Side (Extended Mix)" keyed
+ *    differently and landed twice in one chain (measured: peak 60min).
+ * 2. Multi-credit artist strings — "Hugel, Cumbiafrica, Florent Hugel,
+ *    …" vs "HUGEL" keyed differently for the same "Morenita" (measured:
+ *    warmup 90min tropical). FIRST credit is the identity credit (DJ
+ *    convention: the primary artist leads); a credit list collapses to
+ *    its head. Exact-match only — a substring rule would merge
+ *    "John Summit" with "John Summit & Kaysin" remixes.
+ * 3. ".mp3" suffix riding INSIDE the title ("…(HÄWK VIP Edit).mp3") —
+ *    the extension strip ran only on unknown-artist raw titles, not on
+ *    the tagged-title path. */
 const poolTitleKey = (row: {
   title: string | null;
   artist: string | null;
 }): string => {
-  const artist = poolNormText(row.artist ?? "");
-  // Shelf-rescue strays lose their embedded tags: the artist column reads
-  // Unknown/UnknownArtist/[unknown] and the real artist rides the title
-  // ("cristoph - epoch (original mix)"). Lend the title-embedded artist
-  // back to the key so the stray and the tagged row share ONE key instead
-  // of landing BOTH in a set (measured live: Cristoph "Epoch" 3× in one
-  // proposal, Sep 20).
+  // extension strip FIRST so "…(VIP Edit).mp3" loses the suffix on both
+  // the tagged and the stray path (it used to run only on strays)
+  const rawTitle = (row.title ?? "").replace(
+    /\.(?:mp3|wav|aiff|m4a|flac)$/i,
+    "",
+  );
+  const artistRaw = row.artist ?? "";
+  // Multi-credit collapse runs on the RAW string — poolNormText erases the
+  // commas, so the split must happen before normalization. "a, b, c" →
+  // "a" (head credit only; DJ convention: the primary artist leads).
+  const headArtistRaw = artistRaw.split(",")[0]?.trim() ?? "";
+  const artist = poolNormText(headArtistRaw);
   const unknownArtist = artist === "unknown" || artist === "unknownartist";
-  if (!unknownArtist) return `${artist}|${poolNormText(row.title ?? "")}`;
-  const raw = (row.title ?? "").replace(/\.(?:mp3|wav|aiff|m4a|flac)$/i, "");
-  const split = raw.match(/^(.+?)\s+-\s+(.+)$/);
+  if (!unknownArtist) return `${artist}|${poolTitleNorm(rawTitle)}`;
+  const split = rawTitle.match(/^(.+?)\s+-\s+(.+)$/);
   const embeddedArtist = split?.[1];
   const embeddedTitle = split?.[2];
-  return `${embeddedArtist ? poolNormText(embeddedArtist) : artist}|${poolNormText(
-    embeddedTitle ?? raw,
+  return `${embeddedArtist ? poolNormText(embeddedArtist) : artist}|${poolTitleNorm(
+    embeddedTitle ?? rawTitle,
   )}`;
 };
+
+/** Title-side normalization for the dedupe key: poolNormText, then the
+ *  bare release-form strip ("(extended)", "(extended mix)", "(radio
+ *  edit)" — with or without the trailing noun). poolNormText collapses
+ *  punctuation to single spaces, so the stripped form leaves exactly one
+ *  leading space; the inline trim removes it. Distinct from poolNormText
+ *  so the embedded-artist path keeps its strict shape. */
+const poolTitleNorm = (s: string): string =>
+  poolNormText(s)
+    .replace(
+      /\b(?:original|extended|club|radio|album|single|vocal)\s+(?:mix|edit|version)\b|\b(?:extended|club|radio|vocal)\b/gu,
+      " ",
+    )
+    .trim();
 
 /** NFC + casefold + release-form strip + punctuation collapse, shared by
  *  poolTitleKey (module-level: scoping rule). Bracketed suffixes

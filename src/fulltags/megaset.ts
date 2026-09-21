@@ -31,6 +31,7 @@ import {
 
 import {
   emptyPoolDiagnosis,
+  logExclusionShape,
   logProposalHeader,
   logSteps,
 } from "./megaset-report";
@@ -181,11 +182,16 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
           rekordboxKeyHits,
           rekordboxBpmHits,
           keyReads,
+          genreFiltered,
         },
         payload.excluded_total,
         log,
       );
       const at = logSteps(built.steps, log);
+      // exclusion SHAPE (Sep 21): the full engine list grouped by reason
+      // class — the wire preview caps at 40 rows, the terminal now shows
+      // the real shape of all of them
+      logExclusionShape(built.excluded, payload.excluded_total, total, log);
       log(`  total ${at} min — propose-only, nothing written`);
       if (!built.complete) setExit(1);
     }

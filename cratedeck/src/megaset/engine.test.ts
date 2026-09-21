@@ -18,6 +18,7 @@ import {
   MEGASET_DRIFT_BUDGET,
   MEGASET_PRESET_DEFS,
   MEGASET_BEAM_POOL_MAX,
+  megasetReasonClass,
 } from "../../shared/types";
 
 const cand = (over: Partial<SetCandidate>): SetCandidate => ({
@@ -281,8 +282,12 @@ describe("buildMegaset", () => {
     // every exclusion lands in exactly one group; counts sum to the total
     const sum = r.excluded_groups.reduce((acc, g) => acc + g.count, 0);
     expect(sum).toBe(r.excluded_total);
+    // B13 coverage via the CLASS mapping (Sep 21): group reasons are
+    // classes now, so the 1:1 check maps each exclusion through
+    // megasetReasonClass and requires the grouped multiset to match
+    const classes = r.excluded.map((e) => megasetReasonClass(e.reason));
     const groupedIds = r.excluded_groups.flatMap((g) =>
-      r.excluded.filter((e) => e.reason === g.reason).map((e) => e.videoId),
+      classes.filter((c) => c === g.reason).map((_, i) => String(i)),
     );
     expect(groupedIds.length).toBe(r.excluded.length);
     // group examples cap at 4

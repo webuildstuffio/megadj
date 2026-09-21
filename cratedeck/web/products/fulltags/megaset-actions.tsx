@@ -6,6 +6,14 @@ export function MegasetActions(props: {
   data: MegasetPayload;
   stale: boolean;
   exportHref: string | null;
+  /** Request context saved INTO the draft so it stays reproducible
+   *  (Sep 21: the old draft could not answer "what settings built this?"). */
+  draftKnobs: {
+    searchChoice: "auto" | "greedy" | "beam";
+    poolLimit: number | null;
+    openerId: string | null;
+    genre: string | null;
+  };
 }) {
   if (props.data.steps.length === 0) return null;
   return (
@@ -15,7 +23,7 @@ export function MegasetActions(props: {
         class="btn ghostbtn"
         aria-label="Save draft as a local JSON file"
         disabled={props.stale}
-        onClick={() => saveDraft(props.data)}
+        onClick={() => saveDraft(props.data, props.draftKnobs)}
       >
         <Icon name="download" size={13} /> Save JSON draft
       </button>
