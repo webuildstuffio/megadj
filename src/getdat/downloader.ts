@@ -126,6 +126,12 @@ const GONE_PATTERNS = [
   /video unavailable/i,
   /account associated with this video has been terminated/i,
   /removed following a copyright removal request/i,
+  // "removed for violating YouTube's Terms of Service" is a terminal
+  // removal (the video will never come back) — retrying it burned the
+  // full backoff ladder ×attempts per sync run (measured Sep 20: 4 such
+  // rows ate ~25 min of every chunk). Same gone-class as the 404 fix.
+  /removed for (violating )?youtube's terms of service/i,
+  /removed for violating .* terms of service/i,
   /private video/i,
   /makes it unavailable in your country/i,
 ];

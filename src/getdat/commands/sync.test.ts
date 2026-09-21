@@ -191,6 +191,27 @@ describe("sync (GetDat pipeline)", () => {
     }
   }, 60_000);
 
+  // Sep 20 live find: "removed for violating YouTube's Terms of Service"
+  // is a TERMINAL removal, but it wasn't in GONE_PATTERNS — every sync run
+  // re-attempted such rows through the full backoff ladder ×attempts<5
+  // (measured: 4 rows ate ~25 min of every chunk before this fix).
+  test("ToS-removal classifies gone, not throttle/other", () => {
+    const d = new Downloader({ musicDir: "/tmp/x" });
+    expect(
+      d.classifyError(
+        "ERROR: [youtube] sehUXx014jo: This video has been removed for violating YouTube's Terms of Service",
+      ),
+    ).toBe("gone");
+    // the case variant yt-dlp has shipped in the wild
+    expect(
+      d.classifyError(
+        "ERROR: [youtube] x: This video has been removed for violating the Terms of Service",
+      ),
+    ).toBe("gone");
+    // unrelated text stays "other" — the classifier didn't get looser
+    expect(d.classifyError("some totally different failure")).toBe("other");
+  });
+
   // super-sure pass, Sep 19: SC Go+ tracks serve ONLY a 30s preview;
   // yt-dlp downloads it and the run registered a 30s clip as a full
   // download (15 paro-set rows). The guard compares the landed file's
