@@ -137,6 +137,9 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       metadata_only: metadataOnly,
       // #283: matched rows when a --genre filter ran (0 = unfiltered)
       genre_filtered: genreFiltered,
+      // #283-followup: set-level quality stats (mean/lowest transition)
+      avg_transition: built.avg_transition,
+      min_transition: built.min_transition,
       freshness,
       search: built.search,
     };

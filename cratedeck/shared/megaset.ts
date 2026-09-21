@@ -60,6 +60,11 @@ export interface MegasetResult {
     count: number;
     examples: string[];
   }[];
+  /** #283-followup: set-level quality stats — mean/lowest step transition
+   *  (null on a single-step chain). Makes proposals comparable across
+   *  presets/pools without hand-deriving from steps[]. */
+  avg_transition: number | null;
+  min_transition: number | null;
   /** Which sequencer path ran: "greedy" or "beam". Beam activates
    * automatically for pools below MEGASET_BEAM_POOL_MAX (the measured E7
    * sparse-pool failure zone); surfaced so the deep search is visible,

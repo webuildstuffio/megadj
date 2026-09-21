@@ -375,6 +375,9 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         // B13: reason groups derived from the FULL excluded list engine-side
         excluded_groups: built.excluded_groups,
         excluded_total: built.excluded.length,
+        // #283-followup: set-level quality stats (mean/lowest transition)
+        avg_transition: built.avg_transition,
+        min_transition: built.min_transition,
         // which sequencer ran (beam = deep search on small pools) — the
         // UI and CLI quote this, never re-derive the threshold themselves
         search: built.search,

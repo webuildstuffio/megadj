@@ -28,8 +28,9 @@
  */
 
 import { existsSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive/reader";
+import { loadConfig } from "../../cratedeck/src/config";
 import {
   buildMegaset,
   parseMegasetQuery,
@@ -37,6 +38,7 @@ import {
   type MegasetPresetId,
 } from "../../cratedeck/src/megaset/engine";
 import { clampMegasetPool } from "../../cratedeck/shared/types";
+import type { SetSearchOverride } from "../../cratedeck/shared/megaset";
 import { DB_PATH } from "../cli-env";
 import {
   applyConfirmationRefusal,
@@ -72,6 +74,11 @@ export interface RbPlaylistOptions {
   limit?: number | undefined;
   /** #283 genre pool filter (raw value; shared family matcher). */
   genre?: string | undefined;
+  /** Force the sequencer (A/B compare) — same contract as megaset --search.
+   *  #283-followup: this was silently DROPPED before (the option parsed,
+   *  the engine never saw it — a flag the engine never reads is the
+   *  classic silent no-op bug), so --search beam ran greedy. */
+  search?: SetSearchOverride | undefined;
   /** Playlist name (defaults to "megaset <preset> <minutes>min <date>"). */
   playlist?: string | undefined;
   /** Parent playlist group (defaults to the proven "DJ-Imports"). */
@@ -125,7 +132,18 @@ function buildChain(
   parsed: { preset: MegasetPresetId; minutes: number },
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
-  const archive = new ArchiveReader(DB_PATH);
+  const cfg = loadConfig(
+    process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck"),
+  );
+  const archive = new ArchiveReader(
+    DB_PATH,
+    // #283-followup: the shelf Contents root is LOAD-BEARING — without it,
+    // relocated tracks (the 378-shelf-rescue strays) resolve as missing
+    // instead of relocated and the pool silently shrinks (measured: chain
+    // 18 vs 23 for identical megaset args). Same configured root the
+    // megaset CLI passes — one pool, one proposal.
+    join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),
+  );
   try {
     if (!archive.available()) return { error: `no archive at ${DB_PATH}` };
     const { candidates } = archive.setCandidates(
@@ -139,6 +157,7 @@ function buildChain(
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: opts.opener,
+      searchOverride: opts.search,
     });
     const byId = new Map(
       candidates.map((c) => [c.videoId, c.filePath] as const),

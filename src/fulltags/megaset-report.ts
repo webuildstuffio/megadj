@@ -48,7 +48,7 @@ export function logProposalHeader(
     keyReads,
   } = census;
   log(
-    `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} pool tracks; ${metadataOnly} metadata-only${metadataOnly > 0 ? " — shelf offline, scored from mirror tempo" : ""}; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${excludedTotal})`,
+    `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search${built.avg_transition !== null ? `, transitions avg ${built.avg_transition.toFixed(3)} / min ${built.min_transition?.toFixed(3)}` : ""} (checked ${sourceTotal} DB rows; ${total} pool tracks; ${metadataOnly} metadata-only${metadataOnly > 0 ? " — shelf offline, scored from mirror tempo" : ""}; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${excludedTotal})`,
   );
   if (metadataOnly > 0) {
     log(

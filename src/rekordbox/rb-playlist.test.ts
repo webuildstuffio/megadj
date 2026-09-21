@@ -304,3 +304,34 @@ describe("rb-playlist chain→payload shape", () => {
     expect(parsed.chain[0]?.path).toBe("/archive/a.mp3");
   });
 });
+
+describe("#283-followup: option passthrough integrity", () => {
+  const rbSource = readFileSync(
+    join(import.meta.dir, "rb-playlist.ts"),
+    "utf8",
+  );
+
+  test("--search reaches the engine (it parsed but was never forwarded — a silent no-op flag)", () => {
+    // Regression: rb-playlist accepted --search at the CLI but buildMegaset
+    // never received it, so a forced beam/greedy silently ran the auto
+    // choice (measured divergence: identical megaset args gave 18 vs 23
+    // tracks). Pin the full forwarding chain by source: CLI parses the
+    // flag, dispatch forwards it, engine call consumes it.
+    const cli = readFileSync(join(import.meta.dir, "cli-commands.ts"), "utf8");
+    expect(cli).toContain(
+      'parseMegasetSearchOverride(flags.strings.get("search"))',
+    );
+    expect(rbSource).toContain("searchOverride: opts.search");
+    expect(rbSource).toContain("search?: SetSearchOverride | undefined");
+  });
+
+  test("buildChain passes the configured shelf Contents root (relocated tracks must not shrink the pool)", () => {
+    // Regression: a bare ArchiveReader(DB_PATH) resolved relocated strays
+    // (378-shelf-rescue) as missing → smaller pool → shorter chain. The
+    // constructor now receives the same configured root the megaset CLI
+    // passes.
+    expect(rbSource).toContain(
+      'join(cfg.volumesRoot, cfg.shelfDrive, "Contents")',
+    );
+  });
+});

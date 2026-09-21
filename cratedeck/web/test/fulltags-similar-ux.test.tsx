@@ -456,6 +456,8 @@ describe("FullTags Similar and Set Builder UX", () => {
     key_reads: 201,
     key_read_failures: 0,
     genre_filtered: 0,
+    avg_transition: null,
+    min_transition: null,
     freshness: { beatsAt: null, moodAt: null },
     search: "greedy",
   };

@@ -35,11 +35,30 @@ const physicalPathKey = (path: string): string =>
 const poolTitleKey = (row: {
   title: string | null;
   artist: string | null;
-}): string =>
-  `${poolNormText(row.artist ?? "")}|${poolNormText(row.title ?? "")}`;
+}): string => {
+  const artist = poolNormText(row.artist ?? "");
+  // Shelf-rescue strays lose their embedded tags: the artist column reads
+  // Unknown/UnknownArtist/[unknown] and the real artist rides the title
+  // ("cristoph - epoch (original mix)"). Lend the title-embedded artist
+  // back to the key so the stray and the tagged row share ONE key instead
+  // of landing BOTH in a set (measured live: Cristoph "Epoch" 3× in one
+  // proposal, Sep 20).
+  const unknownArtist = artist === "unknown" || artist === "unknownartist";
+  if (!unknownArtist) return `${artist}|${poolNormText(row.title ?? "")}`;
+  const raw = (row.title ?? "").replace(/\.(?:mp3|wav|aiff|m4a|flac)$/i, "");
+  const split = raw.match(/^(.+?)\s+-\s+(.+)$/);
+  const embeddedArtist = split?.[1];
+  const embeddedTitle = split?.[2];
+  return `${embeddedArtist ? poolNormText(embeddedArtist) : artist}|${poolNormText(
+    embeddedTitle ?? raw,
+  )}`;
+};
 
 /** NFC + casefold + release-form strip + punctuation collapse, shared by
- *  both halves of poolTitleKey (module-level: scoping rule). */
+ *  poolTitleKey (module-level: scoping rule). Bracketed suffixes
+ *  ([Pryda Presentation], [FREE DOWNLOAD]) are stripped too — they are
+ *  label/presentation carriers, not track identity; an UNCLOSED bracket
+ *  (truncated filename "[Pryda Prese") strips to end-of-string. */
 const poolNormText = (s: string): string =>
   s
     .normalize("NFC")
@@ -48,6 +67,8 @@ const poolNormText = (s: string): string =>
       /\((?:original|extended|club|radio|album|single|vocal)\s+(?:mix|edit|version)\)/gu,
       " ",
     )
+    .replace(/\[[^\]]*\]/gu, " ")
+    .replace(/\[[^\]]*$/gu, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
@@ -465,3 +486,8 @@ export function poolFreshness(reader: ArchiveQuery): ArchiveFreshness {
     moodAt: row?.mood_at ?? null,
   };
 }
+
+/** Test surface for the #283 dedupe key (module-private by scoping rule;
+ *  the live pool dedupe is exercised end-to-end by rb-playlist/megaset
+ *  acceptance runs). */
+export const __test = { poolTitleKey };

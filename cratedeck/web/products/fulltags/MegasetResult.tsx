@@ -222,6 +222,17 @@ export function MegasetResult(props: { data: MegasetPayload }) {
             <small>mounted files in the pool</small>
           </dd>
         </div>
+        {data.avg_transition !== null && (
+          <div>
+            <dt>Avg blend</dt>
+            <dd>
+              <strong>{data.avg_transition.toFixed(3)}</strong>
+              <small>
+                worst {data.min_transition?.toFixed(3)} · higher is smoother
+              </small>
+            </dd>
+          </div>
+        )}
       </dl>
 
       <div class="megaset-source-summary">

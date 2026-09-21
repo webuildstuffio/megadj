@@ -230,6 +230,21 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     const actualMinutes = minutesAt(elapsed);
     const shortfallMinutes =
       Math.round(Math.max(0, minutes - actualMinutes) * 10) / 10;
+    // #283-followup: set-level quality stats so proposals are COMPARABLE
+    // (the MD eval previously hand-derived these from steps). null on a
+    // single-step chain — no transitions, no average.
+    const transitions = steps
+      .map((s) => s.transition)
+      .filter((t): t is number => t !== null);
+    const avgTransition =
+      transitions.length === 0
+        ? null
+        : Math.round(
+            (transitions.reduce((a, b) => a + b, 0) / transitions.length) *
+              1000,
+          ) / 1000;
+    const minTransition =
+      transitions.length === 0 ? null : Math.min(...transitions);
     return {
       preset: preset.id,
       minutes,
@@ -243,6 +258,8 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       // excluded_total
       excluded_groups: groupMegasetExcluded(excluded),
       excluded_total: excluded.length,
+      avg_transition: avgTransition,
+      min_transition: minTransition,
       search,
     };
   };

@@ -143,6 +143,15 @@ describe("buildMegaset", () => {
     // every step carries its transition score except the first
     expect(r.steps[0]!.transition).toBeNull();
     expect(r.steps[1]!.transition).not.toBeNull();
+    // #283-followup: set-level quality stats derive from the same steps
+    const transitions = r.steps
+      .map((s) => s.transition)
+      .filter((t): t is number => t !== null);
+    expect(r.avg_transition).toBeCloseTo(
+      transitions.reduce((a, b) => a + b, 0) / transitions.length,
+      3,
+    );
+    expect(r.min_transition).toBe(Math.min(...transitions));
   });
   test("deterministic: same input → same chain", () => {
     const a = buildMegaset({

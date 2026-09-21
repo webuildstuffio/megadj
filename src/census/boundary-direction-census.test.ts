@@ -38,6 +38,8 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   // types.ts as the declared import leaf; hygiene/ledger-freshness are the
   // same class) — #225A folds or re-homes these
   "cratedeck/shared/types": "#225A shared-only fold (declared leaf)",
+  "cratedeck/shared/megaset":
+    "#283 megaset wire shapes (SetSearchOverride guard) — fold with #225A",
   "cratedeck/shared/hygiene": "#225A shared-only fold",
   "cratedeck/shared/dump":
     "#225A shared-only fold (dump contract, used by src/archive/dump-ledger)",

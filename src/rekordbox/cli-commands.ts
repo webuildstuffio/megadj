@@ -23,6 +23,16 @@ import { DB_PATH } from "../cli-env";
 import { ArchiveState } from "../archive/state";
 import type { AnlzBeat, AnlzSpikeMode } from "./anlz-spike";
 import { errMessage as errorText } from "../shared/leaf/fmt";
+import { isMegasetSearchOverride } from "../../cratedeck/shared/megaset";
+
+/** Guarded --search passthrough: unknown values read as absent (the flag
+ *  degrades to the engine's auto choice) instead of a silent type lie. */
+const parseMegasetSearchOverride = (
+  raw: string | undefined,
+): ReturnType<typeof isMegasetSearchOverride> extends true
+  ? never
+  : "greedy" | "beam" | undefined =>
+  isMegasetSearchOverride(raw) ? raw : undefined;
 
 const rbFixPathsCmd: CliCommandHandler = async (rest) => {
   // rekordbox library repair: stale djmdContent.FolderPath rows after
@@ -247,7 +257,16 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
   // dry-run default, post-verify.
   const flags = parseFlags(
     rest,
-    ["playlist", "group", "preset", "minutes", "opener", "limit", "genre"],
+    [
+      "playlist",
+      "group",
+      "preset",
+      "minutes",
+      "opener",
+      "limit",
+      "genre",
+      "search",
+    ],
     ["apply", "yes", "json"],
   );
   const args = positionalArgs(rest, [
@@ -258,6 +277,7 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
     "opener",
     "limit",
     "genre",
+    "search",
   ]);
   const mount = mountFrom(args[0]);
   const json = jsonFlag(flags);
@@ -278,6 +298,9 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
     limit,
     // #283 genre pool filter — same family matcher as megaset
     genre: flags.strings.get("genre"),
+    // #283-followup: --search now reaches the engine (it parsed but was
+    // never forwarded — the classic silent no-op flag bug)
+    search: parseMegasetSearchOverride(flags.strings.get("search")),
     ...rbWriteOpts(flags, json),
   });
   await emitResult(json, r, printRbPlaylistReport);

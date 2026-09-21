@@ -1,8 +1,8 @@
 # MegaSet Session — 5 DJ Sets, Built, Scored, and Landed in Rekordbox
 
-**Date:** 2026-09-20 (evening session, ~22:00–23:30 ET)
-**Scope:** genre-filtered set building end-to-end — new feature, 5 sets built + scored + evaluated, all 5 written into the SHELF1 rekordbox master as the `MegaSets` group, 4 live defects found and fixed along the way.
-**Status:** SHIPPED (feature wired into every surface; playlists post-verified in master.db + XML twin)
+**Date:** 2026-09-20 (evening session, ~22:00–23:30 ET; round 2 "10x" pass ~03:00–04:00 ET)
+**Scope:** genre-filtered set building end-to-end — new feature, 5 sets built + scored + evaluated, all 5 written into the SHELF1 rekordbox master as the `MegaSets` group, 4 live defects found and fixed along the way. Round 2: quality stats on the wire, `--search` un-noop'd, pool parity + dedupe v2, five cleaner v2/v3 sets applied.
+**Status:** SHIPPED (round 2 sets are the live ones — see §7)
 
 ---
 
@@ -116,7 +116,59 @@ Issue: [#283](https://github.com/webuildstuffio/megadj/issues/283)
 - Pool numbers quoted live: house family 1,436 rows (1,406 fully analyzed), tech house 319, strict tropical 10 → widened 1,440
 - Regression tests: `cratedeck/shared/megaset.test.ts` (matcher: 7 cases) — the SQL/pool leg is pinned by the live acceptance runs above; web fixture updated for the new `genre_filtered` wire field
 
-## 7. What's still open (owner decisions)
+## 7. Round 2 — the 10x pass (late Sep 20, same session)
+
+Audit of round 1 found the sets **unevaluable** (no set-level quality stats)
+and dug out two more live defects. All fixed; five **v2/v3** sets rebuilt and
+applied on top of round 1's, every one verified 12/12-style zero-unmatched.
+
+**Feature deltas (wired to every surface):**
+
+- `avg_transition` + `min_transition` now ship on the megaset payload
+  (engine → CLI `--json` → web result card → report line): sets are
+  comparable without hand-deriving from `steps[]`.
+- `rb-playlist` gained `--search` (greedy/beam force) — and the audit caught
+  that it had been a **silent no-op**: the flag parsed but never reached the
+  engine. Measured effect: identical warmup args built an **18-track** chain
+  via rb-playlist vs **23** via the megaset CLI. After the fix both produce
+  the same 23-track chain.
+- `rb-playlist` now passes the configured shelf Contents root to the archive
+  reader — a bare reader resolved relocated strays as missing and silently
+  shrank the pool (same 18-vs-23 incident).
+- **Dedupe v2** (the 3×-Epoch incident): one Cristoph "Epoch" recording
+  landed **three times** in the applied tropical set — a tagged row, a
+  truncated shelf-rescue stray (`…[Pryda Prese`, unclosed bracket), and a
+  lost-tag stray (`artist=UnknownArtist`, real artist riding the title).
+  `poolTitleKey` now strips unclosed bracket suffixes and **lends the
+  title-embedded artist back** to the key for unknown-artist rows; all four
+  DB variants of the recording collapse to one key
+  (pinned in `cratedeck/src/archive/pool.test.ts`).
+
+**The five sets (v2/v3, all in rekordbox under `MegaSets`, all DB+XML twins,
+zero unmatched):**
+
+| Set                      | Preset     | Genre          | Tracks | Runtime   | avg blend | worst blend | search |
+| ------------------------ | ---------- | -------------- | ------ | --------- | --------- | ----------- | ------ |
+| `v2 warmup house 90min`  | warmup     | house          | 23     | 95.0 min  | 1.110     | 0.920       | beam   |
+| `v3 tropical house 65min`| peak       | tropical house | 12     | ~65 min   | 1.174     | 1.156       | beam   |
+| `v2 deep house afterhours 90min` | afterhours | deep house | 19 | 92.7 min | 1.157     | 1.096       | greedy |
+| `v2 afro house 60min`    | peak       | afro house     | 11     | 66.5 min  | 1.173     | 1.158       | greedy |
+| `v2 peak marathon 120min`| peak       | house          | 19     | 120.4 min | 1.176     | 1.160       | greedy |
+
+A/B evidence captured live: tropical 60min beam beat greedy on runtime
+(62.2 vs 66.5 min) at equal avg transition; deep 90min greedy beat beam on
+runtime (92.7 vs 95.8) at equal quality — beam only pays on sparse pools,
+matching the `MEGASET_BEAM_POOL_MAX` design.
+
+**Known artifacts to clean at the next write session** (never hand-edit the
+master outside the seam): `megaset v2 tropical house 60min 2026-09-20`
+(10/11 linked, pre-dedupe-fix) and `megaset v3 tropical house 62min
+2026-09-20` (11/12, one `[archive 2]` stray with no master row) are
+superseded by the clean `v3 …65min` set. Delete both after the dated-backup
+gate; the `GOAT X Rakever Latzfon` `[archive N]` strays still lack master
+rows (import the stray batch or exclude the family).
+
+## 8. What's still open (owner decisions)
 
 - Quarantine judging (1.2 GB / 71 files) — QuarantinePanel
 - The Paro 70 purchase-links decision — `megadj surfaced-note <id>` or `--force-rip`
