@@ -5,8 +5,9 @@
  */
 
 import { $ } from "bun";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { sanitizeGenreFolder } from "../fulltags/write/schema";
+import { probeFile } from "../fulltags/media-probe";
 import type { YtdlpInfo } from "../fulltags/write/metadata-build";
 import { TrackGoneError } from "./ratelimit";
 import {
@@ -348,21 +349,28 @@ export class Downloader {
       // — the file sat unledgered and the next run re-downloaded it (2
       // live dupes: Bobby Shmurda Caked Up, Wiz Khalifa Still Down).
       // The stdout still carries the after_move filepath prints (they
-      // fire before the embed step), so parse them; a landed audio file
-      // becomes downloaded-with-caveat. GONE/throttle classes never reach
-      // this branch — classifyError runs after it.
+      // fire before the embed step). SALVAGE ONLY IF THE FILE ACTUALLY
+      // PLAYS: the Sep 20 live find #2b — a hollow m4a (metadata shell,
+      // zero streams) also surfaces as "Unable to embed", and marking a
+      // stream-less file downloaded poisons the ledger (audit then reads
+      // it unplayable). ffprobe must report an audio codec + duration.
       if (/unable to embed/i.test(stderr)) {
         const salvaged = Downloader.parseDownloadOutput(
           new TextDecoder().decode(proc.stdout),
           { soundcloud: target.soundcloud === true },
         );
         if (salvaged.filePath && existsSync(salvaged.filePath)) {
-          return {
-            status: "downloaded",
-            filePath: salvaged.filePath,
-            formatId: salvaged.formatId,
-            info: {},
-          };
+          const probe = await probeFile(salvaged.filePath);
+          if (probe.ok && probe.codec !== null && (probe.durationS ?? 0) >= 1) {
+            return {
+              status: "downloaded",
+              filePath: salvaged.filePath,
+              formatId: salvaged.formatId,
+              info: {},
+            };
+          }
+          // Hollow shell: delete the debris and report the honest failure.
+          rmSync(salvaged.filePath, { force: true });
         }
       }
       if (target.soundcloud) {

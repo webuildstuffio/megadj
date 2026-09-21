@@ -244,7 +244,9 @@ describe("sync (GetDat pipeline)", () => {
         // syntax inside a plain string; build the shell dollar via char
         // code so the line stays a plain expression.
         `dest="${String.fromCharCode(36)}{out%%%(title)s*}Victim.m4a"`,
-        "printf 'fake-bytes' > \"$dest\"",
+        // The salvage gate probe-validates: the fake must land REAL
+        // audio — copy the shared 1-second sine fixture.
+        `cp "${PREVIEW_FIXTURE}" "$dest"`,
         'echo "[ExtractAudio] Destination: $dest"',
         'echo "$dest"',
         'echo "abc123"',
@@ -261,6 +263,52 @@ describe("sync (GetDat pipeline)", () => {
     const r = await d2.download("abc123", {}, null);
     expect(r.status).toBe("downloaded");
     expect(r.filePath).toBe(landed);
+  }, 30_000);
+
+  // Live find #2b (same night): the embed failure can ALSO produce a
+  // HOLLOW m4a — metadata shell, zero streams (ffprobe: no codec, no
+  // duration). Bytes-on-disk alone must not mark it downloaded; the
+  // salvage now probe-gates and sweeps the debris.
+  test("embed-failure with a hollow (stream-less) file stays failed", async () => {
+    const { tempDir } = await import("../../test-support/testutil");
+    const { join: pathJoin } = await import("node:path");
+    const { writeFileSync, mkdirSync, chmodSync } = await import("node:fs");
+    const t = tempDir("megadj-embed-hollow-").rippable();
+    const tmp = t.dir();
+    const { existsSync } = await import("node:fs");
+    const binDir = pathJoin(tmp, "bin");
+    mkdirSync(binDir, { recursive: true });
+    const fake = pathJoin(binDir, "fake-ytdlp");
+    // Same shape as the salvaging fake, but the "landed" file is a hollow
+    // shell: a few junk bytes that ffprobe reports no audio stream for.
+    writeFileSync(
+      fake,
+      [
+        "#!/bin/sh",
+        'while [ "$#" -gt 0 ]; do',
+        '  if [ "$1" = "-o" ]; then shift; out="$1"; fi',
+        "  shift",
+        "done",
+        // eslint-disable-next-line no-template-curly-in-string -- shell syntax
+        'dest="${out%%%(title)s*}Victim.m4a"',
+        "printf 'not-audio' > \"$dest\"",
+        'echo "[ExtractAudio] Destination: $dest"',
+        'echo "$dest"',
+        'echo "abc123"',
+        'echo "ERROR: Unable to embed using ffprobe & ffmpeg" >&2',
+        "exit 1",
+      ].join("\n"),
+    );
+    chmodSync(fake, 0o755);
+    const d = new Downloader({
+      musicDir: tmp,
+      ytdlpBin: fake,
+      batchDir: tmp,
+    });
+    const r = await d.download("abc123", {}, null);
+    // The hollow file must NOT become a download; and the debris is swept.
+    expect(r.status).toBe("failed");
+    expect(existsSync(pathJoin(tmp, "Victim.m4a"))).toBe(false);
   }, 30_000);
 
   // super-sure pass, Sep 19: SC Go+ tracks serve ONLY a 30s preview;

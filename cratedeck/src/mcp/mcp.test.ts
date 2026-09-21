@@ -30,7 +30,7 @@ const proc = Bun.spawn(
     ...MCP_CMD,
   ],
   {
-    cwd: join(import.meta.dir, ".."),
+    cwd: join(import.meta.dir, "..", ".."),
     env: {
       ...process.env,
       // NO_AUTOSTART + OFFLINE: ensureServer() must never probe/spawn the
@@ -45,10 +45,11 @@ const proc = Bun.spawn(
       CRATEDECK_NO_AUTOSTART: "1",
       CRATEDECK_OFFLINE: "1",
       CRATEDECK_PORT: "59999",
-      CRATEDECK_DATA: join(import.meta.dir, "..", "data-test-mcp-protocol"),
-      CRATEDECK_ROOT: join(import.meta.dir, ".."),
+      CRATEDECK_DATA: join(import.meta.dir, "..", "..", "data-test-mcp-protocol"),
+      CRATEDECK_ROOT: join(import.meta.dir, "..", ".."),
       CRATEDECK_VOLUMES: join(
         import.meta.dir,
+        "..",
         "..",
         "data-test-mcp-protocol",
         "volumes",
