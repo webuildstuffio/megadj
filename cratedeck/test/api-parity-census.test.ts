@@ -79,7 +79,7 @@ function serverRoutes(): Set<string> {
     routes.add(`/archive/${key}`);
 
   // fleet family: route === literals + the /fleet/ prefix fall-through.
-  const fleet = read("cratedeck/src/fleet-routes.ts");
+  const fleet = read("cratedeck/src/fleet/routes.ts");
   for (const m of fleet.matchAll(/route === "(\/fleet\/[a-z]+)"/g))
     if (m[1]) routes.add(m[1]);
   if (apiRoutes.includes('route.startsWith("/fleet/")'))
@@ -204,7 +204,7 @@ function deckctlTargets(): ClientTarget[] {
     "cratedeck/src/deckapi.ts",
     // drive-images producer whose entries carry an /api URL the web client
     // renders verbatim (`src={img.url}`).
-    "cratedeck/src/image-store.ts",
+    "cratedeck/src/image/store.ts",
   ];
   // MCP read handlers are now a prefix-domain leaf. Keep this explicit
   // client input: a root-only scan would silently stop checking its API

@@ -84,7 +84,7 @@ function httpApiRoutes(): string[] {
     "cratedeck/src/api/routes.ts",
     "cratedeck/src/api/dispatch.ts",
     "cratedeck/src/drive-routes.ts",
-    "cratedeck/src/fleet-routes.ts",
+    "cratedeck/src/fleet/routes.ts",
   ]
     .map((f) => read(f).join("\n"))
     .join("\n");
