@@ -30,7 +30,11 @@ import {
 } from "./deck-service";
 import { DEFAULT_PORT, resolveServerPort } from "../deck/server-port";
 
-const REPO_ROOT = join(import.meta.dir, "..");
+// ops/ sits at <repo>/src/ops (the Sep 2026 cratedeck fold) — the repo
+// root is TWO levels up. A single `..` here baked WorkingDirectory=<repo>/src
+// into the launchd plist and crash-looped the service (`bun run
+// src/deck/index.ts` cannot resolve under <repo>/src).
+const REPO_ROOT = join(import.meta.dir, "..", "..");
 const STATE_DIR = join(homedir(), ".local", "state", "megadj");
 
 function sh(cmd: string[], quiet = true): { code: number; out: string } {

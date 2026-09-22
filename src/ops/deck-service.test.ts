@@ -5,6 +5,8 @@
  * template's structural invariants, and the state classifier's verdicts).
  */
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import {
   DECK_SERVICE_LABEL,
   classifyDeckService,
@@ -15,6 +17,29 @@ import {
 describe("deck service SSOT (#247)", () => {
   test("label is the AGENTS.md + issue-pinned name", () => {
     expect(DECK_SERVICE_LABEL).toBe("com.nick.megadj-deck");
+  });
+
+  test("deck-install REPO_ROOT resolves to the repo root, not src/ (Sep 2026 fold regression pin)", () => {
+    // deck-install.ts moved from ops/ to src/ops/ in the cratedeck→src/deck
+    // fold; its `join(import.meta.dir, "..")` was NOT re-derived, baked
+    // WorkingDirectory=<repo>/src into the launchd plist, and the service
+    // crash-looped on `error: Module not found "src/deck/index.ts"`.
+    // The installer is an entry point (knip), so its internal const cannot
+    // be imported — pin the depth rule against the file text instead.
+    const source = readFileSync(
+      join(import.meta.dir, "deck-install.ts"),
+      "utf8",
+    );
+    const match =
+      /const REPO_ROOT = join\(import\.meta\.dir,\s*(?:"\.\."(?:,\s*)?)+\)/.exec(
+        source,
+      );
+    expect(
+      match,
+      "REPO_ROOT must be derived from import.meta.dir via join(..)",
+    ).not.toBeNull();
+    const ups = (match?.[0]?.match(/\.\./g) ?? []).length;
+    expect(ups, "src/ops/ is TWO levels below the repo root").toBe(2);
   });
 
   test("plist path sits in ~/Library/LaunchAgents", () => {
