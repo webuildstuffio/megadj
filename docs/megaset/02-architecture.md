@@ -135,9 +135,21 @@ silent. **Termination**: budget fill → leftovers excluded with reasons;
 nothing silently dropped. Every counter (pool, missing,
 duplicate, relocated, excluded_total, `same_artist_pairs`) rides the
 payload; `excluded_groups` buckets by `megasetReasonClass` (stable
-classes, not raw reason strings — #283) and the wire's mix bands
+classes, not raw reason strings — #283; budget-fill is NOT a bucket —
+it is the `budget_filled` status count, #291) and the wire's mix bands
 (`MEGASET_TIGHT_FLOOR`/`MEGASET_CLEAN_FLOOR` via `megasetTransitionBand`)
-are the one calibration shared by CLI and web.
+are the one calibration shared by CLI and web. **Per-step evidence
+(#284)**: each transitioned step carries `evidence` — weight-scaled
+tempo/key/arcFit/anchor/similarity contributions, the B6
+`artistPenalty`, a `total` that exactly equals the wire blend, and a
+B8 `halftime` flag — produced by the one `transitionEvidence()` seam in
+`megaset/scoring.ts` at the search's exact slot clock; cross-build
+comparison reads components, not the pooled magnitude. **Genre guard
+(#290)**: a `--genre` value matching 0 rows suggests the nearest family
+(`megasetNearestGenreFamily`, bounded edit distance over the SAME
+family table — no twin list) via `genre_suggestion` on the wire; the
+starvation fallback resolves by FAMILY (`megasetGenreFallbackTerms`),
+so `--genre tropical` widens exactly like `--genre "tropical house"`.
 
 ## 3. The invariants
 

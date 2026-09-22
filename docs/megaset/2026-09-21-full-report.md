@@ -1,9 +1,22 @@
 # MegaSet Improvement Pass + Super-Sure Verification — Full Report
 
-**Date:** Sep 21, 2026 (evening session, ~19:30–21:15 ET)
-**Commits:** `95a1e0ca` (improvement pass, 25 files +755/−46) → `d740df84` (super-fix, 4 files +159/−25), both pushed to `main`
-**Gates at push:** `check` exit 0 · `check:full` exit 0 (type-coverage success 100%, ruff clean, mypy strict clean) · full suite **2,072 pass / 0 fail** (pre-push leg, twice)
-**Status:** SHIPPED + VERIFIED. This doc is the deep walkthrough (what/why/how), the learnings record, and the next-steps queue. The defect-level audit from earlier the same day lives in [`2026-09-21-audit-and-next.md`](2026-09-21-audit-and-next.md); the architecture truth lives in [`02-architecture.md`](02-architecture.md).
+**Date:** Sep 21, 2026 (evening session, ~19:30–21:15 ET; burn-down pass 21:30–22:30 ET)
+**Commits:** `95a1e0ca` (improvement pass) → `d740df84` (super-fix) → `23379c2c` (queue burn-down: #284/#291/#290/#294), all pushed to `main`
+**Gates at push:** `check` exit 0 · `check:full` exit 0 (type-coverage success 100%, ruff clean, mypy strict clean) · full suite **2,082 pass / 0 fail** (post-`23379c2c`)
+**Status:** SHIPPED + VERIFIED + QUEUE BURNED. This doc is the deep walkthrough (what/why/how), the learnings record, and the next-steps queue. The defect-level audit from earlier the same day lives in [`2026-09-21-audit-and-next.md`](2026-09-21-audit-and-next.md); the architecture truth lives in [`02-architecture.md`](02-architecture.md).
+
+---
+
+## 0. Queue burn-down (Sep 21, ~22:00 ET, `23379c2c`)
+
+Four of the seven "what to improve next" items from §7 shipped in one pass:
+
+- **#284 per-step scoring evidence — SHIPPED.** Every transitioned step now carries a `MegasetEvidence` breakdown on the wire: weight-scaled `tempo/key/arcFit/anchor/similarity`, the B6 `artistPenalty`, a `total` that EXACTLY equals the wire blend, and a B8 `halftime` flag. `transitionEvidence()` (scoring.ts) is the one seam; the engine recomputes at the search's exact full-precision slot clock (a first draft keyed off the rounded `atMin` field and drifted — caught by the new sum==blend pins, which is the feature working as designed). CLI step lines render it (`[t 0.45 · k 0.30 · arc 0.20 · anch 0.10 · sim 0.10 · B6 −3+1]`), the web hover carries it, the MCP description documents it. The B6 penalty initially escaped the breakdown (0.01 blend vs 0.91 component sum) — now structurally impossible: the pins force total == blend through the penalty path.
+- **#291 budget-fill as status — SHIPPED.** `excluded_groups` carries only genuine quality reasons; the count moved to `budget_filled` on the wire. CLI: `pool 150 → chain kept the rest · set budget filled for 114 · quality exclusions (31): 28 too long · 3 too short`. Web `ExcludedBreakdown` renders the status note. The 3.5k-row drowning shape is gone.
+- **#290 genre guard + fallback bug — SHIPPED (+1 bug found and fixed in-pass).** `megasetNearestGenreFamily` (bounded edit distance ≤3 over the SAME family table, no twin list) suggests the nearest family when `--genre` matches 0 rows; `genre_suggestion` rides the CLI JSON and the HTTP payload. **Bug:** the starvation fallback keyed on the RAW genre string — `--genre tropical` (synonym-resolves to tropical house) never widened to house while `--genre "tropical house"` did. `megasetGenreFallbackTerms` now resolves by family; live-proven byte-identical 17-track sets for both spellings.
+- **#294 inline score magnitude — SHIPPED (stopgap).** The web mix pill shows the score inline (`1.12 clean`) instead of the information-free band label alone; the full hover-panel UX remains future work under #284's web rendering.
+
+**Live proof (22:00 ET):** peak/30-min/250-pool build — every step's evidence sums to its blend (e.g. Mau P hop 1.149 = t .45 + k .30 + arc .20 + anch .10 + sim .10); warmup build shows the status line; gqom suggests edm with `genre_suggestion` on the wire; tropical ≡ "tropical house" fallback parity. Tests: +10 pins across scoring/engine/shared/CLI/web; full suite 2,072 → 2,082.
 
 ---
 
@@ -134,14 +147,13 @@ The standing queue from the audit doc (§4 there) is unchanged in its ordering; 
 
 1. **[#303](https://github.com/webuildstuffio/megadj/issues/303) — dedupe v4 vs the uploader long tail.** The 8-channel regex is honest about being measured, not complete. Owner call between reactive extension (cheap), pool-derived uploaderishness (self-maintaining, needs a measurement pass), or ingest-time normalization (risky). Recommended: option 2, gated on the weekly-diff evidence shape in the issue.
 2. **[#304](https://github.com/webuildstuffio/megadj/issues/304) — non-monotone-preset tripwire.** Zero work today; becomes a hard requirement the moment a plateau/double-hump preset (cooldown is the obvious candidate) is proposed. The F2 exactness pin is the standing guard until then.
-3. **#284 per-step scoring evidence** — now strictly more valuable: F1/F3 proved the score's *composition* can drift from its documented intent, and per-component wire evidence (`megasetTempoLane` output per hop) is exactly the audit trail that would have caught both at review time. Recommended as the next engineering item, ahead of the UX stopgap #294.
-4. **#288 N-candidates compare** — unchanged as the biggest product gap; the deterministic engine + seeded variants design is untouched by this session's changes.
+3. ~~#284 per-step scoring evidence~~ — **SHIPPED in `23379c2c`** (§0).
+4. **#288 N-candidates compare** — unchanged as the biggest product gap; the deterministic engine + seeded variants design is untouched by this session's changes. **Now the top engineering item in the queue.**
 5. **#295 genre-cohort builder runs** — the three live sets this session were hand-run one-offs; the reusable command this issue describes is how they become a routine. Note the #303 weekly-diff evidence shape wants this command to exist.
 
 **Also ride-along-able**
 
-- **#291** ("set budget filled" is a status, not an exclusion) — this session's sets again showed the shape: 3,6xx budget rows vs a handful of real quality exclusions.
-- **#290 / #285** (unknown-genre guard, family suggest) — untouched, still cheap wins.
+- ~~#291~~ / ~~#290~~ / ~~#294~~ — **SHIPPED in `23379c2c`** (§0); #285 (web family dropdown) remains, and can now consume the same `genre_suggestion`/family-table seam.
 - **#297 (RB gauntlet at next drive mount)** — not megaset, but the highest-cost-of-wait item in the queue; the 3,131 TKEY writes evaporate if rekordbox re-analyzes first.
 
 **Deliberately not queued**
