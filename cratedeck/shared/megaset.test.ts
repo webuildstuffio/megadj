@@ -5,10 +5,16 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  isMegasetHalfTimePair,
+  megasetArtistKey,
+  megasetArtistRepeatPenalty,
   megasetGenreTerms,
   megasetReasonClass,
   megasetTransitionBand,
+  MEGASET_ARTIST_REPEAT_WINDOW,
   MEGASET_CLEAN_FLOOR,
+  MEGASET_HALFTIME_PENALTY,
+  MEGASET_HALFTIME_TOLERANCE,
   MEGASET_TIGHT_FLOOR,
 } from "./megaset";
 
@@ -34,7 +40,18 @@ describe("megasetReasonClass (Sep 21 exclusion-shape collapse)", () => {
       ),
     );
   });
-  test("the six real classes are distinct", () => {
+  test("the S13 landmark reasons collapse to one class", () => {
+    expect(
+      megasetReasonClass(
+        "landmark not placeable — not in the candidate pool (unknown id, or not downloaded/analyzed)",
+      ),
+    ).toBe(
+      megasetReasonClass(
+        "landmark not placeable — no arc-legal position in this set (key clash, tempo outside ±6%, or drift budget)",
+      ),
+    );
+  });
+  test("the seven real classes are distinct", () => {
     const classes = [
       megasetReasonClass("set budget filled"),
       megasetReasonClass(
@@ -50,8 +67,51 @@ describe("megasetReasonClass (Sep 21 exclusion-shape collapse)", () => {
       megasetReasonClass(
         "requested opener is not in the candidate pool (unknown id, or not downloaded/analyzed)",
       ),
+      megasetReasonClass(
+        "landmark not placeable — no arc-legal position in this set",
+      ),
     ];
-    expect(new Set(classes).size).toBe(6);
+    expect(new Set(classes).size).toBe(7);
+  });
+});
+
+describe("B6 artist-repeat seam (#107)", () => {
+  test("artistKey: case-folds, takes the head credit, null-safe", () => {
+    expect(megasetArtistKey("HUGEL")).toBe("hugel");
+    expect(megasetArtistKey("Hugel, Cumbiafrica, Florent Hugel")).toBe("hugel");
+    expect(megasetArtistKey(null)).toBeNull();
+    expect(megasetArtistKey("   ")).toBeNull();
+  });
+  test("penalty fires only on exact same-head-credit back-to-back", () => {
+    const a = { artist: "Alpha" };
+    const a2 = { artist: "alpha" }; // case-insensitive
+    const b = { artist: "Beta" };
+    const unknown = { artist: null };
+    expect(megasetArtistRepeatPenalty(a, a2)).toBe(
+      MEGASET_ARTIST_REPEAT_WINDOW,
+    );
+    expect(megasetArtistRepeatPenalty(a, b)).toBe(0);
+    expect(megasetArtistRepeatPenalty(a, unknown)).toBe(0);
+    expect(megasetArtistRepeatPenalty(unknown, unknown)).toBe(0);
+  });
+});
+
+describe("B8 half-time pairing seam (#107)", () => {
+  test("×2 / ×½ / ×1.5 / ×⅔ lanes all recognized within tolerance", () => {
+    expect(isMegasetHalfTimePair(87, 174)).toBe(true);
+    expect(isMegasetHalfTimePair(174, 87)).toBe(true);
+    expect(isMegasetHalfTimePair(130, 87)).toBe(true); // the feel lane
+    expect(isMegasetHalfTimePair(87, 130)).toBe(true);
+  });
+  test("outside every multiple → false (no accidental pairing)", () => {
+    expect(isMegasetHalfTimePair(87, 120)).toBe(false);
+    expect(isMegasetHalfTimePair(100, 100)).toBe(false); // ×1 is bpmScore's job
+    expect(isMegasetHalfTimePair(100, 300)).toBe(false); // beyond ×2+tol
+  });
+  test("constants pinned — silent retuning would re-rank every proposal", () => {
+    expect(MEGASET_HALFTIME_PENALTY).toBe(0.9);
+    expect(MEGASET_HALFTIME_TOLERANCE).toBeCloseTo(0.06, 10);
+    expect(MEGASET_ARTIST_REPEAT_WINDOW).toBe(3);
   });
 });
 

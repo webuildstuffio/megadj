@@ -130,6 +130,7 @@ function GenreSettings(props: { model: MegasetBuilder }) {
 
 function SequencerSettings(props: { model: MegasetBuilder }) {
   const { model } = props;
+  const missing = model.build.data?.landmarks_missing ?? [];
   return (
     <fieldset class="megaset-length" disabled={model.build.loading}>
       <StepTitle n={4} title="Sequencer" />
@@ -138,6 +139,32 @@ function SequencerSettings(props: { model: MegasetBuilder }) {
         onChoice={model.chooseSearch}
         disabled={model.build.loading}
       />
+      <label
+        class="megaset-genre"
+        title="Must-play track ids, comma- or space-separated — each is slotted into the chain at an arc-legal position"
+      >
+        <span>
+          Must-play tracks
+          <small>track ids — pinned into the chain (#107 landmarks)</small>
+        </span>
+        <input
+          type="text"
+          class="megaset-genre-input"
+          placeholder="e.g. dQw4w9WgXcQ, aBcD1234…"
+          aria-label="Landmark must-play track ids (comma or space separated)"
+          value={model.landmarksInput}
+          onInput={(event) =>
+            model.setLandmarksInput((event.target as HTMLInputElement).value)
+          }
+        />
+      </label>
+      {missing.length > 0 && (
+        <p class="megaset-genre-count" role="alert">
+          {missing.length === 1 ? "pin" : "pins"} not placed:{" "}
+          <strong>{missing.join(", ")}</strong> — no arc-legal position in this
+          set
+        </p>
+      )}
       <AdvancedDrawer
         poolLimitInput={model.poolLimitInput}
         onPoolLimitInput={model.setPoolLimitInput}

@@ -15,6 +15,7 @@ import {
 import {
   MEGASET_ANCHOR_WEIGHT,
   MEGASET_AROUSAL_EPSILON,
+  MEGASET_BRANCH_TOLERANCE,
   MEGASET_DRIFT_BUDGET,
   MEGASET_PRESET_DEFS,
   MEGASET_BEAM_POOL_MAX,
@@ -756,10 +757,13 @@ describe("buildMegaset", () => {
     });
     expect(r.steps.length).toBeGreaterThan(1);
     const maxBpm = Math.max(...r.steps.map((s) => s.bpm ?? 0));
-    // anchor 100 → the budget (±12%) allows ~112 direct; the ladder's
-    // far end (~200+) is unreachable even though every adjacent pair
-    // was individually mixable
-    expect(maxBpm).toBeLessThanOrEqual(100 * (1 + MEGASET_DRIFT_BUDGET) + 1);
+    // anchor 100 → the budget caps ANYWHERE on the chain at the 2× branch
+    // lane's ceiling (B8 made that lane REACHABLE — a rung near 2× the
+    // ~112 direct ceiling pairs on the half-time lane); the ladder's far
+    // end (~900) is still unreachable, and no step escapes the budget.
+    expect(maxBpm).toBeLessThanOrEqual(
+      100 * 2 * (1 + MEGASET_BRANCH_TOLERANCE) + 1,
+    );
     // and the chain demonstrably extends (the budget didn't kill it):
     // the near-anchor ladder rungs stay reachable
     expect(r.steps.length).toBeGreaterThanOrEqual(3);

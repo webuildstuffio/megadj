@@ -127,6 +127,12 @@ export {
   nearestMegasetCue,
   isMegasetSearchOverride,
   isShelfOffline,
+  isMegasetHalfTimePair,
+  megasetArtistKey,
+  megasetArtistRepeatPenalty,
+  MEGASET_ARTIST_REPEAT_WINDOW,
+  MEGASET_HALFTIME_PENALTY,
+  MEGASET_HALFTIME_TOLERANCE,
   type SetSearchOverride,
   clampMegasetPool,
 } from "../megaset";

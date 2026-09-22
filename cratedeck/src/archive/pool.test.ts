@@ -69,4 +69,26 @@ describe("#283 poolTitleKey (release-form + stray folding)", () => {
       key("Shakira ft. Wyclef Jean", "Hips Don't Lie (HÄWK VIP Edit).mp3"),
     ).toBe(key("Shakira ft. Wyclef Jean", "Hips Don't Lie (HÄWK VIP Edit)"));
   });
+
+  // Sep 21 live set #2: the SAME "Rockabye (SHAKED Remix)" landed twice —
+  // YouTube re-uploads differ only in the uploader channel ("Trap City" vs
+  // "Trap Nation"), which sits in the ARTIST slot. Same normalized title +
+  // remix marker = same audio regardless of the credited "artist".
+  test("same title + remix marker collapses across uploader-name artists", () => {
+    expect(
+      key(
+        "Trap City",
+        "Clean Bandit - Rockabye Ft. Sean Paul & Anne- Marie (SHAKED Remix)",
+      ),
+    ).toBe(
+      key(
+        "Trap Nation",
+        "Clean Bandit - Rockabye ft. Sean Paul & Anne-Marie (SHAKED Remix)",
+      ),
+    );
+    // a genuinely different remix of the same song stays distinct
+    expect(key("Trap City", "Song (SHAKED Remix)")).not.toBe(
+      key("Trap City", "Song (Illestry FLIP)"),
+    );
+  });
 });

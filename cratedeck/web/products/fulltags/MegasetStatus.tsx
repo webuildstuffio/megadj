@@ -168,6 +168,7 @@ export function ReproLine(props: {
   poolLimit: number | null;
   openerId: string | null;
   genre: string | null;
+  landmarkIds: readonly string[];
 }) {
   const parts = [
     "megadj megaset",
@@ -180,6 +181,9 @@ export function ReproLine(props: {
   if (props.openerId) parts.push(`--opener ${props.openerId}`);
   if (props.genre !== null && props.genre.trim() !== "")
     parts.push(`--genre ${props.genre.trim()}`);
+  // S13 (#107): pinned must-plays ride the repro — a paste rebuilds the
+  // SAME chain, pins included
+  for (const id of props.landmarkIds) parts.push(`--landmark ${id}`);
   const cmd = parts.join(" ");
   return (
     <div class="megaset-repro">

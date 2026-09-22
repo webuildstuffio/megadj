@@ -27,6 +27,9 @@ export interface MegasetStep {
   atMin: number;
   /** transition score into this track (first track: null) */
   transition: number | null;
+  /** S13 (#107): true when this track was pinned as a landmark must-play
+   *  and slotted by the engine — the DJ's picks, visible in the chain. */
+  landmark: boolean;
   /** #106: 8-bar boundary nearest the handoff overlap window — where
    *  the PREVIOUS track hands over (outro side of this step's end). */
   mixOutCue: MegasetCuePoint | null;
@@ -65,6 +68,14 @@ export interface MegasetResult {
    *  presets/pools without hand-deriving from steps[]. */
   avg_transition: number | null;
   min_transition: number | null;
+  /** B6 (#107): same-artist adjacency counts — the diversity guard lets a
+   *  track by the SAME artist follow itself only outside the hard
+   *  penalty window; these counters make the set's variety visible. */
+  same_artist_pairs: number;
+  /** B6 (#107): how many landmark pins could NOT be placed (unknown id,
+   *  unmeasured tempo, arc-illegal) — honest cost of a bad pin, never
+   *  silent. */
+  landmarks_missing: string[];
   /** Which sequencer path ran: "greedy" or "beam". Beam activates
    * automatically for pools below MEGASET_BEAM_POOL_MAX (the measured E7
    * sparse-pool failure zone); surfaced so the deep search is visible,
@@ -281,6 +292,7 @@ export const MEGASET_HANDOFF_INTRO_S = 45;
  *  capped preview; `total` is authoritative). */
 export function megasetReasonClass(reason: string): string {
   if (reason.startsWith("set budget filled")) return "set budget filled";
+  if (reason.startsWith("landmark")) return "landmark not placeable";
   if (reason.includes("below the") && reason.includes("track floor"))
     return "too short — audio sample, not a track";
   if (reason.includes("exceeds the") && reason.includes("track cap"))
@@ -524,4 +536,66 @@ export function clampMegasetPool(raw: number | null | undefined): number {
   const n = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(n)) return MEGASET_POOL_UNLIMITED;
   return Math.min(MEGASET_POOL_MAX, Math.max(MEGASET_POOL_MIN, Math.round(n)));
+}
+
+// ---- B6 + B8 + S13 (#107): the diversity / half-time / landmark seam ------
+// Three shipped-together engine improvements (Sep 21, "way better sets"):
+// B6 stops one artist dominating a set, B8 lets a 87↔174 half-time pairing
+// score, S13 lets the DJ pin must-plays the engine must slot. All constants
+// live HERE so every surface quotes the same numbers — never a twin.
+
+/** B6: max tempo distance (relative) a same-artist step may sit at before
+ *  the diversity penalty makes it lose to every differently-named peer.
+ *  Not a hard gate: an artist's own record CAN close the set when nothing
+ *  else fits — it just never wins a contest against fresh names. */
+export const MEGASET_ARTIST_REPEAT_WINDOW = 3;
+
+/** B8: score multiplier for a half/double-time PAIRING (bpmScore's 0 at
+ *  ±6%+ otherwise). The branch lane already admits 2×/½× tracks past the
+ *  drift budget; without this term their tempo component scored 0 and
+ *  they never won a slot — "87 vs 174 DnB scores 0 today" (#107 B8).
+ *  0.9× = the plan-of-record value (03-competitive-analysis item 6). */
+export const MEGASET_HALFTIME_PENALTY = 0.9;
+
+/** B8: how close (relative) a candidate must sit to 2×, ½× (and ×1.5
+ *  half-time feel) of `a`'s BPM to pair with it. Mirrors the drift
+ *  budget's branch tolerance — one number for "what counts as half-time
+ *  here" everywhere. */
+export const MEGASET_HALFTIME_TOLERANCE = 0.06;
+
+/** B8 pure predicate: is `bpm` near a ×2 / ×0.5 / ×1.5 multiple of `a`?
+ *  The ×1.5 lane covers the classic half-time FEEL (87 trap under a 130
+ *  house set is a 1.49× relationship in raw BPM). Exported for tests +
+ *  future surfaces; transitionScore is the production consumer. */
+export function isMegasetHalfTimePair(a: number, b: number): boolean {
+  for (const factor of [2, 0.5, 1.5, 2 / 3]) {
+    if (Math.abs(b / (a * factor) - 1) <= MEGASET_HALFTIME_TOLERANCE)
+      return true;
+  }
+  return false;
+}
+
+/** B6: case-folded head-credit artist key (null when the row has no
+ *  artist) — the SAME normalization the pool's dedupe uses for credit
+ *  lists, so the diversity guard and the dedupe cannot disagree about
+ *  who an artist is. */
+export function megasetArtistKey(artist: string | null): string | null {
+  if (artist === null) return null;
+  const head = artist.split(",")[0]?.trim() ?? "";
+  const folded = head.toLocaleLowerCase("en-US").trim();
+  return folded === "" ? null : folded;
+}
+
+/** B6: the diversity penalty for following `prev` with `c` — 0 when the
+ *  names differ (or either side is unknown: no penalty, never a guess),
+ *  MEGASET_ARTIST_REPEAT_WINDOW when the SAME artist would run back-to-
+ *  back. transitionScore subtracts it (floored at 0 upstream). */
+export function megasetArtistRepeatPenalty(
+  prev: { artist: string | null },
+  c: { artist: string | null },
+): number {
+  const a = megasetArtistKey(prev.artist);
+  const b = megasetArtistKey(c.artist);
+  if (a === null || b === null) return 0;
+  return a === b ? MEGASET_ARTIST_REPEAT_WINDOW : 0;
 }

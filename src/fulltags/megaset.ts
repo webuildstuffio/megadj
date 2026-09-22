@@ -45,6 +45,8 @@ export interface MegasetOptions {
   search?: SetSearchOverride | undefined;
   /** #283 genre pool filter (raw value; family-matched via megasetGenreTerms). */
   genre?: string | undefined;
+  /** S13 (#107): landmark must-plays (video_ids) — repeatable. */
+  landmarkIds?: readonly string[] | undefined;
   json?: boolean | undefined;
   /** Log sink override (tests); default = commandLog routing. */
   onProgress?: ((msg: string) => void) | undefined;
@@ -114,6 +116,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: opts.opener,
+      landmarkIds: opts.landmarkIds,
       searchOverride: opts.search,
     });
     const payload: MegasetPayload = {
@@ -142,6 +145,10 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       // #283-followup: set-level quality stats (mean/lowest transition)
       avg_transition: built.avg_transition,
       min_transition: built.min_transition,
+      // B6 (#107): same-artist adjacency count — the diversity report card
+      same_artist_pairs: built.same_artist_pairs,
+      // S13 (#107): landmark pins that could not be placed
+      landmarks_missing: built.landmarks_missing,
       freshness,
       search: built.search,
     };
@@ -192,6 +199,16 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       // class — the wire preview caps at 40 rows, the terminal now shows
       // the real shape of all of them
       logExclusionShape(built.excluded, payload.excluded_total, total, log);
+      // B6/S13 report cards: variety counter + unplaced pins, only when
+      // they have something to say (quiet on healthy builds)
+      if (built.same_artist_pairs > 0) {
+        log(
+          `  variety: ${built.same_artist_pairs} same-artist back-to-back pair${built.same_artist_pairs === 1 ? "" : "s"} in this chain`,
+        );
+      }
+      if (built.landmarks_missing.length > 0) {
+        log(`  landmarks not placed: ${built.landmarks_missing.join(", ")}`);
+      }
       log(`  total ${at} min — propose-only, nothing written`);
       if (!built.complete) setExit(1);
     }

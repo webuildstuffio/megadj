@@ -76,6 +76,7 @@ function ProposalBody(props: { model: MegasetBuilder; genre: string | null }) {
           poolLimit: model.poolLimit,
           openerId: model.opener?.video_id ?? null,
           genre: props.genre,
+          landmarkIds: model.landmarkIds,
         }}
       />
       <MegasetChain
@@ -89,6 +90,7 @@ function ProposalBody(props: { model: MegasetBuilder; genre: string | null }) {
         poolLimit={model.poolLimit}
         openerId={model.opener?.video_id ?? null}
         genre={props.genre}
+        landmarkIds={model.landmarkIds}
       />
       <Exclusions data={data} />
     </>

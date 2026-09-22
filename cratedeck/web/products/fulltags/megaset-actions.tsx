@@ -13,6 +13,7 @@ export function MegasetActions(props: {
     poolLimit: number | null;
     openerId: string | null;
     genre: string | null;
+    landmarkIds: readonly string[];
   };
 }) {
   if (props.data.steps.length === 0) return null;

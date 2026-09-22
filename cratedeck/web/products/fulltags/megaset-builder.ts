@@ -85,6 +85,7 @@ function requestQuery(
   poolLimit: number | null,
   opener: TrackPick | null,
   genre: string,
+  landmarkIds: readonly string[],
 ): URLSearchParams {
   const q = new URLSearchParams({
     preset: preset.id,
@@ -95,6 +96,8 @@ function requestQuery(
   if (opener) q.set("opener", opener.video_id);
   // #283 genre pool filter — a trimmed non-empty value narrows the pool
   if (genre.trim() !== "") q.set("genre", genre.trim());
+  // S13 (#107): landmark pins ride as repeatable params (order preserved)
+  for (const id of landmarkIds) q.append("landmark", id);
   return q;
 }
 
@@ -105,6 +108,7 @@ async function requestMegaset(
   poolLimit: number | null,
   opener: TrackPick | null,
   genre: string,
+  landmarkIds: readonly string[],
   setBuild: SetBuild,
 ): Promise<void> {
   setBuild({
@@ -122,6 +126,7 @@ async function requestMegaset(
       poolLimit,
       opener,
       genre,
+      landmarkIds,
     );
     setBuild({
       data: await api<MegasetPayload>(`/api/archive/megaset?${query}`, {
@@ -160,6 +165,7 @@ function exportHref(
   searchChoice: MegasetSearchChoice,
   poolLimit: number | null,
   genre: string,
+  landmarkIds: readonly string[],
 ): string | null {
   if (!build.data) return null;
   const q = new URLSearchParams({
@@ -171,6 +177,7 @@ function exportHref(
   if (searchChoice !== "auto") q.set("search", searchChoice);
   if (poolLimit !== null) q.set("limit", String(poolLimit));
   if (genre.trim() !== "") q.set("genre", genre.trim());
+  for (const id of landmarkIds) q.append("landmark", id);
   return `/api/archive/megaset?${q}`;
 }
 
@@ -180,11 +187,21 @@ export function useMegasetBuilder() {
   const [searchChoice, setSearchChoice] = useState<MegasetSearchChoice>("auto");
   const [poolLimitInput, setPoolLimitInput] = useState("");
   const [genreInput, setGenreInput] = useState("");
+  const [landmarksInput, setLandmarksInput] = useState("");
   const [opener, setOpener] = useState<TrackPick | null>(null);
   const [openerQuery, setOpenerQuery] = useState("");
   const [build, setBuild] = useState<MegasetBuildState>(initialBuild);
   const minutes = minutesFrom(minutesInput);
   const poolLimit = poolLimitFrom(poolLimitInput);
+  // S13 (#107): comma/space-separated landmark ids → clean unique list
+  const landmarkIds = [
+    ...new Set(
+      landmarksInput
+        .split(/[\s,]+/)
+        .filter((id) => id.trim() !== "")
+        .map((id) => id.trim()),
+    ),
+  ];
   const openerSearch = useFetched(
     () => loadOpeners(openerQuery),
     [openerQuery],
@@ -200,6 +217,8 @@ export function useMegasetBuilder() {
     poolLimitInput,
     poolLimit,
     genreInput,
+    landmarksInput,
+    landmarkIds,
     opener,
     openerQuery,
     openerSearch,
@@ -207,7 +226,14 @@ export function useMegasetBuilder() {
     steps,
     keyGlide: keyGlideOf(steps),
     buildLabel: buildLabel(build, minutes, preset),
-    exportHref: exportHref(build, opener, searchChoice, poolLimit, genreInput),
+    exportHref: exportHref(
+      build,
+      opener,
+      searchChoice,
+      poolLimit,
+      genreInput,
+      landmarkIds,
+    ),
     choosePreset: (next: MegasetPresetDef) => {
       setPreset(next);
       invalidateProposal();
@@ -231,6 +257,11 @@ export function useMegasetBuilder() {
       setGenreInput(next);
       invalidateProposal();
     },
+    // S13 (#107): landmark pins — live invalidate (the pins change the chain)
+    setLandmarksInput: (next: string) => {
+      setLandmarksInput(next);
+      invalidateProposal();
+    },
     setOpenerQuery,
     chooseOpener: (next: TrackPick | null) => {
       setOpener(next);
@@ -244,6 +275,7 @@ export function useMegasetBuilder() {
         poolLimit,
         opener,
         genreInput,
+        landmarkIds,
         setBuild,
       ),
   };

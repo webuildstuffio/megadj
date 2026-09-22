@@ -107,6 +107,10 @@ function resolveSetBuild(
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: url.searchParams.get("opener") ?? undefined,
+      // S13 (#107): repeatable ?landmark=<video_id> pins — must-plays the
+      // engine slots at arc-legal positions; unplaceable pins are
+      // excluded + counted in landmarks_missing, never silent.
+      landmarkIds: url.searchParams.getAll("landmark"),
       // A/B hook (E7): ?search=greedy|beam forces one strategy so the UI
       // compare mode can diff them on the same pool; absent = pool-size
       // rule decides. An unknown value falls back to the automatic pick
@@ -378,6 +382,10 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         // #283-followup: set-level quality stats (mean/lowest transition)
         avg_transition: built.avg_transition,
         min_transition: built.min_transition,
+        // B6 (#107): same-artist adjacency count — the diversity report card
+        same_artist_pairs: built.same_artist_pairs,
+        // S13 (#107): landmark pins that could not be placed
+        landmarks_missing: built.landmarks_missing,
         // which sequencer ran (beam = deep search on small pools) — the
         // UI and CLI quote this, never re-derive the threshold themselves
         search: built.search,

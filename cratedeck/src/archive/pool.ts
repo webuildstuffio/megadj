@@ -64,14 +64,37 @@ const poolTitleKey = (row: {
   const headArtistRaw = artistRaw.split(",")[0]?.trim() ?? "";
   const artist = poolNormText(headArtistRaw);
   const unknownArtist = artist === "unknown" || artist === "unknownartist";
-  if (!unknownArtist) return `${artist}|${poolTitleNorm(rawTitle)}`;
+  // Sep 21 live set #2: YouTube re-uploads put the UPLOADER channel in the
+  // artist slot ("Trap City" vs "Trap Nation" for the same SHAKED remix).
+  // When the tagged title carries its own "realArtist - title" split, that
+  // embedded artist is the identity — not the channel name. Fall through
+  // to the embedded split for ANY artist when the title self-describes,
+  // but only when the credited name is NOT a real track credit (a real
+  // credit stays authoritative — "John Summit vs Nova" remakes must not
+  // collapse on a title alone).
   const split = rawTitle.match(/^(.+?)\s+-\s+(.+)$/);
   const embeddedArtist = split?.[1];
   const embeddedTitle = split?.[2];
+  if (unknownArtist || poolNormText(headArtistRaw) === artist) {
+    // uploader/unknown-ish name + self-describing title → embedded identity
+    if (embeddedArtist && embeddedTitle && isUploaderishName(headArtistRaw)) {
+      return `${poolNormText(embeddedArtist)}|${poolTitleNorm(embeddedTitle)}`;
+    }
+  }
+  if (!unknownArtist) return `${artist}|${poolTitleNorm(rawTitle)}`;
   return `${embeddedArtist ? poolNormText(embeddedArtist) : artist}|${poolTitleNorm(
     embeddedTitle ?? rawTitle,
   )}`;
 };
+
+/** uploader-ish channel names that sit in the artist slot of YouTube
+ *  re-uploads (Sep 21 live: "Trap City" / "Trap Nation" both carried the
+ *  same SHAKED remix under different "artists"). Matched on the RAW name
+ *  so the list stays readable; a real artist name never matches. */
+const UPLOADER_NAME_RE =
+  /^(?:trap (?:city|nation)|chill nation|mrrevillz|selected|cloudx|house city|future classic|magic club)$/i;
+const isUploaderishName = (raw: string): boolean =>
+  raw.trim() !== "" && UPLOADER_NAME_RE.test(raw.trim());
 
 /** Title-side normalization for the dedupe key: poolNormText, then the
  *  bare release-form strip ("(extended)", "(extended mix)", "(radio

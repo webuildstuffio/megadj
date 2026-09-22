@@ -22,6 +22,7 @@ export function megasetReproCommand(
     poolLimit: number | null;
     openerId: string | null;
     genre: string | null;
+    landmarkIds: readonly string[];
   },
 ): string {
   const parts = [
@@ -35,6 +36,8 @@ export function megasetReproCommand(
   if (knobs.openerId) parts.push(`--opener ${knobs.openerId}`);
   if (knobs.genre !== null && knobs.genre.trim() !== "")
     parts.push(`--genre ${knobs.genre.trim()}`);
+  // S13 (#107): pins ride the repro so the saved draft rebuilds identical
+  for (const id of knobs.landmarkIds) parts.push(`--landmark ${id}`);
   return parts.join(" ");
 }
 
@@ -45,11 +48,13 @@ export function saveDraft(
     poolLimit: number | null;
     openerId: string | null;
     genre: string | null;
+    landmarkIds: readonly string[];
   } = {
     searchChoice: "auto",
     poolLimit: null,
     openerId: null,
     genre: null,
+    landmarkIds: [],
   },
 ): void {
   const blob = new Blob(
@@ -70,6 +75,8 @@ export function saveDraft(
               knobs.genre !== null && knobs.genre.trim() !== ""
                 ? knobs.genre.trim()
                 : null,
+            // S13 (#107): the pins this build was asked to include
+            landmarkIds: [...knobs.landmarkIds],
             // the one-line terminal repro (same knobs the screen shows)
             repro: megasetReproCommand(data, knobs),
           },

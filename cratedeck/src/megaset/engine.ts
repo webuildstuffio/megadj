@@ -19,6 +19,7 @@ import {
   DEFAULT_MEGASET_PRESET,
   groupMegasetExcluded,
   isMegasetSearchOverride,
+  megasetArtistKey,
   megasetMixInCue,
   megasetMixOutCue,
   MEGASET_BEAM_POOL_MAX,
@@ -45,7 +46,7 @@ export { bpmScore, keyScore, withinAnchorBudget } from "./scoring";
 // family owns the row shape it scores; #173 madge pass moved it here so
 // scoring's type-only back-edge into this file stops being a cycle).
 // Re-exported for every existing consumer — same symbol, never a twin.
-import { mixableBpm, type SetCandidate } from "./scoring";
+import { mixableBpm, transitionScore, type SetCandidate } from "./scoring";
 export type { SetCandidate } from "./scoring";
 
 // N80 energy-arc presets — DERIVED from the shared registry
@@ -138,6 +139,10 @@ export interface MegasetInput {
   minutes: number;
   /** Optional fixed opener (its videoId) — the arc starts from it. */
   openerId?: string | undefined;
+  /** S13 (#107): landmark must-plays (videoIds) — the engine MUST slot
+   *  these into the chain at arc-legal positions; each unplaceable pin is
+   *  excluded honestly and counted in `landmarks_missing`. Repeatable. */
+  landmarkIds?: readonly string[] | undefined;
   /** Override the automatic greedy/beam strategy pick (pool-size rule).
    *  Test + A/B-compare hook: the N-candidates mode needs to build the
    *  same pool under both searches to diff them honestly. Production
@@ -172,6 +177,14 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   const budget = minutes * 60;
   const excluded: MegasetResult["excluded"] = [];
   const steps: MegasetStep[] = [];
+  // S13 (#107): deduped landmark pins in first-requested order. An opener
+  // that is ALSO pinned counts once (it is already forced into slot 1);
+  // the missing-accounting below covers the rest. `?? []` only allocates
+  // when pins are absent — the spread-into-Set form keeps the dedupe.
+  const landmarkIds = input.landmarkIds ? [...new Set(input.landmarkIds)] : [];
+  /** Pins that could not be placed — filled by the repair pass below,
+   *  read by `result()` once the chain is final. */
+  const landmarksMissing: string[] = [];
 
   const dur = candidateDuration;
   const requestedOpenerExists =
@@ -219,6 +232,10 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       atMin: minutesAt(elapsed),
       transition:
         transition === null ? null : Math.round(transition * 1000) / 1000,
+      // S13 (#107): set after the search returns — the pin map is applied
+      // in the repair pass below, which rewrites this field for placed
+      // pins. The opener defaults false (a pinned opener stays a pin).
+      landmark: false,
       mixOutCue: megasetMixOutCue(cueList, c.durationS),
       mixInCue: megasetMixInCue(cueList),
     });
@@ -245,6 +262,21 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
           ) / 1000;
     const minTransition =
       transitions.length === 0 ? null : Math.min(...transitions);
+    // B6 (#107): same-artist adjacency census over the built chain —
+    // the diversity guard's honest report card (0 for a well-spread set).
+    let sameArtistPairs = 0;
+    for (let i = 1; i < steps.length; i++) {
+      if (megasetArtistKey(steps[i - 1]!.artist) !== null) {
+        const a = megasetArtistKey(steps[i - 1]!.artist);
+        const b = megasetArtistKey(steps[i]!.artist);
+        if (a !== null && a === b) sameArtistPairs += 1;
+      }
+    }
+    // S13: pins that never landed — the repair pass filled the list;
+    // steps[] is final here, so the wire truth is authoritative.
+    const landmarksMissingFinal = landmarksMissing.filter(
+      (id) => !steps.some((s) => s.videoId === id),
+    );
     return {
       preset: preset.id,
       minutes,
@@ -260,6 +292,10 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       excluded_total: excluded.length,
       avg_transition: avgTransition,
       min_transition: minTransition,
+      // B6 (#107): same-artist adjacency count — the diversity report card
+      same_artist_pairs: sameArtistPairs,
+      // S13 (#107): pins that could not be placed, by id — honest cost
+      landmarks_missing: landmarksMissingFinal,
       search,
     };
   };
@@ -366,19 +402,112 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     ? beamChain(first, rest, preset, budget, anchorBpm)
     : greedyChain(first, rest, preset, budget, anchorBpm);
 
+  // ---- S13 (#107): landmark repair pass ----------------------------------
+  // Landmarks that the search didn't pick (it can't see the pins) get a
+  // greedy repair: each unplaced pin — in request order — is inserted at
+  // its first arc-legal, mixable successor position (transition > 0 from
+  // its predecessor and INTO its successor). A pin that passes every gate
+  // scores like any other candidate; the repair guarantees PRESENCE, not
+  // priority. A pin that fits nowhere lands in excluded +
+  // landmarks_missing with the honest reason — never silently dropped.
+  const pickedIds = new Set(picked.chain.map((s) => s.candidate.videoId));
+  const repairPool = [...rest];
+  for (const pinId of landmarkIds) {
+    if (pickedIds.has(pinId)) continue; // opener pick or search already slotted it
+    const pinIndex = repairPool.findIndex((c) => c.videoId === pinId);
+    if (pinIndex === -1) {
+      // not in the scored pool at all (unknown id / no measured tempo /
+      // not downloaded) — the same honesty as a requested opener
+      landmarksMissing.push(pinId);
+      excluded.push({
+        videoId: pinId,
+        title: null,
+        reason:
+          "landmark not placeable — not in the candidate pool (unknown id, or not downloaded/analyzed)",
+      });
+      continue;
+    }
+    const pin = repairPool.splice(pinIndex, 1)[0]!;
+    let inserted = false;
+    for (let i = 0; i < picked.chain.length - 1 && !inserted; i++) {
+      const prevC = picked.chain[i]!.candidate;
+      const nextEntry = picked.chain[i + 1]!.candidate;
+      // both hops must be arc-legal (transitionScore returns −1 when a
+      // gate fails: key clash, tempo window, drift budget, arc direction)
+      const scoreIn = transitionScore(
+        prevC,
+        pin,
+        preset,
+        0,
+        anchorBpm,
+        prevC.arousal,
+      );
+      if (scoreIn <= 0) continue;
+      const scoreOut = transitionScore(
+        pin,
+        nextEntry,
+        preset,
+        0,
+        anchorBpm,
+        pin.arousal,
+      );
+      if (scoreOut <= 0) continue;
+      picked.chain.splice(i + 1, 0, {
+        candidate: pin,
+        transition: scoreIn,
+      });
+      // the displaced successor's transition is stale — it described a
+      // hop from the old predecessor; recompute it from the pin
+      const succ = picked.chain[i + 2];
+      if (succ) {
+        succ.transition = transitionScore(
+          pin,
+          succ.candidate,
+          preset,
+          0,
+          anchorBpm,
+          pin.arousal,
+        );
+      }
+      inserted = true;
+      pickedIds.add(pinId);
+    }
+    if (!inserted) {
+      landmarksMissing.push(pinId);
+      excluded.push({
+        videoId: pinId,
+        title: pin.title,
+        reason:
+          "landmark not placeable — no arc-legal position in this set (key clash, tempo outside ±6%, or drift budget)",
+      });
+    }
+  }
+
   for (const step of picked.chain) push(step.candidate, step.transition);
+  // mark placed pins on the wire steps (push() defaulted them false —
+  // the pin map only exists after the repair pass)
+  for (const step of steps) {
+    if (landmarkIds.includes(step.videoId)) step.landmark = true;
+  }
 
   // stop-cause honesty: leftovers get the reason that matches reality.
   // The selection functions consumed chain members from an internal copy,
   // so `rest` still lists them — skip picked ids, exclude only leftovers
   // (each candidate is exactly once in the chain or in `excluded`).
-  const pickedIds = new Set(picked.chain.map((s) => s.candidate.videoId));
-  const leftover = rest.filter((c) => !pickedIds.has(c.videoId));
+  // S13: repair-pool leftovers explain themselves too; unplaceable PINS
+  // already carry their landmark reason above, so the id set is skipped.
+  const pinExplained = new Set(landmarksMissing);
+  const leftover = [...rest, ...repairPool].filter(
+    (c) => !pickedIds.has(c.videoId) && !pinExplained.has(c.videoId),
+  );
+  const leftoverSeen = new Set<string>();
   if (picked.stopCause === "deadend") {
     // nothing mixable remains — the leftovers are excluded, not silently
     // dropped (the old double-count shipped once: excluded_total 596 for
     // 298 leftovers)
-    for (const c of leftover)
+    for (const c of leftover) {
+      if (leftoverSeen.has(c.videoId)) continue;
+      leftoverSeen.add(c.videoId);
       excluded.push({
         videoId: c.videoId,
         title: c.title,
@@ -386,13 +515,17 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
           ? "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)"
           : "no beats-ledger BPM — run `megadj beats`",
       });
+    }
   } else if (picked.stopCause === "budget") {
-    for (const c of leftover)
+    for (const c of leftover) {
+      if (leftoverSeen.has(c.videoId)) continue;
+      leftoverSeen.add(c.videoId);
       excluded.push({
         videoId: c.videoId,
         title: c.title,
         reason: "set budget filled",
       });
+    }
   }
   // stopCause "exhausted": pool was fully consumed — nothing to explain
 

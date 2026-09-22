@@ -10,7 +10,7 @@ const fmtBpm = (bpm: number | null): string =>
   bpm === null ? "—" : String(Math.round(bpm * 10) / 10);
 
 const stepLine = (step: MegasetStep): string =>
-  `${step.atMin}min  ${fmtBpm(step.bpm)} BPM ${step.key ?? ""}  ${step.artist ?? "?"} — ${step.title ?? step.videoId}`;
+  `${step.landmark ? "★ " : ""}${step.atMin}min  ${fmtBpm(step.bpm)} BPM ${step.key ?? ""}  ${step.artist ?? "?"} — ${step.title ?? step.videoId}`;
 
 const columns: DataTableColumn<MegasetStep>[] = [
   {
@@ -27,6 +27,14 @@ const columns: DataTableColumn<MegasetStep>[] = [
     grow: 2,
     cell: (step) => (
       <>
+        {step.landmark && (
+          <span
+            class="arch-pill ok"
+            title="Landmark must-play — you pinned this track into the set (#107)"
+          >
+            ★ pin
+          </span>
+        )}{" "}
         <b>{step.title ?? step.videoId}</b>
         {step.artist && <span class="covartist"> — {step.artist}</span>}
       </>

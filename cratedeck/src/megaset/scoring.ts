@@ -10,10 +10,13 @@ import {
   MEGASET_AROUSAL_EPSILON,
   MEGASET_BRANCH_TOLERANCE,
   MEGASET_DRIFT_BUDGET,
+  MEGASET_HALFTIME_PENALTY,
   MEGASET_SIMILARITY_WEIGHT,
   MEGASET_TEMPO_PERFECT,
   MEGASET_TEMPO_WINDOW,
   MEGASET_TRANSITION_WEIGHTS,
+  isMegasetHalfTimePair,
+  megasetArtistRepeatPenalty,
   type MegasetPresetDef,
 } from "../../shared/types";
 import { cosineSimilarity } from "../../../src/shared/leaf/vector-space";
@@ -68,6 +71,13 @@ export function bpmScore(a: number, b: number): number {
     (d - MEGASET_TEMPO_PERFECT) / (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT)
   );
 }
+
+/** B8 (#107): how transitionScore consumes the half-time lane — the direct
+ *  window first; outside it, a candidate near 2×, ½×, 1.5× or ⅔× of `a`
+ *  pairs at a flat 0.75 (× MEGASET_HALFTIME_PENALTY). A 174 DnB cut over
+ *  an 87 anchor — or an 87 trap cut under a 130 house set (the 1.5× feel
+ *  lane) — now competes instead of scoring 0 by geometry. (The lane lives
+ *  inside transitionScore; this doc comment is the seam's contract.) */
 
 /** A BPM the engine can actually mix with: present, finite and positive.
  * The beats ledger can carry placeholder rows (0 or NaN) from aborted
@@ -163,7 +173,14 @@ export function transitionScore(
   // B2 hard gate: total drift from the anchor is budgeted per candidate
   // (branch-lane exempt) — one hop's ±6% can no longer compound freely.
   if (!withinAnchorBudget(c.bpm, anchorBpm)) return -1;
-  const tempo = bpmScore(prev.bpm, c.bpm);
+  // B8 (#107): the direct window first; outside it the half-time lane
+  // (×2/×½/×1.5/×⅔) lets a DnB/trap pairing compete at a flat 0.75 —
+  // the weight then scales it (0.9×), so half-time never beats an
+  // equal-everything direct match.
+  const tempoRaw = bpmScore(prev.bpm, c.bpm);
+  const tempo =
+    tempoRaw > 0 ? tempoRaw : isMegasetHalfTimePair(prev.bpm, c.bpm) ? 0.75 : 0;
+  const tempoWeighted = tempo * MEGASET_HALFTIME_PENALTY;
   if (tempo === 0) return -1;
   const key = keyScore(prev, c);
   if (key === 0) return -1;
@@ -199,14 +216,21 @@ export function transitionScore(
         (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT) /
         2,
     );
-  return (
-    MEGASET_TRANSITION_WEIGHTS.tempo * tempo +
+  // B6 (#107): same-artist back-to-back is RANKED last, never walled —
+  // the penalty (3) exceeds the weighted core's ceiling (~1.25) so a
+  // differently-named peer always wins the slot; but the score must stay
+  // > 0 so an artist-only pool can still chain (the guard is not a gate).
+  // The +1 floor keeps the penalized step's ceiling at ~1.25−3+1 < 0.3 —
+  // below every fresh-name score that shares its gates.
+  const penalty = megasetArtistRepeatPenalty(prev, c);
+  const raw =
+    MEGASET_TRANSITION_WEIGHTS.tempo * tempoWeighted +
     MEGASET_TRANSITION_WEIGHTS.key * key +
     MEGASET_TRANSITION_WEIGHTS.arcFit * fit +
     MEGASET_ANCHOR_WEIGHT * anchor +
     // #171 timbre prior: pure bonus over the weighted core — two key/tempo
     // equals score identically today whether the tracks are sonically
     // siblings or a jarring genre jump; this term breaks those ties.
-    MEGASET_SIMILARITY_WEIGHT * similarityScore(prev, c)
-  );
+    MEGASET_SIMILARITY_WEIGHT * similarityScore(prev, c);
+  return penalty > 0 ? Math.max(0.01, raw - penalty + 1) : raw;
 }

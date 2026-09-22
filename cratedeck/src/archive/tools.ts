@@ -25,6 +25,7 @@ import {
   obj,
   noArgs,
   s,
+  sArr,
   n,
 } from "../mcp/params";
 import { isSimilarSpace } from "../../../src/shared/leaf/vector-space";
@@ -207,6 +208,9 @@ export function archiveTools(): Record<string, ToolDef> {
           enum: ["greedy", "beam"],
           description: `force a sequencer strategy (A/B compare); omitted = automatic (pools under ${MEGASET_BEAM_POOL_MAX} run the deep 'beam' search, larger keep greedy)`,
         },
+        landmarks: sArr(
+          "#107 landmark must-plays (video_ids) — the engine slots each pin into the chain at an arc-legal position; unplaceable pins are excluded + listed in landmarks_missing, never silently dropped",
+        ),
         genre: s(
           "#283 genre pool filter — narrows candidates by case-folded substring family ('house' matches House/Tech House/Deep-house, 'tropical' → tropical house). Omitted = whole downloaded library",
         ),
@@ -244,6 +248,20 @@ export function archiveTools(): Record<string, ToolDef> {
         // fallback)
         const genre = str(args, "genre");
         if (genre !== undefined) q.set("genre", genre);
+        // S13 (#107): landmark pins → repeatable ?landmark= params (the
+        // route reads getAll, so order is preserved request-first)
+        const landmarks = args.landmarks;
+        if (landmarks !== undefined) {
+          if (!Array.isArray(landmarks))
+            throw new RpcParamError("landmarks must be an array of video_ids");
+          for (const id of landmarks as unknown[]) {
+            if (typeof id !== "string" || id.trim() === "")
+              throw new RpcParamError(
+                "landmarks must be an array of video_id strings",
+              );
+            q.append("landmark", id.trim());
+          }
+        }
         const rawLimit = args.limit;
         if (rawLimit !== undefined) {
           const parsedLimit = num(args, "limit");

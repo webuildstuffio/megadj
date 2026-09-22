@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21 (evening audit, ~18:00–20:00 ET)
 **Scope:** live measured analysis + scoring review of the #283 megaset work, with every found defect fixed, saving/logging UX hardened, and this doc as the improve-next record.
-**Status:** SHIPPED (fix commit `46adc385`; gates: `check` exit 0, 2,051 tests / 0 fail, `check:full` exit 0 at ~19:40 ET)
+**Status:** SHIPPED (fix commit `46adc385`; gates: `check` exit 0, 2,051 tests / 0 fail, `check:full` exit 0 at ~19:40 ET). **Improvement pass (same evening, ~19:30–20:30 ET):** three #107 items implemented fully on top of the audit fixes — **B6 diversity guard** (`megasetArtistRepeatPenalty` + `same_artist_pairs` wire counter; same head-credit artist back-to-back ranks last, never walled), **B8 half/double-time lane** (pairings near ×2/×½/×1.5/×⅔ score 0.75 instead of 0, × `MEGASET_HALFTIME_PENALTY` 0.9), **S13 landmark pins** (`--landmark <id>` repeatable on CLI/web/MCP/HTTP; engine repair pass inserts each pin at its first arc-legal position; unplaceable pins → `excluded` + `landmarks_missing`), plus dedupe v4 (uploader-channel fold) found live during the proof sets. Proof builds: peak-90 house (15 tracks, avg 1.131, 0 same-artist pairs), afterhours-60 (18 tracks), peak-75 house with 3 pins (2 landed — one at 23.7m — ghost pin honestly reported). Gates: `check` exit 0, full suite 2,068 tests / 0 fail.
 
 ---
 

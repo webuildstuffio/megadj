@@ -15,11 +15,18 @@ import {
   MEGASET_PRESET_DEFS,
   groupMegasetExcluded,
   type MegasetPayload,
+  type MegasetStep,
 } from "../../shared/types";
 import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
 
 const noop = () => undefined;
+const fmtBpmTest = (bpm: number | null): string =>
+  bpm === null ? "—" : String(Math.round(bpm * 10) / 10);
+/** The chain's copy-line renderer, matching the component module's format
+ *  (kept as a test-local pin: the wire format must not drift silently). */
+const stepLineOf = (step: MegasetStep): string =>
+  `${step.landmark ? "★ " : ""}${step.atMin}min  ${fmtBpmTest(step.bpm)} BPM ${step.key ?? ""}  ${step.artist ?? "?"} — ${step.title ?? step.videoId}`;
 const source = [
   "MegasetPanel.tsx",
   "megaset-settings.tsx",
@@ -278,11 +285,12 @@ describe("FullTags Similar and Set Builder UX", () => {
         poolLimit={250}
         openerId="yt-abc"
         genre="tropical house"
+        landmarkIds={["pin-1", "pin-2"]}
       />,
     );
     expect(html).toContain("same build from the terminal:");
     expect(html).toContain(
-      "megadj megaset --preset warmup --minutes 45 --search beam --limit 250 --opener yt-abc --genre tropical house",
+      "megadj megaset --preset warmup --minutes 45 --search beam --limit 250 --opener yt-abc --genre tropical house --landmark pin-1 --landmark pin-2",
     );
     // auto/absent knobs stay out of the line
     const htmlMinimal = render(
@@ -292,6 +300,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         poolLimit={null}
         openerId={null}
         genre={null}
+        landmarkIds={[]}
       />,
     );
     expect(htmlMinimal).toContain("megadj megaset --preset peak --minutes 60");
@@ -320,6 +329,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 3,
         atMin: 5,
         transition: null,
+        landmark: false,
         mixOutCue: null,
         mixInCue: { bar: 9, position: 15.2 },
       },
@@ -332,6 +342,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 6,
         atMin: 12,
         transition: 0.8,
+        landmark: false,
         mixOutCue: { bar: 41, position: 76.2 },
         mixInCue: { bar: 9, position: 15.2 },
       },
@@ -344,6 +355,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 8.5,
         atMin: 30,
         transition: 0.7,
+        landmark: false,
         mixOutCue: { bar: 57, position: 91 },
         mixInCue: { bar: 25, position: 44 },
       },
@@ -406,6 +418,27 @@ describe("FullTags Similar and Set Builder UX", () => {
       expect(html).toContain(`>${heading}<`);
   });
 
+  test("S13 (#107): pinned steps carry the ★ pin marker in table + copy lines", () => {
+    const pinned: MegasetStep = {
+      ...baseData.steps[0]!,
+      landmark: true,
+    };
+    const html = render(
+      <MegasetChain
+        steps={[pinned]}
+        preset={MEGASET_PRESET_DEFS[0]!}
+        keyGlide={null}
+      />,
+    );
+    expect(html).toContain("★ pin");
+    expect(html).toContain("Landmark must-play");
+    // copy lines lead with the star so pasted chains keep the pin visible
+    expect(stepLineOf(pinned).startsWith("★ ")).toBe(true);
+    expect(stepLineOf({ ...pinned, landmark: false }).startsWith("★ ")).toBe(
+      false,
+    );
+  });
+
   test("short proposals are unmistakably partial and report the measured gap", () => {
     expect(source).toContain("data.complete");
     expect(source).toContain("data.actualMinutes");
@@ -444,6 +477,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 4,
         atMin: 5.2,
         transition: null,
+        landmark: false,
         mixOutCue: null,
         mixInCue: null,
       },
@@ -464,6 +498,8 @@ describe("FullTags Similar and Set Builder UX", () => {
     genre_filtered: 0,
     avg_transition: null,
     min_transition: null,
+    same_artist_pairs: 0,
+    landmarks_missing: [],
     freshness: { beatsAt: null, moodAt: null },
     search: "greedy",
   };

@@ -8,9 +8,11 @@
 import type { CliCommandHandler } from "../cli-dispatch";
 import {
   firstPositional,
+  manyOf,
   nonNegOpt,
   nonNegOptInvalid,
   parseFlags,
+  repeatedOf,
 } from "../cli-flags";
 import { isMegasetSearchOverride } from "../../cratedeck/shared/types";
 import { finishCommandError, setExit, writeJson } from "../shared/cli-output";
@@ -323,7 +325,7 @@ const similar: CliCommandHandler = async (rest, { state }) => {
 const megaset: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
-    ["preset", "minutes", "opener", "limit", "search", "genre"],
+    ["preset", "minutes", "opener", "limit", "search", "genre", "landmark"],
     ["json"],
   );
   if (nonNegOptInvalid(flags, "minutes", "megaset", flags.bools.has("json")))
@@ -359,6 +361,9 @@ const megaset: CliCommandHandler = async (rest) => {
     search: searchRaw,
     // #283 genre pool filter — the family matcher lives in shared/megaset
     genre: flags.strings.get("genre"),
+    // S13 (#107): repeatable must-play pins (space- AND eq-form reads —
+    // `--landmark ID --landmark ID` and `--landmark=ID` both collect)
+    landmarkIds: [...repeatedOf(rest, "landmark"), ...manyOf(rest, "landmark")],
     json: flags.bools.has("json"),
   });
 };
