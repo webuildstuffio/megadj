@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { nodeLine, parseXmlNodes } from "./rb-playlist-reconcile.js";
+import {
+  inAgentScope,
+  nodeLine,
+  parseXmlNodes,
+} from "./rb-playlist-reconcile.js";
 
 const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
 <MASTER_PLAYLIST Version="3.0.0">
@@ -58,5 +62,55 @@ describe("rb-playlist-reconcile XML parsing (RB7 hex-id format)", () => {
     });
     expect(line).toContain('Id="20000000000001"');
     expect(line).toContain('ParentId="20000000000003"');
+  });
+});
+
+describe("inAgentScope (#282 subtree scoping)", () => {
+  // DJ-Imports(10) → intake(11,12); MegaSets(20) → set(21) → nested(22);
+  // a user playlist (30) at root; an orphan parent (99) pointing nowhere.
+  const rows = new Map(
+    [
+      { id: "10", parentId: "0" },
+      { id: "11", parentId: "10" },
+      { id: "12", parentId: "10" },
+      { id: "20", parentId: "0" },
+      { id: "21", parentId: "20" },
+      { id: "22", parentId: "21" },
+      { id: "30", parentId: "0" },
+      { id: "31", parentId: "30" },
+      { id: "99", parentId: "98" }, // dangling parent (deleted folder)
+    ].map((r) => [r.id, r] as const),
+  );
+  const roots = new Set(["10", "20"]);
+
+  test("the root itself and every descendant are in scope", () => {
+    expect(inAgentScope("10", rows, roots)).toBe(true);
+    expect(inAgentScope("11", rows, roots)).toBe(true);
+    expect(inAgentScope("22", rows, roots)).toBe(true); // two levels deep
+  });
+
+  test("RB-managed rows outside the agent roots are out of scope", () => {
+    expect(inAgentScope("30", rows, roots)).toBe(false);
+    expect(inAgentScope("31", rows, roots)).toBe(false);
+  });
+
+  test("a row with a dangling parent chain is out of scope", () => {
+    expect(inAgentScope("99", rows, roots)).toBe(false);
+  });
+
+  test("an unknown id is out of scope", () => {
+    expect(inAgentScope("404", rows, roots)).toBe(false);
+  });
+
+  test("a corrupt parent cycle cannot hang the walk", () => {
+    const cyclic = new Map([
+      ["5", { id: "5", parentId: "6" }],
+      ["6", { id: "6", parentId: "5" }],
+    ] as const);
+    expect(inAgentScope("5", cyclic, roots)).toBe(false);
+  });
+
+  test("empty roots scope nothing", () => {
+    expect(inAgentScope("10", rows, new Set())).toBe(false);
   });
 });

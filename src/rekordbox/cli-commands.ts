@@ -234,8 +234,15 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
   // missing NODEs. Anything else = the set-builder chain writer.
   const restArgs = rest.filter((a) => a !== "reconcile");
   if (rest.length !== restArgs.length) {
-    const flags = parseFlags(restArgs, [], ["apply", "yes", "json"]);
-    const args = positionalArgs(restArgs, []);
+    // #282: default scope is the agent-managed subtrees (DJ-Imports,
+    // MegaSets + --group extras); --all opts into the legacy whole-DB diff
+    // (the mode that false-flagged ~180 RB-managed playlists).
+    const flags = parseFlags(
+      restArgs,
+      ["group"],
+      ["apply", "yes", "json", "all"],
+    );
+    const args = positionalArgs(restArgs, ["group"]);
     const mount = mountFrom(args[0]);
     const { rbPlaylistReconcile, printReconcileReport } =
       await import("./rb-playlist-reconcile");
@@ -244,6 +251,8 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
       mount,
       apply: flags.bools.has("apply"),
       yes: flags.bools.has("yes"),
+      group: flags.strings.get("group"),
+      all: flags.bools.has("all"),
       ...jsonOpts(json),
     });
     await emitResult(json, r, printReconcileReport);

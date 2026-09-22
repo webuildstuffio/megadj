@@ -20,6 +20,7 @@ import type { CheckResult } from "./doctor";
 import { rekordboxRunning } from "../rekordbox/guard";
 import { incidentCuePredicatePython } from "../rekordbox/cue-incident";
 import { masterDbPath } from "../rekordbox/master-path";
+import { agentGroupRoots } from "../rekordbox/rb-playlist-reconcile";
 import { errMessage } from "../shared/leaf/fmt";
 import { isRecord } from "../shared/leaf/guards";
 
@@ -98,17 +99,39 @@ from pyrekordbox.db6.tables import DjmdPlaylist
 
 db_path, xml_path = sys.argv[1], sys.argv[2]
 db = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))
-db_ids = set()
+# #282: judge only the agent-managed subtrees (same roots rb-playlist
+# reconcile scopes to — the list is interpolated from agentGroupRoots()).
+# rekordbox keeps user playlists + smart folders DB-side by design — a
+# whole-DB missing count false-flags ~180 rows and never reaches zero.
+ROOT_NAMES = {${agentGroupRoots()
+  .map((n) => JSON.stringify(n))
+  .join(", ")}}
+db_rows = {}
 named = 0
 for p in db.query(DjmdPlaylist).all():
     if str(p.ID) == "0" or not p.Name:
         continue
     named += 1
-    db_ids.add(format(int(str(p.ID)), "X"))
+    db_rows[str(p.ID)] = (p.Name, str(p.ParentID or 0))
 db.close()
 xml = open(xml_path, encoding="utf-8").read()
+
+def in_scope(pid):
+    cur = pid
+    for _ in range(64):
+        row = db_rows.get(cur)
+        if row is None:
+            return False
+        if row[0] in ROOT_NAMES:
+            return True
+        parent = row[1]
+        if parent == "0" or parent == cur:
+            return False
+        cur = parent
+    return False
+
 xml_ids = set(re.findall(r'Id="([0-9A-Fa-f]+)"', xml))
-missing = len(db_ids - xml_ids)
+missing = sum(1 for pid in db_rows if format(int(pid), "X") not in xml_ids and in_scope(pid))
 print(json.dumps({"missing": missing, "named": named}))
 `;
 
@@ -271,7 +294,9 @@ export function checkDupes(dbPath?: string): CheckResult {
   };
 }
 
-/** F7 gate: every named DB playlist has its masterPlaylists6.xml NODE. */
+/** F7 gate: every AGENT-MANAGED playlist has its masterPlaylists6.xml
+ *  NODE (#282 scoping — the DJ-Imports/MegaSets subtrees the rb-* seams
+ *  write; RB-managed rows stay DB-side by design and are never judged). */
 export function checkPlaylistXml(dbPath?: string): CheckResult {
   const p = runStateProbe(dbPath ?? masterDbPath());
   if (!p.ran) {
@@ -295,8 +320,8 @@ export function checkPlaylistXml(dbPath?: string): CheckResult {
     detail: unknownXml
       ? "XML twin probe did not answer — missing-node count UNKNOWN (rerun doctor)"
       : ok
-        ? `all named playlists have XML NODEs (${p.playlistRows} rows)`
-        : `${p.playlistsMissingXml} playlist(s) missing XML NODEs. fix: megadj rb-playlist reconcile <drive> --apply --yes`,
+        ? `all agent-managed playlists have XML NODEs (${p.playlistRows} DB rows)`
+        : `${p.playlistsMissingXml} agent-managed playlist(s) missing XML NODEs. fix: megadj rb-playlist reconcile <drive> --apply --yes`,
     fix:
       ok && !unknownXml
         ? undefined

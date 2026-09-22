@@ -54,6 +54,12 @@ export interface ReconcileResult {
   missingXmlNodes: PlaylistTwin[];
   /** XML NODEs with no DB row (flagged, never touched) */
   orphanXmlNodes: { id: string; name: string }[];
+  /** #282: agent-managed ROOT groups this run reconciled under. */
+  scopeRoots: string[];
+  /** #282: DB rows OUTSIDE the agent-managed subtrees — rekordbox keeps
+   *  its user playlists DB-side by design, so they are skipped, never
+   *  judged. Honest count so a dry-run explains its own silence. */
+  skippedByScope: number;
   /** nodes repaired in the XML in apply mode (legacy field name) */
   added: number;
   appliedMode: boolean;
@@ -69,6 +75,45 @@ export function masterDirFor(mount: string): { db: string; xml: string } {
   const db = masterDbPath(mount);
   const dir = dirname(db);
   return { db, xml: join(dir, "masterPlaylists6.xml") };
+}
+
+/**
+ * #282 (Sep 21): the ROOT groups the rb-* seams WRITE. rb-import creates
+ * one playlist per intake under `--group` (caller-supplied, defaulting to
+ * no group), rb-playlist defaults its group to "DJ-Imports", and the
+ * MegaSet apply legs write under "MegaSets". rekordbox itself keeps its
+ * user playlists DB-side only (AutomaticSync=0) — they never get XML
+ * NODEs, so a whole-DB diff reports ~180 false "missing twin" rows.
+ * Reconcile judges ONLY descendants of these roots (plus any extra roots
+ * the caller names); `--all` opts back into the legacy whole-DB diff.
+ */
+const AGENT_GROUP_ROOTS: readonly string[] = ["DJ-Imports", "MegaSets"];
+
+/** The one SSOT for the #282 agent-managed root groups: reconcile scopes
+ *  to these subtrees by default, the doctor F7 gate judges the same set,
+ *  and callers can extend via --group. Python probes interpolate this
+ *  list — never hard-code the names a second time. */
+export const agentGroupRoots = (): readonly string[] => AGENT_GROUP_ROOTS;
+
+/** True when `id` is the group root itself or any descendant of one of
+ *  `roots` (DB-side parent chain). Folder nesting can be deep, so the
+ *  check walks parentId → parent until root; a cycle guard keeps a
+ *  corrupt DB from hanging the walk. */
+export function inAgentScope(
+  id: string,
+  rows: Map<string, { id: string; parentId: string }>,
+  roots: ReadonlySet<string>,
+): boolean {
+  let current: string | undefined = id;
+  for (let depth = 0; current !== undefined && depth < 64; depth++) {
+    if (roots.has(current)) return true;
+    const row = rows.get(current);
+    if (row === undefined) return false;
+    const parent = row.parentId;
+    if (parent === "0" || parent === current) return false;
+    current = parent;
+  }
+  return false;
 }
 
 /** XML-side parse: NODE entries from masterPlaylists6. RB7 stores `Id` as
@@ -131,6 +176,10 @@ export async function rbPlaylistReconcile(opts: {
   mount: string;
   apply?: boolean | undefined;
   yes?: boolean | undefined;
+  /** #282: extra agent-managed root group names to reconcile under. */
+  group?: string | undefined;
+  /** #282: legacy whole-DB diff (default is scoped to the agent roots). */
+  all?: boolean | undefined;
   json?: boolean | undefined;
   log?: (s: string) => void;
 }): Promise<ReconcileResult> {
@@ -143,6 +192,8 @@ export async function rbPlaylistReconcile(opts: {
     xml,
     missingXmlNodes: [],
     orphanXmlNodes: [],
+    scopeRoots: [],
+    skippedByScope: 0,
     added: 0,
     appliedMode: apply,
     backedUpTo: null,
@@ -179,13 +230,26 @@ export async function rbPlaylistReconcile(opts: {
 
   const xmlRaw = readFileSync(xml, "utf8");
   const xmlNodes = parseXmlNodes(xmlRaw);
-  // RB7 keeps RB-internal smart folders DB-side only by design (CUE
-  // analysis playlist, per-key folders, etc.). Their tell: they carry no
-  // Name in XML, or no XML NODE at all. We only reconcile NAMED DB rows
-  // missing or disagreeing with their NODE — real user playlists that vanish
-  // on an RB rebuild or return under stale names/parents.
+  // #282 scoping: rekordbox keeps RB-internal smart folders (CUE analysis
+  // playlist, per-key folders) AND user playlists DB-side by design —
+  // neither ever gets an XML NODE. Reconcile judges only rows inside the
+  // agent-managed subtrees (AGENT_GROUP_ROOTS + --group additions), so a
+  // dry-run stays silent about the ~180 RB-managed rows instead of
+  // flagging them as broken twins. `--all` opts into the legacy whole-DB
+  // diff for a manual audit.
+  const roots = new Set<string>(opts.all ? [] : AGENT_GROUP_ROOTS);
+  const extra = opts.group?.trim() ?? "";
+  if (extra.length > 0) roots.add(extra);
+  const byId = new Map(
+    dbRows.map((p) => [p.id, { id: p.id, parentId: p.parentId }] as const),
+  );
+  const dbIds = new Set(dbRows.map((p) => p.id));
   const xmlById = new Map(xmlNodes.map((n) => [n.id, n]));
-  const missingXmlNodes: PlaylistTwin[] = dbRows
+  const inScope = (p: { id: string; parentId: string }): boolean =>
+    opts.all === true || inAgentScope(p.id, byId, roots);
+  const scopedRows = dbRows.filter(inScope);
+  const skippedByScope = dbRows.length - scopedRows.length;
+  const missingXmlNodes: PlaylistTwin[] = scopedRows
     .filter((p) => {
       if (p.id === "0" || p.name.length === 0) return false;
       const xmlNode = xmlById.get(p.id);
@@ -197,9 +261,29 @@ export async function rbPlaylistReconcile(opts: {
       );
     })
     .map((p) => ({ ...p, inDb: true, inXml: false }));
-  const dbIds = new Set(dbRows.map((p) => p.id));
+  // XML-orphan reporting follows the same scope: a NODE is agent history
+  // (we flag it) only when it IS a root group or descends from one on the
+  // XML side — the DB-side walk can't help here, an orphan by definition
+  // has no DB row. Foreign NODEs are not ours to explain.
+  const isAgentXmlSubtree = (n: { id: string; name: string | null }): boolean =>
+    (n.name !== null && roots.has(n.name)) ||
+    (() => {
+      let current: string | undefined = xmlById.get(n.id)?.parentId;
+      for (let depth = 0; current !== undefined && depth < 64; depth++) {
+        const parentNode = xmlById.get(current);
+        if (parentNode === undefined) return false;
+        if (parentNode.name !== null && roots.has(parentNode.name)) return true;
+        current = parentNode.parentId;
+      }
+      return false;
+    })();
   const orphanXmlNodes = xmlNodes
-    .filter((n) => n.name !== null && !dbIds.has(n.id))
+    .filter(
+      (n) =>
+        n.name !== null &&
+        !dbIds.has(n.id) &&
+        (opts.all === true || isAgentXmlSubtree(n)),
+    )
     .map((n) => ({ id: n.id, name: n.name as string }));
 
   let backedUpTo: string | null = null;
@@ -238,6 +322,8 @@ export async function rbPlaylistReconcile(opts: {
     xml,
     missingXmlNodes,
     orphanXmlNodes,
+    scopeRoots: opts.all === true ? [] : [...roots].toSorted(),
+    skippedByScope,
     added,
     appliedMode: apply,
     backedUpTo,
@@ -250,6 +336,11 @@ export function printReconcileReport(
   log: (s: string) => void,
 ): void {
   printResult(log, r, (body) => {
+    if (body.scopeRoots.length > 0)
+      log(
+        `scope: ${body.scopeRoots.join(", ")} · ${body.skippedByScope} RB-managed playlist(s) skipped (rekordbox keeps them DB-side by design)`,
+      );
+    else log("scope: whole DB (--all)");
     log(
       `twins: ${body.missingXmlNodes.length} DB playlist(s) need XML repair · ${body.orphanXmlNodes.length} XML-only orphan(s)`,
     );
