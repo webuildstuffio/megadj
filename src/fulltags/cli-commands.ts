@@ -8,7 +8,6 @@
 import type { CliCommandHandler } from "../cli-dispatch";
 import {
   firstPositional,
-  manyOf,
   nonNegOpt,
   nonNegOptInvalid,
   parseFlags,
@@ -362,8 +361,11 @@ const megaset: CliCommandHandler = async (rest) => {
     // #283 genre pool filter — the family matcher lives in shared/megaset
     genre: flags.strings.get("genre"),
     // S13 (#107): repeatable must-play pins (space- AND eq-form reads —
-    // `--landmark ID --landmark ID` and `--landmark=ID` both collect)
-    landmarkIds: [...repeatedOf(rest, "landmark"), ...manyOf(rest, "landmark")],
+    // `--landmark ID --landmark ID` and `--landmark=ID` both collect).
+    // F4 super-fix: repeatedOf ALONE covers both forms (it parses eq-form
+    // inline); the extra manyOf pass double-collected `--landmark=X`
+    // (benign only because the engine dedupes — a latent twin).
+    landmarkIds: repeatedOf(rest, "landmark"),
     json: flags.bools.has("json"),
   });
 };

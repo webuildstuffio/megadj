@@ -428,26 +428,42 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       continue;
     }
     const pin = repairPool.splice(pinIndex, 1)[0]!;
+    // F2 super-fix: arc positions. The repair loop previously scored both
+    // hops at t=0 — the arc's START — so a pin whose arousal moved against
+    // the segment direction at its actual slot (a B3 hard wall the normal
+    // search can never commit) was force-inserted anyway. The anchor term
+    // is a soft bonus, not a gate, so position-true hops are scored the
+    // same way the selection functions score them.
     let inserted = false;
     for (let i = 0; i < picked.chain.length - 1 && !inserted; i++) {
       const prevC = picked.chain[i]!.candidate;
       const nextEntry = picked.chain[i + 1]!.candidate;
+      // slot position AFTER inserting the pin between i and i+1: the pin
+      // sits at (elapsed through prevC) / budget — recomputed per slot so
+      // the position-true arc score decides WHERE the pin lands, and a
+      // B3-direction-violating slot is a wall exactly like the search sees.
+      const elapsedThroughPrev = picked.chain
+        .slice(0, i + 1)
+        .reduce((sum, s) => sum + candidateDuration(s.candidate), 0);
+      const tPin = Math.min(1, elapsedThroughPrev / budget);
       // both hops must be arc-legal (transitionScore returns −1 when a
       // gate fails: key clash, tempo window, drift budget, arc direction)
       const scoreIn = transitionScore(
         prevC,
         pin,
         preset,
-        0,
+        tPin,
         anchorBpm,
         prevC.arousal,
       );
       if (scoreIn <= 0) continue;
+      const elapsedAfterPin = elapsedThroughPrev + candidateDuration(pin);
+      const tOut = Math.min(1, elapsedAfterPin / budget);
       const scoreOut = transitionScore(
         pin,
         nextEntry,
         preset,
-        0,
+        tOut,
         anchorBpm,
         pin.arousal,
       );
@@ -457,14 +473,15 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
         transition: scoreIn,
       });
       // the displaced successor's transition is stale — it described a
-      // hop from the old predecessor; recompute it from the pin
+      // hop from the old predecessor; recompute it from the pin at the
+      // successor's own (new) slot position
       const succ = picked.chain[i + 2];
       if (succ) {
         succ.transition = transitionScore(
           pin,
           succ.candidate,
           preset,
-          0,
+          tOut,
           anchorBpm,
           pin.arousal,
         );

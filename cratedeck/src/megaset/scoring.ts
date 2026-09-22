@@ -72,12 +72,19 @@ export function bpmScore(a: number, b: number): number {
   );
 }
 
-/** B8 (#107): how transitionScore consumes the half-time lane — the direct
- *  window first; outside it, a candidate near 2×, ½×, 1.5× or ⅔× of `a`
- *  pairs at a flat 0.75 (× MEGASET_HALFTIME_PENALTY). A 174 DnB cut over
- *  an 87 anchor — or an 87 trap cut under a 130 house set (the 1.5× feel
- *  lane) — now competes instead of scoring 0 by geometry. (The lane lives
- *  inside transitionScore; this doc comment is the seam's contract.) */
+/** B8 (#107): the tempo lane for one hop — the direct window first
+ *  (bpmScore's slope, untouched: a direct match pays NO discount);
+ *  outside it, a candidate near 2×, ½×, 1.5× or ⅔× of `a` pairs at the
+ *  flat half-time value 0.75 × MEGASET_HALFTIME_PENALTY. A 174 DnB cut
+ *  over an 87 anchor — or an 87 trap cut under a 130 house set (the
+ *  1.5× feel lane) — now competes instead of scoring 0 by geometry,
+ *  while never beating an equal-everything direct match. Exported for
+ *  the contract pins; transitionScore is the other production consumer. */
+export function megasetTempoLane(a: number, b: number): number {
+  const direct = bpmScore(a, b);
+  if (direct > 0) return direct;
+  return isMegasetHalfTimePair(a, b) ? 0.75 * MEGASET_HALFTIME_PENALTY : 0;
+}
 
 /** A BPM the engine can actually mix with: present, finite and positive.
  * The beats ledger can carry placeholder rows (0 or NaN) from aborted
@@ -171,16 +178,22 @@ export function transitionScore(
 ): number {
   if (!mixableBpm(prev) || !mixableBpm(c)) return -1; // unmixable: no tempo
   // B2 hard gate: total drift from the anchor is budgeted per candidate
-  // (branch-lane exempt) — one hop's ±6% can no longer compound freely.
-  if (!withinAnchorBudget(c.bpm, anchorBpm)) return -1;
+  // (half-time-lane exempt — the lane runs BELOW, so the ×2/×½/×1.5/×⅔
+  // pairings it admits are exactly the ones the budget spares; F3
+  // super-fix: the old ×2/×½-only branch exemption never admitted the
+  // advertised 87-under-130 ×1.5 feel pairing, making the lane dead code)
+  if (
+    !withinAnchorBudget(c.bpm, anchorBpm) &&
+    !isMegasetHalfTimePair(anchorBpm, c.bpm)
+  )
+    return -1;
   // B8 (#107): the direct window first; outside it the half-time lane
-  // (×2/×½/×1.5/×⅔) lets a DnB/trap pairing compete at a flat 0.75 —
-  // the weight then scales it (0.9×), so half-time never beats an
+  // (×2/×½/×1.5/×⅔) lets a DnB/trap pairing compete at a flat 0.75 ×
+  // MEGASET_HALFTIME_PENALTY — the discount rides the PAIR lane only
+  // (F1 super-fix: the old code scaled direct matches by 0.9 too, a
+  // silent ~10% tax on every ordinary hop), so half-time never beats an
   // equal-everything direct match.
-  const tempoRaw = bpmScore(prev.bpm, c.bpm);
-  const tempo =
-    tempoRaw > 0 ? tempoRaw : isMegasetHalfTimePair(prev.bpm, c.bpm) ? 0.75 : 0;
-  const tempoWeighted = tempo * MEGASET_HALFTIME_PENALTY;
+  const tempo = megasetTempoLane(prev.bpm, c.bpm);
   if (tempo === 0) return -1;
   const key = keyScore(prev, c);
   if (key === 0) return -1;
@@ -224,7 +237,7 @@ export function transitionScore(
   // below every fresh-name score that shares its gates.
   const penalty = megasetArtistRepeatPenalty(prev, c);
   const raw =
-    MEGASET_TRANSITION_WEIGHTS.tempo * tempoWeighted +
+    MEGASET_TRANSITION_WEIGHTS.tempo * tempo +
     MEGASET_TRANSITION_WEIGHTS.key * key +
     MEGASET_TRANSITION_WEIGHTS.arcFit * fit +
     MEGASET_ANCHOR_WEIGHT * anchor +

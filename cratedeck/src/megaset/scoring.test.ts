@@ -11,9 +11,10 @@ import {
   buildMegaset,
   bpmScore,
   SET_PRESETS,
+  withinAnchorBudget,
   type SetCandidate,
 } from "./engine";
-import { similarityScore, transitionScore } from "./scoring";
+import { megasetTempoLane, similarityScore, transitionScore } from "./scoring";
 import {
   MEGASET_SIMILARITY_WEIGHT,
   MEGASET_TRANSITION_WEIGHTS,
@@ -227,8 +228,10 @@ describe("buildMegaset improvement pass (#107)", () => {
     // the pairing is recognized and scores the flat half-time value
     expect(isMegasetHalfTimePair(87, 174)).toBe(true);
     expect(isMegasetHalfTimePair(174, 87)).toBe(true);
-    // and transitionScore composes it (tempo weight × 0.75 × 0.9 + key +
-    // fit floor) — strictly positive where it used to be −1
+    // F1 pin: the lane value is 0.75 × penalty — computed by the lane fn
+    expect(megasetTempoLane(87, 174)).toBeCloseTo(0.75 * 0.9, 10);
+    // and transitionScore composes it — strictly positive where it used
+    // to be −1
     const s = transitionScore(
       anchor,
       halftime,
@@ -249,6 +252,47 @@ describe("buildMegaset improvement pass (#107)", () => {
         anchor.arousal,
       ),
     ).toBe(-1);
+  });
+
+  test("F1: a DIRECT tempo match pays no half-time discount — full bpmScore", () => {
+    // the old code scaled EVERY hop's tempo by MEGASET_HALFTIME_PENALTY —
+    // a silent ~10% tax on direct matches. The lane fn returns the direct
+    // slope untouched; only the pair lane is discounted.
+    expect(megasetTempoLane(128, 129)).toBe(1); // perfect window
+    // mid-slope: ~4.7% off → linear score ~0.53, NOT ×0.9
+    const direct = megasetTempoLane(128, 134);
+    expect(direct).toBe(bpmScore(128, 134));
+    expect(direct).toBeGreaterThan(0);
+    expect(direct).toBeLessThan(1);
+    // same-score composition check through transitionScore: at a slot
+    // where the arc tempo target equals the anchor (t=0), the tempo terms
+    // are the ONLY differing input — full-weight direct must outscore the
+    // discounted pair lane (1.0 > 0.675 weighted).
+    const a = cand({ videoId: "a", bpm: 128, key: "8A", arousal: 5 });
+    const directC = cand({ videoId: "d", bpm: 129, key: "8A", arousal: 5 });
+    const pairC = cand({ videoId: "p", bpm: 256, key: "8A", arousal: 5 });
+    const sDirect = transitionScore(a, directC, SET_PRESETS.peak, 0, 128, 5);
+    const sPair = transitionScore(a, pairC, SET_PRESETS.peak, 0, 128, 5);
+    expect(sDirect).toBeGreaterThan(sPair);
+  });
+
+  test("F3: the ×1.5 feel lane is REACHABLE — 87 pairs with 130 past the budget gate", () => {
+    // the drift budget's branch lane only exempted ×2/×½, so the advertised
+    // 87-trap-under-130-house pairing (1.49×) died at the anchor gate
+    // before isMegasetHalfTimePair ever ran — dead lane. Now the gate
+    // defers to the pairing predicate.
+    const anchor = cand({ videoId: "op", bpm: 87, key: "8A", arousal: 5 });
+    const trap = cand({ videoId: "trap", bpm: 130, key: "8A", arousal: 6 });
+    // outside the direct window, inside the pairing lane
+    expect(bpmScore(87, 130)).toBe(0);
+    expect(isMegasetHalfTimePair(87, 130)).toBe(true);
+    // past the budget gate: drift is 130/87−1 ≈ 49% ≫ 12% budget, and the
+    // old ×2/×½ exemption doesn't cover 1.49× — only the new pairing
+    // exemption lets this hop score
+    expect(withinAnchorBudget(130, 87)).toBe(false);
+    expect(
+      transitionScore(anchor, trap, SET_PRESETS.peak, 0.5, 87, 5),
+    ).toBeGreaterThan(0);
   });
 
   test("S13: a landmark pin is slotted into the chain even when the search never picked it", () => {
@@ -323,5 +367,63 @@ describe("buildMegaset improvement pass (#107)", () => {
       seen.add(e.videoId);
     }
     expect(ids.length + seen.size).toBe(chainPool.length);
+  });
+
+  test("F2: repair-pass transitions are position-true — wire scores recompute from scratch", () => {
+    // The repair loop previously scored both pin hops at t=0 (the arc's
+    // START): wrong fit/anchor inputs and stale successor transitions —
+    // and future non-monotone presets would have let it force-insert a pin
+    // through a B3 direction wall the search itself can never commit.
+    // The shipped presets' thirds all climb (direction is t-invariant), so
+    // the OBSERVABLE pin here is exactness: every wire transition equals a
+    // from-scratch evaluation at that step's true slot position.
+    const chainPool = [
+      cand({ videoId: "op", arousal: 5.2, bpm: 126, key: "8A" }),
+      cand({ videoId: "decoy", arousal: 5.3, bpm: 126, key: "9A" }),
+      cand({ videoId: "c1", arousal: 5.4, bpm: 126, key: "7A" }),
+      cand({ videoId: "c2", arousal: 5.7, bpm: 126, key: "8A" }),
+      cand({ videoId: "c3", arousal: 6.1, bpm: 126, key: "7A" }),
+      cand({ videoId: "pin", arousal: 5.9, bpm: 126, key: "8A" }),
+    ];
+    const r = buildMegaset({
+      candidates: chainPool,
+      preset: SET_PRESETS.peak,
+      minutes: 30,
+      searchOverride: "greedy",
+      landmarkIds: ["pin"],
+    });
+    expect(r.landmarks_missing).toEqual([]);
+    const pinStep = r.steps.findIndex((s) => s.videoId === "pin");
+    expect(pinStep).toBeGreaterThan(0);
+    expect(r.steps[pinStep]!.landmark).toBe(true);
+    // from-scratch: re-evaluate every wire hop at the slot the selection
+    // functions score it at — t = elapsed THROUGH the predecessor (its
+    // own atMin), the same clock greedy/beam use for the hop. The wire
+    // rounds scores to 3 decimals; the comparison uses that precision.
+    const budgetS = 30 * 60;
+    for (let i = 1; i < r.steps.length; i++) {
+      const s = r.steps[i]!;
+      const prev = r.steps[i - 1]!;
+      const t = Math.min(1, (prev.atMin * 60) / budgetS);
+      const fresh = transitionScore(
+        cand({
+          videoId: prev.videoId,
+          arousal: prev.arousal,
+          bpm: prev.bpm,
+          key: prev.key,
+        }),
+        cand({
+          videoId: s.videoId,
+          arousal: s.arousal,
+          bpm: s.bpm,
+          key: s.key,
+        }),
+        SET_PRESETS.peak,
+        t,
+        126,
+        prev.arousal,
+      );
+      expect(s.transition).toBeCloseTo(fresh, 3); // wire rounds to 3 decimals
+    }
   });
 });
