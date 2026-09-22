@@ -309,7 +309,7 @@ One file and a set of env vars — that's the whole story:
 | `MEGADJ_ART_MAX`           | `20`                                        | max AI covers per `megadj artwork` pass                            |
 | `MEGADJ_ART_QUEUE`         | `~/.local/state/megadj/artwork-queue.jsonl` | where misses are queued for AI covers                              |
 | `FULLTAGS_ARTWORK_QUEUE`   | `~/.local/state/megadj/artwork-queue.jsonl` | same queue, FullTags-side name (`megadj artwork` consumes both)    |
-| `CRATEDECK_DATA`           | `~/.local/state/cratedeck`                  | dashboard state (DB, snapshots, images)                            |
+| `CRATEDECK_DATA`           | `src/deck/data`                             | dashboard state (DB, snapshots, images)                            |
 | `CRATEDECK_PORT`           | `7742`                                      | dashboard port (`bun run deck`)                                    |
 | `CRATEDECK_VOLUMES`        | autodetect                                  | extra volumes to watch beyond `/Volumes`                           |
 | `CRATEDECK_IMAGE_PROVIDER` | `brave`                                     | drive-photo search provider (`brave` or `exa`)                     |
