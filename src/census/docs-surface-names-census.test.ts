@@ -9,11 +9,11 @@
  *
  * Names are DERIVED from the same producers the surface-parity census
  * reads (never hand-copied): src/command-doc-* producer leaves,
- * cratedeck/src/deckctl.ts DECK_COMMANDS + PRE_SERVER_VERBS, the tool
+ * src/deck/deckctl.ts DECK_COMMANDS + PRE_SERVER_VERBS, the tool
  * keys in mcp.ts / archive/tools.ts / getdat_tools.ts + MCP_SURFACES,
  * and JOB_KINDS.
  *
- * Scanned prose: docs/ (non-archive), cratedeck/*.md, the repo READMEs,
+ * Scanned prose: docs/ (non-archive), src/deck/*.md, the repo READMEs,
  * and the SKILL.md files under .claude/skills -- the teaching surfaces.
  * Planned commands stay honest via an allowlist with a reason per entry;
  * every entry must stay used.

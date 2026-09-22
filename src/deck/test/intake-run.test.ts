@@ -115,7 +115,7 @@ describe("argv builders", () => {
   test("intakeArgs targets the given folder with --json last", () => {
     expect(intakeArgs("/tmp/dump")).toEqual(["ingest", "/tmp/dump", "--json"]);
   });
-  test("megadjCliPath resolves the repo CLI from cfg.root (cratedeck/)", () => {
+  test("megadjCliPath resolves the repo CLI from cfg.root (repo root)", () => {
     expect(megadjCliPath("/x/megadj/cratedeck")).toBe("/x/megadj/src/cli.ts");
   });
 });

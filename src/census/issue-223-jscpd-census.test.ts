@@ -10,7 +10,7 @@
  * the ceiling so it cannot regrow.
  *
  * Ceiling policy: ratchet, may only move DOWN. When a deliberate shared
- * fixture lands, extract it to src/test-support/ or cratedeck/test/
+ * fixture lands, extract it to src/test-support/ or src/deck/test/
  * support in the SAME commit and lower the ceiling to the new count.
  */
 import { expect, test } from "bun:test";

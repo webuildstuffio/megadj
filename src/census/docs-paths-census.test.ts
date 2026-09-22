@@ -6,7 +6,7 @@
  * a mechanical gate.
  *
  * Scoping: docs like docs/deck/acceptance.md describe the
- * `cratedeck/` package and cite paths relative to it — the validator
+ * `deck/` package and cite paths relative to it — the validator
  * resolves candidates against repo root AND the owning package root
  * before calling a path stale.
  *
@@ -20,10 +20,10 @@ import { join, relative } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
-/** Backticked repo-looking paths: `src/...`, `tools/...`, `cratedeck/...`,
+/** Backticked repo-looking paths: `src/...`, `tools/...`, `deck/...`,
  *  `fulltags/...`, `web/...`, `plugin/...`, `docs/...` + known extension. */
 const PATH_RE =
-  /`((?:src|tools|fulltags|cratedeck|plugin|docs|web)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|py|css|json|sh|toml|md))`/gu;
+  /`((?:src|tools|fulltags|cratedeck|deck|plugin|docs|web)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|py|css|json|sh|toml|md))`/gu;
 
 /** Package roots a doc may cite paths against (its own subtree). */
 const PACKAGE_ROOTS = ["deck", "fulltags", "plugin", "tools"];
@@ -149,7 +149,7 @@ function stalePathsFor(
   const rel = relative(ROOT, doc);
   const allowed = ALLOWED[rel] ?? {};
   // Which package subtree does this doc describe? (acceptance.md and the
-  // cratedeck/* docs cite cratedeck/-relative paths)
+  // deck/* docs cite deck/-relative paths (cratedeck/ kept: #222 boundary guard)
   const packageRoot = PACKAGE_ROOTS.find((pkg) =>
     rel.startsWith(`docs/${pkg}/`),
   );

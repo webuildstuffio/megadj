@@ -8,7 +8,7 @@ import { join } from "node:path";
  * behind the server) — never a bare `bun <path>` script outside the
  * command surfaces. The Sep 11 CLI-consolidation audit found two such
  * hidden entry points (fulltags/verify-key.ts → `fulltags verify-key`;
- * cratedeck/src/bench.ts → knip-only library entry). This census keeps
+ * src/deck/bench.ts → knip-only library entry). This census keeps
  * the class from returning: a NEW standalone harness must arrive with
  * its verb in the same commit, or an explicit exemption row below (with
  * the reason and the owning verb plan).

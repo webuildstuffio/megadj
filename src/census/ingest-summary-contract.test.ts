@@ -1,7 +1,7 @@
 /**
  * ingest-summary-contract.test.ts — #159 part B: the emit-side key list of
  * `megadj ingest --json` is pinned to THE counter SSOT
- * (cratedeck/shared/types.ts INTAKE_COUNTER_KEYS / IntakeCounterKey) and
+ * (src/deck/shared/types.ts INTAKE_COUNTER_KEYS / IntakeCounterKey) and
  * must round-trip through cratedeck's parseIngestSummary — the exact
  * boundary the ingest job leg crosses at runtime.
  *

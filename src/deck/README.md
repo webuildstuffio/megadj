@@ -61,7 +61,7 @@ sticks). Tests: `bun test src/deck/`.
 Agents: the same surface is exposed over MCP — `bun run mcp` (from the
 repo root) speaks stdio JSON-RPC.
 
-📖 Docs: [PRD](../docs/cratedeck/02-prd.md) (brief merged in) ·
-[architecture](../docs/cratedeck/03-architecture.md) ·
-[acceptance](../docs/cratedeck/acceptance.md) ·
+📖 Docs: [PRD](../docs/deck/02-prd.md) (brief merged in) ·
+[architecture](../docs/deck/03-architecture.md) ·
+[acceptance](../docs/deck/acceptance.md) ·
 [deckctl guide](deckctl.md)

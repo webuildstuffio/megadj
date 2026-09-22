@@ -1,6 +1,6 @@
 # [test].timeout here is DEAD: bun reads bunfig.toml only from the CWD
 # where the `bun` process STARTS (never from the package dir being
-# tested), and `bun test ../cratedeck/test ...` is always run from the
+# tested), and `bun test src/deck/test ...` is always run from the
 # repo root, so the root bunfig [test].timeout=15000 already governs.
 # This file is retained as the documented tripwire for that rule:
 # tsconfig-bunfig-census flips the timeout to 1ms and asserts it does NOT

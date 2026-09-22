@@ -36,7 +36,7 @@ Or install into any session:
 ## Requirements
 
 - [megadj](https://github.com/webuildstuffio/megadj) cloned locally (`bun` installed)
-- The MCP server + hook shell out to `bun run cratedeck/src/mcp.ts` /
+- The MCP server + hook shell out to `bun run src/deck/mcp.ts` /
   `deckctl` relative to `${CLAUDE_PROJECT_DIR}` — i.e. this repo must be the
   working project (a packaged release would vendor a built CLI instead; see
   roadmap note below).

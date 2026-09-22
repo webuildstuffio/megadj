@@ -1,4 +1,4 @@
-# cratedeck/web — deliberately isolated dependency universe
+# deck/web — deliberately isolated dependency universe
 
 `bun.lock` in this directory is **intentional**; do not fold `src/deck/web`
 into the root `workspaces` glob.

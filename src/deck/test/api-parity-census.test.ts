@@ -15,7 +15,7 @@
  *      family from archiveHandlers()'s REAL keys (imported producer —
  *      the same derivation archive-dispatch-census pins; zero text
  *      parsing there).
- *   2. CLIENT side walks cratedeck/web + the deckctl/MCP client legs for
+ *   2. CLIENT side walks src/deck/web + the deckctl/MCP client legs for
  *      every /api target — including the useScanApply scaffold
  *      composites (`${actionPath}/${kind}`) and `src={...}` media fetches
  *      that the literal-call scan cannot see (the #231 class).

@@ -8,7 +8,7 @@
  * (`console.log(\n  JSON.stringify(...)`) so a flat single-line grep
  * silently passed them.
  *
- * Scope: src/ + fulltags/src + cratedeck/src production files. Tests
+ * Scope: src/ + fulltags/src + src/deck production files. Tests
  * deliberately keep their own emit idioms (capture harnesses stringify by
  * hand).
  */
