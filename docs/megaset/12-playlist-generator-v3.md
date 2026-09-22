@@ -1,6 +1,6 @@
 # MegaSet v3 — Playlist Generator Re-architecture (ultra-deep proposal)
 
-**Status:** 📐 PROPOSAL — deep re-architecture of the set generator, written
+**Status:** 🧭 ACTIVE — approved 2026-09-22 (owner decision on #298); numbered moves become owning issues and land through normal gates. Deep re-architecture of the set generator, written
 2026-09-20 at main `0d2575f9`. Every claim is linked to the existing doc set
 ([01-prd](01-prd.md), [02-architecture](02-architecture.md),
 [03-competitive-analysis](03-competitive-analysis.md),
