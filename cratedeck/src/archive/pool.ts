@@ -11,9 +11,9 @@ import {
   isRecord,
 } from "../../../src/shared/leaf/guards";
 import {
+  megasetGenreFallbackTerms,
   megasetGenreTerms,
   MEGASET_BEAM_POOL_MAX,
-  MEGASET_GENRE_FALLBACKS,
 } from "../../shared/megaset";
 import type {
   ArchiveFreshness,
@@ -278,9 +278,12 @@ export function setCandidates(
   // fallback terms (e.g. tropical house → house) so the chain doesn't
   // dead-end on a 10-row pool. A second COUNT query, only when a filter
   // is active — free-form values (no fallback entry) keep strict-only.
+  // Bug fix (Sep 21): resolution is by RESOLVED FAMILY, not raw string —
+  // `--genre tropical` resolves to the tropical-house family via the
+  // synonym scan but the old raw-string lookup missed it, so the same
+  // pool starved or widened depending on the caller's spelling.
   const family = genre?.trim().toLowerCase() ?? "";
-  const fallbacks =
-    family !== "" ? (MEGASET_GENRE_FALLBACKS[family] ?? null) : null;
+  const fallbacks = family !== "" ? megasetGenreFallbackTerms(family) : null;
   let genreTerms = strictTerms;
   if (fallbacks !== null && fallbacks.length > 0) {
     const strictCount = reader.row<{ n: number }>(

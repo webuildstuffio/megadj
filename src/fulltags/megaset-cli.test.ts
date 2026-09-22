@@ -76,5 +76,18 @@ describe("megadj megaset CLI step rendering", () => {
     expect(out).toContain("no cue windows");
     // the proposal header (the pinned human log schema) still shows
     expect(out).toContain("-track warmup proposal");
+    // #284: the step line carries the per-component evidence breakdown —
+    // the blend becomes auditable on the terminal without a JSON dive.
+    // This fixture's two tracks share the head credit "DJ", so the B6
+    // penalty path is exercised too (the −3+1 suffix explains the 0.01
+    // blend a bare sum would not).
+    expect(out).toMatch(
+      /\[t 0\.\d{2} · k 0\.\d{2} · arc 0\.\d{2} · anch 0\.\d{2} · B6 −3\+1\]/,
+    );
+    // #291: the exclusion status line — budget-fill named as a status,
+    // quality exclusions separate. This fixture's pool is fully consumed
+    // (stopCause exhausted → nothing excluded), so assert the wire field
+    // instead of a log line.
+    expect(out).toContain('"budget_filled":0');
   });
 });

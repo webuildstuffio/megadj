@@ -5,10 +5,14 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  groupMegasetExcluded,
   isMegasetHalfTimePair,
   megasetArtistKey,
   megasetArtistRepeatPenalty,
+  megasetBudgetFilledCount,
+  megasetGenreFallbackTerms,
   megasetGenreTerms,
+  megasetNearestGenreFamily,
   megasetReasonClass,
   megasetTransitionBand,
   MEGASET_ARTIST_REPEAT_WINDOW,
@@ -164,6 +168,75 @@ describe("megasetGenreTerms (#283 family matcher)", () => {
 
   test("free-form unknown value IS the term (gqom → literal 'gqom')", () => {
     expect(megasetGenreTerms("gqom")).toEqual(["gqom"]);
+  });
+});
+
+describe("#291 budget-fill is a status, not an exclusion bucket", () => {
+  const excluded = [
+    { videoId: "a", title: "A", reason: "set budget filled" },
+    { videoId: "b", title: "B", reason: "set budget filled" },
+    {
+      videoId: "c",
+      title: "C",
+      reason: "no beats-ledger BPM — run `megadj beats`",
+    },
+    { videoId: "d", title: "D", reason: "set budget filled" },
+  ];
+  test("groups carry only quality reasons — never a budget-fill bucket", () => {
+    const groups = groupMegasetExcluded(excluded);
+    expect(groups.map((g) => g.reason)).not.toContain("set budget filled");
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.count).toBe(1);
+  });
+  test("budget_filled counts the status rows", () => {
+    expect(megasetBudgetFilledCount(excluded)).toBe(3);
+    expect(megasetBudgetFilledCount([])).toBe(0);
+  });
+});
+
+describe("#290 nearest-genre-family suggestion", () => {
+  test("a typo'd family resolves to the real one", () => {
+    expect(megasetNearestGenreFamily("tehno")?.family).toBe("techno");
+    expect(megasetNearestGenreFamily("hosue")?.family).toBe("house");
+  });
+  test("synonym-distance suggestions land on a plausible family", () => {
+    // distance-3 noise terms suggest the nearest family vocabulary —
+    // deterministic, capped at distance 3 (beyond = honest null)
+    expect(megasetNearestGenreFamily("gqom")?.family).toBe("edm");
+    expect(megasetNearestGenreFamily("afro")?.family).toBe("afrohouse");
+  });
+  test("a far foreign term gets NO suggestion (honest gap)", () => {
+    expect(megasetNearestGenreFamily("xyzzyq")).toBeNull();
+    expect(megasetNearestGenreFamily("")).toBeNull();
+    expect(megasetNearestGenreFamily("   ")).toBeNull();
+  });
+  test("ties break alphabetically for determinism", () => {
+    // "hous" is distance 1 from "house" (family: house) — the suggestion
+    // is the family id itself, deterministic on repeated calls
+    const a = megasetNearestGenreFamily("hous");
+    const b = megasetNearestGenreFamily("hous");
+    expect(a).toEqual(b);
+    expect(a?.family).toBe("house");
+  });
+});
+
+describe("#290-starvation fallback resolves by FAMILY, not raw string", () => {
+  test("synonym spelling gets the family's fallbacks ('tropical' → house)", () => {
+    // the bug: `--genre tropical` resolves to the tropical-house family
+    // via the matcher but the old raw-string fallback lookup missed it —
+    // the same pool starved or widened depending on spelling
+    expect(megasetGenreFallbackTerms("tropical")).toEqual(["house"]);
+    expect(megasetGenreFallbackTerms("Tropical House")).toEqual(["house"]);
+    expect(megasetGenreFallbackTerms("afro")).toEqual(["house"]);
+  });
+  test("exact family id unchanged", () => {
+    expect(megasetGenreFallbackTerms("tropical house")).toEqual(["house"]);
+  });
+  test("free-form / blank values get no widening (literal stays literal)", () => {
+    expect(megasetGenreFallbackTerms("gqom")).toBeNull();
+    expect(megasetGenreFallbackTerms("")).toBeNull();
+    expect(megasetGenreFallbackTerms(null)).toBeNull();
+    expect(megasetGenreFallbackTerms(undefined)).toBeNull();
   });
 });
 

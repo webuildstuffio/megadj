@@ -12,6 +12,7 @@ import {
 import {
   groupMegasetExcluded,
   isShelfOffline,
+  megasetBudgetFilledCount,
   type MegasetPayload,
   type MegasetResult,
 } from "../../cratedeck/shared/types";
@@ -70,9 +71,11 @@ export function logProposalHeader(
   );
 }
 
-/** Per-step line: time, BPM, key, transition score, title, and the #106
- *  handoff windows (same evidence the web hover cards and M3U8 #EXTREM
- *  comments carry). Returns the LAST step's minute mark for the total. */
+/** Per-step line: time, BPM, key, transition score + the #284 evidence
+ *  breakdown (tempo/key/arc/anchor/similarity, the B8 lane flagged),
+ *  title, and the #106 handoff windows (same evidence the web hover
+ *  cards and M3U8 #EXTREM comments carry). Returns the LAST step's
+ *  minute mark for the total. */
 export function logSteps(
   steps: MegasetPayload["steps"],
   log: (m: string) => void,
@@ -85,8 +88,15 @@ export function logSteps(
       s.mixInCue !== null || s.mixOutCue !== null
         ? `  ♪ in ${Math.round(s.mixInCue?.position ?? 0)}s/bar ${s.mixInCue?.bar ?? "—"} · out ${Math.round(s.mixOutCue?.position ?? 0)}s/bar ${s.mixOutCue?.bar ?? "—"}`
         : "  ♪ no cue windows";
+    // #284 evidence: per-component contributions at 2 decimals, right on
+    // the step line — the blend becomes auditable without a JSON dive.
+    // The B6 penalty shows as "−3+1" (the repeat guard's actual math).
+    const evidence =
+      s.evidence === null
+        ? ""
+        : `  [t ${s.evidence.tempo.toFixed(2)}${s.evidence.halftime ? "½" : ""} · k ${s.evidence.key.toFixed(2)} · arc ${s.evidence.arcFit.toFixed(2)} · anch ${s.evidence.anchor.toFixed(2)}${s.evidence.similarity > 0 ? ` · sim ${s.evidence.similarity.toFixed(2)}` : ""}${s.evidence.artistPenalty > 0 ? ` · B6 −${s.evidence.artistPenalty}+1` : ""}]`;
     log(
-      `  ${String(s.atMin).padStart(5)}m  ${s.bpm === null ? "  —  " : String(Math.round(s.bpm * 10) / 10).padStart(5)} bpm  ${(s.key ?? "—").padEnd(4)}  ${s.transition === null ? "open " : s.transition.toFixed(3)}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}${windows}`,
+      `  ${String(s.atMin).padStart(5)}m  ${s.bpm === null ? "  —  " : String(Math.round(s.bpm * 10) / 10).padStart(5)} bpm  ${(s.key ?? "—").padEnd(4)}  ${s.transition === null ? "open " : s.transition.toFixed(3)}${evidence}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}${windows}`,
     );
   }
   return at;
@@ -97,7 +107,10 @@ export function logSteps(
  *  flat wire list is capped at 40 rows, so the terminal previously said
  *  nothing about the other ~3,600 exclusions; the class groups restore
  *  the shape (Sep 21). Callers pass the FULL excluded list when they
- *  have it (the engine result carries it before the wire cap). */
+ *  have it (the engine result carries it before the wire cap).
+ *  #291: budget-fill is pulled OUT of the shape and reported as the
+ *  status it is — the quality signal is never drowned by 3.5k rows of
+ *  "the set ended". */
 export function logExclusionShape(
   excluded: MegasetPayload["excluded"],
   excludedTotal: number,
@@ -105,14 +118,20 @@ export function logExclusionShape(
   log: (m: string) => void,
 ): void {
   if (excludedTotal <= 0) return;
-  const groups = groupMegasetExcluded(excluded);
-  const top = groups
+  const budgetFilled = megasetBudgetFilledCount(excluded);
+  const quality = groupMegasetExcluded(excluded);
+  const status = `  pool ${pool.toLocaleString()} → chain kept the rest · set budget filled for ${budgetFilled.toLocaleString()}`;
+  const top = quality
     .slice(0, 3)
     .map((g) => `${g.count.toLocaleString()} ${g.reason}`)
     .join(" · ");
-  log(
-    `  exclusions (${excludedTotal.toLocaleString()} of ${pool.toLocaleString()} candidates): ${top}`,
-  );
+  if (top !== "") {
+    log(
+      `${status} · quality exclusions (${excludedTotal - budgetFilled}): ${top}`,
+    );
+  } else {
+    log(`${status} · no quality exclusions — every skip was the time budget`);
+  }
 }
 
 /** The three honest empty-pool diagnoses: shelf offline (nothing is

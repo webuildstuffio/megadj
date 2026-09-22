@@ -17,6 +17,7 @@ import {
   MEGASET_TRANSITION_WEIGHTS,
   isMegasetHalfTimePair,
   megasetArtistRepeatPenalty,
+  type MegasetEvidence,
   type MegasetPresetDef,
 } from "../../shared/types";
 import { cosineSimilarity } from "../../../src/shared/leaf/vector-space";
@@ -246,4 +247,75 @@ export function transitionScore(
     // siblings or a jarring genre jump; this term breaks those ties.
     MEGASET_SIMILARITY_WEIGHT * similarityScore(prev, c);
   return penalty > 0 ? Math.max(0.01, raw - penalty + 1) : raw;
+}
+
+/** #284: transitionScore plus its per-component breakdown — the ONE
+ *  evaluation seam (transitionScore itself stays the hot-loop number
+ *  cruncher; this wrapper recomputes the blend pieces for the wire).
+ *  Returns null when the hop is gated (−1): no components to show, the
+ *  honest answer is "this hop failed a hard gate", not a fake breakdown. */
+export function transitionEvidence(
+  prev: SetCandidate,
+  c: SetCandidate,
+  preset: SetPreset,
+  t: number,
+  anchorBpm: number,
+  lastArousal: number | null,
+): MegasetEvidence | null {
+  const score = transitionScore(prev, c, preset, t, anchorBpm, lastArousal);
+  if (score <= 0) return null;
+  // transitionScore's gates guarantee both BPMs are mixable numbers here
+  const prevBpm = prev.bpm;
+  const cBpm = c.bpm;
+  if (
+    prevBpm === null ||
+    cBpm === null ||
+    !Number.isFinite(prevBpm) ||
+    !Number.isFinite(cBpm) ||
+    prevBpm <= 0 ||
+    cBpm <= 0
+  )
+    return null;
+  const lane = megasetTempoLane(prevBpm, cBpm);
+  const halftime = lane > 0 && bpmScore(prevBpm, cBpm) === 0;
+  const targetArousal = envelope(preset.arousal, t);
+  const targetDance = envelope(preset.dance, t);
+  const a = (c.arousal ?? 5) / 9;
+  const d = c.dance ?? 0.6;
+  const fit =
+    1 -
+    Math.min(
+      1,
+      (Math.abs(a - targetArousal / 9) + Math.abs(d - targetDance)) / 2,
+    );
+  const anchor =
+    1 -
+    Math.min(
+      1,
+      Math.abs(cBpm / (anchorBpm * tempoTarget(preset, t)) - 1) /
+        (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT) /
+        2,
+    );
+  const tempo = MEGASET_TRANSITION_WEIGHTS.tempo * lane;
+  const key = MEGASET_TRANSITION_WEIGHTS.key * keyScore(prev, c);
+  const arcFit = MEGASET_TRANSITION_WEIGHTS.arcFit * fit;
+  const anchorTerm = MEGASET_ANCHOR_WEIGHT * anchor;
+  const similarity = MEGASET_SIMILARITY_WEIGHT * similarityScore(prev, c);
+  const raw = tempo + key + arcFit + anchorTerm + similarity;
+  // the B6 repeat penalty, reconstructed the same way transitionScore
+  // applies it — the wire total must equal the wire blend EXACTLY
+  // (an evidence number that disagrees with the blend is the exact
+  // class of drift F1 caught, now structurally impossible)
+  const penalty = megasetArtistRepeatPenalty(prev, c);
+  const total = penalty > 0 ? Math.max(0.01, raw - penalty + 1) : raw;
+  return {
+    tempo,
+    key,
+    arcFit,
+    anchor: anchorTerm,
+    similarity,
+    artistPenalty: penalty,
+    total,
+    halftime,
+  };
 }

@@ -74,12 +74,20 @@ const columns: DataTableColumn<MegasetStep>[] = [
           // old fixed 0.75/0.5 cut-offs predated the anchor+similarity
           // bonuses and read "clean" on every live blend)
           const band = megasetTransitionBand(step.transition);
+          // #284: the per-component evidence rides the hover so the
+          // blend is auditable without leaving the table
+          const ev = step.evidence;
+          const evidence = ev
+            ? ` — components: tempo ${ev.tempo.toFixed(3)}${ev.halftime ? " (B8 half-time lane)" : ""}, key ${ev.key.toFixed(3)}, arc fit ${ev.arcFit.toFixed(3)}, anchor ${ev.anchor.toFixed(3)}, similarity ${ev.similarity.toFixed(3)}${ev.artistPenalty > 0 ? `, B6 same-artist penalty −${ev.artistPenalty}+1` : ""}`
+            : "";
+          // #294: the score magnitude is INLINE (stopgap until the full
+          // #284 hover-panel UX), the band still carries the color
           return (
             <span
               class={`arch-pill ${band.cls}`}
-              title={`transition score into this track: ${step.transition.toFixed(3)} (tempo + key + arc fit + anchor + similarity)`}
+              title={`transition score into this track: ${step.transition.toFixed(3)}${evidence}`}
             >
-              {band.label}
+              {step.transition.toFixed(2)} {band.label}
             </span>
           );
         })()

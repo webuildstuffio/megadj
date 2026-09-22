@@ -27,6 +27,12 @@ export interface MegasetStep {
   atMin: number;
   /** transition score into this track (first track: null) */
   transition: number | null;
+  /** #284: the per-component breakdown of `transition` — tempo/key/arc
+   *  fit/anchor/similarity contributions (weight × component), plus the
+   *  final blend. null on the opener (no transition) and on a gated step
+   *  (−1: the hop failed a hard gate, no components to show). Cross-build
+   *  comparison reads THESE, not the pooled magnitude. */
+  evidence: MegasetEvidence | null;
   /** S13 (#107): true when this track was pinned as a landmark must-play
    *  and slotted by the engine — the DJ's picks, visible in the chain. */
   landmark: boolean;
@@ -36,6 +42,37 @@ export interface MegasetStep {
   /** #106: 8-bar boundary nearest the handoff overlap window — where
    *  THIS track can take over (intro side, a few phrases in). */
   mixInCue: MegasetCuePoint | null;
+}
+
+/** #284: one step's scoring evidence — the per-component contributions
+ *  (each already weight-scaled) that produce `total`. Weights ride inside
+ *  so a consumer can read tempo=0.45 and know the tempo term contributed
+ *  its maximum without knowing MEGASET_TRANSITION_WEIGHTS. */
+export interface MegasetEvidence {
+  /** weight × bpmScore (the megasetTempoLane result — direct window or
+   *  B8 half-time lane value). */
+  tempo: number;
+  /** weight × keyScore. */
+  key: number;
+  /** weight × arc fit (arousal+dance distance from the preset target). */
+  arcFit: number;
+  /** MEGASET_ANCHOR_WEIGHT × the anchored-tempo-target term. */
+  anchor: number;
+  /** MEGASET_SIMILARITY_WEIGHT × cosine-similarity prior (0 when either
+   *  side has no embedding). */
+  similarity: number;
+  /** the B6 same-artist repeat penalty applied AFTER the weighted sum
+   *  (0 = none; 3 = the repeat window). The blend is
+   *  max(0.01, sum − penalty + 1) when this fires — the +1 floor keeps
+   *  the penalized step ranked below every fresh-name peer. */
+  artistPenalty: number;
+  /** the final blend these components produce — EXACTLY the wire
+   *  `transition` value (post-penalty, post-floor). */
+  total: number;
+  /** true when the tempo term came from the B8 half/double-time lane
+   *  rather than the direct ±6% window — the lane is a discounted
+   *  pairing, and the consumer should say so. */
+  halftime: boolean;
 }
 
 export interface MegasetResult {
@@ -57,12 +94,19 @@ export interface MegasetResult {
   excluded_total: number;
   /** B13 (#104): the same exclusions grouped by reason (derived from
    *  the flat list by the shared `groupMegasetExcluded` — never a
-   *  second bucket list). Examples cap at 4 per group. */
+   *  second bucket list). Examples cap at 4 per group. #291: budget-fill
+   *  is NOT a bucket here — it is a status (`budget_filled`), so the
+   *  groups carry only genuine quality reasons. */
   excluded_groups: {
     reason: string;
     count: number;
     examples: string[];
   }[];
+  /** #291: how many candidates the time budget itself squeezed out —
+   *  a STATUS, not a quality exclusion. Reported beside the groups so
+   *  the real quality shape is never drowned by 3.5k true-but-noise
+   *  rows (Sep 21 audit: 3,541 of 3,679 were budget-fill). */
+  budget_filled: number;
   /** #283-followup: set-level quality stats — mean/lowest step transition
    *  (null on a single-step chain). Makes proposals comparable across
    *  presets/pools without hand-deriving from steps[]. */
@@ -147,6 +191,10 @@ export interface MegasetPayload extends MegasetResult {
    *  filesystem census. 0 when no filter was passed — a filtered build
    *  is always visible, never a silent subset. */
   genre_filtered: number;
+  /** #290: nearest known genre family when `--genre` matched 0 rows
+   *  (absent when the filter matched, was absent, or nothing is near —
+   *  the honest gap). Suggests the family the matcher DOES know. */
+  genre_suggestion?: string | undefined;
   /** Ledger ages for the newest beats/mood analysis — a stale pool is
    *  VISIBLE ("proposed from analysis older than your latest drops"),
    *  never silent. Null when that ledger is empty. */
@@ -348,8 +396,10 @@ export function groupMegasetExcluded(
   >();
   for (const e of excluded) {
     // one CLASS per exclusion — the raw string (with per-track numbers)
-    // stays on the excluded[] rows
+    // stays on the excluded[] rows. #291: budget-fill is a status, not a
+    // quality bucket — it never enters the groups.
     const reason = megasetReasonClass(e.reason);
+    if (reason === "set budget filled") continue;
     let bucket = byReason.get(reason);
     if (!bucket) {
       bucket = { reason, count: 0, examples: [] };
@@ -359,6 +409,17 @@ export function groupMegasetExcluded(
     if (bucket.examples.length < 4) bucket.examples.push(e.title ?? e.videoId);
   }
   return [...byReason.values()].toSorted((a, b) => b.count - a.count);
+}
+
+/** #291: the budget-fill COUNT — how many candidates the time budget
+ *  squeezed out (a status, reported beside the quality groups; these
+ *  rows are true but carry no quality signal). */
+export function megasetBudgetFilledCount(
+  excluded: readonly { reason: string }[],
+): number {
+  return excluded.filter(
+    (e) => megasetReasonClass(e.reason) === "set budget filled",
+  ).length;
 }
 
 // ---- Phase D handoff derivation (#106) -------------------------------------
@@ -490,6 +551,81 @@ export const MEGASET_GENRE_FALLBACKS: Record<string, string[]> = {
   dnb: [],
   dubstep: [],
 };
+
+/** #290: nearest-family suggestion for a `?genre=`/`--genre` value that
+ *  resolved to a literal (free-form) term and matched nothing. Simple
+ *  bounded edit distance over the family ids + synonyms — the matcher's
+ *  vocabulary IS the suggestion list (one source, never a twin). Ties
+ *  break alphabetically for determinism. Returns null when nothing is
+ *  within distance 3 (a genuinely foreign term: the empty pool is the
+ *  honest answer, a wrong suggestion would not be). */
+export function megasetNearestGenreFamily(
+  raw: string,
+): { family: string; distance: number } | null {
+  const needle = raw.trim().toLowerCase();
+  if (needle === "") return null;
+  let best: { family: string; distance: number } | null = null;
+  for (const [family, synonyms] of Object.entries(MEGASET_GENRE_FAMILIES)) {
+    const candidates = [family, ...synonyms];
+    for (const word of candidates) {
+      const d = boundedEditDistance(needle, word, 3);
+      if (
+        d !== null &&
+        (best === null ||
+          d < best.distance ||
+          (d === best.distance && family < best.family))
+      ) {
+        best = { family, distance: d };
+      }
+    }
+  }
+  return best;
+}
+
+/** Levenshtein distance with an early bailout: null once the distance
+ *  provably exceeds `max` (band-row DP, O(min(m,n)) space). */
+function boundedEditDistance(a: string, b: string, max: number): number | null {
+  if (Math.abs(a.length - b.length) > max) return null;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const v = Math.min(prev[j]! + 1, cur[j - 1]! + 1, prev[j - 1]! + cost);
+      cur.push(v);
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return null;
+    prev = cur;
+  }
+  const d = prev[b.length]!;
+  return d <= max ? d : null;
+}
+
+/** #290: the pool-starvation fallback for a genre value — resolved by
+ *  FAMILY, not by raw string. The old raw-string lookup meant
+ *  `--genre tropical` (which resolves to the tropical-house family via
+ *  the synonym scan) never widened to house while `--genre "tropical
+ *  house"` did — the same pool, two different starvation behavior.
+ *  Free-form values with no family still return null (literal stays
+ *  literal). */
+export function megasetGenreFallbackTerms(
+  raw: string | null | undefined,
+): string[] | null {
+  const trimmed = raw?.trim().toLowerCase() ?? "";
+  if (trimmed === "") return null;
+  if (trimmed in MEGASET_GENRE_FALLBACKS)
+    return MEGASET_GENRE_FALLBACKS[trimmed]!;
+  // a synonym/substring hit resolves to its family ("tropical" →
+  // tropical house) so the widening rule follows the matcher, not the
+  // caller's spelling
+  for (const [family, synonyms] of Object.entries(MEGASET_GENRE_FAMILIES)) {
+    if (trimmed.includes(family) || synonyms.some((s) => trimmed.includes(s)))
+      return MEGASET_GENRE_FALLBACKS[family] ?? null;
+  }
+  return null;
+}
 
 /** Beam-search activation threshold: pools BELOW this size run a beam
  * continuation (width MEGASET_BEAM_WIDTH) instead of pure greedy — the

@@ -113,6 +113,12 @@ export function MegasetLoading(props: { startedAt: number }) {
 export function ExcludedBreakdown(props: { data: MegasetPayload }) {
   const { data } = props;
   if (data.excluded_total <= 0) return null;
+  // #291: budget-fill arrives as a STATUS count (budget_filled), not a
+  // bucket — the groups carry only genuine quality reasons. Pre-#291
+  // payloads without the field degrade by reading it as 0 (?? 0 is
+  // wrong for a 0-count field; the field is typed required, so a plain
+  // read is correct).
+  const budgetFilled = data.budget_filled ?? 0;
   const buckets = data.excluded_groups;
   const shown = data.excluded.length;
   return (
@@ -121,6 +127,14 @@ export function ExcludedBreakdown(props: { data: MegasetPayload }) {
         {data.excluded_total} of {data.pool.toLocaleString()} candidates not in
         the chain — why?
       </summary>
+      {budgetFilled > 0 && (
+        <div class="fleet-note">
+          {budgetFilled.toLocaleString()} skipped only because the set's time
+          budget filled — a status, not a quality problem. The quality shape
+          below covers the remaining{" "}
+          {(data.excluded_total - budgetFilled).toLocaleString()}.
+        </div>
+      )}
       <KVRows>
         {buckets.map((b) => (
           <KVRow key={b.reason}>

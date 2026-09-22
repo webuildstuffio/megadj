@@ -15,6 +15,7 @@ import {
 import {
   clampMegasetPool,
   isMegasetSearchOverride,
+  megasetNearestGenreFamily,
   MEGASET_EXCLUDED_PREVIEW_MAX,
 } from "../../shared/megaset";
 import { isSimilarSpace } from "../../../src/shared/leaf/vector-space";
@@ -365,6 +366,16 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         // #283: matched-row count when a ?genre= filter ran (0 = none) —
         // the UI/CLI show it so a filtered pool is visible
         genre_filtered: genreFiltered,
+        // #290: nearest known genre family when the filter matched 0
+        // rows (absent otherwise) — CLI + web + MCP quote the same seam
+        ...(genreFiltered === 0 &&
+        (url.searchParams.get("genre") ?? "").trim() !== ""
+          ? {
+              genre_suggestion:
+                megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
+                  ?.family ?? undefined,
+            }
+          : {}),
         // the wire contract is the preset ID (MegasetPayload.preset: string)
         // — consumers resolve labels from the shared MEGASET_PRESET_DEFS registry
         preset: built.preset,
@@ -377,8 +388,11 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         // (MEGASET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
         excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
         // B13: reason groups derived from the FULL excluded list engine-side
+        // (#291: budget-fill excluded — it is the budget_filled status)
         excluded_groups: built.excluded_groups,
         excluded_total: built.excluded.length,
+        // #291: budget-fill as a STATUS, not a quality bucket
+        budget_filled: built.budget_filled,
         // #283-followup: set-level quality stats (mean/lowest transition)
         avg_transition: built.avg_transition,
         min_transition: built.min_transition,

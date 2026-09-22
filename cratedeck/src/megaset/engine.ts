@@ -20,6 +20,7 @@ import {
   groupMegasetExcluded,
   isMegasetSearchOverride,
   megasetArtistKey,
+  megasetBudgetFilledCount,
   megasetMixInCue,
   megasetMixOutCue,
   MEGASET_BEAM_POOL_MAX,
@@ -46,7 +47,12 @@ export { bpmScore, keyScore, withinAnchorBudget } from "./scoring";
 // family owns the row shape it scores; #173 madge pass moved it here so
 // scoring's type-only back-edge into this file stops being a cycle).
 // Re-exported for every existing consumer — same symbol, never a twin.
-import { mixableBpm, transitionScore, type SetCandidate } from "./scoring";
+import {
+  mixableBpm,
+  transitionEvidence,
+  transitionScore,
+  type SetCandidate,
+} from "./scoring";
 export type { SetCandidate } from "./scoring";
 
 // N80 energy-arc presets — DERIVED from the shared registry
@@ -232,6 +238,11 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       atMin: minutesAt(elapsed),
       transition:
         transition === null ? null : Math.round(transition * 1000) / 1000,
+      // #284: per-component scoring evidence (null on the opener — no
+      // transition — and on any gated hop). Recomputed HERE at commit
+      // time from the same inputs the selection functions used, so the
+      // wire evidence always matches the number that picked the slot.
+      evidence: null,
       // S13 (#107): set after the search returns — the pin map is applied
       // in the repair pass below, which rewrites this field for placed
       // pins. The opener defaults false (a pinned opener stays a pin).
@@ -288,8 +299,13 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       // B13: ONE grouping, derived here from the same excluded[] — the
       // full list (not the wire's 40-preview), so group counts sum to
       // excluded_total
+      // #291: EXCEPT budget-fill — that is a status (budget_filled
+      // below), not a quality bucket, so the groups stay signal-only.
       excluded_groups: groupMegasetExcluded(excluded),
       excluded_total: excluded.length,
+      // #291: the budget-fill STATUS count — true but uninformative rows
+      // reported as a number, never drowning the quality groups.
+      budget_filled: megasetBudgetFilledCount(excluded),
       avg_transition: avgTransition,
       min_transition: minTransition,
       // B6 (#107): same-artist adjacency count — the diversity report card
@@ -501,6 +517,35 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   }
 
   for (const step of picked.chain) push(step.candidate, step.transition);
+  // #284: the evidence pass — each step's per-component breakdown,
+  // recomputed from the ORIGINAL candidates at the exact slot clock the
+  // selection functions scored it (t = full-precision elapsed through
+  // the predecessor — the rounded atMin wire field is NOT the clock, a
+  // 0.1-min rounding there drifts the arc envelope and the anchor term).
+  // Same inputs → the wire breakdown always matches the blend.
+  {
+    let elapsedS = 0;
+    for (let i = 0; i < picked.chain.length; i++) {
+      const entry = picked.chain[i]!;
+      const t = Math.min(1, elapsedS / budget);
+      if (i > 0 && entry.transition !== null) {
+        const prevEntry = picked.chain[i - 1]!;
+        const s = steps[i]!;
+        // same inputs the search saw → the components sum to the blend;
+        // a null here would be a wire lie, so it cannot happen (defensive
+        // typed as null-coalescing, never silently faked)
+        s.evidence = transitionEvidence(
+          prevEntry.candidate,
+          entry.candidate,
+          preset,
+          t,
+          anchorBpm,
+          prevEntry.candidate.arousal,
+        );
+      }
+      elapsedS += candidateDuration(entry.candidate);
+    }
+  }
   // mark placed pins on the wire steps (push() defaulted them false —
   // the pin map only exists after the repair pass)
   for (const step of steps) {

@@ -14,7 +14,12 @@ import {
   withinAnchorBudget,
   type SetCandidate,
 } from "./engine";
-import { megasetTempoLane, similarityScore, transitionScore } from "./scoring";
+import {
+  megasetTempoLane,
+  similarityScore,
+  transitionEvidence,
+  transitionScore,
+} from "./scoring";
 import {
   MEGASET_SIMILARITY_WEIGHT,
   MEGASET_TRANSITION_WEIGHTS,
@@ -425,5 +430,101 @@ describe("buildMegaset improvement pass (#107)", () => {
       );
       expect(s.transition).toBeCloseTo(fresh, 3); // wire rounds to 3 decimals
     }
+  });
+
+  test("#284: every step carries per-component evidence that sums to the blend", () => {
+    const chainPool = [
+      cand({ videoId: "op", arousal: 5.2, bpm: 126, key: "8A" }),
+      cand({ videoId: "c1", arousal: 5.4, bpm: 126, key: "8A" }),
+      cand({ videoId: "c2", arousal: 5.7, bpm: 127, key: "9A" }),
+    ];
+    const r = buildMegaset({
+      candidates: chainPool,
+      preset: SET_PRESETS.peak,
+      minutes: 15,
+      searchOverride: "greedy",
+    });
+    expect(r.steps.length).toBeGreaterThanOrEqual(2);
+    // opener: no transition → evidence null
+    expect(r.steps[0]!.transition).toBeNull();
+    expect(r.steps[0]!.evidence).toBeNull();
+    // every transitioned step: components present, weights-true, total
+    // equals the wire blend EXACTLY — including the B6 penalty path
+    // (penalty > 0 → total = max(0.01, raw − penalty + 1))
+    for (let i = 1; i < r.steps.length; i++) {
+      const s = r.steps[i]!;
+      const ev = s.evidence;
+      expect(ev).not.toBeNull();
+      if (ev === null) continue;
+      const raw = ev.tempo + ev.key + ev.arcFit + ev.anchor + ev.similarity;
+      const expectedTotal =
+        ev.artistPenalty > 0 ? Math.max(0.01, raw - ev.artistPenalty + 1) : raw;
+      expect(ev.total).toBeCloseTo(expectedTotal, 5);
+      expect(ev.total).toBeCloseTo(s.transition!, 2);
+      // weight sanity: each component cannot exceed its weight's ceiling
+      expect(ev.tempo).toBeLessThanOrEqual(W.tempo + 1e-9);
+      expect(ev.key).toBeLessThanOrEqual(W.key + 1e-9);
+      expect(ev.arcFit).toBeLessThanOrEqual(W.arcFit + 1e-9);
+      expect(ev.anchor).toBeLessThanOrEqual(MEGASET_ANCHOR_WEIGHT + 1e-9);
+      expect(ev.similarity).toBeLessThanOrEqual(
+        MEGASET_SIMILARITY_WEIGHT + 1e-9,
+      );
+    }
+  });
+
+  test("#284: the B6 penalty is part of the evidence — total still matches the blend", () => {
+    // same artist back-to-back: penalty 3 fires, blend floors near 0.01,
+    // and the evidence row explains BOTH facts
+    const a = cand({ videoId: "a", artist: "Alpha", arousal: 5.2 });
+    const b = cand({ videoId: "b", artist: "alpha", arousal: 5.4 });
+    const score = transitionScore(a, b, SET_PRESETS.peak, 0.5, 126, 5.2);
+    expect(score).toBeGreaterThan(0);
+    const ev = transitionEvidence(a, b, SET_PRESETS.peak, 0.5, 126, 5.2);
+    expect(ev).not.toBeNull();
+    if (ev === null) return;
+    expect(ev.artistPenalty).toBe(3);
+    expect(ev.total).toBeCloseTo(score, 9);
+  });
+
+  test("#284: a B8 half-time hop is flagged halftime with the discounted tempo term", () => {
+    // 63 BPM under a 126 anchor: direct window dead, the ×2 lane scores
+    // 0.75 × MEGASET_HALFTIME_PENALTY — and the evidence says so. Arousal
+    // climbs WITH the peak arc (a downward move is a B3 wall, correctly
+    // gated → null evidence, pinned below).
+    const lane = megasetTempoLane(126, 63);
+    expect(lane).toBeGreaterThan(0);
+    const ev = transitionEvidence(
+      cand({ videoId: "a", bpm: 126, key: "8A", arousal: 5.2 }),
+      cand({ videoId: "b", bpm: 63, key: "8A", arousal: 5.4 }),
+      SET_PRESETS.peak,
+      0.5,
+      126,
+      5.2,
+    );
+    expect(ev).not.toBeNull();
+    if (ev === null) return;
+    expect(ev.halftime).toBe(true);
+    expect(ev.tempo).toBeCloseTo(MEGASET_TRANSITION_WEIGHTS.tempo * lane, 9);
+    // a DIRECT match is never flagged
+    const direct = transitionEvidence(
+      cand({ videoId: "a", bpm: 126, key: "8A", arousal: 5.2 }),
+      cand({ videoId: "b", bpm: 127, key: "8A", arousal: 5.4 }),
+      SET_PRESETS.peak,
+      0.5,
+      126,
+      5.2,
+    );
+    expect(direct?.halftime).toBe(false);
+    // a gated hop has NO evidence (null, not a fake breakdown): 200 BPM
+    // is outside ±6% AND outside every half-time lane → tempo gate
+    const gated = transitionEvidence(
+      cand({ videoId: "a", bpm: 126, key: "8A", arousal: 5.2 }),
+      cand({ videoId: "b", bpm: 200, key: "1A", arousal: 5.4 }),
+      SET_PRESETS.peak,
+      0.5,
+      126,
+      5.2,
+    );
+    expect(gated).toBeNull();
   });
 });

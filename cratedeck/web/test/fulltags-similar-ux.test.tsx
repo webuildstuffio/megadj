@@ -255,13 +255,17 @@ describe("FullTags Similar and Set Builder UX", () => {
       // B13: the buckets come from the WIRE now (derived engine-side
       // from the FULL excluded list) — the component never re-buckets
       excluded_groups: groupMegasetExcluded(excluded),
+      // #291: the 3 budget rows are a STATUS — out of the groups, into
+      // the status line
+      budget_filled: 3,
     };
     const html = render(<ExcludedBreakdown data={data} />);
-    // grouped buckets, biggest first, with example titles
-    expect(html).toContain("3 tracks");
-    expect(html).toContain("e.g. A, B, 3");
+    // #291: the quality group carries only the real bucket…
     expect(html).toContain("2 tracks");
     expect(html).toContain("e.g. D, E");
+    // …and the 3 budget rows render as the STATUS line, never a bucket
+    expect(html).toContain("time budget filled");
+    expect(html).toContain("remaining 2");
     // raw per-track audit stays reachable
     expect(html).toContain("every excluded track, one per line");
     // and the truncation note when the wire preview is capped
@@ -329,6 +333,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 3,
         atMin: 5,
         transition: null,
+        evidence: null,
         landmark: false,
         mixOutCue: null,
         mixInCue: { bar: 9, position: 15.2 },
@@ -342,6 +347,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 6,
         atMin: 12,
         transition: 0.8,
+        evidence: null,
         landmark: false,
         mixOutCue: { bar: 41, position: 76.2 },
         mixInCue: { bar: 9, position: 15.2 },
@@ -355,6 +361,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 8.5,
         atMin: 30,
         transition: 0.7,
+        evidence: null,
         landmark: false,
         mixOutCue: { bar: 57, position: 91 },
         mixInCue: { bar: 25, position: 44 },
@@ -439,6 +446,64 @@ describe("FullTags Similar and Set Builder UX", () => {
     );
   });
 
+  test("#284/#294: the mix pill shows the inline magnitude and hover carries the evidence breakdown", () => {
+    const step: MegasetStep = {
+      ...baseData.steps[0]!,
+      transition: null,
+      evidence: null,
+    };
+    const opener = render(
+      <MegasetChain
+        steps={[step]}
+        preset={MEGASET_PRESET_DEFS[0]!}
+        keyGlide={null}
+      />,
+    );
+    expect(opener).toContain("open");
+    const transitioned: MegasetStep = {
+      ...baseData.steps[0]!,
+      atMin: 10,
+      transition: 1.123,
+      evidence: {
+        tempo: 0.45,
+        key: 0.3,
+        arcFit: 0.2,
+        anchor: 0.11,
+        similarity: 0.06,
+        artistPenalty: 0,
+        total: 1.123,
+        halftime: false,
+      },
+    };
+    const direct = render(
+      <MegasetChain
+        steps={[transitioned]}
+        preset={MEGASET_PRESET_DEFS[0]!}
+        keyGlide={null}
+      />,
+    );
+    // #294: the score magnitude is INLINE on the pill (band label alone
+    // carried no information)
+    expect(direct).toContain("1.12 clean");
+    // #284: the per-component breakdown rides the hover title
+    expect(direct).toContain("components: tempo 0.450, key 0.300");
+    expect(direct).toContain("arc fit 0.200, anchor 0.110, similarity 0.060");
+    // the B8 lane is named when the hop used it
+    const halftime = render(
+      <MegasetChain
+        steps={[
+          {
+            ...transitioned,
+            evidence: { ...transitioned.evidence!, halftime: true },
+          },
+        ]}
+        preset={MEGASET_PRESET_DEFS[0]!}
+        keyGlide={null}
+      />,
+    );
+    expect(halftime).toContain("B8 half-time lane");
+  });
+
   test("short proposals are unmistakably partial and report the measured gap", () => {
     expect(source).toContain("data.complete");
     expect(source).toContain("data.actualMinutes");
@@ -477,6 +542,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 4,
         atMin: 5.2,
         transition: null,
+        evidence: null,
         landmark: false,
         mixOutCue: null,
         mixInCue: null,
@@ -485,6 +551,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     excluded: [],
     excluded_groups: [],
     excluded_total: 0,
+    budget_filled: 0,
     source_total: 3664,
     pool: 3563,
     missing_files: 93,

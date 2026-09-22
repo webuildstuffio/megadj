@@ -25,6 +25,8 @@ import {
 import {
   clampMegasetPool,
   MEGASET_EXCLUDED_PREVIEW_MAX,
+  MEGASET_GENRE_FAMILIES,
+  megasetNearestGenreFamily,
   type MegasetPayload,
   type SetSearchOverride,
 } from "../../cratedeck/shared/types";
@@ -119,6 +121,29 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       landmarkIds: opts.landmarkIds,
       searchOverride: opts.search,
     });
+    // #290: unknown-genre guard. A filter that matched ZERO rows builds
+    // an honest empty pool — but "gqom" vs "afro" should not both end
+    // there: when the value matched nothing, suggest the nearest family
+    // from the SAME shared table the matcher uses (no twin list).
+    // Non-fatal: the build still reports its honest empty shape after.
+    let genreSuggestion: string | undefined;
+    if (
+      opts.genre !== undefined &&
+      opts.genre.trim() !== "" &&
+      genreFiltered === 0
+    ) {
+      const near = megasetNearestGenreFamily(opts.genre);
+      if (near !== null) {
+        genreSuggestion = near.family;
+        log(
+          `  hint: genre "${opts.genre.trim()}" matched 0 rows — nearest known family is "${near.family}" (edit distance ${near.distance}); try --genre "${near.family}"`,
+        );
+      } else {
+        log(
+          `  hint: genre "${opts.genre.trim()}" matched 0 rows and is not near any known family — known families: ${Object.keys(MEGASET_GENRE_FAMILIES).join(", ")}`,
+        );
+      }
+    }
     const payload: MegasetPayload = {
       available: true,
       source_total: sourceTotal,
@@ -139,9 +164,15 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
       excluded_groups: built.excluded_groups,
       excluded_total: built.excluded.length,
+      // #291: budget-fill reported as a STATUS count, not a group bucket
+      budget_filled: built.budget_filled,
       metadata_only: metadataOnly,
       // #283: matched rows when a --genre filter ran (0 = unfiltered)
       genre_filtered: genreFiltered,
+      // #290: the nearest known family when the filter matched 0 rows
+      ...(genreSuggestion !== undefined
+        ? { genre_suggestion: genreSuggestion }
+        : {}),
       // #283-followup: set-level quality stats (mean/lowest transition)
       avg_transition: built.avg_transition,
       min_transition: built.min_transition,
