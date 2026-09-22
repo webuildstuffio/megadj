@@ -33,7 +33,7 @@ manual — run the recipes below when the gig drives are at hand).
 - **F2 detection & ports** — `src/deck/detect/detect.ts` (FSEvents + diskutil), port
   route `GET /ports`, `src/deck/python/usb_tree.py`
 - **F3 photo identity** — `src/deck/image/store.ts`, picker in
-  `src/deck/web/products/cratedeck/PhotoTab.tsx`, cached under `src/deck/data/images/`
+  `src/deck/web/products/drives/PhotoTab.tsx`, cached under `src/deck/data/images/`
 - **F4 rekordbox introspection** — `src/deck/rb.ts` (the seam) +
   `src/deck/python/rb_read.py`, light scan in `src/deck/scan.ts`
 - **F5 sync status** — master/mirror parity in `src/deck/report/report.ts`
@@ -43,10 +43,10 @@ manual — run the recipes below when the gig drives are at hand).
 - **F7 health & corruption** — `src/deck/report/report.ts` (dual-DB gate, grids, space,
   bitrot ledger, junk), junk detection in `src/deck/scan.ts`
 - **F8 timeline** — events table + `GET /drives/:id/timeline`,
-  `src/deck/web/products/cratedeck/TimelineTab.tsx` (day grouping, event icons, kind chips)
+  `src/deck/web/products/drives/TimelineTab.tsx` (day grouping, event icons, kind chips)
 - **F9 cockpit UI** — hash-routed two-pane UI: `src/deck/web/app/router.ts` (deep
-  links), `src/deck/web/products/cratedeck/DriveRail.tsx` (cards incl. ghosts),
-  `src/deck/web/products/cratedeck/DrivePage.tsx` (tabs: `PlaylistsTab`, `HealthTab`,
+  links), `src/deck/web/products/drives/DriveRail.tsx` (cards incl. ghosts),
+  `src/deck/web/products/drives/DrivePage.tsx` (tabs: `PlaylistsTab`, `HealthTab`,
   `TimelineTab`), `src/deck/web/ui/JobsDock.tsx`, interlock banner, and
   `src/deck/web/ui/toast.tsx`. No drawer — the rail is always visible and the canvas
   is the drive page.
@@ -90,7 +90,7 @@ NOT_PLANNED 2026-09-16 — the recipes remain below.
 
 ## Test coverage
 
-`cratedeck/test/`: `badges`, `config`, `db`, `e2e` (live server: interlock,
+`src/deck/test/`: `badges`, `config`, `db`, `e2e` (live server: interlock,
 drives list, SPA shell — skips the shell assertion when `src/deck/web/dist` isn't
 built), `fleet` (coverage/redundancy/diff engine + persistence), `guard`
 (write allow-list), `scan-detect`, `verify_report`,

@@ -68,9 +68,10 @@ test("pages import shared surface through the barrel only (no member leaks)", ()
 
 test("every product page directory has a PRODUCTS row (the nav SSOT covers the tree)", () => {
   const meta = read(join(sharedDir, "product-meta.tsx"));
-  // products/cratedeck/ is the "drives" product (label CrateDeck) — the
-  // router's Product union, not the dir name, owns the nav id.
-  const NAV_ID: Record<string, string> = { cratedeck: "drives" };
+  // products/drives/ is the "drives" product (label CrateDeck) — the
+  // dir name matches the router's Product id (renamed from products/cratedeck/
+  // in the Sep 2026 src-fold).
+  const NAV_ID: Record<string, string> = {};
   const productDirs = readdirSync(productsDir, { withFileTypes: true })
     .filter((e) => e.isDirectory() && e.name !== "shared")
     .map((e) => e.name)

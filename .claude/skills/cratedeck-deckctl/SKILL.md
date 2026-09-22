@@ -12,9 +12,9 @@ curl, so they get the interlock check and consistent exit codes.
 ## Quick start
 
 ```bash
-bun run cratedeck/src/deckctl.ts status          # lock state + all drives
-bun run cratedeck/src/deckctl.ts report YOUR_MASTER
-bun run cratedeck/src/deckctl.ts run YOUR_MASTER scan    # follows live w/ ETA
+bun run src/deck/deckctl.ts status          # lock state + all drives
+bun run src/deck/deckctl.ts report YOUR_MASTER
+bun run src/deck/deckctl.ts run YOUR_MASTER scan    # follows live w/ ETA
 ```
 
 ## Fleet questions (cross-drive)
@@ -23,9 +23,9 @@ After each drive has been scanned at least once (fleet tables refresh on
 every scan):
 
 ```bash
-bun run cratedeck/src/deckctl.ts coverage        # which tracks on which drives + 1-copy risks
-bun run cratedeck/src/deckctl.ts redundancy      # per-playlist: every track on ≥2 drives?
-bun run cratedeck/src/deckctl.ts diff YOUR_MASTER YOUR_MIRROR   # master vs mirror drift
+bun run src/deck/deckctl.ts coverage        # which tracks on which drives + 1-copy risks
+bun run src/deck/deckctl.ts redundancy      # per-playlist: every track on ≥2 drives?
+bun run src/deck/deckctl.ts diff YOUR_MASTER YOUR_MIRROR   # master vs mirror drift
 ```
 
 `coverage`/`redundancy` take an optional floor (`coverage 3`). All three

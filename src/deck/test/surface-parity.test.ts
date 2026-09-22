@@ -161,11 +161,11 @@ function mcpTools(): string[] {
 function uiJobKinds(): string[] {
   const kinds: string[] = [];
   for (const file of [
-    "src/deck/web/products/cratedeck/DrivePage.tsx",
-    "src/deck/web/products/cratedeck/VerifyTab.tsx",
-    "src/deck/web/products/cratedeck/HygieneTab.tsx",
-    "src/deck/web/products/cratedeck/FixesTab.tsx",
-    "src/deck/web/products/cratedeck/GridHealthCard.tsx",
+    "src/deck/web/products/drives/DrivePage.tsx",
+    "src/deck/web/products/drives/VerifyTab.tsx",
+    "src/deck/web/products/drives/HygieneTab.tsx",
+    "src/deck/web/products/drives/FixesTab.tsx",
+    "src/deck/web/products/drives/GridHealthCard.tsx",
     "src/deck/web/products/getdat/IntakeTab.tsx",
     "src/deck/web/products/fulltags/GenreRunTab.tsx",
     "src/deck/web/products/shared/index.tsx",
@@ -648,7 +648,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
   test("note dismissal is reachable from the UI and the agent surfaces", () => {
     // UI: the timeline card dismiss button
     const timeline = readFileSync(
-      join(ROOT, "src/deck/web/products/cratedeck/TimelineTab.tsx"),
+      join(ROOT, "src/deck/web/products/drives/TimelineTab.tsx"),
       "utf8",
     );
     expect(timeline).toContain("/dismiss");

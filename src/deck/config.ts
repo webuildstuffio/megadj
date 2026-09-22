@@ -8,7 +8,7 @@ import { resolveServerPort } from "./server-port";
 export type ImageProvider = "brave" | "exa";
 
 export interface CrateConfig {
-  root: string; // cratedeck/ dir
+  root: string; // src/deck/ dir (the config home)
   dataDir: string;
   dbPath: string;
   scratchDir: string;

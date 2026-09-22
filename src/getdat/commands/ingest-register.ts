@@ -42,7 +42,7 @@ export interface IngestCounters {
 }
 
 /** Build the counter-backed part of the `--json` summary, keyed over THE
- *  counter list (cratedeck/shared/types.ts, issue #159). The mapped type
+ *  counter list (src/deck/shared/types.ts, issue #159). The mapped type
  *  is the exhaustiveness guard: a key added to INTAKE_COUNTER_KEYS whose
  *  counter IngestCounters doesn't carry (or vice versa — a counter that
  *  stopped being emitted) fails typecheck HERE, not at job runtime. */

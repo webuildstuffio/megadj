@@ -4,7 +4,7 @@
  *  tier. src/ callers import it as `errMessage as errorText` (#221:
  *  the errorText re-export shim, 9L, merged away — the alias IS the
  *  seam name); the fulltags leaf imports it directly from here
- *  (cratedeck/shared is the sanctioned dependency leaf — src/ is NOT
+ *  (src/deck/shared is the sanctioned dependency leaf — src/ is NOT
  *  importable from fulltags). One shared helper so caught unknowns
  *  render identically everywhere — and so a future improvement (e.g.
  *  cause chains) lands in every error path at once. */

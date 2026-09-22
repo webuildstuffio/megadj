@@ -70,6 +70,6 @@ sticks sync FROM the shelf, not from the archive.
 ## 4. Gates were here
 
 - `bun test fulltags/test/player-compat.test.ts fulltags/test/booth-text.test.ts src/fulltags/booth-fix.test.ts src/fulltags/booth-fix.e2e.test.ts`
-- Surface parity: `bun test cratedeck/test/surface-parity.test.ts`
+- Surface parity: `bun test src/deck/test/surface-parity.test.ts`
 - The fleet floor NEVER widens on a bad selection — empty/unknown ids fall
   back to the default trio (regression-tested).

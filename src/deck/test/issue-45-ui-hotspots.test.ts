@@ -6,7 +6,7 @@ const webDir = join(import.meta.dir, "..", "web");
 
 test("#45: DrivePage and App stay below their hotspot ceilings", () => {
   const drivePage = functionMetrics(
-    join(webDir, "products", "cratedeck", "DrivePage.tsx"),
+    join(webDir, "products", "drives", "DrivePage.tsx"),
     "DrivePage",
   );
   const app = functionMetrics(join(webDir, "app", "App.tsx"), "App");

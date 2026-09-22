@@ -1,6 +1,6 @@
 /**
  * Shelf-hygiene types — megadj side. The wire shapes (Finding, Severity,
- * status machine) are DEFINED canonically in cratedeck/shared/hygiene.ts
+ * status machine) are DEFINED canonically in src/deck/shared/hygiene.ts
  * (a leaf of the import graph — web + server + engine must share one
  * contract or they drift), and re-exported here so the engine reads one
  * namespace. Engine-local types (walk token, check context) live below.

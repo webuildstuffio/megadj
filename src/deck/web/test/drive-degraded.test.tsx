@@ -11,7 +11,7 @@ describe("drive page degraded-leg contract (#231)", () => {
     // degraded banner consumer exists — a reorder without renaming the
     // failed-set would silently re-blank healthy panels.
     const src = await Bun.file(
-      new URL("../products/cratedeck/useDriveData.ts", import.meta.url),
+      new URL("../products/drives/useDriveData.ts", import.meta.url),
     ).text();
     const allSettled = src.indexOf("Promise.allSettled");
     expect(allSettled).toBeGreaterThan(-1);
@@ -25,7 +25,7 @@ describe("drive page degraded-leg contract (#231)", () => {
 
   test("DrivePage renders a degraded banner naming the failed legs", async () => {
     const pageSrc = await Bun.file(
-      new URL("../products/cratedeck/DrivePage.tsx", import.meta.url),
+      new URL("../products/drives/DrivePage.tsx", import.meta.url),
     ).text();
     // the banner maps leg names to human copy and renders from the
     // `degraded` set the hook now exports

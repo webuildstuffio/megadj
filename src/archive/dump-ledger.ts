@@ -11,7 +11,7 @@
  * The writer is ingest itself; readers are `megadj intake-status` (CLI),
  * GET /api/intake/dumps (CrateDeck), and the MCP getdat twins — one
  * producer, derived consumers, never a hand-copied twin. The wire shapes
- * (DumpRecord/DumpCensus) live in cratedeck/shared/dump.ts and are
+ * (DumpRecord/DumpCensus) live in src/deck/shared/dump.ts and are
  * re-exported here — same split as the hygiene contract.
  */
 import type { Database, SQLQueryBindings } from "bun:sqlite";

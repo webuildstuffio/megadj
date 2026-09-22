@@ -26,7 +26,7 @@ const PATH_RE =
   /`((?:src|tools|fulltags|cratedeck|plugin|docs|web)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|py|css|json|sh|toml|md))`/gu;
 
 /** Package roots a doc may cite paths against (its own subtree). */
-const PACKAGE_ROOTS = ["cratedeck", "fulltags", "plugin", "tools"];
+const PACKAGE_ROOTS = ["deck", "fulltags", "plugin", "tools"];
 
 /** allowlist: file → { stalePath → reason }. Every entry needs a reason
  *  that explains why the old path is LEGITIMATE text. */
@@ -89,9 +89,10 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   "docs/README.md": {
     "fulltags/intake-cue-postmortem.md":
       "relative link — resolves correctly from docs/ to docs/fulltags/…",
-    "web/ui/DESIGN-NOTES.md": "cratedeck/web-scoped path (link is correct)",
-    "web/products/fulltags/DESIGN-NOTES.md":
-      "cratedeck/web-scoped path (link is correct)",
+    "src/deck/web/ui/DESIGN-NOTES.md":
+      "docs/-relative link into the deck tree (link is correct)",
+    "src/deck/web/products/fulltags/DESIGN-NOTES.md":
+      "docs/-relative link into the deck tree (link is correct)",
     "docs/usb-sync-log.md":
       "intentionally gitignored local operator log (.gitignore)",
   },

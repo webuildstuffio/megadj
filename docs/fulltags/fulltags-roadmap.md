@@ -7,7 +7,7 @@ ran.** #260 closed: `fetch --revote` re-runs the #173 vote ladder over exactly
 the old-system rows (file genre present, `genre_votes` empty), guarded by a
 downgrade rule in `stageGenreElection` (an imprint-only family election can
 never overwrite a curated label — only a catalog-rung winner replaces it).
-The Sep 20 full-pipeline run (runbook 0e / `ops/full-pipeline.sh`) elected
+The Sep 20 full-pipeline run (runbook 0e / `src/ops/full-pipeline.sh`) elected
 **2,794** rows (from 169) before the pass; 1,335 old-system rows remain for
 future runs. Gate re-measured same day, post-revote: baseline **57.0%** /
 arbitration **66.6%** (n=3,192, ≥65% PASS) — both arms moved ~2.7 pts down

@@ -1,7 +1,8 @@
 // CrateDeck shared types — imported by server and web.
 //
-// DEPENDENCY RULE (enforced by `bunx madge --circular cratedeck/src
-// cratedeck/shared cratedeck/web`): this file is the leaf of the graph.
+// DEPENDENCY RULE (enforced by `bunx madge --circular src/deck`): this
+// file is the leaf of the graph (the three-tree madge walk died with the
+// Sep 2026 fold — one tree, one command).
 // It may import NOTHING from src/ — every wire type used across the
 // server/web boundary is DEFINED in shared/types/<domain>.ts, and src/
 // producers import their wire shapes FROM here. This file is the barrel:

@@ -53,7 +53,7 @@ document for the topic you are changing.
   `docs/usb-sync-log.md` is append-only operator evidence and is intentionally
   gitignored; it is not a repository link or a second status store.
 - [Runbook 0e](runbooks/0e-full-pipeline.md) owns the drive-day full-pipeline
-  command (`ops/full-pipeline.sh`): the Sep 20 serial analysis chain, its
+  command (`src/ops/full-pipeline.sh`): the Sep 20 serial analysis chain, its
   gate math, and the pre-flight/verification checklist.
 
 Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
@@ -234,9 +234,9 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 
 ### CrateDeck
 
-- [PRD](cratedeck/02-prd.md) — product requirements.
-- [Architecture](cratedeck/03-architecture.md) — current runtime structure.
-- [Acceptance](cratedeck/acceptance.md) — verified code gates and the three
+- [PRD](deck/02-prd.md) — product requirements.
+- [Architecture](deck/03-architecture.md) — current runtime structure.
+- [Acceptance](deck/acceptance.md) — verified code gates and the three
   hardware-check recipes (their tracker closed NOT_PLANNED; run them from
   the doc when the drives are at hand).
 
@@ -265,7 +265,7 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 - [0d — rekordbox write-path spike](runbooks/0d-write-path-spike.md) — harness
   shipped; hardware observations remain.
 - [0e — drive-day full pipeline](runbooks/0e-full-pipeline.md) — the one
-  command (`ops/full-pipeline.sh`) encoding the Sep 20 analysis chain.
+  command (`src/ops/full-pipeline.sh`) encoding the Sep 20 analysis chain.
 
 ## Package entry points
 
@@ -276,8 +276,8 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 - [`plugin/README.md`](../plugin/README.md) — plugin packaging and symlinked
   skill ownership.
 - CrateDeck UI implementation notes:
-  [`web/ui/DESIGN-NOTES.md`](../src/deck/web/ui/DESIGN-NOTES.md) and
-  [`web/products/fulltags/DESIGN-NOTES.md`](../src/deck/web/products/fulltags/DESIGN-NOTES.md).
+  [`src/deck/web/ui/DESIGN-NOTES.md`](../src/deck/web/ui/DESIGN-NOTES.md) and
+  [`src/deck/web/products/fulltags/DESIGN-NOTES.md`](../src/deck/web/products/fulltags/DESIGN-NOTES.md).
 
 ## Archive
 

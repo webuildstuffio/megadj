@@ -151,7 +151,7 @@ export function splitIntakeStdout(out: string): {
   }
 }
 
-/** Where the megadj repo's cli.ts lives (cfg.root = cratedeck/). */
+/** Where the megadj repo's cli.ts lives (cfg.root = the repo root). */
 export function megadjCliPath(root: string): string {
   return join(root, "..", "src", "cli.ts");
 }

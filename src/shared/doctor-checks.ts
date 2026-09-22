@@ -299,7 +299,7 @@ export function checkCrateConfig(): CheckResult {
   if (!info.exists) {
     return {
       id: "cratedeck-config",
-      label: "cratedeck/config.toml",
+      label: "src/deck/config.toml",
       required: false,
       ok: false,
       detail:
@@ -310,7 +310,7 @@ export function checkCrateConfig(): CheckResult {
   if (info.placeholder) {
     return {
       id: "cratedeck-config",
-      label: "cratedeck/config.toml",
+      label: "src/deck/config.toml",
       required: false,
       ok: false,
       detail: `still has placeholder volume names (master=${info.master}, mirror=${info.mirror})`,
@@ -320,7 +320,7 @@ export function checkCrateConfig(): CheckResult {
   if (!info.master || !info.mirror) {
     return {
       id: "cratedeck-config",
-      label: "cratedeck/config.toml",
+      label: "src/deck/config.toml",
       required: false,
       ok: false,
       detail: `exists but master_drive/mirror_drive not set (master=${info.master}, mirror=${info.mirror})`,
@@ -329,7 +329,7 @@ export function checkCrateConfig(): CheckResult {
   }
   return {
     id: "cratedeck-config",
-    label: "cratedeck/config.toml",
+    label: "src/deck/config.toml",
     required: false,
     ok: true,
     detail: `master=${info.master}, mirror=${info.mirror}`,

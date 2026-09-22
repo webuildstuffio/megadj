@@ -1,7 +1,7 @@
 // camelot.ts — the Camelot wheel, ONE SSOT for every surface.
 //
 // Two parsers existed and drifted: src/deck/megaset.ts's accepted
-// open-key names ("Am", "C", "F#m", …) while web/products/cratedeck/
+// open-key names ("Am", "C", "F#m", …) while src/deck/web/products/
 // PlaylistsTab.tsx's inline `camelot()` parsed only the notation form
 // ("8A") — a library whose TKEYs are open-key strings glowed ZERO
 // compatible keys in the crate view. This module is the single parse +

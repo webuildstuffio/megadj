@@ -2,7 +2,7 @@
 
 argv: <dbPath> <scriptsDir> — scriptsDir goes on sys.path so the skill's
 canonical anlz_paths.compute_anlz_folder resolves (same rule as
-cratedeck/python/rb_read.py).
+src/deck/python/rb_read.py).
 """
 
 import json

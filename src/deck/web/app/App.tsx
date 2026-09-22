@@ -11,9 +11,9 @@ import type {
   ReportSummary,
   SearchResult,
 } from "../../shared/types";
-import { DriveRail } from "../products/cratedeck/DriveRail";
-import { DrivePage } from "../products/cratedeck/DrivePage";
-import { FleetPage } from "../products/cratedeck/FleetPage";
+import { DriveRail } from "../products/drives/DriveRail";
+import { DrivePage } from "../products/drives/DrivePage";
+import { FleetPage } from "../products/drives/FleetPage";
 import { GetDatPage } from "../products/getdat/GetDatPage";
 import { FullTagsPage } from "../products/fulltags/FullTagsPage";
 import { MegasetPage } from "../products/megaset/MegasetPage";

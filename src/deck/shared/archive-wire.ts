@@ -1,4 +1,4 @@
-// Browser-safe archive API contract. Producers in cratedeck/src annotate
+// Browser-safe archive API contract. Producers in src/deck annotate
 // their results with these shapes; browser consumers receive the same types
 // through shared/types.ts without importing the server/CLI dependency tree.
 

@@ -1,7 +1,7 @@
 /**
  * GetDat ingest — report half (#88 item 3): the run summary (human
  * segments + the P1 --json payload). The payload is keyed over THE counter
- * list (cratedeck/shared/types.ts, issue #159) so a key added to
+ * list (src/deck/shared/types.ts, issue #159) so a key added to
  * IntakeResult fails typecheck here until produced, and cratedeck's
  * parser needs no hand-copied twin list.
  */

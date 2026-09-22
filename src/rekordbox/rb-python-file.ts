@@ -74,7 +74,7 @@ export function pyUvFileArgv(opts: {
 /** The corpus twin of rbPythonRun (#194): `uv run --with <pkg> python
  *  <file> [argv…]` where <file> lives in src/rekordbox/rb-scripts/. The
  *  python corpus is mypy/ruff-gated (pyproject files list) exactly like
- *  cratedeck/python — an inline -c string cannot be. New scripts go in
+ *  src/deck/python — an inline -c string cannot be. New scripts go in
  *  the corpus, not into another template literal.
  *
  *  Composed programs (#194 acceptance): a corpus file may embed

@@ -1,7 +1,7 @@
 // api_dispatch.ts — the dynamic (non-exact) tail of the /api router
 // (#42; split out of api_routes.ts so the router closure stays a linear
 // first-match chain under the CCN 30 ceiling — #89's "no CCN ≥30 in
-// cratedeck/src" acceptance had regressed to 31 on the inline version).
+// the deck tree" acceptance had regressed to 31 on the inline version).
 // Each family below is its own flat probe: Response when the family owns
 // the route, null to fall through to the next probe. makeApiRouter walks
 // the probes in order and 404s when every one declines.

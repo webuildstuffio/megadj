@@ -307,7 +307,7 @@ export class HygieneStore {
     kind?: FindingKind;
     severity?: Severity;
   }): Finding[] {
-    // WHERE/ORDER fragments come from cratedeck/shared/hygiene — the
+    // WHERE/ORDER fragments come from src/deck/shared/hygiene — the
     // wire contract module owns them so this query can't drift from
     // CrateDeck's HygieneReader.list (jscpd flagged the twin).
     const { whereSql, params } = hygieneWhere(filter);

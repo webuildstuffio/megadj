@@ -1,11 +1,11 @@
 // fetch-events.ts — the live-run event protocol for `fetch --json`
 // (the #215 visibility pass): when stdout must stay a single parseable
 // JSON object (P1), progress flows on STDERR as `@event {json}` lines.
-// The CrateDeck job leg (cratedeck/src/job_legs.ts runFetchJob) parses
+// The CrateDeck job leg (src/deck/job-legs.ts runFetchJob) parses
 // these lines into the live Ladder feed the web UI renders — the
 // in-product "watch the ladder run" view.
 //
-// Contract (pinned by cratedeck/test/fetch-events-census.test.ts):
+// Contract (pinned by src/deck/test/fetch-events-census.test.ts):
 //   line 1  @fetch-start {"total":N,"tasks":N,"jobs":N,"dry":bool}
 //   per run @task-done   {"done":n,"total":N,"name":"…","notes":["…"],"votes":[{rung,genre,weight}],"elected":{"genre","weight","winnerRungs"}|null}
 //   once    @fetch-done  {"stats":{…}}  (mirrors the summary object)

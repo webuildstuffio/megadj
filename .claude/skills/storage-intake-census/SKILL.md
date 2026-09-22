@@ -33,7 +33,7 @@ the compare side of the GA-07 harness — load-bearing data.)
 | `archive.db`                 | `~/.local/state/megadj/archive.db`                                 | THE pipeline ledger (tracks, runs, beats/mood/cues/embeddings/hygiene/fingerprints/rekordbox cross-ref) |
 | lineage snapshot             | `~/.local/state/megadj/archive-db-before-<what>-<date>.db`         | "state before a risky change" evidence (e.g. the #108 drop)                                             |
 | dated pipeline backups       | `archive.db.bak-<ts>`, `archive_bak_<ISO>.db`, `pre-restore-*.bak` | pre-migration / pre-restore saves                                                                       |
-| `cratedeck.sqlite`           | `cratedeck/data/cratedeck.sqlite` (or `$CRATEDECK_DATA`)           | CrateDeck drives/events/jobs — NOT in the state dir                                                     |
+| `cratedeck.sqlite`           | `src/deck/data/cratedeck.sqlite` (or `$CRATEDECK_DATA`)           | CrateDeck drives/events/jobs — NOT in the state dir                                                     |
 | rekordbox master (SSOT)      | `/Volumes/SHELF1/PIONEER/Master/master.db`                         | the collection DB — only while SHELF1 is mounted                                                        |
 | rekordbox master (app-local) | `~/Library/Pioneer/rekordbox/master.db`                            | the app's own DB; STALE BY DESIGN — do not delete, do not trust                                         |
 | RB master backups            | `~/Library/Pioneer/rekordbox/backups-megadj/<date>-<what>/`        | SACRED (AGENTS.md) — archive by zipping, never plain-delete                                             |

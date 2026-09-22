@@ -14,7 +14,7 @@
  *   thresholds, named in code: green <24h, amber <7d, red ≥7d, none.
  * - `formatAge(f)` — the one human line ("3h ago", "12d ago", "never").
  *
- * Lives in cratedeck/shared (the dependency leaf — same precedent as
+ * Lives in src/deck/shared (the dependency leaf — same precedent as
  * errorText/fmt from #82). Pure: no SQL, no clock reads — callers pass
  * `now` for testability.
  */
