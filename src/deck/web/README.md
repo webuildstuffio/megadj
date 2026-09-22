@@ -23,5 +23,5 @@ only. If the web app ever imports server runtime code, revisit this.
 
 ## Formatting
 
-`prettier --check cratedeck/web` from the root gate covers this tree,
+`prettier --check src/deck/web` from the root gate covers this tree,
 including `styles/*.css` (prettier's directory walk includes CSS).

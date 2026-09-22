@@ -37,8 +37,8 @@ Dev mode (hot reload): `bun run web:dev` in `src/deck/web/` alongside `bun run d
   sticks sync from this".
 
 Read-only by construction: every disk write goes through `src/deck/guard.ts`
-(allow-list = `cratedeck/data/` + deliberate structured writes onto mounted
-sticks). Tests: `bun test cratedeck/`.
+(allow-list = `src/deck/data/` + deliberate structured writes onto mounted
+sticks). Tests: `bun test src/deck/`.
 
 ## 🚀 Beyond the core
 

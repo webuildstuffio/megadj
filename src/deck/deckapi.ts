@@ -14,9 +14,12 @@ import { resolveServerPort } from "./server-port";
 // constant default here meant a configured port silently broke deckctl
 // AND mcp (probe fails → ensureServer spawns a SECOND server against
 // one SQLite DB).
+// Fossil guard (Sep 2026 fold): deckapi.ts sits directly in src/deck/, so
+// the config.toml for the default-port lookup is BESIDE this file — the old
+// `join(import.meta.dir, "..", ...)` pointed at <repo>/src (pre-fold depth).
 export const PORT = resolveServerPort(
   process.env.CRATEDECK_PORT,
-  join(import.meta.dir, "..", "config.toml"),
+  join(import.meta.dir, "config.toml"),
 );
 export const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -117,6 +120,8 @@ export async function ensureServer(): Promise<boolean> {
     const proc = Bun.spawn(["bun", "run", "src/deck/index.ts"], {
       stdout: "ignore",
       stderr: "ignore",
+      // repo root (autostart runs `bun run src/deck/index.ts`, a
+      // root-package script): pre-fold this file lived one level deeper.
       cwd: `${import.meta.dir}/../..`,
       detached: true,
     });

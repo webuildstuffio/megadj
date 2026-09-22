@@ -28,7 +28,12 @@ import { makeDriveRoutes } from "./drive/routes";
 import { makeApiRouter } from "./api/routes";
 import { photoUpload, makeEnqueueDriveJob } from "./drive/job-routes";
 
-const here = import.meta.dir.replace(/\/deck$/, ""); // .../src — the deck root (config.toml home)
+// import.meta.dir of src/deck/index.ts IS the deck root (the config.toml
+// home). Fossil guard: this used to be cratedeck/src/ (one level deeper)
+// and a `/src`-strip was needed; after the Sep 2026 fold into src/deck/ a
+// strip lands on <repo>/src where no config.toml exists — the server then
+// boots on defaults, silently ignoring the user's real config.
+const here = import.meta.dir;
 const cfg = loadConfig(here);
 const db = new DB(cfg.dbPath);
 // role inference must compare against the CONFIGURED volume names, not the
@@ -72,6 +77,12 @@ function sse(): Response {
     start(c) {
       controller = c;
       clients.add(c);
+      // Flush headers+first byte NOW (standard SSE hello). Without this, Bun
+      // defers the response until the first event or the 5s heartbeat, so
+      // fetch-based clients (and the e2e suite) hang on connect whenever no
+      // job happens to emit in that window (Sep 2026: deterministic 5s hang
+      // once the verify path actually worked and jobs stopped failing fast).
+      c.enqueue(new TextEncoder().encode(": connected\n\n"));
     },
     cancel() {
       clearInterval(hb);

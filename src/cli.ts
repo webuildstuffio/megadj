@@ -5,6 +5,7 @@ export { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 import { dispatchCommand } from "./cli-dispatch";
 import { drainStdout, finishCommandError } from "./shared/cli-output";
 import { errMessage as errorText } from "./shared/leaf/fmt";
+import { nonEmptyEnv } from "./shared/leaf/guards";
 import { printHelp as printHelpImpl } from "./usage";
 
 export {
@@ -33,7 +34,7 @@ async function configureBoothFleet(): Promise<void> {
   try {
     const { loadConfig } = await import("./deck/config");
     const config = loadConfig(
-      process.env.CRATEDECK_ROOT ?? `${import.meta.dir}/deck`,
+      nonEmptyEnv("CRATEDECK_ROOT") ?? `${import.meta.dir}/deck`,
     );
     const environmentFleet = process.env.MEGADJ_FLEET?.split(",")
       .map((player) => player.trim())
