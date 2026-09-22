@@ -44,7 +44,7 @@ describe("principles P1: --json on every command", () => {
   test("#159: ingest emit keys match cratedeck's IntakeCounterKey SSOT", async () => {
     // Both packages derive from INTAKE_COUNTER_KEYS; this pins the real
     // CLI output to that list (empty-folder dry run = zero side effects).
-    const { INTAKE_COUNTER_KEYS } = await import("../cratedeck/shared/types");
+    const { INTAKE_COUNTER_KEYS } = await import("./deck/shared/types");
     await runCli(["ingest", dir, "--dry-run", "--json"], env);
     const { stdout } = await runCli(
       ["ingest", join(dir, "music"), "--dry-run", "--json"],

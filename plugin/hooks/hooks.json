@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun run cratedeck/src/deckctl.ts status --json 2>/dev/null | head -c 4000 || echo '{\"error\":\"cratedeck server unreachable — run: bun run deck\"}'",
+            "command": "bun run src/deck/deckctl.ts status --json 2>/dev/null | head -c 4000 || echo '{\"error\":\"cratedeck server unreachable — run: bun run deck\"}'",
             "timeout": 15,
             "async": true
           }

@@ -25,14 +25,19 @@ const SANCTIONED: Record<string, string> = {
   "src/getdat/commands/upgrade.ts": "detail-prefix ': msg' + '' degrade",
   "src/archive/similar-storage.ts": "detail-prefix ': msg' + '' degrade",
   "src/archive/ledgers.ts": "detail-prefix ': msg' + '' degrade",
-  "cratedeck/src/deckctl.ts": "crash print keeps the stack",
+  "src/deck/deckctl.ts": "crash print keeps the stack",
+  "src/ops/deck-install.ts": "installer top-level catch prints the stack",
+  "src/deck/web/products/getdat/surfaced-card.tsx":
+    "web toast catch narrows to .message",
+  "src/deck/web/products/getdat/getdat-tabs.tsx":
+    "web toast catch narrows to .message",
 };
 
 test("census: every `instanceof Error` site is the SSOT or sanctioned", () => {
   const fmt = readFileSync(join(ROOT, "src/shared/leaf/fmt.ts"), "utf8");
   expect(fmt).toContain("export function errMessage");
   const offenders: string[] = [];
-  for (const dir of ["src", "cratedeck/src", "cratedeck/shared"]) {
+  for (const dir of ["src"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
     for (const p of repoFiles(abs)) {
@@ -48,7 +53,7 @@ test("census: every `instanceof Error` site is the SSOT or sanctioned", () => {
 
 test("census: no private re-roll of the helper body", () => {
   const offenders: string[] = [];
-  for (const dir of ["src", "cratedeck/src", "cratedeck/shared"]) {
+  for (const dir of ["src"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
     for (const p of repoFiles(abs)) {

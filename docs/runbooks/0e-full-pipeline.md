@@ -1,13 +1,13 @@
 # 0e — Drive-Day Full Pipeline (the one command)
 
-**Status:** ✅ ACTIVE — the Sep 20 manual sequence, encoded. `ops/full-pipeline.sh`
+**Status:** ✅ ACTIVE — the Sep 20 manual sequence, encoded. `src/ops/full-pipeline.sh`
 owns the order; this runbook owns the WHY and the verification.
 
 ## The command
 
 ```bash
-bash ops/full-pipeline.sh              # analysis chain (no YouTube)
-bash ops/full-pipeline.sh --with-sync  # + YouTube sync LAST (owner go required)
+bash src/ops/full-pipeline.sh              # analysis chain (no YouTube)
+bash src/ops/full-pipeline.sh --with-sync  # + YouTube sync LAST (owner go required)
 ```
 
 Env knobs: `MEGADJ_SHELF` (default `/Volumes/SHELF1/Contents`).

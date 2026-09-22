@@ -57,7 +57,7 @@ Classic 4/4 warm-up: 125 BPM throughout, key glide Bbm→4A→Fm, arousal climbs
 
 ## 2. How the sets were scored and evaluated
 
-Scoring is the shared engine (`cratedeck/src/megaset/engine.ts` + `scoring.ts`), same code path for CLI, web, MCP and rb-playlist:
+Scoring is the shared engine (`src/deck/megaset/engine.ts` + `scoring.ts`), same code path for CLI, web, MCP and rb-playlist:
 
 - **transitionScore** = tempo (0.45) + key (0.30) + arc fit (0.25), plus a #171 embeddings similarity bonus (0.1) when both tracks have vectors
 - **BPM**: ±2% perfect, linear to 0 at ±6%; anchor drift budget ±12% on the whole chain (half/double-time branch exempt)
@@ -72,7 +72,7 @@ Evaluation numbers quoted above are from the live archive ledger (freshness: bea
 
 ## 3. The new feature: genre pool filter (wired into UX, all surfaces)
 
-**One shared matcher** (`cratedeck/shared/megaset.ts`):
+**One shared matcher** (`src/deck/shared/megaset.ts`):
 
 - `MEGASET_GENRE_FAMILIES` — 14 families (house, techno, tropical house, deep house, tech house, progressive house, edm, hip-hop, pop, trance, dnb, dubstep, disco, afrohouse), each with synonyms; `"tropical"` resolves to the tropical-house family
 - `MEGASET_GENRE_FALLBACKS` — starvation widening: strict `tropical house` matched only **10 rows** (beam dead-end at 1 track); below the 250-row beam threshold the pool widens to `house` → **1,440 rows**, tropical-labelled tracks included via OR
@@ -114,7 +114,7 @@ Issue: [#283](https://github.com/webuildstuffio/megadj/issues/283)
 - Dated backups written by the apply legs: `master.db.bak-20260921T032327` … `T032623`, plus `masterPlaylists6.xml.bak-*` for each mutation and one manual pre-edit backup
 - rekordbox was closed for every write (pgrep gate); re-export reminder: **green master ≠ hardware sees it** — the USB needs a fresh export at the next drive day
 - Pool numbers quoted live: house family 1,436 rows (1,406 fully analyzed), tech house 319, strict tropical 10 → widened 1,440
-- Regression tests: `cratedeck/shared/megaset.test.ts` (matcher: 7 cases) — the SQL/pool leg is pinned by the live acceptance runs above; web fixture updated for the new `genre_filtered` wire field
+- Regression tests: `src/deck/shared/megaset.test.ts` (matcher: 7 cases) — the SQL/pool leg is pinned by the live acceptance runs above; web fixture updated for the new `genre_filtered` wire field
 
 ## 7. Round 2 — the 10x pass (late Sep 20, same session)
 
@@ -142,7 +142,7 @@ applied on top of round 1's, every one verified 12/12-style zero-unmatched.
   `poolTitleKey` now strips unclosed bracket suffixes and **lends the
   title-embedded artist back** to the key for unknown-artist rows; all four
   DB variants of the recording collapse to one key
-  (pinned in `cratedeck/src/archive/pool.test.ts`).
+  (pinned in `src/deck/archive/pool.test.ts`).
 
 **The five sets (v2/v3, all in rekordbox under `MegaSets`, all DB+XML twins,
 zero unmatched):**

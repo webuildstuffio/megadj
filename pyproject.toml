@@ -19,10 +19,10 @@ python_version = "3.12"
 warn_unreachable = true
 pretty = true
 cache_dir = "node_modules/.cache/mypy"
-# Gate-covered code: cratedeck/python (device-DB seams) + tools (the
+# Gate-covered code: src/deck/python (device-DB seams) + tools (the
 # embedding benchmark harness; its unittest rides test:py).
 # .kit.py corpus files are excluded below (#194) — markers render at spawn.
-files = ["cratedeck/python", "src/rekordbox/rb-scripts", "tools",
+files = ["src/deck/python", "src/rekordbox/rb-scripts", "tools",
          ".claude/skills/rekordbox-usb-sync/scripts/usb_mirror_plan_test.py"]
 exclude = ["rb-scripts/.*\\.kit\\.py"]
 # #245: tools/ has no __init__.py (namespace package now that the test

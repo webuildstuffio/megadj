@@ -37,9 +37,9 @@ scope blocks below name the old `setbuild.*` paths as they were when written.
 
 > Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
-_2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive/similar.ts`
-(candidate pool), `cratedeck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
-`src/fulltags/setbuild.ts` (CLI), `cratedeck/src/archive/tools.ts` (MCP), `cratedeck/src/archive/routes.ts`
+_2026-09-13. Scope: `src/deck/setbuild.ts` (engine), `src/deck/archive/similar.ts`
+(candidate pool), `src/deck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
+`src/fulltags/setbuild.ts` (CLI), `src/deck/archive/tools.ts` (MCP), `src/deck/archive/routes.ts`
 (HTTP + M3U8), `web/products/fulltags/SimilarTab.tsx` (UI), `src/rekordbox/rb-playlist.ts`
 (master-DB write-off). Product home: [01-prd.md](01-prd.md).
 Companion to [fulltags/fulltags-roadmap.md](../fulltags/fulltags-roadmap.md) and
@@ -178,7 +178,7 @@ not a set _planner_ — included for its AutoDJ contract).
 
 Guiding rules: propose-only stays; every phase ships with tests + parity rows; no new
 runtime deps without the release-age floor; algorithms stay pure functions in
-`cratedeck/src/setbuild.ts`; SSOT tables live in `shared/`.
+`src/deck/setbuild.ts`; SSOT tables live in `shared/`.
 
 ### Phase A — Bug fixes (no new features) · 🔨 FIRST
 

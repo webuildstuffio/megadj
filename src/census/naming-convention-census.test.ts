@@ -12,13 +12,7 @@ import { expect, test } from "bun:test";
 
 const repo = join(import.meta.dir, "..", "..");
 
-const SNAKE_TREES = [
-  "src",
-  "cratedeck/src",
-  "cratedeck/shared",
-  "cratedeck/web",
-  "cratedeck/test",
-];
+const SNAKE_TREES = ["src", "tools"];
 
 function* walk(dir: string): Generator<string> {
   for (const e of readdirSync(join(repo, dir), { withFileTypes: true })) {

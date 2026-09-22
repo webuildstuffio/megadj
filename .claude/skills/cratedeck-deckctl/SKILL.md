@@ -35,7 +35,7 @@ support `--json`.
 
 1. **Interlock is sacred**: if rekordbox is running, every job exits with code 3. Never bypass — quit rekordbox first (its DBs must not be touched while
    open).
-2. Read `cratedeck/deckctl.md` for full flags/exit codes. Use `--json` when
+2. Read `src/deck/deckctl.md` for full flags/exit codes. Use `--json` when
    another program consumes the output.
 3. Check statuses are honest: `unknown` means "not measured yet" — run the
    suggested job (Scan/Verify/Checksum/Benchmark) rather than assuming health.

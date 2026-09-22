@@ -18,7 +18,7 @@ Two questions this doc answers with measurements, not vibes:
    telemetry — and how much data would "useful" actually take? (Part 5.)
 
 Method note: all experiments run against the **real engine**
-(`cratedeck/src/setbuild.ts`) with deterministic synthetic pools (mixture of
+(`src/deck/setbuild.ts`) with deterministic synthetic pools (mixture of
 ~70% 126±4 BPM, 20% 140±5, 10% 100±4 — shaped like the archive's genre
 spread; uniform 24-key assignment; arousal correlated with BPM + noise).
 Synthetic pools score high (mean transitions 0.97–0.996); treat _relative_

@@ -28,7 +28,7 @@ Short answer: it started as the drive's nickname and got promoted to a
 
 - `config.toml` key is `[library] shelf_drive` — **shelf is the role**,
   `SHELF1` is just the current value (the same way `master_drive = "DJMASTER"`).
-- `cratedeck/shared/check_matrix.ts` encodes `DriveRole` value `"shelf"` and
+- `src/deck/shared/check_matrix.ts` encodes `DriveRole` value `"shelf"` and
   maps it to `DriveTier = "archive" | "gig"` — the product's own tier model.
 - Docs say "the shelf tier" (getdat/usb-sync.md), and AGENTS.md's rule is that
   tools take volume names **from config** — none of the `shelf-*` commands
@@ -50,7 +50,7 @@ making docs-to-code mapping worse. Decision: keep `shelf/`.
    pattern works; nothing else uses it.
 2. **`state-` prefix stutter**: `state-ledgers.ts`, `state-similar.ts` exist
    only to echo the file they're composed by (`state.ts`).
-3. **Name collision**: `cratedeck/src/fleet.ts` (track coverage math) vs
+3. **Name collision**: `src/deck/fleet.ts` (track coverage math) vs
    `fulltags/src/fleet.ts` (hardware profiles — the AGENTS.md-canonical
    one). Two different concepts, one name.
 4. **MB logic in three places** in fulltags: `mb.ts`, `mb_lookup.ts`, and
@@ -183,7 +183,7 @@ subject — the two CLI-contract tests above are the exception (src/ root).
 
 | Change                                                                                                                        | Why                                                                                                                                                                |
 | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `cratedeck/src/fleet.ts` → `coverage.ts`                                                                                      | Name-collides with `fulltags/src/fleet.ts` (hardware profiles, the canonical one). It's coverage/redundancy math; `coverage.ts` says that.                         |
+| `src/deck/fleet.ts` → `coverage.ts`                                                                                      | Name-collides with `fulltags/src/fleet.ts` (hardware profiles, the canonical one). It's coverage/redundancy math; `coverage.ts` says that.                         |
 | `fulltags/src/probes.ts` → split: MB helpers into `mb.ts`/`mb_lookup.ts`; remainder → `media-probe.ts`                        | MB logic lived in 3 files; "probes" didn't say what it probes.                                                                                                     |
 | `state-ledgers.ts` → `archive/ledgers.ts`, `state-similar.ts` → `archive/similar.ts`, `shelf-sweeps.ts` → `archive/sweeps.ts` | Kills the stutter; the directory provides the context the prefix was faking.                                                                                       |
 | `tools/fetch-lib.ts` + `fetch-stages.ts` stay in `tools/` beside `fetch-all.ts`                                               | They're `fetch-all`'s private libs, not repo-wide tools. (Cheapest correct move: co-locate, don't relocate into fulltags — they orchestrate CLI stages, not tags.) |
@@ -234,7 +234,7 @@ subject — the two CLI-contract tests above are the exception (src/ root).
    NOT add a path alias for one import.
 4. The two cross-workspace renames (`fleet.ts`, `probes.ts`) as separate
    commits — they touch cratedeck/fulltags internals. Cross-workspace
-   coupling, verified: `cratedeck/src/shelf_sweep_reader.ts` +
+   coupling, verified: `src/deck/shelf_sweep_reader.ts` +
    `archive_ledger_reader.ts` read the `shelf_sweeps` TABLE via SQLite
    ATTACH — they don't import src/ TS modules, so renaming
    `src/shelf-sweeps.ts` → `archive/sweeps.ts` cannot break them.
@@ -246,7 +246,7 @@ fulltags/src` (type-only back-edges count) → `bun run check:full` (100%
    baseline; 718 tests when v1 was written).
 6. Doc/skill path sweep: grep for `src/commands/`, `state-ledgers`,
    `shelf-sweeps` across AGENTS.md, docs/, `.claude/skills/`,
-   `cratedeck/deckctl.md`; update; the surface-parity census catches drift.
+   `src/deck/deckctl.md`; update; the surface-parity census catches drift.
    Verified scope: 39 `src/commands/` references — AGENTS.md (2),
    docs/agent-playbook.md (2), docs/getdat/usb-sync.md (1),
    docs/fulltags/grid-audit-plan.md, docs/fulltags/rekordbox-wav-artwork.md,

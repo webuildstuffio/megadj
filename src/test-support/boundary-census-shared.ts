@@ -27,14 +27,9 @@ export interface CensusResult {
   digest: string;
 }
 
-export const PRODUCTION_ROOTS = [
-  "src",
-  "cratedeck/src",
-  "cratedeck/shared",
-  "cratedeck/web",
-  "tools",
-];
-// fulltags merged into src/fulltags (#193) — "src" already covers it.
+export const PRODUCTION_ROOTS = ["src", "tools"];
+// cratedeck folded into src/deck (Sep 2026) — "src" already covers it,
+// as fulltags did after #193.
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const TEST_DIRECTORIES = new Set([
   "test",

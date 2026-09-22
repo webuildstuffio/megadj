@@ -45,7 +45,7 @@ function maxSsotExtsPerSetLiteral(text: string): number {
 
 test("census: no hand-rolled audio-extension Set outside the SSOT", () => {
   const offenders: string[] = [];
-  for (const dir of ["src", "fulltags", "cratedeck/src", "cratedeck/shared"]) {
+  for (const dir of ["src"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
     for (const p of repoFiles(abs)) {
@@ -67,12 +67,12 @@ test("census: the three former twins read the SSOT", () => {
       /import \{ AUDIO_EXTS \} from "\.\.\/shared\/audio-exts"/,
     ],
     [
-      "cratedeck/src/hygiene/audio.ts",
-      /import \{ AUDIO_EXTS \} from "\.\.\/\.\.\/\.\.\/src\/shared\/audio-exts"/,
+      "src/deck/hygiene/audio.ts",
+      /import \{ AUDIO_EXTS \} from "\.\.\/\.\.\/shared\/audio-exts"/,
     ],
     [
-      "cratedeck/src/scan.ts",
-      /export \{ AUDIO_EXTS as AUDIO_EXT \} from "\.\.\/\.\.\/src\/shared\/audio-exts"/,
+      "src/deck/scan.ts",
+      /export \{ AUDIO_EXTS as AUDIO_EXT \} from "\.\.\/shared\/audio-exts"/,
     ],
   ];
   for (const [rel, re] of pinned) {

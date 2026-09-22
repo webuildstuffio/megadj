@@ -23,7 +23,7 @@ import { DB_PATH } from "../cli-env";
 import { ArchiveState } from "../archive/state";
 import type { AnlzBeat, AnlzSpikeMode } from "./anlz-spike";
 import { errMessage as errorText } from "../shared/leaf/fmt";
-import { isMegasetSearchOverride } from "../../cratedeck/shared/megaset";
+import { isMegasetSearchOverride } from "../deck/shared/megaset";
 
 /** Guarded --search passthrough: unknown values read as absent (the flag
  *  degrades to the engine's auto choice) instead of a silent type lie. */

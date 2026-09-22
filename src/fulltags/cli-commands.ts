@@ -13,7 +13,7 @@ import {
   parseFlags,
   repeatedOf,
 } from "../cli-flags";
-import { isMegasetSearchOverride } from "../../cratedeck/shared/types";
+import { isMegasetSearchOverride } from "../deck/shared/types";
 import { finishCommandError, setExit, writeJson } from "../shared/cli-output";
 import { isSimilarSpace } from "../shared/leaf/vector-space";
 import { FETCH_TARGETS, type FetchTarget } from "./fetch/fetch";

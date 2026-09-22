@@ -18,7 +18,7 @@ import type { MarkDownloadedInfo } from "../../archive/state-types";
 import {
   INTAKE_COUNTER_KEYS,
   type IntakeCounterKey,
-} from "../../../cratedeck/shared/types";
+} from "../../deck/shared/types";
 
 /** Per-run ingest tallies (the --json summary's counters). Defined HERE —
  *  the leaf seam shared with ingest.ts — so this module never imports its

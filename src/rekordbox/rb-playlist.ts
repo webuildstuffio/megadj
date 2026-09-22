@@ -29,17 +29,17 @@
 
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { ArchiveReader } from "../../cratedeck/src/archive/reader";
-import { loadConfig } from "../../cratedeck/src/config";
+import { ArchiveReader } from "../deck/archive/reader";
+import { loadConfig } from "../deck/config";
 import { nonEmptyEnv } from "../shared/leaf/guards";
 import {
   buildMegaset,
   parseMegasetQuery,
   SET_PRESETS,
   type MegasetPresetId,
-} from "../../cratedeck/src/megaset/engine";
-import { clampMegasetPool } from "../../cratedeck/shared/types";
-import type { SetSearchOverride } from "../../cratedeck/shared/megaset";
+} from "../deck/megaset/engine";
+import { clampMegasetPool } from "../deck/shared/types";
+import type { SetSearchOverride } from "../deck/shared/megaset";
 import { DB_PATH } from "../cli-env";
 import { rbPythonFile } from "./rb-python-file.js";
 import {
@@ -134,7 +134,7 @@ function buildChain(
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
   const cfg = loadConfig(
-    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck"),
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../deck"),
   );
   const archive = new ArchiveReader(
     DB_PATH,

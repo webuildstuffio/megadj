@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { loadConfig } from "../../cratedeck/src/config";
+import { loadConfig } from "../deck/config";
 import { nonEmptyEnv } from "./leaf/guards";
 
 export function volumePath(name: string): string {
@@ -13,7 +13,7 @@ export function volumePath(name: string): string {
 export function resolveShelfVolume(explicit?: string): string {
   if (explicit) return volumePath(explicit);
   const root =
-    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck");
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../deck");
   const configured = loadConfig(root).shelfDrive;
   return volumePath(nonEmptyEnv("MEGADJ_SHELF_VOLUME") ?? configured);
 }
@@ -23,7 +23,7 @@ export function resolveShelfVolume(explicit?: string): string {
  *  silently diverged from every other surface's drive name. */
 export function configuredMasterDrive(): string {
   const root =
-    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck");
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../deck");
   return loadConfig(root).masterDrive;
 }
 /** The mount argument → drive path: explicit positional wins, else the

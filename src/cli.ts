@@ -31,9 +31,9 @@ function printHelp(): void {
 
 async function configureBoothFleet(): Promise<void> {
   try {
-    const { loadConfig } = await import("../cratedeck/src/config");
+    const { loadConfig } = await import("./deck/config");
     const config = loadConfig(
-      process.env.CRATEDECK_ROOT ?? `${import.meta.dir}/../cratedeck`,
+      process.env.CRATEDECK_ROOT ?? `${import.meta.dir}/deck`,
     );
     const environmentFleet = process.env.MEGADJ_FLEET?.split(",")
       .map((player) => player.trim())

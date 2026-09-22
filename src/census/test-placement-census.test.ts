@@ -82,13 +82,13 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
   // ---- cratedeck #214 slices: domain-dir contract tests that span several
   // subjects (no single same-stem owner) — co-located to the DOMAIN, and
   // the domain dir IS the subject class:
-  "cratedeck/src/hygiene/api.test.ts":
+  "src/deck/hygiene/api.test.ts":
     "#214: reader+routes wire contract pair (domain-dir test)",
-  "cratedeck/src/verify/phases.test.ts":
+  "src/deck/verify/phases.test.ts":
     "#214: verifyPhase progress contract (subject lives in jobs/job-runtime)",
-  "cratedeck/src/fleet/fleet.test.ts":
+  "src/deck/fleet/fleet.test.ts":
     "#214: coverage+coverage-fleet+fleet-db engine round-trip (domain test)",
-  "cratedeck/src/mcp/mcp.test.ts":
+  "src/deck/mcp/mcp.test.ts":
     "#214: mcp stdio protocol over spawned server (domain-dir test)",
 };
 

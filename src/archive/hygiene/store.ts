@@ -23,7 +23,7 @@ import {
   hygieneWhere,
   HYGIENE_ORDER_SQL,
   type HygieneFindingRow,
-} from "../../../cratedeck/shared/hygiene";
+} from "../../deck/shared/hygiene";
 
 type Row = HygieneFindingRow;
 

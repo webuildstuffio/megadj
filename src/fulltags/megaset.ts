@@ -12,8 +12,8 @@
 // (1 = no archive / nothing mixable, 2 = bad flag input, 0 = proposal).
 import { join } from "node:path";
 import { nonEmptyEnv } from "../shared/leaf/guards";
-import { ArchiveReader } from "../../cratedeck/src/archive/reader";
-import { loadConfig } from "../../cratedeck/src/config";
+import { ArchiveReader } from "../deck/archive/reader";
+import { loadConfig } from "../deck/config";
 import { DB_PATH } from "../cli-env";
 import { commandLog } from "../shared/progress";
 import { writeJson, finishCommandError, setExit } from "../shared/cli-output";
@@ -21,7 +21,7 @@ import {
   buildMegaset,
   parseMegasetQuery,
   SET_PRESETS,
-} from "../../cratedeck/src/megaset/engine";
+} from "../deck/megaset/engine";
 import {
   clampMegasetPool,
   MEGASET_EXCLUDED_PREVIEW_MAX,
@@ -29,7 +29,7 @@ import {
   megasetNearestGenreFamily,
   type MegasetPayload,
   type SetSearchOverride,
-} from "../../cratedeck/shared/types";
+} from "../deck/shared/types";
 
 import {
   emptyPoolDiagnosis,
@@ -57,7 +57,7 @@ export interface MegasetOptions {
 export async function megaset(opts: MegasetOptions): Promise<void> {
   const log = commandLog(opts);
   const configRoot =
-    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../../cratedeck");
+    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../deck");
   const cfg = loadConfig(configRoot);
   const archive = new ArchiveReader(
     DB_PATH,

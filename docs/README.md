@@ -270,14 +270,14 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 ## Package entry points
 
 - [`README.md`](../README.md) — repository overview and setup.
-- [`cratedeck/README.md`](../cratedeck/README.md) and
-  [`deckctl.md`](../cratedeck/deckctl.md) — CrateDeck operator entry points.
+- [`src/deck/README.md`](src/deck/README.md) and
+  [`deckctl.md`](src/deck/deckctl.md) — CrateDeck operator entry points.
 - [`src/fulltags/README.md`](../src/fulltags/README.md) — FullTags package reference.
 - [`plugin/README.md`](../plugin/README.md) — plugin packaging and symlinked
   skill ownership.
 - CrateDeck UI implementation notes:
-  [`web/ui/DESIGN-NOTES.md`](../cratedeck/web/ui/DESIGN-NOTES.md) and
-  [`web/products/fulltags/DESIGN-NOTES.md`](../cratedeck/web/products/fulltags/DESIGN-NOTES.md).
+  [`web/ui/DESIGN-NOTES.md`](../src/deck/web/ui/DESIGN-NOTES.md) and
+  [`web/products/fulltags/DESIGN-NOTES.md`](../src/deck/web/products/fulltags/DESIGN-NOTES.md).
 
 ## Archive
 

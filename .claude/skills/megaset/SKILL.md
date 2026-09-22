@@ -37,9 +37,9 @@ Same capability, other surfaces:
 - MCP: `megaset_propose {preset, minutes, opener?, limit?}`
 - Web: the **MegaSet** product (top-level nav button, `#/megaset` —
   legacy `#/set` and `#/fulltags/set` links redirect)
-- Engine SSOT: `cratedeck/src/megaset/engine.ts`; wire shapes:
-  `cratedeck/shared/megaset.ts` (re-exported from `shared/types.ts`).
-  A parity twin test (`cratedeck/test/surface-parity.test.ts`) pins the
+- Engine SSOT: `src/deck/megaset/engine.ts`; wire shapes:
+  `src/deck/shared/megaset.ts` (re-exported from `shared/types.ts`).
+  A parity twin test (`src/deck/test/surface-parity.test.ts`) pins the
   CLI↔MCP pair — don't fork the surfaces.
 
 ## 2. Reading the payload (--json)
@@ -67,7 +67,7 @@ Same capability, other surfaces:
 
 Transition score bands (UI pills agree): ≥0.75 "clean", ≥0.5 "ok",
 below "tight". Keys follow the Camelot wheel from
-`cratedeck/shared/camelot.ts` — "8A", "Am", "Gmaj", "7m" all parse; a
+`src/deck/shared/camelot.ts` — "8A", "Am", "Gmaj", "7m" all parse; a
 clash (0) can't be chained into, ±6% tempo is a hard window.
 
 ## 3. The honest failure modes (read these before claiming success)

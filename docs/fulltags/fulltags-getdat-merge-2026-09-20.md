@@ -57,7 +57,7 @@ So `getdat` cannot be understood, moved, or tested without `fulltags`, and `full
 
 - `src/shared/drop.ts` (732 LOC) — imports both trees heavily, but is dispatched as a **fulltags verb** and re-imported only by `src/fulltags/cli-commands.ts` + `src/test-support/cli-run.ts`. It lives in `shared/` but is not shared — it is the merged pipeline's orchestrator parked in the wrong directory.
 - `src/shared/status.ts` imports `isLowq` from `getdat/commands/upgrade` (the HIGHQ-bar SSOT) — so even `shared/` reaches into getdat.
-- `cratedeck/src/` imports four fulltags modules directly (`write/readers`, `grid-audit`, `genre/genre-vote`, `booth/fleet`) — allowlisted crossings in `src/census/boundary-direction-census.test.ts` tagged "#225A shared-only fold". CrateDeck depends on fulltags-as-a-library; it depends on getdat not at all (only `getdat_*` MCP tool *names*, which are contract, not code).
+- `src/deck/` imports four fulltags modules directly (`write/readers`, `grid-audit`, `genre/genre-vote`, `booth/fleet`) — allowlisted crossings in `src/census/boundary-direction-census.test.ts` tagged "#225A shared-only fold". CrateDeck depends on fulltags-as-a-library; it depends on getdat not at all (only `getdat_*` MCP tool *names*, which are contract, not code).
 - No cratedeck file imports getdat code. Direction of the merge is settled by this alone: **getdat moves into fulltags.**
 
 ### 1.3 Duplication / twin inventory (the honest LOC win)
@@ -127,7 +127,7 @@ Each is independently shippable and shrinks the diff the moves have to carry:
 ### 2.3 Naming and surface contracts (the part that must NOT churn)
 
 - **Verb names, help text, group ordering: unchanged.** `command-registry.ts` deliberately interleaves `GETDAT_COMMAND_DOCS.slice(0,5) / FULLTAGS / CRATEDECK.slice(0,1) / GETDAT.slice(5)…`; `help-flag-census` pins the rendering. The merge keeps the `getdat` and `fulltags` *groups* (they are user-facing taxonomy, and `drop` stays a fulltags-group verb) — we are merging code trees, not help menus. `cli-dispatch.ts` imports the merged tables from their new paths; the registry facade is untouched.
-- **MCP tool names `getdat_*`: unchanged.** `docs-surface-names-census` derives them from `cratedeck/src/getdat-tools.ts`; renaming them would churn census + live UI for zero value (#215 lesson). Same for `megaset_*`.
+- **MCP tool names `getdat_*`: unchanged.** `docs-surface-names-census` derives them from `src/deck/getdat-tools.ts`; renaming them would churn census + live UI for zero value (#215 lesson). Same for `megaset_*`.
 - **AGENTS/CLAUDE.md pinned strings:** line 399 pins `src/getdat/soundcloud.ts` by name; the census tests also pin several `src/fulltags/...` and `src/getdat/...` literals. Every rename lands **code + docs + census pins in the SAME commit** (repo rule). Measured pin surface to update, by tree:
   - census tests: **49 literal pins** referencing `src/fulltags`, **10** referencing `src/getdat`, across 12 census files (worst: `test-placement-census` 16, `boundary-number-census` 16, `boundary-json-census` 5, `harness-entry-census` 4, `docs-paths-census` 4, `boundary-direction-census` 4, `tsconfig-bunfig-census` 3)
   - docs: **19 files** reference `src/fulltags`, **4** reference `src/getdat`

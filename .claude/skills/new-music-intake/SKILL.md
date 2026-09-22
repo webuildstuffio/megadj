@@ -115,8 +115,8 @@ as `<name> [<volume>]` twins. See the `shelf-intake` skill.
 Drop covers NEW tracks. The whole-library refresh is ONE command:
 
 ```bash
-bash ops/full-pipeline.sh              # analysis chain (no YouTube)
-bash ops/full-pipeline.sh --with-sync  # + YouTube sync LAST (owner go)
+bash src/ops/full-pipeline.sh              # analysis chain (no YouTube)
+bash src/ops/full-pipeline.sh --with-sync  # + YouTube sync LAST (owner go)
 ```
 
 Runbook: `docs/runbooks/0e-full-pipeline.md` (stage order + why serial).

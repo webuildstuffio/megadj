@@ -8,7 +8,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - English only. Product decisions follow [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md).
   macOS/Pioneer only; no CI; no PR flow — direct pushes to `main`.
 - Gates before push: `bun run check && bun test`. Hard 100% type coverage:
-  `bun run check:full` (adds ruff + mypy strict over `cratedeck/python` and
+  `bun run check:full` (adds ruff + mypy strict over `src/deck/python` and
   `tools/*.py`, plus `tools/*_test.py`). `check` = tsc + oxlint + format +
   knip + web vite build. `check` green has hidden a red `check:full` before
   (typecov 99.62% found Sep 18; earlier "gate green" claims were check-scoped)
@@ -55,7 +55,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   alike (the Sep-2026 pass renamed the 77-file snake majority in
   cratedeck/src plus the src/archive, fulltags, and cratedeck/shared
   strays). New files are kebab; a rename moves code+docs+census pins in the
-  SAME commit via `git mv` + specifier rewrites (`cratedeck/shared/check-matrix.ts`
+  SAME commit via `git mv` + specifier rewrites (`src/deck/shared/check-matrix.ts`
   is pinned by name in this file). Python keeps snake_case (PEP 8,
   exempt by the *.py exclusion).
 - No bare `catch {}` / `.catch(() => {})`. Boundary `JSON.parse` uses a guarded
@@ -118,7 +118,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   counts, census strings from producers — never hand-copied twins. Route
   dispatch too: `archiveRoutes` derives the /api/archive/* route list from
   the `archiveHandlers()` map keys (a hand-copied route-list regex twin
-  404'd `genre-why` live, Sep 17); `cratedeck/test/archive-dispatch-census.test.ts`
+  404'd `genre-why` live, Sep 17); `src/deck/test/archive-dispatch-census.test.ts`
   pins every key's reachability. When a route 404s but the handler exists,
   suspect a dispatch twin first.
 - No private identifiers, local paths, stored state, or secrets in commits.
@@ -127,7 +127,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   candidate younger than ~7 days waits (oxlint ships weekly, so "latest" is
   almost never a same-week action).
 - No one-off scripts: encode safety in reusable commands, tests, skills.
-- `cratedeck/tsconfig.json` is an `extends` shim (#271, census-pinned by
+- `src/deck/tsconfig.json` is an `extends` shim (#271, census-pinned by
   `src/census/tsconfig-bunfig-census.test.ts` — it was a 19-option byte-twin
   that shared the root `tsBuildInfoFile`, so `tsc -p cratedeck` poisoned the
   shared cache; never run a project-scoped tsc there without
@@ -138,7 +138,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   config (#272/#274: TS7-ready syntax, probed 0 violations) — `enum`,
   `namespace`, and parameter properties will not compile. Nested
   `bunfig.toml` copies are INERT (bun reads bunfig only from the
-  process-start CWD): `cratedeck/bunfig.toml` is a documented tripwire whose
+  process-start CWD): `src/deck/bunfig.toml` is a documented tripwire whose
   timeout must differ from root, `src/fulltags/bunfig.toml` is deleted.
   `.oxlintrc.json` rule list: the `off` entries are deliberate (each kills
   a firing style rule — e.g. sort-keys fires 3,255× without it); add
@@ -257,7 +257,7 @@ rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track an
   OneLibrary master. Green master ≠ hardware sees it: re-export after
   imports/relocations. Shelf-tier empty `PIONEER/rekordbox/` is correct — do
   not export to the shelf; role-aware checks come only from
-  `cratedeck/shared/check-matrix.ts`. CrateDeck reads scratch copies and
+  `src/deck/shared/check-matrix.ts`. CrateDeck reads scratch copies and
   refuses while RB runs.
 - RB auto-writes are `rb-import`'s job only (closed, dated backup, whole-table
   verify); `Write to master.db` tool calls refuse while RB runs. Rekordbox is
@@ -324,7 +324,7 @@ rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track an
 
 ## CrateDeck
 
-- `cratedeck/shared/types.ts` is the import leaf; run the madge cycle check on
+- `src/deck/shared/types.ts` is the import leaf; run the madge cycle check on
   boundary changes. The src ↔ cratedeck seam has ONE direction rule (#222,
   census-pinned by `src/census/boundary-direction-census.test.ts`): the two
   trees may import each other ONLY through the dependency-free leaf
@@ -339,7 +339,7 @@ rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track an
 - Jobs watch progress fraction, never log activity; every leg has a wall-clock
   budget; cancellation never forces progress to 1; `setJobProgress` is
   tri-state (`undefined` keep, `null` clear). The megadj↔CrateDeck live-run
-  protocol is contract-pinned (`cratedeck/test/fetch-events-census.test.ts`):
+  protocol is contract-pinned (`src/deck/test/fetch-events-census.test.ts`):
   fetch emits `@event {json}` lines on STDERR; the two products share no
   code, so tag names/wire shapes are the pin — a rename on either side
   fails the census instead of silently blanking the live UI (Sep 18, #215).
@@ -405,7 +405,7 @@ rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track an
 
 ## Learned Workspace Facts
 
-- Test/support trees follow one convention (Sep 17, post-rename): per-product `test/` dirs beside source (`src/fulltags/test/`, `cratedeck/test/`, `src/test-support/` shared helpers) — never a stuttered `test-support/fulltags/fulltags` doubling. When moving a test tree, the four pin classes that break are: relative import specifiers, `import.meta.dir` constructions, knip entry globs, and ACTIVE docs citing the path (`docs-paths-census` validates those live; archived docs are exempt). Tests move WITH their subject (#23/#234, completed Sep 17); `src/` root keeps exactly the host-kit set — host-kit tests (`cli-flags`, `numeric-options`, `json-summary`) plus `src/census/` (the `*-census` / `issue-*` tripwires, #244) and `src/test-support/`; cross-domain plumbing like `progress` lives in `src/shared/`, never at the root. Test PLACEMENT rule (#246, census-pinned by `src/census/test-placement-census.test.ts`): a subject's test co-locates beside it (`foo.ts` ↔ `foo.test.ts`, any depth); a product's `test/` dir holds ONLY shared support — fixtures, workers, builders, case tables — never a subject's own test; the known co-location debt is an allowlist ratchet in that census, every row naming its migration issue (#220/#214/#235). Fixture hygiene is also census-pinned (#248): raw `mkdtempSync`/`new ArchiveState` in tests fail `fixture-seam-census` — temp dirs go through the seam and get swept.
+- Test/support trees follow one convention (Sep 17, post-rename): per-product `test/` dirs beside source (`src/fulltags/test/`, cratedeck/test/ (now src/deck/test/), `src/test-support/` shared helpers) — never a stuttered `test-support/fulltags/fulltags` doubling. When moving a test tree, the four pin classes that break are: relative import specifiers, `import.meta.dir` constructions, knip entry globs, and ACTIVE docs citing the path (`docs-paths-census` validates those live; archived docs are exempt). Tests move WITH their subject (#23/#234, completed Sep 17); `src/` root keeps exactly the host-kit set — host-kit tests (`cli-flags`, `numeric-options`, `json-summary`) plus `src/census/` (the `*-census` / `issue-*` tripwires, #244) and `src/test-support/`; cross-domain plumbing like `progress` lives in `src/shared/`, never at the root. Test PLACEMENT rule (#246, census-pinned by `src/census/test-placement-census.test.ts`): a subject's test co-locates beside it (`foo.ts` ↔ `foo.test.ts`, any depth); a product's `test/` dir holds ONLY shared support — fixtures, workers, builders, case tables — never a subject's own test; the known co-location debt is an allowlist ratchet in that census, every row naming its migration issue (#220/#214/#235). Fixture hygiene is also census-pinned (#248): raw `mkdtempSync`/`new ArchiveState` in tests fail `fixture-seam-census` — temp dirs go through the seam and get swept.
 - `AGENTS.md` and docs content is test-pinned by census tests (the two `boundary-*-census.test.ts` strings, plus `docs-paths`/`docs-safety` censuses) — keep pinned strings intact when condensing; archive-internal broken links are intentionally left (frozen snapshots).
 - Genre source matching has one artist-gate SSOT, `fulltags/src/sources/name-match.ts` (test-pinned): SoundCloud and Beatport scorers both route through it; the hard must-contain-artist gate is what makes remix-safe matches possible.
 - `fulltags/src/sources/bandcamp.ts` is the fetch ladder's third genre vote (W2b): `autocomplete_elastic` search → `scoreBcHits` (shares the artist gate) → JSON-LD/HTML page parse (tags, genre, label, art); `bcGenre` refuses numeric/`Music` junk like the SC/BP arms.

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.test.ts",
+    "shared/**/*.ts",
+    "web/**/*.ts",
+    "web/**/*.tsx",
+    "test/**/*.ts"
+  ]
+}

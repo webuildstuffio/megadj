@@ -13,7 +13,7 @@ import { describe, expect, test } from "bun:test";
 import {
   INTAKE_COUNTER_KEYS,
   type IntakeCounterKey,
-} from "../../cratedeck/shared/types";
+} from "../deck/shared/types";
 import {
   counterSummary,
   type IngestCounters,
@@ -60,7 +60,7 @@ describe("#159 ingest summary key contract (emit ↔ parse round-trip)", () => {
   });
 
   test("every emitted key parses through cratedeck's parseIngestSummary", async () => {
-    const { parseIngestSummary } = await import("../../cratedeck/src/job-legs");
+    const { parseIngestSummary } = await import("../deck/job-legs");
     const summary = {
       command: "ingest",
       dryRun: false,
@@ -74,7 +74,7 @@ describe("#159 ingest summary key contract (emit ↔ parse round-trip)", () => {
   });
 
   test("a key the producer stops emitting fails the parse (named, not silent)", async () => {
-    const { parseIngestSummary } = await import("../../cratedeck/src/job-legs");
+    const { parseIngestSummary } = await import("../deck/job-legs");
     const full = fullCounterSet();
     const hole = { ...full };
     delete (hole as Record<string, unknown>).tagged;

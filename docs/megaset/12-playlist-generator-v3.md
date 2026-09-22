@@ -25,7 +25,7 @@ analysis says the market pays for and MegaSet still lacks.
 
 | Thing | State | Source of truth |
 | --- | --- | --- |
-| Engine | Pure, deterministic, 6 ms @ 3.6k; greedy + beam-B8 auto-pick (`searchOverride` A/B hook) | `cratedeck/src/megaset/engine.ts` + `megaset/scoring.ts` + `megaset/search.ts` (1,090 LOC total with CLI/report) |
+| Engine | Pure, deterministic, 6 ms @ 3.6k; greedy + beam-B8 auto-pick (`searchOverride` A/B hook) | `src/deck/megaset/engine.ts` + `megaset/scoring.ts` + `megaset/search.ts` (1,090 LOC total with CLI/report) |
 | Weights | Frozen `0.45/0.30/0.25` + anchor 0.15 + similarity 0.1 (E6 law) | `MEGASET_TRANSITION_WEIGHTS`, `shared/megaset.ts` |
 | Tempo anchor + drift budget | **Shipped** (B2): ±12% anchor budget, half/double-time branch lane at ±6% (B8 partially in: the *branch lane* exists in `withinAnchorBudget`, but `bpmScore` itself still scores 0 for a raw 87↔174 pair outside the branch window) | `megaset/scoring.ts` |
 | Phrase handoffs (Phase D item 16) | **Shipped** (#106): `mixInCue`/`mixOutCue` per step, `#EXTREM` in M3U8, dry-run rows, hover cards | `megasetMixInCue`/`megasetMixOutCue` |
@@ -33,7 +33,7 @@ analysis says the market pays for and MegaSet still lacks.
 | Offline mirror pool (B1), preview cap (B11), grouped exclusions (B13), minutes validation (B7) | **Shipped** (#104/#105) | 08 header receipts |
 | B6 diversity, landmarks `--track`, N-candidates, 0–100 quality score | **NOT built** — open [#107](https://github.com/webuildstuffio/megadj/issues/107), consolidations (#59 → #107, #172 → #107) are tracking folds, not ships | issue body acceptance boxes unchecked |
 | Failure taxonomy (v2 §4e), coverage counters (v2 §4f), ledger `model` column (v2 action #1), pre-registered B10p A/B (v2 §4b) | **NOT built** — v2 is still 📐 proposal | [11 §4](11-master-architecture-v2.md) |
-| Tests | 87 megaset tests across 4 files (41 engine + 21 contract + 11 pool + 14 surface) | `cratedeck/test/megaset*` |
+| Tests | 87 megaset tests across 4 files (41 engine + 21 contract + 11 pool + 14 surface) | `src/deck/test/megaset*` |
 
 The honest read: **v1's Phase A landed, Phase D's first item landed, B10p
 landed; Phase B/C scoring depth and v2's ops hardening did not.** A v3

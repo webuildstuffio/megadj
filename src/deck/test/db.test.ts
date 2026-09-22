@@ -1,0 +1,558 @@
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { join } from "node:path";
+import { tempDir } from "./testutil";
+import { DB, inferRole } from "../db";
+import { addAgentNote, dismissAgentNote, agentNotes } from "../notes";
+import type { SnapshotData } from "../shared/types";
+
+const t = tempDir("cratedeck-db-").rippable();
+afterAll(() => t.rippleAll());
+
+let db: DB;
+beforeEach(() => {
+  db = new DB(join(t.dir(), "db.sqlite"));
+});
+
+const UUID_A = "1111-2222-3333";
+const UUID_B = "4444-5555-6666";
+
+describe("db drives", () => {
+  it("inserts a new drive on first sight and updates on re-sight", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "DJMASTER",
+      mounted: true,
+    });
+    const d1 = db.getDrive(UUID_A)!;
+    expect(d1.first_seen_at).toBeGreaterThan(0);
+    expect(d1.plug_count).toBe(1);
+    expect(d1.role).toBe("master");
+
+    db.upsertDrive({
+      id: UUID_A,
+      name: "DJMASTER",
+      mounted: true,
+      capacity_bytes: 128,
+    });
+    const d2 = db.getDrive(UUID_A)!;
+    expect(d2.plug_count).toBe(1); // upsert of same sighting doesn't bump
+    expect(d2.capacity_bytes).toBe(128);
+    expect(d2.first_seen_at).toBe(d1.first_seen_at);
+  });
+
+  it("distinguishes two identical drives by uuid", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "CRATE1",
+      mounted: true,
+    });
+    db.upsertDrive({
+      id: UUID_B,
+      volume_uuid: UUID_B,
+      name: "CRATE1",
+      mounted: true,
+    });
+    expect(db.allDrives().length).toBe(2);
+  });
+
+  it("setMounted ghosts a drive", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setMounted(UUID_A, false);
+    expect(db.getDrive(UUID_A)!.mounted).toBe(false);
+  });
+
+  it("nickname and photo persist", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setNickname(UUID_A, "Resident Crate");
+    db.setPhoto(UUID_A, "/tmp/p");
+    expect(db.getDrive(UUID_A)!.nickname).toBe("Resident Crate");
+  });
+
+  it("setNickname treats empty string as clear (never stores '')", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setNickname(UUID_A, "Resident Crate");
+    db.setNickname(UUID_A, "");
+    expect(db.getDrive(UUID_A)!.nickname).toBeNull();
+  });
+
+  it("setNickname trims whitespace and clears whitespace-only names", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setNickname(UUID_A, "  Padded Name  ");
+    expect(db.getDrive(UUID_A)!.nickname).toBe("Padded Name");
+    db.setNickname(UUID_A, "   ");
+    expect(db.getDrive(UUID_A)!.nickname).toBeNull();
+  });
+});
+
+describe("db snapshots", () => {
+  it("skips corrupt snapshot rows without hiding valid fleet data", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.upsertDrive({
+      id: UUID_B,
+      volume_uuid: UUID_B,
+      name: "Y",
+      mounted: true,
+    });
+    db.setSnapshot(UUID_A, { kind: "light", taken_at: 1, file_count: 10 });
+    db.setSnapshot(UUID_B, { kind: "light", taken_at: 2, file_count: 20 });
+    db.sqlite
+      .query("UPDATE snapshots SET data_json=? WHERE drive_id=?")
+      .run("{broken", UUID_A);
+
+    expect(() => db.latestSnapshots()).not.toThrow();
+    expect(db.latestSnapshots().has(UUID_A)).toBe(false);
+    expect(db.latestSnapshots().get(UUID_B)?.file_count).toBe(20);
+    expect(() => db.snapshots(UUID_A)).not.toThrow();
+    expect(db.snapshots(UUID_A)).toEqual([]);
+  });
+
+  it("stores and retrieves latest snapshot", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const snap: SnapshotData = { kind: "light", taken_at: 1, file_count: 10 };
+    db.setSnapshot(UUID_A, snap);
+    const snap2: SnapshotData = { kind: "light", taken_at: 2, file_count: 12 };
+    db.setSnapshot(UUID_A, snap2);
+    const latest = db.latestSnapshots().get(UUID_A)!;
+    expect(latest.file_count).toBe(12);
+    expect(db.snapshots(UUID_A).length).toBe(2);
+  });
+
+  it("setSnapshot skips an identical re-scan (only taken_at differs)", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const base = {
+      kind: "full" as const,
+      track_count: 100,
+      file_count: 120,
+      dj: { genres: [{ name: "House", count: 40 }] },
+    };
+    const t1: SnapshotData = { ...base, taken_at: 1000 };
+    const t2: SnapshotData = { ...base, taken_at: 2000 };
+    db.setSnapshot(UUID_A, t1);
+    const firstCount = db.snapshots(UUID_A).length;
+    db.setSnapshot(UUID_A, t2); // identical content → skip
+    expect(db.snapshots(UUID_A).length).toBe(firstCount);
+    expect(db.getDrive(UUID_A)!.last_snapshot_json).toContain("1000");
+  });
+
+  it("setSnapshot still writes when content actually changes", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setSnapshot(UUID_A, {
+      kind: "light",
+      taken_at: 1000,
+      file_count: 10,
+    } as SnapshotData);
+    db.setSnapshot(UUID_A, {
+      kind: "light",
+      taken_at: 2000,
+      file_count: 11,
+    } as SnapshotData);
+    expect(db.snapshots(UUID_A).length).toBe(2);
+    expect(db.latestSnapshots().get(UUID_A)!.file_count).toBe(11);
+  });
+
+  // regression: the old dedupe compared with JSON.stringify's replacer
+  // ARRAY (top-level key list), which filters keys at every depth — nested
+  // objects stringified as {} and any same-length nested change was
+  // silently swallowed (stale fleet tables, wrong verify-freshness/parity).
+  it("setSnapshot detects a nested-only change between scans", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const base = {
+      kind: "full" as const,
+      track_count: 2,
+      file_count: 2,
+      playlists: [{ name: "Warmup", entries: 1, parent: null }],
+      playlist_entries: [
+        { playlist_name: "Warmup", track_path: "a.mp3" },
+        { playlist_name: "Warmup", track_path: "b.mp3" },
+      ],
+      tracks: [
+        { path: "a.mp3", title: "Old Title", artist: "A" },
+        { path: "b.mp3", title: "Other", artist: "B" },
+      ],
+    };
+    const t1: SnapshotData = { ...base, taken_at: 1000 } as SnapshotData;
+    const t2: SnapshotData = {
+      ...base,
+      // same array lengths; only nested values changed (user re-analyzed in
+      // rekordbox + moved a playlist membership)
+      taken_at: 2000,
+      playlists: [{ name: "Warmup", entries: 2, parent: null }],
+      playlist_entries: [
+        { playlist_name: "Warmup", track_path: "a.mp3" },
+        { playlist_name: "Warmup", track_path: "c.mp3" },
+      ],
+      tracks: [
+        { path: "a.mp3", title: "New Title (Extended Mix)", artist: "A" },
+        { path: "b.mp3", title: "Other", artist: "B" },
+      ],
+    } as SnapshotData;
+    db.setSnapshot(UUID_A, t1);
+    db.setSnapshot(UUID_A, t2); // must NOT be treated as a no-op
+    expect(db.snapshots(UUID_A).length).toBe(2);
+    expect(db.latestSnapshots().get(UUID_A)!.playlists?.[0]?.entries).toBe(2);
+    expect(db.latestSnapshots().get(UUID_A)!.tracks?.[0]?.title).toBe(
+      "New Title (Extended Mix)",
+    );
+  });
+});
+
+describe("db jobs", () => {
+  it("job lifecycle + orphan reaping", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const job = {
+      id: "j1",
+      drive_id: UUID_A,
+      kind: "verify" as const,
+      status: "running" as const,
+      progress: 0.5,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 2,
+      finished_at: null,
+    };
+    db.insertJob(job);
+    expect(db.activeJobs().length).toBe(1);
+    expect(db.reapOrphanJobs()).toBe(1);
+    expect(db.activeJobs().length).toBe(0);
+    expect(db.getJob("j1")!.status).toBe("interrupted");
+  });
+
+  it("latestVerify parses verdict", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const base = {
+      id: "j2",
+      drive_id: UUID_A,
+      kind: "verify" as const,
+      progress: 1,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 1,
+    };
+    db.insertJob({ ...base, status: "running" as const, finished_at: null });
+    db.updateJob("j2", {
+      status: "done",
+      finished_at: 5,
+      result_json: JSON.stringify({ verdict: "pass" }),
+    });
+    expect(db.latestVerify(UUID_A)).toEqual({ ran_at: 5, ok: true });
+  });
+
+  it("latestChecksum returns real changed-count, null when never run", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    expect(db.latestChecksum(UUID_A)).toBeNull(); // never run
+    const base = {
+      id: "j3",
+      drive_id: UUID_A,
+      kind: "checksum" as const,
+      progress: 1,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 1,
+    };
+    db.insertJob({ ...base, status: "running" as const, finished_at: null });
+    db.updateJob("j3", {
+      status: "done",
+      finished_at: 9,
+      result_json: JSON.stringify({ hashed: 100, changed: ["a.wav"] }),
+    });
+    expect(db.latestChecksum(UUID_A)).toEqual({ ran_at: 9, changed: 1 });
+  });
+
+  it("setJobProgress keeps ETA when a log-line update omits it", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.insertJob({
+      id: "j4",
+      drive_id: UUID_A,
+      kind: "verify",
+      status: "running",
+      progress: 0,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 1,
+      finished_at: null,
+    });
+    // tick() computes an ETA…
+    db.setJobProgress("j4", {
+      progress: 0.4,
+      message: "checking every track…",
+      phase: "phase-2",
+      eta_seconds: 42,
+    });
+    expect(db.getJob("j4")!.eta_seconds).toBe(42);
+    // …then a log-line update passes only message (eta omitted). The old
+    // implementation bound null on `undefined`, wiping the ETA — the UI/CLI
+    // ETA flickered on/off between tick and log updates.
+    db.setJobProgress("j4", { message: "  tracks: 3512" });
+    const j = db.getJob("j4")!;
+    expect(j.eta_seconds).toBe(42); // survives
+    expect(j.message).toBe("  tracks: 3512"); // and the message landed
+  });
+
+  it("setJobProgress can explicitly clear the ETA with null", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.insertJob({
+      id: "j5",
+      drive_id: UUID_A,
+      kind: "scan",
+      status: "running",
+      progress: 0,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 1,
+      finished_at: null,
+    });
+    db.setJobProgress("j5", { eta_seconds: 30 });
+    expect(db.getJob("j5")!.eta_seconds).toBe(30);
+    db.setJobProgress("j5", { eta_seconds: null }); // explicit clear stays possible
+    expect(db.getJob("j5")!.eta_seconds).toBeNull();
+  });
+
+  it("setSnapshot prunes snapshot history (disk-burn guard)", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    for (let i = 0; i < 25; i++) {
+      db.setSnapshot(UUID_A, {
+        kind: "light",
+        taken_at: 1_000 + i,
+        file_count: i,
+      });
+    }
+    expect(db.snapshots(UUID_A).length).toBeLessThanOrEqual(20);
+    // newest kept, oldest dropped
+    expect(db.snapshots(UUID_A).at(-1)?.taken_at).toBe(1_024);
+  });
+});
+
+describe("inferRole", () => {
+  it("maps known volume names", () => {
+    expect(inferRole("DJMASTER")).toBe("master");
+    expect(inferRole("DJMIRROR")).toBe("mirror");
+    expect(inferRole("SHELF1")).toBe("shelf");
+    expect(inferRole("CRATE_OF_DOOM")).toBe("library");
+    expect(inferRole("SANDISK")).toBe("unknown");
+  });
+
+  // regression: role inference hardcoded DJMASTER/DJMIRROR and ignored the
+  // configured library.master_drive/mirror_drive overrides — custom setups
+  // got role "unknown" and silently lost parity checks + sync badges.
+  it("honours configured master/mirror volume names", () => {
+    expect(inferRole("GIGRIG", "GigRig", "Backup")).toBe("master");
+    expect(inferRole("backup", "GigRig", "BACKUP")).toBe("mirror");
+    expect(inferRole("DJMASTER", "GigRig", "Backup")).toBe("library"); // doc default no longer magic
+    expect(inferRole("DJBACKUP", "GigRig", "Backup")).toBe("library"); // prefix proximity must not match mirror
+  });
+
+  it("honours the configured shelf volume name", () => {
+    expect(inferRole("BIGBOX", "GigRig", "Backup", "BigBox")).toBe("shelf");
+    expect(inferRole("SHELF1", "GigRig", "Backup", "BigBox")).toBe("unknown"); // doc default no longer magic
+  });
+
+  it("matches configured names case-insensitively", () => {
+    expect(inferRole("djmaster", "DJMaster", "DJMirror")).toBe("master");
+    expect(inferRole("shelf1", "DJMaster", "DJMirror", "Shelf1")).toBe("shelf");
+  });
+});
+
+describe("job origin attribution (O87)", () => {
+  it("insertJob stores origin; SELECT * flows it back out", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const base = {
+      id: "jo1",
+      drive_id: UUID_A,
+      kind: "verify" as const,
+      status: "queued" as const,
+      progress: 0,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: null,
+      finished_at: null,
+    };
+    db.insertJob(base, "mcp:deadbeef");
+    expect(db.getJob("jo1")!.origin).toBe("mcp:deadbeef");
+    // default attribution = web (human click)
+    db.insertJob({ ...base, id: "jo2" });
+    expect(db.getJob("jo2")!.origin).toBe("web");
+    // same created_at on both rows → order-insensitive assert
+    expect(
+      db
+        .jobsForDrive(UUID_A)
+        .map((j) => j.origin)
+        .toSorted(),
+    ).toEqual(["mcp:deadbeef", "web"]);
+  });
+
+  it("pre-migration rows backfill as 'web' via column default", () => {
+    // simulate a row written before the origin column existed: insert with
+    // the DEFAULT keyword path — insertJob always writes it explicitly, so
+    // raw-SQL a row without the column value
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.sqlite
+      .query(
+        `INSERT INTO jobs (id, drive_id, kind, status, progress, created_at)
+         VALUES ('legacy1', ?, 'scan', 'done', 1, 1)`,
+      )
+      .run(UUID_A);
+    expect(db.getJob("legacy1")!.origin).toBe("web");
+  });
+});
+
+describe("agent notes (O88)", () => {
+  it("add → list → dismiss round-trip through the timeline", () => {
+    addAgentNote(db, {
+      drive_id: UUID_A,
+      note: "firmware 3.30 flagged",
+      origin: "mcp:deadbeef",
+      severity: "warn",
+    });
+    addAgentNote(db, {
+      drive_id: UUID_A,
+      note: "healthy",
+      origin: "mcp:deadbeef",
+      severity: "info",
+    });
+    const notes = agentNotes(db, UUID_A);
+    expect(notes.length).toBe(2);
+    expect(notes[0]!.note).toBe("healthy"); // newest first
+    expect(notes.every((n) => n.dismissed_at === null)).toBe(true);
+    // notes are ALSO timeline events — they render in the existing feed
+    expect(db.timeline(UUID_A).some((e) => e.kind === "agent-note")).toBe(true);
+    // dismiss the newest; it leaves the active feed but stays in history
+    const { id } = notes[0]!;
+    expect(dismissAgentNote(db, UUID_A, id)).toBe(true);
+    expect(dismissAgentNote(db, UUID_A, id)).toBe(true); // idempotent
+    expect(agentNotes(db, UUID_A).map((n) => n.note)).toEqual([
+      "firmware 3.30 flagged",
+    ]);
+    expect(agentNotes(db, UUID_A)[0]!.dismissed_at).toBeNull();
+  });
+
+  it("dismiss rejects non-note events and unknown ids", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.event(UUID_A, "job-queued", { kind: "scan" });
+    const ev = db.timeline(UUID_A)[0]!;
+    expect(dismissAgentNote(db, UUID_A, ev.id)).toBe(false);
+    expect(dismissAgentNote(db, UUID_A, "nope")).toBe(false);
+    expect(agentNotes(db, UUID_A)).toEqual([]);
+  });
+});

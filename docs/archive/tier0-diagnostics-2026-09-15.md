@@ -77,7 +77,7 @@ Engine: `src/fulltags/genre-diagnostics.ts` (pure),
 `src/fulltags/linear-probe.ts` (pure, deterministic zero-init
 softmax + full-batch GD), `evalLeaveOneOutArtistDisjoint` in
 `src/archive/similar.ts`. Shared retrieval space math:
-`cratedeck/shared/vector-space.ts` (all-but-the-top + CSLS, import-leaf
+`src/deck/shared/vector-space.ts` (all-but-the-top + CSLS, import-leaf
 clean — no cross-boundary imports). Refold engine:
 `src/fulltags/genre-refold.ts`.
 

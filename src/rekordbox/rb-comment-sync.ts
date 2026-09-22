@@ -30,10 +30,7 @@ import {
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
-import {
-  formatAge,
-  ledgerFreshness,
-} from "../../cratedeck/shared/ledger-freshness";
+import { formatAge, ledgerFreshness } from "../deck/shared/ledger-freshness";
 import {
   ledgerFreshnessOf,
   parseSyncOutput,

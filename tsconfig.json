@@ -26,12 +26,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "ops/**/*.ts",
-    "cratedeck/src/**/*.ts",
-    "cratedeck/shared/**/*.ts",
-    "cratedeck/web/**/*.ts",
-    "cratedeck/web/**/*.tsx",
-    "cratedeck/test/**/*.ts",
+    "src/**/*.tsx",
     "tools/**/*.ts"
   ]
 }

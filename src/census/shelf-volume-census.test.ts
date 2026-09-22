@@ -24,14 +24,9 @@ import * as ts from "typescript";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
-const TS_ROOTS = [
-  "src",
-  "cratedeck/src",
-  "cratedeck/shared",
-  "cratedeck/web",
-  "tools",
-];
-// fulltags merged into src/fulltags (#193) — already covered by "src".
+const TS_ROOTS = ["src", "tools"];
+// fulltags merged into src/fulltags (#193) and cratedeck folded into
+// src/deck (Sep 2026) — both already covered by "src".
 
 function isProductionTs(path: string): boolean {
   return (
@@ -128,7 +123,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
     // Sep 16 2026, #93 cut) used to hold the known residue — its docstring
     // hit and the two hermetic test defaults died with the file. The pin
     // now scans ALL gate-covered Python (mypy/ruff `tools` + the
-    // cratedeck device-DB seams): strip docstrings/comments, then zero
+    // src/deck device-DB seams): strip docstrings/comments, then zero
     // executable `/Volumes/SHELF1` literals, period.
     const pyFiles: string[] = [];
     const visit = (dir: string): void => {
@@ -141,7 +136,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
       }
     };
     visit(join(ROOT, "tools"));
-    visit(join(ROOT, "cratedeck/python"));
+    visit(join(ROOT, "src/deck/python"));
     const hits: string[] = [];
     for (const p of pyFiles) {
       const executable = stripDocstrings(readFileSync(p, "utf8"))
@@ -174,7 +169,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
       env: {
         ...process.env,
         MEGADJ_SHELF_VOLUME: "ENVDRIVE",
-        FAKE_ROOT: join(ROOT, "cratedeck"), // repo default config → SHELF1
+        FAKE_ROOT: join(ROOT, "src/deck"), // repo default config → SHELF1
       },
       stdout: "pipe",
       stderr: "pipe",
@@ -183,7 +178,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
     const rows = JSON.parse(proc.stdout.toString().trim()) as string[];
     expect(rows[0]).toBe("/Volumes/BIGBOX");
     expect(rows[1]).toBe("/abs/path");
-    expect(rows[2]).toBe("/Volumes/SHELF1"); // cratedeck config.toml absent → default
+    expect(rows[2]).toBe("/Volumes/SHELF1"); // src/deck config.toml absent → default
 
     // env beats config when no explicit arg is passed
     const proc2 = Bun.spawnSync({
@@ -195,7 +190,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
       env: {
         ...process.env,
         MEGADJ_SHELF_VOLUME: "ENVDRIVE",
-        FAKE_ROOT: join(ROOT, "cratedeck"),
+        FAKE_ROOT: join(ROOT, "src/deck"),
       },
       stdout: "pipe",
       stderr: "pipe",

@@ -19,7 +19,7 @@ import { join } from "node:path";
 import {
   allFunctions,
   type FunctionSpan,
-} from "../../src/test-support/source-metrics";
+} from "../test-support/source-metrics";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const CEILING = 60;

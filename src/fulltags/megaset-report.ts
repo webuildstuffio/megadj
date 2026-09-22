@@ -5,17 +5,14 @@
 // here so the CLI arm stays read-through-able. Same strings the tests
 // pin; nothing here makes decisions.
 
-import {
-  formatAge,
-  ledgerFreshness,
-} from "../../cratedeck/shared/ledger-freshness";
+import { formatAge, ledgerFreshness } from "../deck/shared/ledger-freshness";
 import {
   groupMegasetExcluded,
   isShelfOffline,
   megasetBudgetFilledCount,
   type MegasetPayload,
   type MegasetResult,
-} from "../../cratedeck/shared/types";
+} from "../deck/shared/types";
 
 export interface MegasetCensus {
   sourceTotal: number;

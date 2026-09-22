@@ -11,14 +11,14 @@ export type {
   FindingStatus,
   ValidationReceipt,
   Finding,
-} from "../../../cratedeck/shared/hygiene";
+} from "../../deck/shared/hygiene";
 
 import type {
   Finding,
   FindingKind,
   FindingStatus,
   Severity,
-} from "../../../cratedeck/shared/hygiene";
+} from "../../deck/shared/hygiene";
 
 /** One walked shelf file — the check functions' input unit. */
 export interface ShelfFile {

@@ -22,10 +22,10 @@ status (v0 uses / planned / rejected) and the exact order things are applied
    rekordbox mirror (master.db read-only seam) ── BPM×100 · KeyName
         │
         ▼
-   setCandidates() ── pool census w/ honest counters (cratedeck/src/archive/pool.ts)
+   setCandidates() ── pool census w/ honest counters (src/deck/archive/pool.ts)
         │
         ▼
-   buildMegaset() ── pure engine, zero I/O (cratedeck/src/megaset/engine.ts)
+   buildMegaset() ── pure engine, zero I/O (src/deck/megaset/engine.ts)
         │          score = 0.45·tempo + 0.3·key + 0.25·energy-fit
         │          hard gates: ±6% tempo, Camelot clash, opener neighborhood
         ▼
@@ -33,7 +33,7 @@ status (v0 uses / planned / rejected) and the exact order things are applied
         │
         ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; no alias kept)
         ├─▶ HTTP       GET /api/archive/megaset · ?format=m3u8 (archive/routes.ts)
-        ├─▶ MCP        megaset_propose (cratedeck/src/archive/tools.ts;
+        ├─▶ MCP        megaset_propose (src/deck/archive/tools.ts;
         │             the pre-rename archive_set_build name is retired)
         ├─▶ Web        MegaSet product page (MegasetPage.tsx) — MegasetPanel.tsx
         │             (form + proposal) · TrackPickSearch.tsx (shared picker)
@@ -156,7 +156,7 @@ so `--genre tropical` widens exactly like `--genre "tropical house"`.
 1. **The engine is pure.** `buildMegaset()` takes candidates in, returns a chain
    out — no file I/O, no clock, no randomness. Determinism (same inputs →
    byte-identical chain) is pinned by tests; tie-breaks are (score, videoId).
-2. **One wire SSOT.** `cratedeck/shared/megaset.ts` owns presets, pool
+2. **One wire SSOT.** `src/deck/shared/megaset.ts` owns presets, pool
    clamps, and the excluded-preview cap; `shared/camelot.ts` owns the wheel.
    CLI, HTTP, MCP, and web all derive — no hand-copied twins. The tables in
    §2 are _documentation of_ that SSOT, not a second copy: when a default

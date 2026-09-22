@@ -15,13 +15,9 @@
  * re-exported here — same split as the hygiene contract.
  */
 import type { Database, SQLQueryBindings } from "bun:sqlite";
-import type {
-  DumpCensus,
-  DumpRecord,
-  DumpStatus,
-} from "../../cratedeck/shared/dump";
+import type { DumpCensus, DumpRecord, DumpStatus } from "../deck/shared/dump";
 
-export type { DumpCensus } from "../../cratedeck/shared/dump";
+export type { DumpCensus } from "../deck/shared/dump";
 
 interface DumpRow {
   folder: string;

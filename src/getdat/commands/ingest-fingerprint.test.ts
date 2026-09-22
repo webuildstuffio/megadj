@@ -2,7 +2,7 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ingest } from "./ingest";
-import { ffmpegTone } from "../../../src/test-support/audio-fixtures";
+import { ffmpegTone } from "../../test-support/audio-fixtures";
 import { tempDir, tempState } from "../../test-support/testutil";
 
 /**

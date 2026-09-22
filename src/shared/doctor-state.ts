@@ -21,8 +21,8 @@ import { rekordboxRunning } from "../rekordbox/guard";
 import { incidentCuePredicatePython } from "../rekordbox/cue-incident";
 import { masterDbPath } from "../rekordbox/master-path";
 import { agentGroupRoots } from "../rekordbox/rb-playlist-reconcile";
-import { errMessage } from "../shared/leaf/fmt";
-import { isRecord } from "../shared/leaf/guards";
+import { errMessage } from "./leaf/fmt";
+import { isRecord } from "./leaf/guards";
 
 interface StateProbe {
   ran: boolean;

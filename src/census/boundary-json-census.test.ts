@@ -24,21 +24,21 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // malformed event line returns null and the feed simply skips it (the
   // run's stdout summary is the authoritative payload; the feed is
   // advisory). Never a throw into the job leg.
-  "cratedeck/src/jobs/job-legs-fetch-protocol.ts::safeJsonParse::JSON.parse(line)":
+  "src/deck/jobs/job-legs-fetch-protocol.ts::safeJsonParse::JSON.parse(line)":
     EXPLICIT_NULL_REASON,
   ...reviewed(HYGIENE_ROW_REASON, [
-    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)",
-    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.bytes)",
-    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.md5s)",
-    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.fps)",
-    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.evidence)",
-    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse( row.proposed_action, )",
-    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.validation)",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.bytes)",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.md5s)",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.fps)",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.evidence)",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse( row.proposed_action, )",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.validation)",
   ]),
-  'cratedeck/src/deckctl/queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
+  'src/deck/deckctl/queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
-    "cratedeck/src/archive/overview.ts::parseCuePoints::JSON.parse(raw)",
+    "src/deck/archive/overview.ts::parseCuePoints::JSON.parse(raw)",
     "src/fulltags/parse-json.ts::parseJsonObject::JSON.parse(raw)",
     "src/fulltags/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
@@ -51,7 +51,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // Sep 16 (#89/#90 diet): re-keyed to archive/tag-compare.ts — the
   // one-track compare family (readRekordboxMirror included) moved out
   // of archive/tag-census.ts; same call, same sanction, new file path.
-  "cratedeck/src/archive/tag-compare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
+  "src/deck/archive/tag-compare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
     "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
@@ -174,7 +174,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // cratedeck/src/{verify,hygiene,report}-* moved into verify/ hygiene/
     // report/ subdirs (tests co-located); same calls, same guards, same
     // counts, new file paths in the digest input.
-    digest: "9ef14d33004ab6126137ec176ecec984f31886b6720b9ace32a78ee18522c33b",
+    // Sep 21 (cratedeck→src/deck fold): whole-tree re-root — sanction
+    // keys re-pathed, same calls, same guards, counts unchanged.
+    digest: "fe04d3db1caa562c033b4d531a04ad97bdd61623308707a8a2d02eb662ab87e0",
   });
 });
 

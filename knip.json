@@ -3,17 +3,21 @@
   "workspaces": {
     ".": {
       "entry": [
-        "tools/loc-budget.ts",
-        "tools/prof-sweep.ts",
-        "tools/ast-ccn.ts",
-        "ops/**/*.{ts,tsx}",
+        "src/deck/**/*.{test.ts,test.tsx}",
+        "src/deck/test/testutil.ts",
+        "src/deck/web/app/main.tsx",
+        "src/deck/web/vite.config.ts",
         "src/fulltags/cli.ts",
         "src/fulltags/test/*.test.ts",
+        "src/fulltags/test/analysis.ts",
         "src/fulltags/test/fake-echo-worker.ts",
         "src/fulltags/test/idle-worker.ts",
-        "src/fulltags/test/stamp.ts",
         "src/fulltags/test/patchCases.ts",
-        "src/fulltags/test/analysis.ts"
+        "src/fulltags/test/stamp.ts",
+        "src/ops/**/*.{ts,tsx}",
+        "tools/ast-ccn.ts",
+        "tools/loc-budget.ts",
+        "tools/prof-sweep.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
@@ -27,21 +31,16 @@
         "uv",
         "jscpd"
       ],
-      "ignoreDependencies": ["preact"]
-    },
-    "cratedeck": {
-      "entry": [
-        "src/deckctl.ts",
-        "src/mcp.ts",
-        "src/**/*.{test.ts,test.ts}",
-        "test/*.test.ts",
-        "test/testutil.ts",
-        "shared/types.ts"
-      ],
-      "ignoreExportsUsedInFile": true
-    },
-    "cratedeck/web": {
-      "ignoreExportsUsedInFile": true
+      "ignoreDependencies": [
+        "@preact/preset-vite",
+        "@tanstack/preact-table",
+        "fuse.js",
+        "lucide-preact",
+        "preact",
+        "preact-render-to-string",
+        "tinykeys",
+        "vite"
+      ]
     }
   }
 }

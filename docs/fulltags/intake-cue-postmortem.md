@@ -385,7 +385,7 @@ issue.
   (`d1690f5`).
 - Per-dump dated subfolders at ingest — implemented (`ingest-register.ts`
   dated-batch layout).
-- Tooltip clipping — `cratedeck/web/ui/tipPlace.ts` + portal test shipped.
+- Tooltip clipping — `src/deck/web/ui/tipPlace.ts` + portal test shipped.
 - master→archive reconcile — `megadj rb-adopt` + `--shelf` repoint shipped
   (`c8f88d1`, `0c7e96e`); covers the playlist-gen session's "is our db out
   of sync" confusion. Census rule added to AGENTS.md (ledger ≠ library).

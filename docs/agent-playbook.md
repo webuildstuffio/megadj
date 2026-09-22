@@ -12,10 +12,10 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - **Guarded JSON parsing.** `driveBadges` runs on every `/api/status` +
   `/api/drives` request — one unguarded `JSON.parse` of a persisted blob
   (`last_snapshot_json`, `verify_report_json`, `data_json`) 500s the whole
-  drive rail. `parseSnapshotJson` in `cratedeck/shared/badges.ts` makes the
+  drive rail. `parseSnapshotJson` in `src/deck/shared/badges.ts` makes the
   failure a visible state (badge, `corrupt:true` payload, logged boundary).
   Corrupt persisted JSON can never read as success — and never crashes hot
-  paths either. Regression-tested in `cratedeck/test/badges.test.ts`.
+  paths either. Regression-tested in `src/deck/test/badges.test.ts`.
 - **Boundary numbers.** `MEGADJ_ART_MAX=""` → `Number("")` is `NaN` →
   `slice(0, NaN)` processed nothing while "succeeding" — hence the
   `Number.isFinite` gate. `Number("")` is also `0`, so CLI numeric flags go
@@ -27,7 +27,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   sat in README/deckctl.md across 9 files. Census tests must DERIVE expected
   strings from source and assert exact equality — a `>= N` floor plus
   hardcoded strings passed while the counts were stale (root-fixed in
-  `cratedeck/test/surface-parity.test.ts`; mutation-verify by reverting one
+  `src/deck/test/surface-parity.test.ts`; mutation-verify by reverting one
   count and watching the census fail). Assertions stay whitespace-tolerant
   (`\|\s+N verbs\s+\|`) — a formatter padding the markdown table cells once
   false-failed the census; the COUNT stays exact.
@@ -124,7 +124,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   verify + preflight handle this via `--shelf-drives` (usb_verify.py) and
   role-aware dual-db (preflight.ts/verify-report.ts); the Drives tab marks
   the card "master library lives here · sticks sync from this". The
-  role-aware check matrix lives ONCE in `cratedeck/shared/check-matrix.ts`
+  role-aware check matrix lives ONCE in `src/deck/shared/check-matrix.ts`
   (`CHECK_APPLIES`, `checkApplies`, `TIER_EXPLANATION`); a refactor once
   dropped the `driveRole` arg and the `--shelf-drives` flag and shelf drives
   silently re-failed — the derived census in `check-matrix.test.ts` catches
@@ -146,7 +146,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 
 - **Import-graph cycles once forced `GIT_SKIP_HOOKS` on every commit.**
   `shared/types.ts` is the leaf; verify with `bunx madge --circular
---extensions ts,tsx cratedeck/src cratedeck/shared cratedeck/web`. Madge
+--extensions ts,tsx src/deck src/deck/web`. Madge
   follows type-only imports too — a type-only back-edge IS a cycle (Sep 9
   sweep found 6). Wire type whose producer chain reaches `shared/types.ts`
   (anything importing `db.ts`/`fleet.ts`) is DEFINED canonically there and
@@ -162,7 +162,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   `shared/types.ts` re-exports (`ArchiveIngestStatus`, `FleetDiff`,
   `SearchResult`, …) so drift fails `typecheck`.
 - **The Sep 8 "always spinning" sweep** (regression-tested in
-  `cratedeck/test/jobs-progress.test.ts`) found four independent defects:
+  `src/deck/test/jobs-progress.test.ts`) found four independent defects:
   (1) the ETA sampler pinned its rate baseline to the FIRST sample, so ETA
   froze after 1s and flapped (fixed: `createEtaEstimator` re-bases the
   window every ≥1s sample; stalled window → `null`, honest unknown);
@@ -189,10 +189,10 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - **FleetStore.sync** inserts playlist entries `OR IGNORE` — one duplicate
   row in a dirty drive snapshot (rekordbox can genuinely carry the same
   track twice in one playlist) once crashed the whole INSERT transaction,
-  leaving all fleet tables permanently empty (`cratedeck/src/fleet/fleet.test.ts`).
+  leaving all fleet tables permanently empty (`src/deck/fleet/fleet.test.ts`).
 - **Census totals.** `skipCensus` once summed its LIMIT-clamped buckets, so
   totals undercounted whenever there were more distinct reasons than the
-  limit (599 shown vs 602 true; `cratedeck/src/archive/reader.test.ts`).
+  limit (599 shown vs 602 true; `src/deck/archive/reader.test.ts`).
 - **deckctl help details.** `help`/`--help` work with the server DOWN —
   `help` reads `shared/help.ts` directly and must dispatch BEFORE
   `ensureServer`; `--help` prints to stdout with exit 0 (usage text is not
@@ -349,7 +349,7 @@ the ideas catalog (now archived at `docs/archive/ideas-2026-09-15.md`),
   CHANGELOG shipped, the tag was deferred pending a word, no word ever
   came. Zero tags exist local or remote. → #29 (CLOSED 2026-09-15: the
   release policy resolved with the `v0.2.0` tag pushed — see
-  `docs/cratedeck/acceptance.md`).
+  `docs/deck/acceptance.md`).
 - **Complexity hotspots were lizard-ranked and top-down refactored**
   (39ea1b81, Sep 10): `canon` (db.ts, CCN 75) and the next ~9 functions
   were split across dedicated passes; db.ts is now 614 lines and

@@ -10,11 +10,11 @@ import {
 
 const repo = join(import.meta.dir, "..", "..");
 const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
-  "cratedeck/src/bench.ts::biggestFiles::Number(st.size)":
+  "src/deck/bench.ts::biggestFiles::Number(st.size)":
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
-  "cratedeck/web/products/fulltags/megaset-builder.ts::minutesFrom::Number(input)":
+  "src/deck/web/products/fulltags/megaset-builder.ts::minutesFrom::Number(input)":
     "clampMinutes finite-checks the converted form value and supplies the default.",
-  "cratedeck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
+  "src/deck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
   // #230 (Sep 17): writer.ts applyTags's year parse was UPGRADED from a
   // sanctioned raw Number() to an isFinite-gated site — the sanction is
@@ -145,12 +145,17 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // from MegasetPanel to minutesFrom in megaset-builder; clampMinutes
     // remains the finite gate, so counts are unchanged and only the
     // reason-carrying sanction owner/digest moved: bee18045.
-    audited: 43,
-    guarded: 28,
+    audited: 44,
+    guarded: 29,
     sanctioned: 15,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
-    digest: "87655575ca8b4daeaca6c1866330a325a0f570ef9572f7f6a2ffa1f5fceee68c",
+    // Sep 21 (cratedeck→src/deck fold): the whole tree re-rooted —
+    // sanction keys re-pathed (same calls, same guards); ops/ now sits
+    // under src/ops and joins the scanned surface, adding deck-install's
+    // already-isFinite-gated launchctl pid parse (audited 43→44,
+    // guarded 28→29, sanctioned unchanged) — digest shifted below.
+    digest: "90127ae7b4345511bdf397b7f1381db1241e793b9d143bbf20239d7df0b501ff",
   });
 });
 

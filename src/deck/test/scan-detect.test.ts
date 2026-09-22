@@ -1,0 +1,326 @@
+import { afterAll, describe, it, expect } from "bun:test";
+import { tempDir } from "./testutil";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { nfcCasefold, scanVolume } from "../scan";
+import {
+  parseDiskutilJson,
+  parsePlist,
+  isPhysicalExternal,
+  listMountedVolumes,
+} from "../detect/detect";
+import { parseUsbTreeJson, pickUsbDevice, type UsbDevice } from "../detect/usb";
+import { progressFromLine } from "../rb";
+
+// ---- fixtures -------------------------------------------------------------
+const t = tempDir("cratedeck-fixture-").rippable();
+afterAll(() => t.rippleAll());
+
+function makeFakeDrive(): string {
+  const root = t.dir();
+  const dirs = [
+    "PIONEER/rekordbox",
+    "Contents/YTMusic Liked",
+    "Contents/Tech House",
+    "Contents/Party",
+  ];
+  for (const d of dirs) mkdirSync(`${root}/${d}`, { recursive: true });
+  const files: [string, number][] = [
+    ["Contents/YTMusic Liked/001 - Artist - Track.m4a", 1024 * 1024],
+    ["Contents/YTMusic Liked/002 - Artist - Other.m4a", 0], // zero-byte junk
+    ["Contents/Tech House/groover.mp3", 5 * 1024 * 1024],
+    ["Contents/Party/first-dance.mp3", 3 * 1024 * 1024],
+    ["Contents/Party/._first-dance.mp3", 1], // orphan resource fork
+    ["Contents/Dance.MP3", 2 * 1024 * 1024],
+    ["Contents/dance.mp3", 2 * 1024 * 1024], // case collision with Dance.MP3
+  ];
+  for (const [f, size] of files)
+    writeFileSync(`${root}/${f}`, new Uint8Array(size));
+  return root;
+}
+
+describe("scan", () => {
+  it("counts files, detects junk, ignores resource forks", async () => {
+    const root = makeFakeDrive();
+    const snap = await scanVolume(root);
+    expect(snap.kind).toBe("light");
+    expect(snap.junk?.zero_byte).toContain(
+      "Contents/YTMusic Liked/002 - Artist - Other.m4a",
+    );
+    expect(snap.junk?.orphan_resource_forks).toBe(1);
+    // folder composition
+    const yt = snap.folders?.find((f) => f.name === "YTMusic Liked");
+    expect(yt?.files).toBe(2);
+    expect(snap.file_count).toBe(5); // 2 YT + groover + first-dance + dance (case-insensitive /tmp dedupes fixture)
+  });
+
+  it("flags case collisions from folded path groups (pure)", () => {
+    // /tmp is case-insensitive on this Mac, so the fixture can't hold both
+    // spellings; test the grouping logic directly instead.
+    const groups = new Map<string, string[]>([
+      [
+        nfcCasefold("Contents/Dance.MP3"),
+        ["Contents/Dance.MP3", "Contents/dance.mp3"],
+      ],
+      [nfcCasefold("Contents/only.mp3"), ["Contents/only.mp3"]],
+    ]);
+    const collisions = [...groups.values()].filter((p) => p.length > 1).flat();
+    expect(collisions).toEqual(["Contents/Dance.MP3", "Contents/dance.mp3"]);
+  });
+
+  it("manifest paths are Contents-stripped AND folded (strip before fold)", async () => {
+    // Regression: fold-then-strip left every row as "contents/…" so diff()
+    // byte lookups against fleet track paths always missed.
+    const root = makeFakeDrive();
+    const snap = await scanVolume(root);
+    const man = snap.manifest ?? [];
+    expect(man.length).toBeGreaterThan(0);
+    for (const m of man) {
+      expect(m.path.startsWith("Contents/")).toBe(false);
+      expect(m.path.startsWith("contents/")).toBe(false);
+      expect(m.path).toBe(m.path.toLowerCase());
+    }
+    // identity parity with the fleet track layer: same fold, no prefix
+    expect(man.map((m) => m.path)).toContain("tech house/groover.mp3");
+  });
+});
+
+describe("nfcCasefold", () => {
+  it("folds unicode and case", () => {
+    expect(nfcCasefold("Caf\u00e9")).toBe(nfcCasefold("cafe\u0301"));
+    expect(nfcCasefold("Dance.MP3")).toBe(nfcCasefold("dance.mp3"));
+  });
+});
+
+// ---- detector fixtures (built from real macOS ioreg -p IOUSB -a -l output) --
+// (the live plist is parsed by python/usb_tree.py; tests exercise the
+//  pickUsbDevice join logic directly via the UsbDevice[] fixtures below)
+
+describe("detect", () => {
+  // real shapes from this Mac: two identical SanDisk sticks on different
+  // controllers; ioreg locationID = treeAddr | (portIndex << 16)
+  const devices: UsbDevice[] = [
+    {
+      product: "USB C Video Adaptor",
+      serial: "000000000001",
+      vendor: "USB C",
+      locationId: 18022400,
+      portKey: "adaptor@1130000",
+      linkBps: null,
+    },
+    {
+      product: "USB2.0 Hub",
+      serial: null,
+      vendor: null,
+      locationId: 17825792,
+      portKey: "hub@1100000",
+      linkBps: null,
+    },
+    {
+      product: "SanDisk 3.2Gen1",
+      serial: "040175fa8e4f9518",
+      vendor: "USB",
+      locationId: 18874368,
+      portKey: "hub@1100000/SanDisk@1200000",
+      linkBps: null,
+    },
+    {
+      product: "USB2.0 Hub",
+      serial: null,
+      vendor: null,
+      locationId: 34603008,
+      portKey: "hub2@2100000",
+      linkBps: null,
+    },
+    {
+      product: "SanDisk 3.2Gen1",
+      serial: "010177233d157b4d",
+      vendor: "USB",
+      locationId: 34668544,
+      portKey: "hub2@2100000/SanDisk@2110000",
+      linkBps: null,
+    },
+    {
+      product: "Magic Keyboard",
+      serial: "F0THCX02",
+      vendor: "Apple",
+      locationId: 1261840,
+      portKey: "k@134000",
+      linkBps: null,
+    },
+  ];
+
+  it("joins volume→stick via DeviceTreePath (masked locationID match)", () => {
+    const p1 = pickUsbDevice(
+      devices,
+      "SanDisk 3.2Gen1 Media",
+      "IODeviceTree:/arm-io/usb-drd1@8A280000/usb-drd1-port-ss@01200000",
+    );
+    expect(p1?.serial).toBe("040175fa8e4f9518");
+    const p2 = pickUsbDevice(
+      devices,
+      "SanDisk 3.2Gen1 Media",
+      "IODeviceTree:/arm-io/usb-drd2@92280000/usb-drd2-port-hs@02100000",
+    );
+    expect(p2?.serial).toBe("010177233d157b4d");
+  });
+
+  it("never picks a hub for a volume", () => {
+    const p = pickUsbDevice(
+      devices,
+      "SanDisk 3.2Gen1 Media",
+      "IODeviceTree:/arm-io/usb-drd2@92280000/usb-drd2-port-hs@02100000",
+    );
+    expect(p?.product).not.toBe("USB2.0 Hub");
+  });
+
+  it("falls back to single-storage heuristic without a tree path", () => {
+    const pick = pickUsbDevice([devices[2]!, devices[5]!], null, null);
+    expect(pick?.serial).toBe("040175fa8e4f9518");
+  });
+
+  it("parses diskutil plists via plutil", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>VolumeUUID</key><string>ABC-123</string><key>TotalSize</key><integer>128000000000</integer></dict></plist>`;
+    const info = parsePlist(xml);
+    expect(info.VolumeUUID).toBe("ABC-123");
+    expect(info.TotalSize).toBe(128000000000);
+  });
+
+  it("reports malformed diskutil JSON instead of silently returning unknowns", () => {
+    const errors: string[] = [];
+    const error = console.error;
+    console.error = (...args: unknown[]) => errors.push(args.join(" "));
+    try {
+      expect(parseDiskutilJson("{broken")).toEqual({});
+    } finally {
+      console.error = error;
+    }
+    expect(errors.join("\n")).toContain("diskutil plist JSON");
+    expect(errors.join("\n")).toContain("malformed");
+  });
+
+  it("rejects valid JSON that is not a diskutil object", () => {
+    for (const payload of ["null", "[]", '"disk4"', "42"]) {
+      expect(parseDiskutilJson(payload), payload).toEqual({});
+    }
+  });
+
+  it("validates every usb-tree device instead of trusting decoded JSON", () => {
+    const valid = JSON.stringify({ devices: [devices[2]] });
+    expect(parseUsbTreeJson(valid)).toEqual([devices[2]!]);
+    for (const payload of ["{}", '{"devices":{}}', '{"devices":[{}]}']) {
+      expect(parseUsbTreeJson(payload), payload).toEqual([]);
+    }
+    expect(
+      parseUsbTreeJson(JSON.stringify({ devices: [devices[2], {}] })),
+    ).toEqual([devices[2]!]);
+  });
+});
+
+describe("physical-media gate", () => {
+  // truth table over the measured macOS signals (volumeDetail fields):
+  // image-backed = virtual whole disk / disk-image bus / root DeviceTreePath;
+  // internal = inside the Mac; unknown-everything = fixtures (accepted).
+  it("accepts physical external, rejects images and internal", () => {
+    expect(
+      isPhysicalExternal({
+        virtual: false,
+        busProtocol: "USB",
+        internal: false,
+      }),
+    ).toBe(true);
+    expect(
+      isPhysicalExternal({
+        virtual: false,
+        busProtocol: "Thunderbolt",
+        internal: false,
+      }),
+    ).toBe(true);
+    expect(
+      isPhysicalExternal({ virtual: null, busProtocol: null, internal: null }),
+    ).toBe(true); // fixture / probe-less
+    // image-backed: any of the three measured signals is enough
+    expect(
+      isPhysicalExternal({
+        virtual: true,
+        busProtocol: "Disk Image",
+        internal: false,
+      }),
+    ).toBe(false);
+    expect(
+      isPhysicalExternal({ virtual: true, busProtocol: null, internal: null }),
+    ).toBe(false);
+    expect(
+      isPhysicalExternal({
+        virtual: null,
+        busProtocol: "Disk Image",
+        internal: null,
+      }),
+    ).toBe(false);
+    // internal: rejected even when every other field is unknown
+    expect(
+      isPhysicalExternal({ virtual: null, busProtocol: null, internal: true }),
+    ).toBe(false);
+  });
+
+  it("end-to-end: a mounted image-backed volume is refused (real macOS probe)", async () => {
+    // HERMETIC: mount under a private root, NOT /Volumes — a server
+    // auto-started by another test (deckctl/mcp) watches the real /Volumes
+    // and would register the probe image as a drive while it is mounted.
+    // diskutil answers identically for any mount path, so the gate's
+    // signals (VirtualOrPhysical/BusProtocol/DeviceTreePath) are the same.
+    const root = `${process.env.TMPDIR ?? "/tmp"}/cratedeck-gate-vol-${Date.now()}`;
+    const img = `${process.env.TMPDIR ?? "/tmp"}/cratedeck-gate-${Date.now()}.dmg`;
+    const mnt = `${root}/CRATEDECK-GATE-PROBE`;
+    let attached = false;
+    try {
+      const mk = Bun.spawnSync(["mkdir", "-p", root]);
+      expect(mk.exitCode).toBe(0);
+      const hdi = Bun.spawnSync([
+        "hdiutil",
+        "create",
+        "-size",
+        "4m",
+        "-fs",
+        "APFS",
+        "-volname",
+        "CRATEDECK-GATE-PROBE",
+        img,
+        "-quiet",
+      ]);
+      expect(hdi.exitCode).toBe(0);
+      const at = Bun.spawnSync([
+        "hdiutil",
+        "attach",
+        "-nobrowse",
+        "-readonly",
+        "-mountpoint",
+        mnt,
+        img,
+      ]);
+      expect(at.exitCode).toBe(0);
+      attached = true;
+      const vols = await listMountedVolumes(root);
+      const leaked = vols.find((v) => v.mountPoint === mnt);
+      expect(leaked).toBeUndefined(); // the gate must swallow it entirely
+      expect(vols.every((v) => isPhysicalExternal(v))).toBe(true);
+    } finally {
+      if (attached) Bun.spawnSync(["hdiutil", "detach", mnt, "-quiet"]);
+      Bun.spawnSync(["rm", "-rf", img, root]);
+    }
+    // 60s budget: every volume in this probe spawns real diskutil (and the
+    // DMG attach runs real hdiutil) — under the pre-commit hook's 256-file
+    // parallel load those sync spawns breached 30s once (Sep 19 flake).
+    // The probe stays real; only its wall-clock allowance grows.
+  }, 60_000);
+});
+
+describe("progress parsing", () => {
+  it("reads usb_mirror-style bars and percents", () => {
+    const bar = "[Contents copy] [####----] 250/1000 files · 25%";
+    expect(progressFromLine(bar)).toBe(0.25);
+    expect(progressFromLine("=== done 42% ===")).toBe(0.42);
+    expect(progressFromLine("no progress here")).toBe(null);
+  });
+});

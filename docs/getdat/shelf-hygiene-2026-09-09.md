@@ -12,8 +12,8 @@ plus the QuarantinePanel (`/api/hygiene/*`), and empty flips rows to
 `archived` behind the typed-confirm gate. Remaining detectors
 (`stale-pointer`, `orphan-audio`, `re-download`) stay with #37. The landed
 code is the truth: `src/archive/hygiene/` (engine/store/apply),
-`cratedeck/src/hygiene_*.ts` (API/job/reader), parity pinned by
-`cratedeck/test/surface-parity.test.ts`; current state lives in
+`src/deck/hygiene/*.ts` (API/job/reader), parity pinned by
+`src/deck/test/surface-parity.test.ts`; current state lives in
 [product-state-2026-09-07.md](../product-state-2026-09-07.md),
 surface rows in [surface-parity.md](../surface-parity.md).**
 

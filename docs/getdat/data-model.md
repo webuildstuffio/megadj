@@ -11,7 +11,7 @@ create a second source of truth.
 | Store                | Role                                                                                  | Schema owner                                                                                                                                 | Read/write boundary                                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `archive.db`         | GetDat pipeline state and FullTags/Set analysis ledgers                               | [`src/archive/state-core.ts`](../../src/archive/state-core.ts) plus the extension producers listed below                                     | megadj owns writes; CrateDeck opens its archive view read-only                                                      |
-| `cratedeck.sqlite`   | Drive registry, events, snapshots, jobs, checksums, benchmarks, and fleet projections | [`cratedeck/src/db/core.ts`](../../cratedeck/src/db/core.ts) and the domain stores behind [`cratedeck/src/db.ts`](../../cratedeck/src/db.ts) | CrateDeck only; WAL-backed local application state                                                                  |
+| `cratedeck.sqlite`   | Drive registry, events, snapshots, jobs, checksums, benchmarks, and fleet projections | [`src/deck/db/core.ts`](../../src/deck/db/core.ts) and the domain stores behind [`src/deck/db.ts`](../../src/deck/db.ts) | CrateDeck only; WAL-backed local application state                                                                  |
 | rekordbox collection | `master.db` rows plus the `masterPlaylists6.xml` playlist twin                        | rekordbox/pyrekordbox, reached through `src/rekordbox/*` and the CrateDeck Python seam                                                       | rekordbox is authoritative; megadj mutations require rekordbox closed, dated backups, and full re-read verification |
 
 `archive.db` is not a collection mirror and its row count is not the library
@@ -41,18 +41,18 @@ shape.
 
 ## CrateDeck schema and stores
 
-[`cratedeck/src/db.ts`](../../cratedeck/src/db.ts) is the stable public façade;
+[`src/deck/db.ts`](../../src/deck/db.ts) is the stable public façade;
 it is intentionally small. Ownership beneath it is split by concern:
 
-- [`db/core.ts`](../../cratedeck/src/db/core.ts) — connection settings, base DDL,
+- [`db/core.ts`](../../src/deck/db/core.ts) — connection settings, base DDL,
   additive migrations, and retention.
-- [`db/drives.ts`](../../cratedeck/src/db/drives.ts) — drive identity and registry.
-- [`db/activity.ts`](../../cratedeck/src/db/activity.ts) — events, snapshots,
+- [`db/drives.ts`](../../src/deck/db/drives.ts) — drive identity and registry.
+- [`db/activity.ts`](../../src/deck/db/activity.ts) — events, snapshots,
   settings, notes, and jobs.
-- [`db/bench.ts`](../../cratedeck/src/db/bench.ts) and
-  [`db/ledger.ts`](../../cratedeck/src/db/ledger.ts) — speed/checksum ledgers.
-- [`db/library.ts`](../../cratedeck/src/db/library.ts) and
-  [`fleet-db.ts`](../../cratedeck/src/fleet-db.ts) — scanned library projections
+- [`db/bench.ts`](../../src/deck/db/bench.ts) and
+  [`db/ledger.ts`](../../src/deck/db/ledger.ts) — speed/checksum ledgers.
+- [`db/library.ts`](../../src/deck/db/library.ts) and
+  [`fleet-db.ts`](../../src/deck/fleet-db.ts) — scanned library projections
   and fleet tables.
 
 These stores share one SQLite connection. The split is code ownership, not a
@@ -106,7 +106,7 @@ path's owner is unclear, that is a bug to file, not a file to delete.
 | `spike/`                                                                         | `rb-anlz-spike` baselines (the compare side of the GA-07 write-path harness)    | age-gated (>24h) by `tmp-purge --state` — but LOAD-BEARING: a baseline a future compare needs is data, not junk                  |
 | `artwork-covers/`, `artwork-queue.jsonl`                                         | the art pipeline's cover store + AI-queue                                       | active; never swept                                                                                                              |
 | `jobs/`                                                                          | CrateDeck job engine state                                                      | active; never swept                                                                                                              |
-| `cratedeck.sqlite`                                                               | CrateDeck's own registry/events/jobs DB                                         | lives in `cratedeck/data/` (or `$CRATEDECK_DATA`), not here                                                                      |
+| `cratedeck.sqlite`                                                               | CrateDeck's own registry/events/jobs DB                                         | lives in `src/deck/data/` (or `$CRATEDECK_DATA`), not here                                                                      |
 
 Backup-name classes are pinned in
 [`src/shelf/tmp-purge.test.ts`](../../src/shelf/tmp-purge.test.ts); the sweep

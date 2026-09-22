@@ -22,7 +22,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { tempDir } from "../../../src/test-support/testutil";
+import { tempDir } from "../../test-support/testutil";
 
 const REPO = join(import.meta.dir, "..", "..", ".."); // #193; re-leveled Sep 17
 const t = tempDir("megadj-fetch-stages-").rippable();

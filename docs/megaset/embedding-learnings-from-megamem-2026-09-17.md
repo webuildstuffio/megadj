@@ -509,7 +509,7 @@ Megadj side: docs/fulltags/embedding-models.md (v2 tower table + fusion sweep),
 docs/archive/tier0-diagnostics-2026-09-15.md (hubness/probe/whitened verdicts),
 docs/archive/embedding-research-2026-09-14.md (external review + adoption
 ladder), docs/megaset/02-architecture.md §2b T10 + §4 (B10p ownership),
-cratedeck/shared/megaset.ts (`MEGASET_SIMILARITY_WEIGHT` 0.1),
+src/deck/shared/megaset.ts (`MEGASET_SIMILARITY_WEIGHT` 0.1),
 src/shared/leaf/vector-space.ts (all-but-the-top + CSLS, CSLS_R=10),
 src/archive/state-core.ts (embeddings schema — model column still absent,
 verified Sep 18).

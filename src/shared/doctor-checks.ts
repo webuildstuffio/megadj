@@ -8,15 +8,12 @@ import { join } from "node:path";
 import { homedir, platform, userInfo } from "node:os";
 import type { CheckResult } from "./doctor";
 import { nonEmptyEnv } from "./leaf/guards";
-import {
-  DECK_SERVICE_LABEL,
-  classifyDeckService,
-} from "../../ops/deck-service";
-import { resolveServerPort } from "../../cratedeck/src/server-port";
+import { DECK_SERVICE_LABEL, classifyDeckService } from "../ops/deck-service";
+import { resolveServerPort } from "../deck/server-port";
 
 export const MUSIC_DIR =
   nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${homedir()}/Music/DJ-Imports`;
-export const CRATEDECK_DIR = join(import.meta.dir, "..", "..", "cratedeck");
+export const CRATEDECK_DIR = join(import.meta.dir, "..", "deck");
 
 export function have(bin: string): string | null {
   try {
@@ -382,7 +379,7 @@ async function deckHttpProbe(port: number): Promise<boolean> {
 function orphanDeckPids(): string[] {
   try {
     const p = Bun.spawnSync({
-      cmd: ["pgrep", "-f", "cratedeck/src/index.ts"],
+      cmd: ["pgrep", "-f", "src/deck/index.ts"],
       stdout: "pipe",
       stderr: "pipe",
     });

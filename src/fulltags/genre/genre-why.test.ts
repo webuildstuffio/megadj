@@ -15,11 +15,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tempDir } from "../../test-support/testutil";
-import {
-  runCli,
-  lastJsonLine,
-  cliEnv,
-} from "../../../src/test-support/cli-run";
+import { runCli, lastJsonLine, cliEnv } from "../../test-support/cli-run";
 
 const t = tempDir("megadj-genre-why-").rippable();
 const dir = t.dir();

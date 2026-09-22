@@ -8,7 +8,7 @@
 import { basename } from "node:path";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
-import type { IntakeCounterKey } from "../../../cratedeck/shared/types";
+import type { IntakeCounterKey } from "../../deck/shared/types";
 import { counterSummary, type IngestCounters } from "./ingest-register";
 
 export interface IngestRunStats {

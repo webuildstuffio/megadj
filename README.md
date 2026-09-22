@@ -217,13 +217,13 @@ bun run test:watch   # bun test --watch
 ```
 
 The dashboard UI is a separate Vite workspace: after web changes run
-`bun run web:build` (from `cratedeck/`; its deps install via
-`cd cratedeck/web && bun install --frozen-lockfile`).
+`bun run web:build` (from `src/deck/web/`; its deps install via
+`cd src/deck/web && bun install --frozen-lockfile`).
 
-First run of the dashboard? Build the UI once: `cd cratedeck/web && bun
+First run of the dashboard? Build the UI once: `cd src/deck/web && bun
 install && bun run build`. Drives are matched by volume name — `megadj
 init` auto-detects mounted volumes and writes them into
-`cratedeck/config.toml` (copied from `cratedeck/config.sample.toml`); edit
+`src/deck/config.toml` (copied from `src/deck/config.sample.toml`); edit
 that file to change the names later. Each drive also carries a second,
 legacy database that older players like the XDJ-XZ read; a one-time
 rekordbox export per library generation keeps it current —
@@ -265,7 +265,7 @@ git clone https://github.com/webuildstuffio/megadj.git
 cd megadj
 bun install
 megadj doctor   # check everything above in one shot — tells you exactly what's missing
-megadj init     # first run: scaffold cratedeck/config.toml + doctor
+megadj init     # first run: scaffold src/deck/config.toml + doctor
 ```
 
 `megadj doctor` exits non-zero if something required is broken, so you can
@@ -287,7 +287,7 @@ repo, and it should never be committed.
 
 One file and a set of env vars — that's the whole story:
 
-- 📄 **`cratedeck/config.toml`** — drive names, dashboard port, jobs, image
+- 📄 **`src/deck/config.toml`** — drive names, dashboard port, jobs, image
   provider. `megadj init` scaffolds it (and auto-fills drive names from
   mounted volumes). Read by CrateDeck + `megadj doctor`; env vars override
   per CrateDeck's precedence.
@@ -322,7 +322,7 @@ Machines and agents: every `megadj` command takes `--json` (one summary
 object on stdout, exit code still meaningful)
 ([PRINCIPLES.md](docs/PRINCIPLES.md) §1: if a command can't be consumed by
 an agent, it doesn't exist), and CrateDeck speaks MCP — see
-[cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
+[deckctl.md](src/deck/deckctl.md) for the tool list.
 
 ---
 

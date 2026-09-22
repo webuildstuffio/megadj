@@ -61,7 +61,7 @@ test(
         "--pattern",
         "**/*.test.ts",
         "src",
-        "cratedeck/test",
+        "src/deck/test",
       ],
       // the full-tree scan takes ~2-4s alone and the parallel hook suite
       // runs under load — 5s default bun:test timeout is not enough (#223)
@@ -79,7 +79,7 @@ test(
     expect(clones.length).toBeLessThanOrEqual(CEILING_CLONES);
     if (clones.length > CEILING_CLONES)
       throw new Error(
-        `test-internal duplication regrew (${clones.length} clones, ceiling ${CEILING_CLONES}):\n${rendered}\nExtract shared fixtures into src/test-support/ (or cratedeck/test support) in the same commit.`,
+        `test-internal duplication regrew (${clones.length} clones, ceiling ${CEILING_CLONES}):\n${rendered}\nExtract shared fixtures into src/test-support/ (or src/deck/test support) in the same commit.`,
       );
   },
   TEST_TIMEOUT,

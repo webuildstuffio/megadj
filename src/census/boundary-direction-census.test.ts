@@ -2,53 +2,59 @@
  * boundary-direction-census.test.ts — #222: the src ↔ cratedeck seam rule,
  * executable. The old one-way guarantee ("cratedeck/* never imports src/")
  * died with #193's fold and regrew in both directions for months because no
- * tripwire held it. This census pins the POST-#222 rule:
+ * tripwire held it. This census pinned the POST-#222 rule:
  *
  *   src and cratedeck may import each other ONLY through the sanctioned
  *   leaf (src/shared/leaf/{guards,fmt,vector-space,fixes}) plus the
- *   declared seam modules enumerated in ALLOWED_CROSSINGS below. Anything
- *   else crossing the boundary is a red build — #225A (shared-only fold)
- *   retires rows from this list one commit at a time until it is empty.
+ *   declared seam modules enumerated in ALLOWED_CROSSINGS below.
  *
- * Form: import-literal scan (madge would also work, but the literal form
- * names the exact file:line and is trivially diffable in review).
+ * Sep 2026: cratedeck folded into src/deck (the #193 pattern) — the two
+ * trees are one, and every crossing became an ordinary intra-src import.
+ * The census keeps its job by pinning the INVARIANTS that outlived the
+ * boundary: the allowlist rows now name modules that must exist at their
+ * folded paths (a silent revert of the fold fails here), the leaf stays
+ * dependency-free, and the seam modules keep their owning-issue rows
+ * until #225A retires them.
  */
 import { expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync, type Stats } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
 /** Import specifiers (normalized to repo-relative module paths) that MAY
- *  cross the src ↔ cratedeck boundary, each with its owner + retirement
- *  plan. Every row must name the issue that kills it. */
+ *  cross the former src ↔ cratedeck boundary, each with its owner +
+ *  retirement plan. The trees are one directory now; these rows pin the
+ *  folded locations and keep each seam's owning issue attached until
+ *  #225A closes it. If a row's module is MISSING here, the fold regressed
+ *  or a module moved without moving this census. */
 const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   // ---- the sanctioned leaf (src/shared/leaf/*) — permanent unless #225A
-  // folds cratedeck/shared wholesale, in which case these imports die too
+  // folds the shared surface wholesale, in which case these imports die too
   "src/shared/leaf/guards": "#225A retire or keep as the leaf",
   "src/shared/leaf/fmt": "#225A retire or keep as the leaf",
   "src/shared/leaf/vector-space": "#225A retire or keep as the leaf",
   "src/shared/leaf/fixes": "#225A retire or keep as the leaf",
-  // ---- src → cratedeck/src seams (config/archive/megaset/server): #225A
-  "cratedeck/src/config": "#225A shared-only fold",
-  "cratedeck/src/archive/reader": "#225A shared-only fold",
-  "cratedeck/src/megaset/engine": "#225A shared-only fold",
-  "cratedeck/src/server-port": "#225A shared-only fold",
-  // ---- the remaining cratedeck/shared declared leaves (AGENTS.md pins
+  // ---- former src → cratedeck/src seams (config/archive/megaset/server):
+  // now ordinary intra-src modules at their folded paths — #225A
+  "src/deck/config": "#225A shared-only fold",
+  "src/deck/archive/reader": "#225A shared-only fold",
+  "src/deck/megaset/engine": "#225A shared-only fold",
+  "src/deck/server-port": "#225A shared-only fold",
+  // ---- the former cratedeck/shared declared leaves (AGENTS.md pinned
   // types.ts as the declared import leaf; hygiene/ledger-freshness are the
   // same class) — #225A folds or re-homes these
-  "cratedeck/shared/types": "#225A shared-only fold (declared leaf)",
-  "cratedeck/shared/megaset":
+  "src/deck/shared/types": "#225A shared-only fold (declared leaf)",
+  "src/deck/shared/megaset":
     "#283 megaset wire shapes (SetSearchOverride guard) — fold with #225A",
-  "cratedeck/shared/hygiene": "#225A shared-only fold",
-  "cratedeck/shared/dump":
+  "src/deck/shared/hygiene": "#225A shared-only fold",
+  "src/deck/shared/dump":
     "#225A shared-only fold (dump contract, used by src/archive/dump-ledger)",
-  "cratedeck/shared/ledger-freshness": "#225A shared-only fold",
-  // ---- cratedeck → src seams: fulltags readers/fleet/grid/vote/name-key/
-  // audio-exts + test-support; #225A or #214 folds these trees
+  "src/deck/shared/ledger-freshness": "#225A shared-only fold",
+  // ---- former cratedeck → src seams: fulltags readers/fleet/grid/vote/
+  // name-key/audio-exts + test-support; #225A or #214 folds these trees
   "src/shared/name-key": "#225A shared-only fold",
   "src/shared/audio-exts": "#225A shared-only fold",
-  "src/shared/testutil": "#214/#225B test tree fold",
   "src/test-support/testutil": "#214/#225B test tree fold",
   "src/fulltags/write/readers": "#225A shared-only fold",
   "src/fulltags/grid-audit": "#225A shared-only fold",
@@ -57,89 +63,19 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   "src/shared/progress": "#244 landed (progress lives in src/shared)",
 };
 
-/** Which tree a module path belongs to. */
-function treeOf(modulePath: string): "src" | "cratedeck" | null {
-  if (modulePath === "src" || modulePath.startsWith("src/")) return "src";
-  if (modulePath.startsWith("cratedeck/")) return "cratedeck";
-  return null;
+/** The former boundary trees, folded: every module above must exist here. */
+function exists(rel: string): boolean {
+  for (const suffix of [".ts", ".tsx", "/index.ts", "/index.tsx", ""])
+    if (existsSync(join(ROOT, rel + suffix))) return true;
+  return false;
 }
 
-/** Resolve a relative import specifier from `fromFile` to a repo-relative
- *  module path (no extension — TS resolves .ts/.tsx/index). */
-function resolveSpecifier(fromFile: string, spec: string): string | null {
-  if (!spec.startsWith(".")) return null; // package import — not a crossing
-  const dir = join(ROOT, fromFile, "..");
-  const abs = join(dir, spec);
-  const rel = abs.slice(ROOT.length + 1);
-  // normalize: strip .js/.ts extension forms
-  return rel.replace(/\.(ts|js|tsx)$/u, "");
-}
-
-function* tsFiles(dir: string): Generator<string> {
-  let st: Stats;
-  try {
-    st = statSync(dir);
-  } catch {
-    return;
-  }
-  if (!st.isDirectory()) return;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const abs = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === "node_modules" || entry.name === "dist") continue;
-      yield* tsFiles(abs);
-    } else if (/\.(ts|tsx)$/u.test(entry.name)) yield abs;
-  }
-}
-
-/** The IMPORT_RE matches static + dynamic import specifiers; comment lines
- *  are stripped first so the census never flags its own documentation. */
-const IMPORT_RE =
-  /(?:^|\n)\s*(?:import[^"']*?|export[^"']*?from|await import)\s*\(?\s*["']([^"']+)["']/gu;
-
-function crossings(): { file: string; spec: string; resolved: string }[] {
-  const out: { file: string; spec: string; resolved: string }[] = [];
-  for (const root of [
-    "src",
-    "cratedeck/src",
-    "cratedeck/shared",
-    "cratedeck/web",
-  ]) {
-    for (const abs of tsFiles(join(ROOT, root))) {
-      const file = abs.slice(ROOT.length + 1);
-      const fromTree =
-        treeOf(file.split("/").slice(0, 1).join("/")) ??
-        (file.startsWith("cratedeck/") ? "cratedeck" : "src");
-      const text = readFileSync(abs, "utf8");
-      const code = text
-        .split("\n")
-        .filter((l) => !l.trim().startsWith("//"))
-        .join("\n");
-      for (const m of code.matchAll(IMPORT_RE)) {
-        const spec = m[1];
-        if (!spec) continue;
-        const resolved = resolveSpecifier(file, spec);
-        if (!resolved) continue;
-        const toTree = treeOf(resolved);
-        if (!toTree || toTree === fromTree) continue;
-        out.push({ file, spec, resolved });
-      }
-    }
-  }
-  return out;
-}
-
-test("#222: boundary crossings are leaf-or-allowlisted (direction rule)", () => {
-  const offenders: string[] = [];
-  for (const c of crossings()) {
-    if (!(c.resolved in ALLOWED_CROSSINGS))
-      offenders.push(`${c.file}: "${c.spec}" -> ${c.resolved}`);
-  }
+test("#222: every allowlisted seam module exists at its folded path", () => {
+  const missing = Object.keys(ALLOWED_CROSSINGS).filter((m) => !exists(m));
   expect(
-    offenders,
-    `unsanctioned src ↔ cratedeck crossings — add the module to the leaf ` +
-      `(src/shared/leaf/*) or to ALLOWED_CROSSINGS with its owning issue ` +
-      `(rule + list: #222; retire rows via #225A/#214):\n  ${offenders.join("\n  ")}`,
+    missing,
+    `allowlisted seam modules missing from the tree — the fold regressed ` +
+      `or moved without this census: ${missing.join(", ")}`,
   ).toEqual([]);
 });
 
@@ -151,6 +87,11 @@ test("#222: every allowlist row carries a retirement plan (owning issue)", () =>
     bad,
     `allowlist rows without an owning issue: ${bad.join(", ")}`,
   ).toEqual([]);
+});
+
+test("#222: the fold held — no cratedeck/ tree remains in tracked sources", () => {
+  // A revert of the Sep 2026 fold re-creates cratedeck/; fail loudly.
+  expect(existsSync(join(ROOT, "cratedeck")), "cratedeck/ regrew").toBeFalse();
 });
 
 test("#222: the leaf modules stay dependency-free (leaf of the leaf)", () => {

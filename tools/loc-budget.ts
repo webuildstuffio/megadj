@@ -327,7 +327,7 @@ function runGate(baselineArg: string | undefined): Verdict {
 function selfTest(): number {
   const assertions: [string, boolean][] = [
     ["budgets .ts", isBudgetedCode("src/cli.ts")],
-    ["budgets nested .py", isBudgetedCode("cratedeck/python/rb_read.py")],
+    ["budgets nested .py", isBudgetedCode("src/deck/python/rb_read.py")],
     ["skips root package.json", !isBudgetedCode("package.json")],
     ["skips root md", !isBudgetedCode("AGENTS.md")],
     ["skips bun.lock (non-code ext)", !isBudgetedCode("bun.lock")],

@@ -24,11 +24,12 @@ test("no bun-shebang scripts outside the three CLI entry files", () => {
   const allowed = new Set([
     "src/cli.ts",
     "src/fulltags/cli.ts",
+    "src/ops/deck-install.ts", // `bun run deck:install` (#247) — operator surface
     "tools/loc-budget.ts",
   ]);
   const offenders: string[] = [];
-  for (const f of ["src", "cratedeck", "tools"])
-    // fulltags -> src/fulltags (#193)
+  for (const f of ["src", "tools"])
+    // fulltags -> src/fulltags (#193); cratedeck -> src/deck (Sep 2026)
     for (const line of walkShebangs(join(repo, f)))
       if (!allowed.has(line.path))
         offenders.push(`${line.path}: ${line.firstLine.trim()}`);
@@ -44,7 +45,7 @@ test("no import.meta.main entry blocks outside sanctioned entry points", () => {
     "tools/loc-budget.ts",
   ]);
   const offenders: string[] = [];
-  for (const f of ["src", "cratedeck/src", "tools"]) {
+  for (const f of ["src", "tools"]) {
     // #193
     for (const p of walkTs(join(repo, f))) {
       if (allowed.has(p) || p.endsWith(".test.ts")) continue;

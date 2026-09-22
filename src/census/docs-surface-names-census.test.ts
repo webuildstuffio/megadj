@@ -53,7 +53,7 @@ function megadjVerbs(): string[] {
 }
 
 function deckctlVerbs(): string[] {
-  const src = read("cratedeck/src/deckctl.ts");
+  const src = read("src/deck/deckctl.ts");
   const verbs: string[] = [];
   const start = src.indexOf("DECK_COMMANDS");
   const end = src.indexOf("};", start);
@@ -82,9 +82,9 @@ function deckctlVerbs(): string[] {
 function mcpTools(): string[] {
   const tools: string[] = [];
   const files = [
-    "cratedeck/src/mcp.ts",
-    "cratedeck/src/archive/tools.ts",
-    "cratedeck/src/getdat-tools.ts",
+    "src/deck/mcp.ts",
+    "src/deck/archive/tools.ts",
+    "src/deck/getdat-tools.ts",
   ];
   for (const f of files) {
     for (const line of read(f).split("\n")) {
@@ -92,10 +92,9 @@ function mcpTools(): string[] {
       if (m && m[1]) tools.push(m[1]);
     }
   }
-  const surfacesFile = [
-    "cratedeck/src/mcp/surfaces.ts",
-    "cratedeck/src/mcp.ts",
-  ].find((f) => existsSync(join(ROOT, f)));
+  const surfacesFile = ["src/deck/mcp/surfaces.ts", "src/deck/mcp.ts"].find(
+    (f) => existsSync(join(ROOT, f)),
+  );
   if (surfacesFile) {
     for (const m of read(surfacesFile).matchAll(/tool: "([a-z_]+)"/g)) {
       const t = m[1];
@@ -106,7 +105,7 @@ function mcpTools(): string[] {
 }
 
 function jobKinds(): string[] {
-  const src = read("cratedeck/shared/types/jobs.ts");
+  const src = read("src/deck/shared/types/jobs.ts");
   const block = src.match(/export const JOB_KINDS = \[([^\]]*)\]/);
   const kinds: string[] = [];
   if (block && block[1]) {
@@ -138,8 +137,8 @@ function proseFiles(): string[] {
   visit(join(ROOT, "docs"), true);
   visit(join(ROOT, ".claude", "skills"), false);
   for (const f of [
-    "cratedeck/deckctl.md",
-    "cratedeck/README.md",
+    "src/deck/deckctl.md",
+    "src/deck/README.md",
     "plugin/README.md",
   ]) {
     if (existsSync(join(ROOT, f))) out.push(join(ROOT, f));

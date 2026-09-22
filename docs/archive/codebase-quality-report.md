@@ -21,7 +21,7 @@ check:full` green — 685 pass / 0 fail, 100.00% type coverage.** §1 below is
 > preserved as the point-in-time snapshot.
 
 > **Caveat — concurrent-agent WIP.** Several agents are working this repo right now
-> (`fulltags/src/exports.ts`, `src/cli.ts`, `src/usage.ts`, `cratedeck/web/products/getdat/IntakeTab.tsx`,
+> (`fulltags/src/exports.ts`, `src/cli.ts`, `src/usage.ts`, `src/deck/web/products/getdat/IntakeTab.tsx`,
 > and new files `src/commands/ingest-probe.ts` / `src/commands/ingest-selfmatch.test.ts` are mid-edit).
 > The typecheck, format, and test failures below trace to those in-flight files, not to landed code.
 > Re-run the gate once the WIP settles before treating any gate result as final.
@@ -87,9 +87,9 @@ unused files **and** jscpd clone partners — a dead-code purge would remove sev
 
 ## 4. Dead code (knip)
 
-**Unused files (8):** `cratedeck/src/deckctl_hygiene.ts`, `cratedeck/src/drive_list.ts`,
-`cratedeck/src/hygiene_jobs.ts`, `cratedeck/src/intake_job.ts`, `cratedeck/src/verify_job.ts`,
-`cratedeck/web/products/cratedeck/HygieneTab.tsx`, `fulltags/verify-key.ts`,
+**Unused files (8):** `src/deck/deckctl_hygiene.ts`, `src/deck/drive_list.ts`,
+`src/deck/hygiene_jobs.ts`, `src/deck/intake_job.ts`, `src/deck/verify_job.ts`,
+`src/deck/web/products/cratedeck/HygieneTab.tsx`, `fulltags/verify-key.ts`,
 `src/commands/shelf_cmds.ts`.
 
 **Unused exports: 22** (mostly fulltags: `AI_MODEL`, `tempoFromBeatGrid`, `UA`, `words`,

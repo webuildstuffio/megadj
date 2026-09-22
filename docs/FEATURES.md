@@ -108,7 +108,7 @@ kept byte-identical to its mirror, verified down to the byte-grid level, and
 answered in one glance: **is this stick safe for tonight?**
 
 This is the USB-crate organization project, and it's a project in its own
-right. It has [its own doc set](../cratedeck/README.md) (PRD, architecture,
+right. It has [its own doc set](src/deck/README.md) (PRD, architecture,
 acceptance, and the deckctl guide).
 
 |                    |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -121,15 +121,15 @@ acceptance, and the deckctl guide).
 | **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI, `--json` for agents) · `bun run mcp` (MCP server) — every surface's census is derived from source and pinned in [surface-parity.md](surface-parity.md) §1                                                                                                                                                                                                                                                                                                            |
 
-**Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
+**Commands:** `bun run deck`, `bun run src/deck/deckctl.ts …`
 **Shelf intake:** `megadj shelf-archive [volume …]` pulls everything from any
 drive into the shelf master — additive, junk-filtered, MD5-verified, divergent
 copies preserved. Live receipts come from `megadj shelf-sweeps --json`; the
 local `docs/usb-sync-log.md` is intentionally gitignored operator evidence.
-**Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
-[deckctl guide](../cratedeck/deckctl.md) ·
+**Docs:** [deck README](src/deck/README.md) ·
+[deckctl guide](src/deck/deckctl.md) ·
 [USB pipeline](getdat/usb-sync.md) ·
-[the doc set](cratedeck/)
+[the doc set](src/deck/)
 
 > Revision history and the exact surface census live once in
 > [surface parity](surface-parity.md).

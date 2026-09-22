@@ -68,7 +68,7 @@ function walk(dir: string): string[] {
 describe("fixture-seam census (#248 ratchet)", () => {
   test("mkdtempSync appears ONLY in the seam + tracked stragglers", () => {
     const offenders: string[] = [];
-    for (const root of ["src", "cratedeck"]) {
+    for (const root of ["src"]) {
       for (const file of walk(join(ROOT, root))) {
         const rel = relative(ROOT, file);
         const text = readFileSync(file, "utf8");
@@ -133,8 +133,6 @@ describe("fixture-seam census (#248 ratchet)", () => {
       }
     };
     scan(join(ROOT, "src"));
-    scan(join(ROOT, "cratedeck/src"));
-    scan(join(ROOT, "cratedeck/shared"));
     expect(
       offenders,
       `production code must not mkdtemp (fixture dirs are a test concern):\n${offenders.join("\n")}`,
@@ -147,7 +145,7 @@ describe("fixture-seam census (#248 ratchet)", () => {
     // opened with are gone, so this pin has NO allowlist. The census's own
     // doc text mentions the call shape, hence the self-skip.
     const offenders: string[] = [];
-    for (const root of ["src", "cratedeck"]) {
+    for (const root of ["src"]) {
       for (const file of walk(join(ROOT, root))) {
         const rel = relative(ROOT, file);
         if (rel === "src/census/fixture-seam-census.test.ts") continue;

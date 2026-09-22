@@ -5,7 +5,7 @@
  * config value the toolkit needs. Exits 1 if anything required is broken so
  * it works as a CI/job gate too.
  *
- * init: first-run bootstrap — writes cratedeck/config.toml from the sample
+ * init: first-run bootstrap — writes src/deck/config.toml from the sample
  * (never overwrites an existing one), then runs doctor.
  *
  * The individual probes live in doctor-checks.ts (#42 item 2 split); the
@@ -136,11 +136,11 @@ export function runInit(): number {
   const target = join(CRATEDECK_DIR, "config.toml");
   let didScaffold = false;
   if (existsSync(target)) {
-    console.log(`cratedeck/config.toml already exists — leaving it alone`);
+    console.log(`src/deck/config.toml already exists — leaving it alone`);
   } else if (existsSync(sample)) {
     copyFileSync(sample, target);
     didScaffold = true;
-    console.log(`✓ scaffolded cratedeck/config.toml from config.sample.toml`);
+    console.log(`✓ scaffolded src/deck/config.toml from config.sample.toml`);
   } else {
     console.log(
       `! config.sample.toml not found at ${sample} — skipping scaffold`,
@@ -168,7 +168,7 @@ export function runInit(): number {
       }
     } else if (candidates.length > 2) {
       console.log(
-        `! ${candidates.length} volumes mounted (${candidates.join(", ")}) — edit cratedeck/config.toml to pick master/mirror`,
+        `! ${candidates.length} volumes mounted (${candidates.join(", ")}) — edit src/deck/config.toml to pick master/mirror`,
       );
     }
   }
@@ -183,7 +183,7 @@ export function runInit(): number {
   }
   if (didScaffold) {
     console.log(
-      `next: edit cratedeck/config.toml → set master_drive/mirror_drive to your USB volume names, then re-run \`megadj doctor\``,
+      `next: edit src/deck/config.toml → set master_drive/mirror_drive to your USB volume names, then re-run \`megadj doctor\``,
     );
   }
   return code;

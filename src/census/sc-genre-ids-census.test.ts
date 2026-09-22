@@ -31,13 +31,7 @@ function walkFiles(dir: string): string[] {
 test("census: sc_genre_ids stays dropped (no reference in code)", () => {
   const offenders: string[] = [];
   // Scoped to the trees that could own the schema or a reader/writer.
-  for (const dir of [
-    "src",
-    "fulltags",
-    "cratedeck/src",
-    "cratedeck/shared",
-    "tools",
-  ]) {
+  for (const dir of ["src", "fulltags", "tools"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
     for (const p of walkFiles(abs)) {

@@ -5,7 +5,7 @@
  * hand-maintained "check every doc for pre-refactor paths" inventory with
  * a mechanical gate.
  *
- * Scoping: docs like `docs/cratedeck/acceptance.md` describe the
+ * Scoping: docs like docs/deck/acceptance.md describe the
  * `cratedeck/` package and cite paths relative to it — the validator
  * resolves candidates against repo root AND the owning package root
  * before calling a path stale.
@@ -53,8 +53,8 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     // written; the #56 rename executed 2026-09-15.
     "web/products/fulltags/SimilarTab.tsx":
       "dated scope block (pre-rename layout, rename executed)",
-    "cratedeck/src/setbuild.ts": "dated audit text (rename executed)",
-    "cratedeck/shared/setbuild.ts": "dated audit text (rename executed)",
+    "src/deck/setbuild.ts": "dated audit text (rename executed)",
+    "src/deck/shared/setbuild.ts": "dated audit text (rename executed)",
     "src/fulltags/setbuild.ts": "dated audit text (rename executed)",
   },
   "docs/archive/set-09-migration-plan-2026-09-15.md": {
@@ -62,23 +62,23 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     // rename EXECUTED 2026-09-15 (megaset is canonical), so the doc's
     // old-name references are historical plan text, not staleness.
     // (Archived 2026-09-15 in the docs→GitHub SSOT move.)
-    "cratedeck/src/setbuild.ts": "dated migration plan (rename executed)",
-    "cratedeck/shared/setbuild.ts": "dated migration plan (rename executed)",
-    "cratedeck/test/setbuild.test.ts": "dated migration plan (rename executed)",
-    "cratedeck/test/archive-setbuild-surface.test.ts":
+    "src/deck/setbuild.ts": "dated migration plan (rename executed)",
+    "src/deck/shared/setbuild.ts": "dated migration plan (rename executed)",
+    "src/deck/test/setbuild.test.ts": "dated migration plan (rename executed)",
+    "src/deck/test/archive-setbuild-surface.test.ts":
       "dated migration plan (rename executed)",
     "src/fulltags/setbuild.ts": "dated migration plan (rename executed)",
     "fulltags/intake-cue-postmortem.md":
       "relative link inside the planned-docs table (resolves from docs/)",
   },
   "docs/archive/set-04-sequencing-benchmarks-2026-09-14.md": {
-    "cratedeck/src/setbuild.ts": "dated benchmark doc (rename executed)",
+    "src/deck/setbuild.ts": "dated benchmark doc (rename executed)",
   },
   "docs/megaset/02-architecture.md": {
     // Dated architecture diagram naming the setbuild layout as it was
     // when written — historical structure text.
-    "cratedeck/src/setbuild.ts": "dated architecture diagram (rename executed)",
-    "cratedeck/shared/setbuild.ts":
+    "src/deck/setbuild.ts": "dated architecture diagram (rename executed)",
+    "src/deck/shared/setbuild.ts":
       "dated architecture diagram (rename executed)",
     "src/fulltags/setbuild.ts": "dated architecture diagram (rename executed)",
   },
@@ -213,7 +213,7 @@ describe("docs paths census (issue #58 regression gate)", () => {
   test("the #58 classes stay fixed", () => {
     // acceptance.md: three hardware checks + release policy, not "four"
     const acceptance = readFileSync(
-      join(ROOT, "docs/cratedeck/acceptance.md"),
+      join(ROOT, "docs/deck/acceptance.md"),
       "utf8",
     );
     expect(acceptance).toMatch(/three hardware checks/u);
@@ -222,7 +222,7 @@ describe("docs paths census (issue #58 regression gate)", () => {
 
     // deckctl.md: no narrative "only mutating" list (that list drifts; the
     // census/registry is the source of truth)
-    const deckctl = readFileSync(join(ROOT, "cratedeck/deckctl.md"), "utf8");
+    const deckctl = readFileSync(join(ROOT, "src/deck/deckctl.md"), "utf8");
     expect(deckctl).not.toMatch(/only mutating/u);
 
     // set findings: no volatile concurrent-agent WIP status
