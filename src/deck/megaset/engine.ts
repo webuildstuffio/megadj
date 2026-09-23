@@ -18,12 +18,10 @@ export type { MegasetPresetDef, MegasetPresetId } from "../shared/types";
 import {
   DEFAULT_MEGASET_PRESET,
   groupMegasetExcluded,
-  isMegasetSearchOverride,
   megasetArtistKey,
   megasetBudgetFilledCount,
   megasetMixInCue,
   megasetMixOutCue,
-  MEGASET_BEAM_POOL_MAX,
   MEGASET_MINUTES_DEFAULT,
   MEGASET_MINUTES_MAX,
   MEGASET_MINUTES_MIN,
@@ -38,6 +36,11 @@ import {
   type MegasetStep,
   type SetSearchOverride,
 } from "../shared/types";
+// M3 (#327): the plan stage — buildPlan owns the arc segments, opener
+// policy, drift constants, landmark pin list, and the E7 strategy pick;
+// this module remains the measured fill (pool filter, opener pick,
+// commit loop, wire assembly).
+import { buildPlan } from "./plan";
 // bpmScore/keyScore/withinAnchorBudget are the public scoring surface
 // (test + spoke imports). mixableBpm/transitionScore have no external
 // consumer — they stay internal to the two engine modules (knip-pinned);
@@ -183,11 +186,31 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   const budget = minutes * 60;
   const excluded: MegasetResult["excluded"] = [];
   const steps: MegasetStep[] = [];
-  // S13 (#107): deduped landmark pins in first-requested order. An opener
-  // that is ALSO pinned counts once (it is already forced into slot 1);
-  // the missing-accounting below covers the rest. `?? []` only allocates
-  // when pins are absent — the spread-into-Set form keeps the dedupe.
-  const landmarkIds = input.landmarkIds ? [...new Set(input.landmarkIds)] : [];
+  // M3 (#327): the PLAN stage. The pool-admission filter below is the
+  // ONE pool-size truth, so the plan is built AFTER it — the E7 strategy
+  // rule and the plan's other fields see the admitted pool, exactly as
+  // the pre-refactor flow did. Same inputs → byte-identical Plan
+  // (engine-plan.test.ts golden pins).
+  const fillLandmarkIds = input.landmarkIds
+    ? [...new Set(input.landmarkIds)]
+    : [];
+  const plan = buildPlan({
+    preset,
+    minutes,
+    landmarkIds: fillLandmarkIds,
+    openerId: input.openerId,
+    searchOverride: input.searchOverride,
+    poolSize: candidates.filter((candidate) => {
+      const d = candidateDuration(candidate);
+      return (
+        d >= MEGASET_TRACK_MINUTES_MIN * 60 &&
+        d <= MEGASET_TRACK_MINUTES_MAX * 60
+      );
+    }).length,
+  });
+  // consumed at the strategy pick (plan.strategy) + the landmark repair
+  // pass reads plan.landmarkIds — same list, plan is the record of it
+  const landmarkIds = fillLandmarkIds;
   /** Pins that could not be placed — filled by the repair pass below,
    *  read by `result()` once the chain is final. */
   const landmarksMissing: string[] = [];
@@ -408,11 +431,10 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   // +59% chain length on sparse pools at ~0 ms. The sequencer's working
   // pool (opener + post-duration-filter rest) is the size that decides;
   // the chosen path is REPORTED (`search` on the wire), never a silent
-  // algorithm switch.
+  // algorithm switch. M3 (#327): the pick is the PLAN's strategy row —
+  // same rule, now computed in buildPlan (poolSize = rest + opener).
   const rest = pool;
-  const useBeam = isMegasetSearchOverride(input.searchOverride)
-    ? input.searchOverride === "beam"
-    : rest.length + 1 < MEGASET_BEAM_POOL_MAX;
+  const useBeam = plan.strategy === "beam";
   search = useBeam ? "beam" : "greedy";
   const picked = useBeam
     ? beamChain(first, rest, preset, budget, anchorBpm)
