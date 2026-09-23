@@ -1,12 +1,107 @@
 ---
+# Self-contained metrics gate for megadj (PUBLIC repo).
+# Public repos cannot call reusable workflows in private repos,
+# so this vendors webuildstuffio/repo-review's metrics-reusable.yml
+# (gate job, language=typescript). Warn-only; never fails a PR.
+# Sync manually on changes.
 name: metrics-gate
 "on":
   pull_request:
 
+env:
+  TOOLS_DIR: ${{ github.workspace }}/../metrics-tools
+
 jobs:
   gate:
-    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@main
-    with:
-      run_snapshot: false
-      language: typescript
-    secrets: inherit
+    # Runs when the caller did NOT request a snapshot
+    # (i.e. the PR gate caller).
+    runs-on: ubicloud-standard-2
+    concurrency:
+      group: metrics-gate-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # diff needs the merge base
+
+      - name: Docs-only fast pass
+        id: scope
+        run: |
+          if git diff --name-only \
+            "origin/${{ github.base_ref }}...HEAD" | \
+            grep -qvE '^(\.github/.*\.md|docs/|README\.md|.*\.md)$'
+          then
+            echo "scan=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "scan=false" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change — skipping."
+          fi
+
+      - name: Restore tool cache
+        id: toolcache
+        if: steps.scope.outputs.scan == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../metrics-tools
+          key: >-
+            metrics-tools-v1-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install tools (cold cache only)
+        if: >-
+          steps.scope.outputs.scan == 'true' &&
+          steps.toolcache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$TOOLS_DIR/bin"
+          target="x86_64-unknown-linux-gnu"
+          base="https://github.com/qltysh/qlty/releases"
+          base="$base/latest/download"
+          dir="$(mktemp -d)"
+          curl -fsSL -o "$dir/qlty-$target.tar.xz" \
+            "$base/qlty-$target.tar.xz"
+          curl -fsSL -o "$dir/qlty-$target.tar.xz.sha256" \
+            "$base/qlty-$target.tar.xz.sha256"
+          (cd "$dir" && sha256sum --check \
+            "qlty-$target.tar.xz.sha256")
+          tar -xJf "$dir/qlty-$target.tar.xz" \
+            -C "$TOOLS_DIR/bin" \
+            --strip-components=1 "qlty-$target/qlty"
+
+      - name: Add tools to PATH
+        if: steps.scope.outputs.scan == 'true'
+        run: echo "$TOOLS_DIR/bin" >> "$GITHUB_PATH"
+
+      # WARN-ONLY complexity gate: findings become PR annotations,
+      # the step never fails. Diff-scoped — only files changed in
+      # this PR are scanned. (Lint enforcement stays in each
+      # repo's own CI, as it does today.)
+      - name: Cognitive complexity warnings (warn-only)
+        if: >-
+          steps.scope.outputs.scan == 'true' &&
+          inputs.language != 'none'
+        run: |
+          set -uo pipefail
+          [ -f qlty.toml ] || \
+            qlty init -y --skip-plugins >/dev/null 2>&1
+          files=$(git diff --name-only \
+            "origin/${{ github.base_ref }}...HEAD" -- \
+            '*.rs' '*.ts' '*.tsx' '*.js' '*.jsx' || true)
+          [ -z "$files" ] && \
+            { echo "No code files changed."; exit 0; }
+          found=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            out=$(qlty metrics --functions "$f" 2>/dev/null \
+              | sed -r 's/\x1b\[[0-9;]*m//g' \
+              | awk -F'|' -v file="$f" -v th=25 '
+                NF>5 && $4 ~ /^[ ]*[0-9]+[ ]*$/ {
+                  gsub(/[ ]/,"",$1); gsub(/[ ]/,"",$4)
+                  if ($4+0 > th)
+                    printf "::warning file=%s::%s:%d\n", \
+                      file, $1, $4
+                }')
+            if [ -n "$out" ]; then echo "$out"; found=1; fi
+          done <<< "$files"
+          [ "$found" = "0" ] && \
+            echo "No function over the complexity threshold."
+          exit 0

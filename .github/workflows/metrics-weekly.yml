@@ -1,16 +1,203 @@
 ---
+# Self-contained metrics snapshot for megadj (PUBLIC repo).
+# Public repos cannot call reusable workflows in private repos,
+# so this vendors webuildstuffio/repo-review's metrics-reusable.yml
+# (snapshot job, language=typescript). Sync manually on changes.
 name: metrics-weekly
 "on":
   schedule:
-    - cron: "0 13 * * 0" # Sundays 09:00 ET (re-registered)
+    - cron: "0 13 * * 0"  # Sundays 09:00 ET
   release:
     types: [published]
   workflow_dispatch:
 
+env:
+  TOOLS_DIR: ${{ github.workspace }}/../metrics-tools
+
 jobs:
   snapshot:
-    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@main
-    with:
-      run_snapshot: true
-      language: typescript
-    secrets: inherit
+    runs-on: ubicloud-standard-2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # activity check needs history
+
+      - name: Skip if quiet (no commits in the last 7 days)
+        id: activity
+        run: |
+          if [ -z "$(git log --since='7 days ago' --format=%H)" ]; then
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "Quiet week — skipping snapshot."
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore tool cache
+        id: toolcache
+        if: steps.activity.outputs.active == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../metrics-tools
+          key: >-
+            metrics-tools-v1-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install tools (cold cache only)
+        if: >-
+          steps.activity.outputs.active == 'true' &&
+          steps.toolcache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$TOOLS_DIR/bin"
+          # qlty — checksum-verified release
+          target="x86_64-unknown-linux-gnu"
+          base="https://github.com/qltysh/qlty/releases"
+          base="$base/latest/download"
+          dir="$(mktemp -d)"
+          curl -fsSL -o "$dir/qlty-$target.tar.xz" \
+            "$base/qlty-$target.tar.xz"
+          curl -fsSL -o "$dir/qlty-$target.tar.xz.sha256" \
+            "$base/qlty-$target.tar.xz.sha256"
+          (cd "$dir" && sha256sum --check \
+            "qlty-$target.tar.xz.sha256")
+          tar -xJf "$dir/qlty-$target.tar.xz" \
+            -C "$TOOLS_DIR/bin" \
+            --strip-components=1 "qlty-$target/qlty"
+          # scc — single binary
+          scc_base="https://github.com/boyter/scc/releases"
+          scc_url="$scc_base/latest/download"
+          scc_url="$scc_url/scc_Linux_x86_64.tar.gz"
+          curl -fsSL "$scc_url" \
+            | tar -xz -C "$TOOLS_DIR/bin" scc
+          # jscpd — into the tools dir so the cache captures it
+          npm install --prefix "$TOOLS_DIR" jscpd
+
+      - name: Add tools to PATH
+        if: steps.activity.outputs.active == 'true'
+        run: |
+          for d in bin "node_modules/.bin"; do
+            echo "$TOOLS_DIR/$d" >> "$GITHUB_PATH"
+          done
+
+      # NOTE: the collector script below is inlined (not fetched)
+      # because the caller's GITHUB_TOKEN cannot read other private
+      # org repos — not even via raw.githubusercontent.com.
+      # Source of truth: worker/scripts/build-payload.sh in this
+      # repo; keep the two in sync when editing.
+      - name: Collect and ingest
+        if: steps.activity.outputs.active == 'true'
+        env:
+          REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          LANGUAGE: typescript
+          INGEST_TOKEN: ${{ secrets.REPO_REVIEW_INGEST_TOKEN }}
+          INGEST_URL: ${{ vars.REPO_REVIEW_URL }}
+        run: |
+          set -euo pipefail
+          OUT=/tmp/metrics
+          mkdir -p "$OUT"
+          echo "--- collecting (parallel) ---"
+          # 1. LOC + files (scc)
+          scc --format csv . > "$OUT/scc.csv" 2>/dev/null &
+          P_SCC=$!
+          # 2. per-function complexity (qlty), skipped if none
+          if [ "$LANGUAGE" != "none" ]; then
+            ( [ -f qlty.toml ] || \
+                qlty init -y --skip-plugins >/dev/null 2>&1
+              qlty metrics --all --functions 2>/dev/null \
+                | sed -r 's/\x1b\[[0-9;]*m//g' \
+                > "$OUT/qlty-functions.txt" ) &
+            P_QLTY=$!
+          else
+            : > "$OUT/qlty-functions.txt"
+            P_QLTY=""
+          fi
+          # 3. duplication (jscpd)
+          ign="**/node_modules/**,**/dist/**,**/build/**"
+          ign="$ign,**/target/**,**/.git/**,**/coverage/**"
+          ign="$ign,**/*.min.js"
+          # --threshold 100 disables jscpd's built-in duplication
+          # gate (a repo's own .jscpd.json can set a low threshold
+          # that would otherwise exit 1); we only read the JSON
+          # report, never gate on it
+          jscpd --reporters json --output "$OUT/jscpd" \
+            --ignore "$ign" --threshold 100 . >/dev/null 2>&1 &
+          P_JSCPD=$!
+          wait "$P_SCC"; SCC_RC=$?
+          if [ -n "$P_QLTY" ]; then
+            wait "$P_QLTY"; QLTY_RC=$?
+          else
+            QLTY_RC=0
+          fi
+          wait "$P_JSCPD"; JSCPD_RC=$?
+          echo "--- collectors done"
+          echo "    (scc=$SCC_RC qlty=$QLTY_RC jscpd=$JSCPD_RC) ---"
+          # --- parse ---
+          # scc csv columns: Language,Lines,Code,Comments,Blanks,
+          # Complexity,Bytes,Files,ULOC (no Total row — sum it)
+          if [ ! -f "$OUT/scc.csv" ]; then
+            echo "::error::scc failed (exit $SCC_RC), no output"
+            exit 1
+          fi
+          LOC=$(awk -F, 'NR>1 {loc+=$3} END {print loc+0}' \
+            "$OUT/scc.csv")
+          FILES=$(awk -F, 'NR>1 {f+=$8} END {print f+0}' \
+            "$OUT/scc.csv")
+          # qlty functions table -> cognitive column
+          # (4th pipe field), max + p90
+          COG_SORTED=$(awk -F'|' '
+            NF>5 && $4 ~ /^[[:space:]]*[0-9]+[[:space:]]*$/ {
+              gsub(/[[:space:]]/,"",$4); print $4
+            }' "$OUT/qlty-functions.txt" | sort -n)
+          N=$(printf '%s' "$COG_SORTED" | grep -c . || true)
+          if [ "$N" -gt 0 ]; then
+            COMPLEXITY_MAX=$(printf '%s\n' "$COG_SORTED" \
+              | tail -1)
+            IDX=$(( (9 * (N - 1) + 5) / 10 + 1 ))
+            COMPLEXITY_P90=$(printf '%s\n' "$COG_SORTED" \
+              | sed -n "${IDX}p")
+          else
+            COMPLEXITY_MAX=null; COMPLEXITY_P90=null
+          fi
+          # jscpd json -> statistics.total.percentage
+          if [ -f "$OUT/jscpd/jscpd-report.json" ]; then
+            DUPLICATION_PCT=$(jq '.statistics.total.percentage' \
+              "$OUT/jscpd/jscpd-report.json")
+          else
+            DUPLICATION_PCT=null
+          fi
+          # test count (cheap approximation, no build)
+          case "$LANGUAGE" in
+            rust)
+              TEST_COUNT=$(grep -rho '#\[test\]' \
+                --include='*.rs' . 2>/dev/null | wc -l) ;;
+            typescript)
+              TEST_COUNT=$(find . -path ./node_modules -prune \
+                -o \( -name '*.test.*' -o -name '*.spec.*' \) \
+                -print 2>/dev/null | wc -l) ;;
+            *) TEST_COUNT=null ;;
+          esac
+          MI_AVG=null # no local MI source yet; dashboard shows n/a
+          jq -n \
+            --arg repo "$REPO" \
+            --arg sha "$COMMIT_SHA" \
+            --argjson taken_at "$(date +%s)" \
+            --argjson loc "$LOC" \
+            --argjson files "$FILES" \
+            --argjson complexity_max "$COMPLEXITY_MAX" \
+            --argjson complexity_p90 "$COMPLEXITY_P90" \
+            --argjson duplication_pct "$DUPLICATION_PCT" \
+            --argjson mi_avg "$MI_AVG" \
+            --argjson test_count "$TEST_COUNT" \
+            '{repo:$repo, commit_sha:$sha, taken_at:$taken_at,
+              loc:$loc, files:$files,
+              complexity_max:$complexity_max,
+              complexity_p90:$complexity_p90,
+              duplication_pct:$duplication_pct, mi_avg:$mi_avg,
+              test_count:$test_count}' \
+            > "$OUT/payload.json"
+          echo "payload:"; cat "$OUT/payload.json"
+          curl -sSL --fail-with-body -X POST "${INGEST_URL%/}/ingest" \
+            -H "Authorization: Bearer $INGEST_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @"$OUT/payload.json"
+          echo; echo "ingest ok"
