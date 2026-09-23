@@ -143,6 +143,19 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "megaset-calibrate",
+    group: "fulltags",
+    block: [
+      "  megadj megaset-calibrate [--preset warmup|peak|afterhours] [--minutes N] [--limit N] [--out FILE|-] [--json]",
+      "                                                scoring-calibration digest (#306): builds the set over EVERY",
+      "                                               preset × strategy (greedy+beam) on the LIVE archive and writes a",
+      "                                               dated digest file — run before and after any scoring change and",
+      "                                               diff the two (a moved chain= line or changed hop t= value is the",
+      "                                               change made visible); --out - streams to stdout; propose-only,",
+      "                                               reads the archive DB, writes only the digest file",
+    ],
+  },
+  {
     name: "megaset-cohorts",
     group: "fulltags",
     block: [

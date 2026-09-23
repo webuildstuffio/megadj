@@ -158,6 +158,10 @@ propose-only: the DJ keeps every creative decision.
 genre-cohort builder (#295): one run builds the warmup + peak chain per
 family (defaults: the measured big four — edm, house, techno, tech house);
 blank-genre tracks stay outside scope, never guessed ·
+`megadj megaset-calibrate [--preset P] [--minutes N] [--out FILE|-] [--json]` —
+the scoring-calibration digest (#306): scores every preset × strategy on the
+live archive into a dated digest file; run before + after any scoring change
+and diff the two (the CI census test is the synthetic-corpus gate) ·
 `megadj rb-playlist [drive] [--preset …] [--genre FAMILY] [--search greedy|beam] [--apply --yes]`
 **Vibe:** "the opener sells the night — MegaSet makes sure you never open
 with a 73-BPM track in a 128 room."

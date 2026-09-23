@@ -394,6 +394,56 @@ const megasetCohorts: CliCommandHandler = async (rest) => {
   });
 };
 
+// #306: the scoring-calibration spoke — score the live archive over the
+// preset × strategy grid and emit a dated digest; before/after a scoring
+// change, diff the two digests (the census test is the CI-speed gate).
+const megasetCalibrate: CliCommandHandler = async (rest) => {
+  const flags = parseFlags(
+    rest,
+    ["preset", "minutes", "limit", "out"],
+    ["json"],
+  );
+  if (
+    nonNegOptInvalid(
+      flags,
+      "minutes",
+      "megaset-calibrate",
+      flags.bools.has("json"),
+    )
+  )
+    return;
+  const minutes = nonNegOpt(
+    flags,
+    "minutes",
+    "megaset-calibrate",
+    flags.bools.has("json"),
+  );
+  if (
+    nonNegOptInvalid(
+      flags,
+      "limit",
+      "megaset-calibrate",
+      flags.bools.has("json"),
+    )
+  )
+    return;
+  const limit = nonNegOpt(
+    flags,
+    "limit",
+    "megaset-calibrate",
+    flags.bools.has("json"),
+  );
+  const { megasetCalibrate: runCalibrate } =
+    await import("../megaset/megaset-calibrate");
+  await runCalibrate({
+    preset: flags.strings.get("preset"),
+    minutes,
+    limit,
+    out: flags.strings.get("out"),
+    json: flags.bools.has("json"),
+  });
+};
+
 const megaset: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
@@ -631,6 +681,7 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "catch-up": catchUp,
   similar,
   megaset,
+  "megaset-calibrate": megasetCalibrate,
   "megaset-cohorts": megasetCohorts,
   genre,
   "genre-why": genreWhy,
