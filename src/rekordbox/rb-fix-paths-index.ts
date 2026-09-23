@@ -49,9 +49,9 @@ export function stripCopySuffix(name: string): string {
   }
 }
 
-function walkAudio(root: string, out: string[]): void {
+function walkAudio(root: string, out: string[]): string[] {
   // shared walker (#142): soft-fail, dotfile/`._` skip, AUDIO_EXTS SSOT
-  out.push(...walkAudioDir(root));
+  return walkAudioDir(root, out);
 }
 
 /** Shared with rb-unmatched: the live-audio index (same roots, same junk

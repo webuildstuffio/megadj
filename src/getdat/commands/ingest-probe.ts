@@ -98,7 +98,9 @@ export async function quarantine(
  * rekordbox subtrees when given. Thin async wrapper over the shared
  * audio walker (#69/#142 SSOT — the skipPaths option carries ingest's
  * prefix skips); the async signature stays because the intake folder can
- * be a mounted volume and the caller is already async. */
+ * be a mounted volume and the caller is already async. (#317 note: kept
+ * deliberately — it forwards ingest's skipPaths policy, unlike the
+ * retired writer/dupescan pass-throughs which added nothing.) */
 export async function walkAudio(
   dir: string,
   out: string[] = [],

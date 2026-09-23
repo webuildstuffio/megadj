@@ -7,10 +7,9 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { tempDir } from "../test-support/testutil";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { walkAudio } from "./dupescan";
+import { walkAudioDir } from "../shared/audio-walk";
 import { walkShelf } from "../core/hygiene/walk";
 import { AUDIO_EXTS_RE } from "../shared/audio-exts";
-import { walkAudioDir } from "../shared/audio-walk";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-ext-drift-").rippable();
@@ -36,7 +35,7 @@ describe("ext drift #69: scanners see what sync copies", () => {
       "Artist/song.mp3": "x",
       "Artist/notes.txt": "x",
     });
-    const found = walkAudio(dir)
+    const found = walkAudioDir(dir)
       .map((p) => p.slice(dir.length))
       .toSorted();
     expect(found).toEqual([

@@ -35,10 +35,6 @@ import { nonEmptyEnv } from "../shared/leaf/guards";
 import { writeJson, setExit } from "../shared/cli-output";
 import { walkAudioDir } from "../shared/audio-walk";
 
-export function walkAudio(root: string): string[] {
-  return walkAudioDir(root);
-}
-
 /** Parse fpcalc stdout into a fingerprint — re-exported from the FullTags
  *  SSOT (fulltags/src/analysis.ts), where the spawn+parse lives as ONE
  *  implementation (fingerprintFileLength) for every fingerprint pass in
@@ -101,7 +97,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
 
   const db = openLedger(dbPath);
   const cache = new FpCache(db, SHELF_FINGERPRINTS_TABLE);
-  const files = [...walkAudio(contents)];
+  const files = [...walkAudioDir(contents)];
   // extra scan dirs fingerprint INTO the same grouping (never into the
   // quarantine-apply candidate set unless they group among themselves —
   // the apply stage skips groups whose keeper lies outside Contents/).
@@ -110,7 +106,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
       log(`dupescan: scan dir missing, skipped: ${dir}`);
       continue;
     }
-    files.push(...walkAudio(dir));
+    files.push(...walkAudioDir(dir));
   }
   log(
     `dupescan: ${files.length} audio files on ${shelfVolume}${scanDirs.length ? ` (+${scanDirs.length} extra dir(s))` : ""}`,
