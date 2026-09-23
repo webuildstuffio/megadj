@@ -593,7 +593,12 @@ export function printTmpPurgeReport(
   // #254: every scanned root is listed (tmp sweep scans both tmpdir()
   // and /tmp when they differ; the state tier has exactly one).
   log(`megadj tmp-purge — root: ${r.root}${r.kept ? " (state tier)" : ""}`);
-  if (!r.ok) {
+  // ok:false = fail-closed for AUTOMATION (exit 1), but the human line
+  // must distinguish WHY: an unreadable root scanned nothing, while a
+  // partial removal still removed most of the batch. The old single
+  // "scan failed" wording read as a total loss and caused a wasted
+  // re-diagnosis (2026-09-23): the scan had succeeded.
+  if (!r.ok && r.scanned === 0) {
     log("  scan failed (see above)");
     return;
   }
@@ -614,6 +619,11 @@ export function printTmpPurgeReport(
   if (r.appliedMode) {
     log(
       `removed ${r.applied} item(s), freed ${(r.freedBytes / 1e6).toFixed(1)} MB`,
+    );
+  }
+  if (!r.ok) {
+    log(
+      `  ! PARTIAL: ${r.eligible - r.applied} eligible item(s) could not be removed — exit 1 is deliberate (#270 fail-closed)`,
     );
   }
 }

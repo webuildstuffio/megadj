@@ -13,11 +13,17 @@
  * of JSON) and pipe stdout into `head -c 400` — before the fix this
  * test hit its 60 s kill; now it completes in <5 s with a clean code.
  */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { tempDir } from "../test-support/testutil";
+
+// #248 fixture seam: both wedge spawns mkdtemp their DB fixture — the
+// rippable handle sweeps them after the suite (before this, every run
+// leaked two ~1.5 MB dirs into /tmp).
+const fixtures = tempDir("megadj-wedge-").rippable();
+afterAll(() => fixtures.rippleAll());
 
 /** A big-enough row set: 1,500 tracks ≈ 200 KB of status JSON.
  *  Uses ArchiveState itself so the schema is always the real one. */
@@ -127,8 +133,12 @@ describe("json stdout deadline (#pipe-wedge)", () => {
       expect(bytes).toBeGreaterThan(1_000);
       // Explicit budget: the default 5s test timeout lost this spawn under
       // the pre-commit hook's 256-file parallel run (the sibling test above
-      // already carries one — the miss was the flake, Sep 19).
+      // already carries one — the miss was the flake, Sep 19). 15s itself
+      // false-redded the PRE-PUSH gate twice on Sep 23 while a concurrent
+      // agent's 16-way suite ran (the 5s wedge race in the sibling test
+      // still carries the latency contract; this budget only bounds the
+      // full-read spawn) — same class as 9489e174's sweep-test bump.
     },
-    { timeout: 15_000 },
+    { timeout: 45_000 },
   );
 });

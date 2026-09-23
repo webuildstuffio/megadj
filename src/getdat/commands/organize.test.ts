@@ -59,12 +59,19 @@ describe("organize (move-failure honesty)", () => {
     chmodSync(batchDir, 0o555); // read-only target: mv inside it fails
 
     const logs: string[] = [];
-    await organize({
-      state,
-      musicDir,
-      onProgress: (m) => logs.push(m),
-    });
-    chmodSync(batchDir, 0o755); // restore so cleanup can delete
+    try {
+      await organize({
+        state,
+        musicDir,
+        onProgress: (m) => logs.push(m),
+      });
+    } finally {
+      // Restored in finally: an organize() throw used to strand the
+      // read-only dir, and rm -rf cannot delete it later — five such
+      // fossils (Sep 19) made every `tmp-purge --apply` exit 1 until
+      // hand-unlocked (2026-09-23).
+      chmodSync(batchDir, 0o755);
+    }
 
     const row = state.allTracks().find((t) => t.video_id === "v2");
     expect(row?.file_path).toBe(src); // unchanged — no phantom path
