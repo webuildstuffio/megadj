@@ -118,6 +118,12 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#319: megaset CLI verbs (multi-subject: cli-verbs+megaset)",
   "src/fulltags/pipeline/identity-split.test.ts":
     "#319: identity split contract (multi-subject: identity+metadata-build)",
+
+  // ---- #327 buildPlan extraction: the golden-pin file pins BOTH the
+  // engine wire (buildMegaset scenarios) AND the plan seam — two
+  // subjects, one contract (multi-subject: engine+plan):
+  "src/deck/megaset/engine-plan.test.ts":
+    "#327: byte-identical-chain golden pins over engine+plan (multi-subject)",
 };
 
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */
