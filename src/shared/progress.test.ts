@@ -2,22 +2,21 @@ import { describe, expect, test } from "bun:test";
 import { commandLog, fmtBytes, fmtDur, ProgressBar } from "./progress";
 
 describe("progress formatting", () => {
-  test("fmtBytes units", () => {
+  test("fmtBytes delegates to the leaf seam (decimal units, rounded at scale)", () => {
     expect(fmtBytes(512)).toBe("512 B");
-    expect(fmtBytes(2048)).toBe("2.0 KB");
-    expect(fmtBytes(5 * 1024 * 1024)).toBe("5.0 MB");
-    expect(fmtBytes(3 * 1024 ** 3)).toBe("3.0 GB");
-    expect(fmtBytes(-2048)).toBe("-2.0 KB");
+    expect(fmtBytes(2048)).toBe("2 KB");
+    expect(fmtBytes(5 * 1024 * 1024)).toBe("5 MB"); // 1e3 rounds 5.24→5
+    expect(fmtBytes(3 * 1024 ** 3)).toBe("3 GB");
+    expect(fmtBytes(-2048)).toBe("-2 KB");
     expect(fmtBytes(Number.NaN)).toBe("—");
   });
 
-  test("fmtDur formats", () => {
-    expect(fmtDur(-5)).toBe("00:00");
-    expect(fmtDur(59)).toBe("00:59");
-    expect(fmtDur(65)).toBe("01:05");
-    expect(fmtDur(3671)).toBe("1:01:11");
-    expect(fmtDur(Number.NaN)).toBe("00:00");
-    expect(fmtDur(Number.POSITIVE_INFINITY)).toBe("00:00");
+  test("fmtDur delegates to the leaf seam (m:ss, minutes carry hours)", () => {
+    expect(fmtDur(0)).toBe("—"); // leaf: zero/negative → em dash
+    expect(fmtDur(59)).toBe("0:59");
+    expect(fmtDur(65)).toBe("1:05");
+    expect(fmtDur(3671)).toBe("61:11"); // no hour split — minutes carry it
+    expect(fmtDur(Number.NaN)).toBe("—");
   });
 });
 

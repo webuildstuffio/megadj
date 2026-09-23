@@ -1,6 +1,11 @@
 /**
  * Terminal progress reporting for megadj: one line per item plus a live
  * bar with rate + ETA when stdout is a TTY, plain milestone lines otherwise.
+ *
+ * fmtBytes/fmtDur are re-exports of the ONE formatters seam
+ * (shared/leaf/fmt.ts, #317): the former private copies had different
+ * hour/negative handling (h:mm:ss padded, negatives clamped) — progress
+ * output is stderr-only human text, so the leaf's formats are fine here.
  */
 
 const BAR_WIDTH = 24;
@@ -8,30 +13,8 @@ const BAR_WIDTH = 24;
 // piped output must stay clean). TTY detection follows stderr accordingly.
 const isTty = process.stderr.isTTY ?? false;
 
-export function fmtBytes(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const sign = n < 0 ? "-" : "";
-  let v = Math.abs(n);
-  let u = 0;
-  while (v >= 1024 && u < units.length - 1) {
-    v /= 1024;
-    u++;
-  }
-  return u === 0
-    ? `${sign}${Math.round(v)} B`
-    : `${sign}${v.toFixed(1)} ${units[u]}`;
-}
-
-export function fmtDur(seconds: number): string {
-  const s = Math.max(0, Math.round(Number.isFinite(seconds) ? seconds : 0));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
-    : `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-}
+export { fmtBytes, fmtDur } from "./leaf/fmt";
+import { fmtBytes, fmtDur } from "./leaf/fmt";
 
 /** Live single-line progress bar with rate and ETA. */
 export class ProgressBar {
