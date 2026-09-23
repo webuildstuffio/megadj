@@ -1,6 +1,15 @@
 // walk.ts — one shared filesystem walker. scan.ts and bench.ts used to carry
 // two near-identical recursive walkers (dup LOC + divergent skip rules).
 //
+// #317 decision (kept, not merged with src/shared/walk-tree.ts): this is
+// the SERVER-side walker — async end-to-end because it runs on the job
+// engine's event loop (walk-async.test.ts is the census tripwire), with
+// early-stop + DEFAULT_SKIP_DIRS for drive scans. shared/walk-tree.ts is
+// the CLI-side walker — sync on purpose for short passes, result-collect-
+// ing with relRoot/flat/skipPaths. Different runtimes, different shapes;
+// a merge would either freeze the server (sync creep) or force every CLI
+// caller async. Keep one per context, each census-pinned.
+//
 // Async (fs/promises) end-to-end: a full-drive walk from the job engine must
 // NOT block the event loop — spawnSync/hash loops once froze the server for
 // minutes and starved the SSE heartbeat (Bun kills silent streams ~10s),

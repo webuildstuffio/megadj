@@ -1,6 +1,17 @@
 /**
  * deckapi.ts — shared client for the CrateDeck HTTP server.
  *
+ * #317 API-client decision (deckapi vs web/ui/api.ts — KEPT BOTH): the
+ * two clients run in different processes with different contracts.
+ * deckapi (this file) is the CLI/MCP client: CRATEDECK_OFFLINE gate,
+ * auto-start (ensureServer), absolute BASE URL, per-call timeouts as
+ * plain fetch signals. web/ui/api.ts is the BROWSER client: same-origin
+ * relative paths, ApiError typed failures, toast reporter injection,
+ * FormData multipart support. A shared core would need to parametrize
+ * base URL, error surfacing, offline gate, and form handling — the
+ * adapter would be bigger than either client. The ONE shared thing
+ * (the wire shapes) already lives in shared/types.ts, which both read.
+ *
  * Single source of truth for "talk to the running CrateDeck server"
  * used by both deckctl.ts (human/CLI) and mcp.ts (agent/MCP). Handles
  * server auto-start and drive resolution exactly once.
