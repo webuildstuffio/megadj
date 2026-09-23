@@ -91,7 +91,10 @@ describe("crateDeckRoot (#327 super-sure pass: the afc6a535 depth-rule class)", 
       const parent = join(dir, "..");
       if (parent === dir) break;
       dir = parent;
-      if (existsSync(join(dir, "package.json")) && existsSync(join(dir, ".git"))) {
+      if (
+        existsSync(join(dir, "package.json")) &&
+        existsSync(join(dir, ".git"))
+      ) {
         found = join(dir, "src", "deck");
         break;
       }
