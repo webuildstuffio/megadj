@@ -12,12 +12,8 @@
 // OUTSIDE SCOPE (reported, never guessed); a family that matches zero
 // rows still reports (pool 0, complete false); a short arm keeps its
 // shortfall visible and drops the exit to 1.
-import { join } from "node:path";
-import { ArchiveReader } from "../../deck/db/reader";
-import { loadConfig } from "../../deck/config";
 import { DB_PATH } from "../../cli-env";
 import { commandLog } from "../../shared/progress";
-import { crateDeckRoot } from "../../shared/volume";
 import {
   writeJson,
   finishCommandError,
@@ -28,6 +24,7 @@ import {
   buildCohortPlan,
   parseCohortFamilies,
 } from "../../deck/megaset/cohorts";
+import { openMegasetArchive } from "./archive-open";
 
 export interface MegasetCohortsOptions {
   minutes?: number | undefined;
@@ -43,11 +40,7 @@ export async function megasetCohorts(
   opts: MegasetCohortsOptions,
 ): Promise<void> {
   const log = commandLog(opts);
-  const cfg = loadConfig(crateDeckRoot());
-  const archive = new ArchiveReader(
-    DB_PATH,
-    join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),
-  );
+  const archive = openMegasetArchive();
 
   // minutes: same clamp/parse as the single-set command (10–240)
   const parsed = parseMegasetQuery({

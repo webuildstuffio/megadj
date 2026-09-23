@@ -26,6 +26,23 @@ export interface DecideBody {
 
 type HygieneJobKind = Extract<JobKind, "hygiene-scan" | "hygiene-apply">;
 
+/** Shared mutating-CLI response shape (#316: restore + restore-all +
+ *  quarantine-empty each rebuilt the same error/ok envelope; routes-archive's
+ *  skipRoute reuses it). */
+export async function cliOk(
+  megadjCli: (args: string[]) => Promise<{ code: number; stderr: string }>,
+  json: (body: unknown, status?: number) => Response,
+  args: string[],
+): Promise<Response> {
+  const r = await megadjCli(args);
+  if (r.code !== 0)
+    return json(
+      { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
+      409,
+    );
+  return json({ ok: true });
+}
+
 export function makeHygieneRoutes(deps: {
   reader: HygieneReader;
   /** enqueue a hygiene job ("hygiene-scan" | "hygiene-apply"); the
@@ -166,13 +183,7 @@ export function makeHygieneRoutes(deps: {
    *  loser. Per-row failures report, never fatal (the CLI owns the
    *  batch); 409s only when nothing could be restored at all. */
   async function restoreAll(): Promise<Response> {
-    const r = await megadjCli(["shelf-restore-all", "--json"]);
-    if (r.code !== 0)
-      return json(
-        { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
-        409,
-      );
-    return json({ ok: true });
+    return cliOk(megadjCli, json, ["shelf-restore-all", "--json"]);
   }
 
   /** GET /api/hygiene/quarantine — N files / X GB census over applied
@@ -199,13 +210,11 @@ export function makeHygieneRoutes(deps: {
         },
         400,
       );
-    const r = await megadjCli(["shelf-quarantine-empty", "--yes", "--json"]);
-    if (r.code !== 0)
-      return json(
-        { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
-        409,
-      );
-    return json({ ok: true });
+    return cliOk(megadjCli, json, [
+      "shelf-quarantine-empty",
+      "--yes",
+      "--json",
+    ]);
   }
 
   /** GET /api/hygiene/audio?path=… — stream one shelf audio file for the

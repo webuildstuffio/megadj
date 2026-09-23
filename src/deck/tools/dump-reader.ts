@@ -5,6 +5,7 @@
 // wire types come from shared/dump.ts (the leaf both trees import).
 import type { DumpRecord, DumpCensus } from "../shared/dump";
 import { ArchiveLedgerReader } from "../db/ledger-reader";
+import { hydrateDumpRow } from "../../core/dump-ledger";
 
 interface DumpRow {
   folder: string;
@@ -26,17 +27,7 @@ export class DumpReader extends ArchiveLedgerReader {
       "SELECT * FROM intake_dumps ORDER BY updated_at DESC LIMIT ?",
       String(limit),
     );
-    const dumps: DumpRecord[] = rows.map((r) => ({
-      folder: r.folder,
-      sourceFolder: r.source_folder,
-      status: r.status === "partial" ? "partial" : "done",
-      ingested: r.ingested,
-      duplicates: r.duplicates,
-      pending: r.pending,
-      lastError: r.last_error,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-    }));
+    const dumps: DumpRecord[] = rows.map(hydrateDumpRow);
     const counts = { total: dumps.length, partial: 0, done: 0, pending: 0 };
     for (const d of dumps) {
       if (d.status === "partial") counts.partial++;

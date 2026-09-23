@@ -19,10 +19,9 @@
 // 2 bad flag input.
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { ArchiveReader } from "../../deck/db/reader";
-import { loadConfig } from "../../deck/config";
 import { DB_PATH } from "../../cli-env";
 import { commandLog } from "../../shared/progress";
+import { loadConfig } from "../../deck/config";
 import { crateDeckRoot } from "../../shared/volume";
 import {
   writeJson,
@@ -35,6 +34,7 @@ import {
   SET_PRESETS,
 } from "../../deck/megaset/engine";
 import { clampMegasetPool, MEGASET_PRESET_IDS } from "../../deck/shared/types";
+import { openMegasetArchive } from "./archive-open";
 
 export interface MegasetCalibrateOptions {
   preset?: string | undefined;
@@ -74,10 +74,7 @@ export async function megasetCalibrate(
 ): Promise<void> {
   const log = commandLog(opts);
   const cfg = loadConfig(crateDeckRoot());
-  const archive = new ArchiveReader(
-    DB_PATH,
-    join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),
-  );
+  const archive = openMegasetArchive();
 
   // one parse/validate path: minutes clamp 10–240, preset validated
   // (an unknown --preset is exit 2, never a silent fallback)

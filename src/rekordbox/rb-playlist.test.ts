@@ -310,6 +310,13 @@ describe("#283-followup: option passthrough integrity", () => {
     join(import.meta.dir, "rb-playlist.ts"),
     "utf8",
   );
+  // #316: the options/result CONTRACT moved to rb-playlist-types.ts —
+  // the passthrough pin reads both files so the flag chain stays pinned
+  // wherever the shape lives.
+  const typesSource = readFileSync(
+    join(import.meta.dir, "rb-playlist-types.ts"),
+    "utf8",
+  );
 
   test("--search reaches the engine (it parsed but was never forwarded — a silent no-op flag)", () => {
     // Regression: rb-playlist accepted --search at the CLI but buildMegaset
@@ -322,7 +329,7 @@ describe("#283-followup: option passthrough integrity", () => {
       'parseMegasetSearchOverride(flags.strings.get("search"))',
     );
     expect(rbSource).toContain("searchOverride: opts.search");
-    expect(rbSource).toContain("search?: SetSearchOverride | undefined");
+    expect(typesSource).toContain("search?: SetSearchOverride | undefined");
   });
 
   test("buildChain passes the configured shelf Contents root (relocated tracks must not shrink the pool)", () => {

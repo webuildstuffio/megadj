@@ -232,59 +232,75 @@ const years: CliCommandHandler = async (rest) => {
   });
 };
 
-const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
+/** Shared analysis-flags parse+validate for beats / catch-up (#316: the
+ *  two handlers each rebuilt the same limit/max-seconds/jobs nonNegOpt
+ *  chain; the cmd label differs — it feeds the error surfaces). */
+function parseAnalysisFlags(
+  rest: string[],
+  cmd: string,
+): {
+  flags: ReturnType<typeof parseFlags>;
+  json: boolean;
+  limit: number;
+  maxSeconds: number;
+  jobs: number;
+} | null {
   const flags = parseFlags(
     rest,
     ["limit", "jobs", "max-seconds"],
     ["force", "dry-run", "json"],
   );
   const json = flags.bools.has("json");
-  if (nonNegOptInvalid(flags, "limit", "beats", json)) return;
-  const limit = nonNegOpt(flags, "limit", "beats", json);
-  if (nonNegOptInvalid(flags, "max-seconds", "beats", json)) return;
-  const maxSeconds = nonNegOpt(flags, "max-seconds", "beats", json);
-  if (nonNegOptInvalid(flags, "jobs", "beats", json)) return;
-  const jobs = nonNegOpt(flags, "jobs", "beats", json);
-  const { beats: analyzeBeats } = await import("../analysis/beats");
-  await analyzeBeats({
+  if (nonNegOptInvalid(flags, "limit", cmd, json)) return null;
+  const limit = nonNegOpt(flags, "limit", cmd, json);
+  if (nonNegOptInvalid(flags, "max-seconds", cmd, json)) return null;
+  const maxSeconds = nonNegOpt(flags, "max-seconds", cmd, json);
+  if (nonNegOptInvalid(flags, "jobs", cmd, json)) return null;
+  const jobs = nonNegOpt(flags, "jobs", cmd, json);
+  return { flags, json, limit, maxSeconds, jobs } as {
+    flags: ReturnType<typeof parseFlags>;
+    json: boolean;
+    limit: number;
+    maxSeconds: number;
+    jobs: number;
+  };
+}
+
+/** The shared analysis-pass options object for beats / catch-up (#316:
+ *  the two handlers assembled the same 9-field object). */
+function analysisPassOptions(
+  parsed: NonNullable<ReturnType<typeof parseAnalysisFlags>>,
+  state: import("../../core/state").ArchiveState,
+  musicDir: string,
+) {
+  const { flags, json } = parsed;
+  return {
     state,
     musicDir,
-    jobs,
-    limit,
+    jobs: parsed.jobs ?? 0,
+    limit: parsed.limit ?? 0,
     force: flags.bools.has("force"),
     dryRun: flags.bools.has("dry-run"),
     json,
-    maxSeconds,
-  });
+    maxSeconds: parsed.maxSeconds ?? 0,
+  };
+}
+
+const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
+  const parsed = parseAnalysisFlags(rest, "beats");
+  if (parsed === null) return;
+  const { beats: analyzeBeats } = await import("../analysis/beats");
+  await analyzeBeats(analysisPassOptions(parsed, state, musicDir));
 };
 
 // #289: one catch-up command — the analysis gap pass (beats, then mood)
 // for new imports waiting on analysis. Ledgered == analyzed (#278/#279):
 // a re-run on a fresh library is a fast no-op unless --force.
 const catchUp: CliCommandHandler = async (rest, { state, musicDir }) => {
-  const flags = parseFlags(
-    rest,
-    ["limit", "jobs", "max-seconds"],
-    ["force", "dry-run", "json"],
-  );
-  const json = flags.bools.has("json");
-  if (nonNegOptInvalid(flags, "limit", "catch-up", json)) return;
-  const limit = nonNegOpt(flags, "limit", "catch-up", json);
-  if (nonNegOptInvalid(flags, "max-seconds", "catch-up", json)) return;
-  const maxSeconds = nonNegOpt(flags, "max-seconds", "catch-up", json);
-  if (nonNegOptInvalid(flags, "jobs", "catch-up", json)) return;
-  const jobs = nonNegOpt(flags, "jobs", "catch-up", json);
+  const parsed = parseAnalysisFlags(rest, "catch-up");
+  if (parsed === null) return;
   const { catchUp: runCatchUp } = await import("../analysis/catch-up");
-  await runCatchUp({
-    state,
-    musicDir,
-    jobs,
-    limit,
-    force: flags.bools.has("force"),
-    dryRun: flags.bools.has("dry-run"),
-    json,
-    maxSeconds,
-  });
+  await runCatchUp(analysisPassOptions(parsed, state, musicDir));
 };
 
 const mood: CliCommandHandler = async (rest, { state, musicDir }) => {

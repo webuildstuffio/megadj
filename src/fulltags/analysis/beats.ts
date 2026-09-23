@@ -21,7 +21,10 @@ import { writeJson } from "../../shared/cli-output";
  * Idempotent: a track with an existing beat record (any model) is
  * skipped unless --force. --json emits one summary object (P1).
  */
-export interface BeatsOptions {
+/** The pass options every analysis leg shares (#316: BeatsOptions and
+ *  CatchUpOptions were 8-field byte twins; catch-up composes the passes,
+ *  so its options extend this). */
+export interface AnalysisPassOptions {
   state: ArchiveState;
   musicDir: string;
   jobs?: number | undefined;
@@ -30,6 +33,9 @@ export interface BeatsOptions {
   dryRun?: boolean | undefined;
   json?: boolean | undefined;
   onProgress?: ((msg: string) => void) | undefined;
+}
+
+export interface BeatsOptions extends AnalysisPassOptions {
   /** Skip beat analysis for tracks longer than this many seconds
    *  (default 600 = 10min; 0 disables). */
   maxSeconds?: number | undefined;

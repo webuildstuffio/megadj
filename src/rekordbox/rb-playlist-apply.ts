@@ -15,6 +15,7 @@ import {
   type PyOut,
 } from "./rb-playlist-scripts.js";
 import type { RbPlaylistOptions, RbPlaylistResult } from "./rb-playlist.js";
+import { gateFail } from "./rb-playlist-types";
 
 /** The chain-track shape the apply leg consumes (produced by
  *  rb-playlist.ts buildChain; declared here as the write-side contract).
@@ -31,35 +32,6 @@ export interface ChainTrack {
   mixOut: string | null;
 }
 
-/** Early-gate failure shape — the same envelope the sequencer returns.
- *  Local copy so the apply leg can fail with partial counters without
- *  importing the sequencer body (a cycle). */
-function gateFail(
-  opts: RbPlaylistOptions,
-  dbPath: string,
-  group: string,
-  error: string,
-): RbPlaylistResult {
-  return {
-    command: "rb-playlist",
-    db: dbPath,
-    playlist: opts.playlist ?? "",
-    group,
-    preset: opts.preset ?? "peak",
-    minutes: 0,
-    chain: 0,
-    linked: 0,
-    unmatched: [],
-    cueWindows: [],
-    playlistId: null,
-    verified: 0,
-    appliedMode: Boolean(opts.apply),
-    backedUpTo: null,
-    errors: [],
-    ok: false,
-    error,
-  };
-}
 
 /** Apply mode: run the playlist-twin mutation (backup → python write →
  *  XML nodes → post-verify). All failure returns keep the counters the

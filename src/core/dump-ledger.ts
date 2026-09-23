@@ -31,7 +31,10 @@ interface DumpRow {
   updated_at: string;
 }
 
-function hydrate(r: DumpRow): DumpRecord {
+/** The ONE intake_dumps row → DumpRecord mapping (#316: dump-ledger and
+ *  deck/tools/dump-reader both read this table — one hydration, never a
+ *  drifting pair). */
+export function hydrateDumpRow(r: DumpRow): DumpRecord {
   return {
     folder: r.folder,
     sourceFolder: r.source_folder,
@@ -117,7 +120,7 @@ export class DumpLedger {
         "SELECT * FROM intake_dumps ORDER BY updated_at DESC, rowid DESC LIMIT ?",
       )
       .all(...([limit] as SQLQueryBindings[])) as DumpRow[];
-    return rows.map(hydrate);
+    return rows.map(hydrateDumpRow);
   }
 
   /** One dump by batch-folder name — "process dump X fully" reads here. */
@@ -125,7 +128,7 @@ export class DumpLedger {
     const r = this.db
       .query("SELECT * FROM intake_dumps WHERE folder = ?")
       .get(folder) as DumpRow | null;
-    return r ? hydrate(r) : null;
+    return r ? hydrateDumpRow(r) : null;
   }
 
   census(limit = 50): DumpCensus {

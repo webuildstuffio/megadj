@@ -11,6 +11,7 @@ import {
 import { megadjCliPath, splitIntakeStdout } from "./intake-run";
 import { drain, type JobLog, type JobTick } from "./job-runtime";
 import type { LegArgs } from "./job-legs-types";
+import { awaitLegExit } from "./job-legs-shared";
 
 interface FetchProgress {
   tasksTotal: number;
@@ -99,14 +100,7 @@ export async function runFetchJob({
     drain(proc, (line) => log(line), handle, deps.cfg.jobTimeoutMin * 60_000),
     drain(proc.stderr, fetchEventHandler(progress, tick, log), handle),
   ]);
-  await proc.exited;
-  if (handle.cancelled) throw new Error("cancelled");
-  if (proc.exitCode !== 0) {
-    const suffix = errResult.out.trim()
-      ? `: ${errResult.out.trim().slice(-400)}`
-      : "";
-    throw new Error(`megadj fetch exited ${proc.exitCode}${suffix}`);
-  }
+  await awaitLegExit(proc, handle, "megadj fetch", errResult.out);
   const { summary } = splitIntakeStdout(result.out);
   tick(1, 1, "fetch finished", "done", true);
   deps.db.event("local-archive", "fetch", {

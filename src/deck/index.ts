@@ -181,6 +181,26 @@ Bun.serve({
 /** Serve a file that lives ON a mounted drive (drive-image picker previews).
  *  NOTE: was historically unreachable — it sat BELOW the /api/ block, which
  *  always returns, so drive-image previews 404'd. Now a drive subroute. */
+/** The ONE megadj-CLI spawn-and-collect seam for this module (#316:
+ *  the megadjCli deps arms and the quarantine census each hand-rolled
+ *  the Bun.spawn + stderr/exit wrapper). */
+async function spawnMegadjCli(
+  root: string,
+  args: string[],
+): Promise<{ code: number; stderr: string; stdout: string }> {
+  const proc = Bun.spawn(["bun", megadjCliPath(root), ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+    cwd: root,
+  });
+  const [stderr, stdout] = await Promise.all([
+    new Response(proc.stderr).text(),
+    new Response(proc.stdout).text(),
+  ]);
+  const code = await proc.exited;
+  return { code, stderr, stdout };
+}
+
 function serveDriveImage(url: URL): Response {
   // sub is already decoded by the router; rebuild the volume from the URL.
   const m = url.pathname.match(/^\/api\/drives\/([^/]+)\/drive-image$/u);
@@ -205,25 +225,15 @@ const hygieneApi = makeHygieneRoutes({
     return jobs.enqueue(shelf.id, kind, `/Volumes/${shelf.name}`, "web");
   },
   megadjCli: async (args) => {
-    const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), ...args], {
-      stdout: "pipe",
-      stderr: "pipe",
-      cwd: cfg.root,
-    });
-    const stderr = await new Response(proc.stderr).text();
-    const code = await proc.exited;
-    return { code, stderr };
+    return spawnMegadjCli(cfg.root, args);
   },
   // quarantine census (#36): the engine (megadj CLI) owns the layout
   // math — index.ts just binds the call; stdout is the one JSON object.
   quarantineCensus: async () => {
-    const proc = Bun.spawn(
-      ["bun", megadjCliPath(cfg.root), "shelf-quarantine", "--json"],
-      { stdout: "pipe", stderr: "pipe", cwd: cfg.root },
-    );
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
-    const code = await proc.exited;
+    const { code, stdout, stderr } = await spawnMegadjCli(cfg.root, [
+      "shelf-quarantine",
+      "--json",
+    ]);
     if (code !== 0)
       return {
         files: 0,
@@ -366,14 +376,7 @@ const apiRouter = makeApiRouter({
   json,
   sse,
   megadjCli: async (args) => {
-    const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), ...args], {
-      stdout: "pipe",
-      stderr: "pipe",
-      cwd: cfg.root,
-    });
-    const stderr = await new Response(proc.stderr).text();
-    const code = await proc.exited;
-    return { code, stderr };
+    return spawnMegadjCli(cfg.root, args);
   },
   stopServer: () => {
     watcher.stop();

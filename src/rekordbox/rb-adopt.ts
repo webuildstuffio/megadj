@@ -26,19 +26,12 @@ import {
   reconcileRekordboxRows,
   snapshotArchive,
   type ReconcileRekordboxResultShape,
+  type RekordboxContentRowRef,
 } from "./rb-adopt-apply";
 
-export interface RekordboxContentRow {
-  contentId: string;
-  folderPath: string;
-  title: string | null;
-  artist: string | null;
-  album: string | null;
-  genre: string | null;
-  durationS: number | null;
-  bitrateKbps: number | null;
-  fileSizeBytes: number | null;
-  year: string | null;
+/** The full read-side row: the apply arm's structural ref (imported from
+ *  rb-adopt-apply.ts, #316: was a 12L byte-twin) plus the metadata doc. */
+export interface RekordboxContentRow extends RekordboxContentRowRef {
   /** Every scalar djmdContent column plus resolved relationship names. */
   metadata: Record<string, unknown>;
 }

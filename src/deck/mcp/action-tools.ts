@@ -9,7 +9,7 @@
 // mcp/read-tools.ts; mcp.ts owns assembly.
 
 import { str, num, RpcParamError, obj, s, sEnum, sArr, n, b } from "./params";
-import { apiGetJson, apiPost, PORT, waitForJob, type Job } from "../deckapi";
+import { apiGetJson, apiPost, PORT, waitForJob, type Job , dismissNote } from "../deckapi";
 import { JOB_KINDS } from "../shared/types";
 import type { ToolDef } from "./server";
 import { DRIVE_PARAM, needDrive } from "./read-tools";
@@ -321,12 +321,11 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
       const d = await needDrive(str(args, "drive"));
       const noteId = str(args, "note_id");
       if (!noteId) throw new RpcParamError("note_id is required");
-      const res = await apiPost(
-        `/api/drives/${d.id}/notes/${encodeURIComponent(noteId)}/dismiss`,
-      );
-      const body = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !body.ok)
-        throw new RpcParamError(body.error ?? `dismiss failed (${res.status})`);
+      try {
+        await dismissNote(d.id, noteId);
+      } catch (e) {
+        throw new RpcParamError((e as Error).message);
+      }
       return { ok: true, drive: d.nickname ?? d.name, id: noteId };
     },
   },

@@ -91,6 +91,23 @@ export async function apiPost(
   });
 }
 
+/** POST the note-dismiss and parse the ok envelope (#316: deckctl
+ *  cmdDismiss and the MCP dismiss tool each rebuilt the same call). The
+ *  caller owns the failure surface (CLI exit vs RpcParamError). */
+export async function dismissNote(
+  driveId: string,
+  noteId: string,
+): Promise<void> {
+  const res = await apiPost(
+    `/api/drives/${driveId}/notes/${encodeURIComponent(noteId)}/dismiss`,
+  );
+  const body = (await res.json()) as { ok?: boolean; error?: string };
+  if (!res.ok || !body.ok)
+    throw Object.assign(new Error(body.error ?? `dismiss failed (${res.status})`), {
+      status: res.status,
+    });
+}
+
 /** Wait for the server, auto-starting it if it isn't running. Tests (and
  *  embedders) can set CRATEDECK_NO_AUTOSTART=1 to make this a pure probe:
  *  the auto-spawn is detached + unref'd, so in a test process it becomes a

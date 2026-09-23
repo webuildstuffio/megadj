@@ -41,8 +41,9 @@ import { FIXTURE_PREFIXES } from "../shelf/tmp-purge";
 // LL 27-day freeze threshold) — imported, never re-declared here.
 import { ledgerFreshness as ledgerBand } from "../deck/shared/ledger-freshness";
 
-/** Recursive byte size — the same walk tmp-purge uses for its report. */
-function treeBytes(path: string): number {
+/** Recursive byte size — the one shared walk (#316: was duplicated in
+ *  tmp-purge.ts; storage's report and the purge report must agree). */
+export function treeBytes(path: string): number {
   let total = 0;
   try {
     const st = statSync(path);

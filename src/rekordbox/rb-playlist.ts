@@ -39,7 +39,6 @@ import {
   type MegasetPresetId,
 } from "../deck/megaset/engine";
 import { clampMegasetPool } from "../deck/shared/types";
-import type { SetSearchOverride } from "../deck/shared/megaset";
 import { DB_PATH } from "../cli-env";
 import { rbPythonFile } from "./rb-python-file.js";
 import {
@@ -63,63 +62,14 @@ import {
   unmatchedRows,
   type ChainTrack,
 } from "./rb-playlist-apply";
+import {
+  gateFail,
+  type RbPlaylistOptions,
+  type RbPlaylistResult,
+} from "./rb-playlist-types";
 
-export interface RbPlaylistOptions {
-  /** Drive mount root (master DB at <mount>/PIONEER/Master/master.db)
-   *  or explicit DB path via MEGADJ_RB_MASTER. */
-  mount: string;
-  /** Same params as `megadj megaset` — one engine, one validation. */
-  preset?: string | undefined;
-  minutes?: number | undefined;
-  opener?: string | undefined;
-  limit?: number | undefined;
-  /** #283 genre pool filter (raw value; shared family matcher). */
-  genre?: string | undefined;
-  /** Force the sequencer (A/B compare) — same contract as megaset --search.
-   *  #283-followup: this was silently DROPPED before (the option parsed,
-   *  the engine never saw it — a flag the engine never reads is the
-   *  classic silent no-op bug), so --search beam ran greedy. */
-  search?: SetSearchOverride | undefined;
-  /** Playlist name (defaults to "megaset <preset> <minutes>min <date>"). */
-  playlist?: string | undefined;
-  /** Parent playlist group (defaults to the proven "DJ-Imports"). */
-  group?: string | undefined;
-  apply?: boolean;
-  yes?: boolean;
-  log?: (s: string) => void;
-}
+export type { RbPlaylistOptions, RbPlaylistResult } from "./rb-playlist-types";
 
-export interface RbPlaylistResult {
-  command: "rb-playlist";
-  db: string;
-  playlist: string;
-  group: string;
-  preset: string;
-  minutes: number;
-  /** Tracks in the built chain. */
-  chain: number;
-  /** Chain tracks matched to existing master content rows. */
-  linked: number;
-  /** Chain tracks with NO content row in the master (not imported yet). */
-  unmatched: { title: string; reason: string }[];
-  /** #106 Phase D: per-step handoff windows from the cues ledger, in
-   *  chain order ("45s @ bar 25"; null = no cue row for that track).
-   *  Dry-run evidence only — the apply leg writes the playlist rows, not
-   *  cue pads (cue writes are a separate gated surface). */
-  cueWindows: { title: string; mixIn: string | null; mixOut: string | null }[];
-  /** In apply mode: playlist row ID. */
-  playlistId: string | null;
-  /** Post-write verify: song-playlist rows under our playlist. */
-  verified: number;
-  appliedMode: boolean;
-  backedUpTo: string | null;
-  errors: string[];
-  ok: boolean;
-  error?: string;
-}
-
-// PYRK_TAG + the python program builders (buildScript/verifyScript/predictScript) +
-// the boundary parsers moved to rb-playlist-scripts.ts (#88 item 2) — import-only here.
 /** Deterministic date stamp for the default playlist name. */
 function todayStamp(): string {
   return new Date().toISOString().slice(0, 10);
@@ -184,61 +134,6 @@ function buildChain(
   }
 }
 
-/** The handoff evidence string for one window ("45s @ bar 25"), or null. */
-const cueWindowLabel = (
-  cue: { bar: number; position: number } | null,
-): string | null =>
-  cue === null ? null : `${Math.round(cue.position)}s @ bar ${cue.bar}`;
-
-/** Dry-run honesty: predict the matches READ-ONLY so the report shows
- *  real numbers, never a fake "0 linked". */
-function predictUnmatched(
-  dbPath: string,
-  chain: ChainTrack[],
-  log: (s: string) => void,
-): { unmatched: string[]; error?: string } {
-  try {
-    const pred = predictMatches(
-      dbPath,
-      chain.map((c) => ({ path: c.path, base: c.base, title: c.title })),
-    );
-    log(
-      `rb-playlist: predict ${pred.hit}/${chain.length} chain tracks have master rows (read-only probe)`,
-    );
-    return { unmatched: pred.unmatched };
-  } catch (error) {
-    return { unmatched: [], error: errorText(error) };
-  }
-}
-
-/** Early-gate failure: everything not yet known stays at its zero value. */
-function gateFail(
-  opts: RbPlaylistOptions,
-  dbPath: string,
-  group: string,
-  error: string,
-): RbPlaylistResult {
-  return {
-    command: "rb-playlist",
-    db: dbPath,
-    playlist: opts.playlist ?? "",
-    group,
-    preset: opts.preset ?? "peak",
-    minutes: 0,
-    chain: 0,
-    linked: 0,
-    unmatched: [],
-    cueWindows: [],
-    playlistId: null,
-    verified: 0,
-    appliedMode: Boolean(opts.apply),
-    backedUpTo: null,
-    errors: [],
-    ok: false,
-    error,
-  };
-}
-
 /** The dry-run leg: read-only match prediction, no DB writes. */
 function rbPlaylistDryRunLeg(
   opts: RbPlaylistOptions,
@@ -284,6 +179,33 @@ function rbPlaylistDryRunLeg(
     errors: [],
     ok: true,
   };
+}
+
+/** The handoff evidence string for one window ("45s @ bar 25"), or null. */
+const cueWindowLabel = (
+  cue: { bar: number; position: number } | null,
+): string | null =>
+  cue === null ? null : `${Math.round(cue.position)}s @ bar ${cue.bar}`;
+
+/** Dry-run honesty: predict the matches READ-ONLY so the report shows
+ *  real numbers, never a fake "0 linked". */
+function predictUnmatched(
+  dbPath: string,
+  chain: ChainTrack[],
+  log: (s: string) => void,
+): { unmatched: string[]; error?: string } {
+  try {
+    const pred = predictMatches(
+      dbPath,
+      chain.map((c) => ({ path: c.path, base: c.base, title: c.title })),
+    );
+    log(
+      `rb-playlist: predict ${pred.hit}/${chain.length} chain tracks have master rows (read-only probe)`,
+    );
+    return { unmatched: pred.unmatched };
+  } catch (error) {
+    return { unmatched: [], error: errorText(error) };
+  }
 }
 
 export async function rbPlaylist(

@@ -35,6 +35,32 @@ import { isSimilarSpace } from "../../shared/leaf/vector-space";
  *  Typed as ToolDef so mcp.ts's TOOLS spread inherits the exact contract
  *  instead of `Record<string, unknown>` — a tool added here without a
  *  description/schema/run is a compile error, not a runtime surprise. */
+/** Shared limit validation + query binding (#316: was inline in two
+ *  tool run bodies). */
+function setLimitParam(
+  args: Record<string, unknown>,
+  q: URLSearchParams,
+  numFn: (args: Record<string, unknown>, key: string) => number | undefined,
+): void {
+  const rawLimit = args.limit;
+  if (rawLimit !== undefined) {
+    const parsedLimit = numFn(args, "limit");
+    if (parsedLimit === undefined)
+      throw new RpcParamError("limit must be a finite number");
+    q.set("limit", String(clampMegasetPool(parsedLimit)));
+  }
+}
+
+/** Shared id-param validation (#316: tag_compare + genre_why each
+ *  hand-rolled the same trim/require guard). NOTE: the routes themselves
+ *  stay inline in each tool's run body — the api-parity census (#249)
+ *  derives client reachability from the apiGet("<literal>") shapes. */
+function requireId(args: Record<string, unknown>): string {
+  const id = typeof args["id"] === "string" ? args["id"].trim() : "";
+  if (!id) throw new RpcParamError("id (video_id) is required");
+  return id;
+}
+
 export function archiveTools(): Record<string, ToolDef> {
   return {
     archive_search_tracks: {
@@ -262,13 +288,7 @@ export function archiveTools(): Record<string, ToolDef> {
             q.append("landmark", id.trim());
           }
         }
-        const rawLimit = args.limit;
-        if (rawLimit !== undefined) {
-          const parsedLimit = num(args, "limit");
-          if (parsedLimit === undefined)
-            throw new RpcParamError("limit must be a finite number");
-          q.set("limit", String(clampMegasetPool(parsedLimit)));
-        }
+        setLimitParam(args, q, num);
         const res = await apiGet(`/api/archive/megaset?${q.toString()}`);
         return res.json();
       },
@@ -310,13 +330,7 @@ export function archiveTools(): Record<string, ToolDef> {
           }
           if (ids.length > 0) q.set("families", ids.join(","));
         }
-        const rawLimit = args.limit;
-        if (rawLimit !== undefined) {
-          const parsedLimit = num(args, "limit");
-          if (parsedLimit === undefined)
-            throw new RpcParamError("limit must be a finite number");
-          q.set("limit", String(clampMegasetPool(parsedLimit)));
-        }
+        setLimitParam(args, q, num);
         const qs = q.toString();
         const res = await apiGet(
           qs === ""
@@ -378,8 +392,7 @@ export function archiveTools(): Record<string, ToolDef> {
         id: s("video_id of the track (archive_search_tracks finds them)"),
       }),
       run: async (args: Record<string, unknown>) => {
-        const id = typeof args["id"] === "string" ? args["id"].trim() : "";
-        if (!id) throw new RpcParamError("id (video_id) is required");
+        const id = requireId(args);
         const res = await apiGet(
           `/api/archive/tag-compare?id=${encodeURIComponent(id)}`,
         );
@@ -401,8 +414,7 @@ export function archiveTools(): Record<string, ToolDef> {
         id: s("video_id of the track (archive_search_tracks finds them)"),
       }),
       run: async (args: Record<string, unknown>) => {
-        const id = typeof args["id"] === "string" ? args["id"].trim() : "";
-        if (!id) throw new RpcParamError("id (video_id) is required");
+        const id = requireId(args);
         const res = await apiGet(
           `/api/archive/genre-why?id=${encodeURIComponent(id)}`,
         );

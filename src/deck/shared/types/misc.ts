@@ -91,6 +91,7 @@ export {
   MEGASET_POOL_MAX,
   MEGASET_POOL_UNLIMITED,
   groupMegasetExcluded,
+  buildMegasetPayload,
   megasetReasonClass,
   megasetTransitionBand,
   megasetNearestGenreFamily,

@@ -28,6 +28,7 @@ import {
 import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
+import { treeBytes } from "../shared/storage";
 
 /** Dir-name prefixes this repo's test suites create as fixtures. */
 export const FIXTURE_PREFIXES = [
@@ -82,21 +83,6 @@ export interface StatePurgeDeps {
   root?: string;
   openPaths?: (root: string) => Set<string> | null;
   remove?: (path: string) => void;
-}
-
-/** Recursive byte size (a dir's own stat is not its content size). */
-function treeBytes(path: string): number {
-  let total = 0;
-  try {
-    const st = statSync(path);
-    if (!st.isDirectory()) return st.size;
-    for (const entry of readdirSync(path)) {
-      total += treeBytes(join(path, entry));
-    }
-  } catch {
-    return total;
-  }
-  return total;
 }
 
 export function tmpPurge(opts: TmpPurgeOptions): TmpPurgeResult {
@@ -181,18 +167,24 @@ function commandOutput(value: unknown): string {
 }
 
 /** PIDs holding any file under `dir` open (lsof +D), or null on failure. */
+/** lsof output → the set of held absolute paths (both call sites of
+ *  the lsof probe parse the identical line shape; #316). */
+function heldPathsFrom(out: string): Set<string> {
+  const held = new Set<string>();
+  for (const line of out.split("\n")) {
+    const path = line.slice(line.lastIndexOf(" ") + 1).trim();
+    if (path.startsWith("/")) held.add(path);
+  }
+  return held;
+}
+
 function openPathsUnder(dir: string): Set<string> | null {
   try {
     const out = execFileSync("/usr/sbin/lsof", ["+D", dir], {
       encoding: "utf8",
       timeout: 10_000,
     });
-    const held = new Set<string>();
-    for (const line of out.split("\n")) {
-      const path = line.slice(line.lastIndexOf(" ") + 1).trim();
-      if (path.startsWith("/")) held.add(path);
-    }
-    return held;
+    return heldPathsFrom(out);
   } catch (e) {
     // macOS lsof exits 1 in TWO distinct cases: no files matched at all
     // (completely empty output) OR its +D walk raced a disappearing file
@@ -207,12 +199,7 @@ function openPathsUnder(dir: string): Set<string> | null {
     };
     const out = commandOutput(failure.stdout);
     if (failure.status === 1 && out.trim() !== "") {
-      const held = new Set<string>();
-      for (const line of out.split("\n")) {
-        const path = line.slice(line.lastIndexOf(" ") + 1).trim();
-        if (path.startsWith("/")) held.add(path);
-      }
-      return held;
+      return heldPathsFrom(out);
     }
     if (
       failure.status === 1 &&

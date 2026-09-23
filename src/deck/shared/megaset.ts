@@ -211,6 +211,88 @@ export interface MegasetPayload extends MegasetResult {
   freshness: { beatsAt: string | null; moodAt: string | null };
 }
 
+/** The ONE MegasetPayload builder (#316: the CLI arm in
+ * fulltags/megaset/megaset.ts and the API route in
+ * deck/api/routes-archive.ts each hand-built this 40-line envelope —
+ * a drifting-twin risk on every payload field addition). Inputs the two
+ * surfaces genuinely differ on arrive as `meta`; everything else derives
+ * from the built result + census. */
+export function buildMegasetPayload(args: {
+  built: MegasetResult;
+  available: boolean;
+  census: {
+    sourceTotal: number;
+    total: number;
+    missingFiles: number;
+    metadataOnly: number;
+    duplicateFiles: number;
+    relocatedFiles: number;
+    rekordboxKeyHits: number;
+    rekordboxBpmHits: number;
+    keyReads: number;
+    keyReadFailures: number;
+    genreFiltered: number;
+    freshness: MegasetPayload["freshness"];
+    stagesMs: MegasetPayload["stages_ms"];
+  };
+  /** Surface-specific extras (CLI: genre_suggestion). */
+  genreSuggestion?: string | undefined;
+}): MegasetPayload {
+  const { built, census } = args;
+  return {
+    available: args.available,
+    source_total: census.sourceTotal,
+    pool: census.total,
+    missing_files: census.missingFiles,
+    duplicate_files: census.duplicateFiles,
+    relocated_files: census.relocatedFiles,
+    rekordbox_key_hits: census.rekordboxKeyHits,
+    rekordbox_bpm_hits: census.rekordboxBpmHits,
+    // how many files needed a live key read this request (cache
+    // misses) — a slow first build is explainable, later ones are fast
+    key_reads: census.keyReads,
+    key_read_failures: census.keyReadFailures,
+    preset: built.preset,
+    minutes: built.minutes,
+    actualMinutes: built.actualMinutes,
+    shortfallMinutes: built.shortfallMinutes,
+    complete: built.complete,
+    steps: built.steps,
+    // the excluded preview shares one cap with the CLI/panel
+    // (MEGASET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
+    excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
+    // B13: reason groups derived from the FULL excluded list engine-side
+    // (#291: budget-fill excluded — it is the budget_filled status)
+    excluded_groups: built.excluded_groups,
+    excluded_total: built.excluded.length,
+    // #291: budget-fill as a STATUS, not a quality bucket
+    budget_filled: built.budget_filled,
+    metadata_only: census.metadataOnly,
+    // #283: matched rows when a --genre filter ran (0 = unfiltered)
+    genre_filtered: census.genreFiltered,
+    // #290: nearest known genre family when the filter matched 0 rows
+    ...(args.genreSuggestion !== undefined
+      ? { genre_suggestion: args.genreSuggestion }
+      : {}),
+    // #286: measured per-stage timings (ms) — the CLI epilogue and the
+    // web phase list quote these, never a fixed schedule
+    stages_ms: census.stagesMs,
+    // #283-followup: set-level quality stats (mean/lowest transition)
+    avg_transition: built.avg_transition,
+    min_transition: built.min_transition,
+    // B6 (#107): same-artist adjacency count — the diversity report card
+    same_artist_pairs: built.same_artist_pairs,
+    // S13 (#107): landmark pins that could not be placed
+    landmarks_missing: built.landmarks_missing,
+    // ledger ages (newest beats/mood analysis) — the UI staleness
+    // line derives from this, never a hand-copied clock read
+    freshness: census.freshness,
+    // which sequencer ran (beam = deep search on small pools) — the
+    // UI and CLI quote this, never re-derive the threshold themselves
+    search: built.search,
+  };
+}
+
 /** Set-builder energy-arc presets — the ONE registry all three surfaces
  *  derive from: the engine (src/megaset.ts) scores against these
  *  envelopes, the route validates `?preset=` against these ids, and the

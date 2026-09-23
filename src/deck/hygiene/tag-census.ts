@@ -19,25 +19,13 @@ import type {
   ArchiveTagCensusRow,
 } from "../shared/archive-wire";
 import type { ArchiveQuery } from "../shared/types/archive-reader";
+import { poolFreshness } from "../megaset/pool";
 
 /** Ledger freshness for the census (#174): MAX(analyzed_at) per analysis
  *  ledger — the same stamps the set-builder's poolFreshness reports. A
  *  census computed against week-old beats/mood rows must not read as
  *  current; null stamps = empty ledger (the honest gap, never an mtime). */
-function censusFreshness(reader: ArchiveQuery): {
-  beatsAt: string | null;
-  moodAt: string | null;
-} {
-  const row = reader.row<{ beats_at: string | null; mood_at: string | null }>(
-    `SELECT
-       (SELECT MAX(analyzed_at) FROM beats) AS beats_at,
-       (SELECT MAX(analyzed_at) FROM mood) AS mood_at`,
-  );
-  return {
-    beatsAt: row?.beats_at ?? null,
-    moodAt: row?.mood_at ?? null,
-  };
-}
+const censusFreshness = poolFreshness;
 
 interface RawCensusRow {
   video_id: string;

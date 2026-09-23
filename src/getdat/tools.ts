@@ -39,6 +39,19 @@ async function runGetDatCli(
   );
 }
 
+/** Shared ingest invocation (#316: getdat_intake action=process and
+ *  getdat_ingest were byte-twin run bodies). */
+function runIngest(
+  folder: string,
+  dryRun: boolean,
+): Promise<Record<string, unknown>> {
+  return runGetDatCli(
+    "ingest",
+    [folder, ...(dryRun ? ["--dry-run"] : []), "--json"],
+    dryRun,
+  );
+}
+
 /** The GetDat intake + conversion tools (mutating; async CLI job seam). */
 export function getdatTools(deps?: {
   /** dump census reader (#20) — injected by mcp.ts assembly so the MCP
@@ -67,12 +80,7 @@ export function getdatTools(deps?: {
         if (action === "process") {
           const folder = str(args, "folder")?.trim();
           if (!folder) throw new RpcParamError("folder is required");
-          const dryRun = args["dry_run"] === true;
-          return runGetDatCli(
-            "ingest",
-            [folder, ...(dryRun ? ["--dry-run"] : []), "--json"],
-            dryRun,
-          );
+          return runIngest(folder, args["dry_run"] === true);
         }
         throw new RpcParamError(`unknown action "${action}"`);
       },
@@ -94,12 +102,7 @@ export function getdatTools(deps?: {
       run: async (args) => {
         const folder = str(args, "folder")?.trim();
         if (!folder) throw new RpcParamError("folder is required");
-        const dryRun = args["dry_run"] === true;
-        return runGetDatCli(
-          "ingest",
-          [folder, ...(dryRun ? ["--dry-run"] : []), "--json"],
-          dryRun,
-        );
+        return runIngest(folder, args["dry_run"] === true);
       },
     },
 

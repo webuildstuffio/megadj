@@ -5,21 +5,10 @@
 // implementation, no new analysis code. The #278/#279 rule rides through
 // the existing passes: a ledgered track is analyzed, never re-queued,
 // unless --force.
-import type { ArchiveState } from "../../core/state";
-import { beats } from "./beats";
+import { beats, type AnalysisPassOptions } from "./beats";
 import { mood, type MoodOptions } from "./mood";
 
-export interface CatchUpOptions {
-  state: ArchiveState;
-  musicDir: string;
-  /** Parallel workers INSIDE each analysis pass (sync stays serial by
-   *  design; parallelism belongs here). Default 4 per the issue sketch. */
-  jobs?: number | undefined;
-  limit?: number | undefined;
-  force?: boolean | undefined;
-  dryRun?: boolean | undefined;
-  json?: boolean | undefined;
-  onProgress?: ((msg: string) => void) | undefined;
+export interface CatchUpOptions extends AnalysisPassOptions {
   /** Length cap forwarded to both passes (default 10 min; 0 disables —
    *  the intentional duration cap, made explicit here too). */
   maxSeconds?: number | undefined;

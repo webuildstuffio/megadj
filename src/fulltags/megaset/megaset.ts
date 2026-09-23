@@ -10,12 +10,8 @@
 // Agent-first contract: --json (one summary object on stdout via
 // writeJson), human logs suppressed in json mode, meaningful exit codes
 // (1 = no archive / nothing mixable, 2 = bad flag input, 0 = proposal).
-import { join } from "node:path";
-import { ArchiveReader } from "../../deck/db/reader";
-import { loadConfig } from "../../deck/config";
 import { DB_PATH } from "../../cli-env";
 import { commandLog } from "../../shared/progress";
-import { crateDeckRoot } from "../../shared/volume";
 import {
   writeJson,
   finishCommandError,
@@ -27,11 +23,10 @@ import {
   SET_PRESETS,
 } from "../../deck/megaset/engine";
 import {
+  buildMegasetPayload,
   clampMegasetPool,
-  MEGASET_EXCLUDED_PREVIEW_MAX,
   MEGASET_GENRE_FAMILIES,
   megasetNearestGenreFamily,
-  type MegasetPayload,
   type SetSearchOverride,
 } from "../../deck/shared/types";
 
@@ -41,6 +36,7 @@ import {
   logProposalHeader,
   logSteps,
 } from "./megaset-report";
+import { openMegasetArchive } from "./archive-open";
 
 export interface MegasetOptions {
   preset?: string | undefined;
@@ -60,11 +56,7 @@ export interface MegasetOptions {
 
 export async function megaset(opts: MegasetOptions): Promise<void> {
   const log = commandLog(opts);
-  const cfg = loadConfig(crateDeckRoot());
-  const archive = new ArchiveReader(
-    DB_PATH,
-    join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),
-  );
+  const archive = openMegasetArchive();
 
   // same parse/validate path as the HTTP route + MCP tool (SSOT): unknown
   // preset is an error, minutes clamp to 10–240 — never silent fallbacks
@@ -151,48 +143,26 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
         );
       }
     }
-    const payload: MegasetPayload = {
+    const payload = buildMegasetPayload({
+      built,
       available: true,
-      source_total: sourceTotal,
-      pool: total,
-      missing_files: missingFiles,
-      duplicate_files: duplicateFiles,
-      relocated_files: relocatedFiles,
-      rekordbox_key_hits: rekordboxKeyHits,
-      rekordbox_bpm_hits: rekordboxBpmHits,
-      key_reads: keyReads,
-      key_read_failures: keyReadFailures,
-      preset: built.preset,
-      minutes: built.minutes,
-      actualMinutes: built.actualMinutes,
-      shortfallMinutes: built.shortfallMinutes,
-      complete: built.complete,
-      steps: built.steps,
-      excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
-      excluded_groups: built.excluded_groups,
-      excluded_total: built.excluded.length,
-      // #291: budget-fill reported as a STATUS count, not a group bucket
-      budget_filled: built.budget_filled,
-      metadata_only: metadataOnly,
-      // #283: matched rows when a --genre filter ran (0 = unfiltered)
-      genre_filtered: genreFiltered,
-      // #286: measured per-stage timings (ms) — the CLI epilogue and the
-      // web phase list quote these, never a fixed schedule
-      stages_ms: stagesMs,
-      // #290: the nearest known family when the filter matched 0 rows
-      ...(genreSuggestion !== undefined
-        ? { genre_suggestion: genreSuggestion }
-        : {}),
-      // #283-followup: set-level quality stats (mean/lowest transition)
-      avg_transition: built.avg_transition,
-      min_transition: built.min_transition,
-      // B6 (#107): same-artist adjacency count — the diversity report card
-      same_artist_pairs: built.same_artist_pairs,
-      // S13 (#107): landmark pins that could not be placed
-      landmarks_missing: built.landmarks_missing,
-      freshness,
-      search: built.search,
-    };
+      census: {
+        sourceTotal,
+        total,
+        missingFiles,
+        metadataOnly,
+        duplicateFiles,
+        relocatedFiles,
+        rekordboxKeyHits,
+        rekordboxBpmHits,
+        keyReads,
+        keyReadFailures,
+        genreFiltered,
+        freshness,
+        stagesMs,
+      },
+      ...(genreSuggestion !== undefined ? { genreSuggestion } : {}),
+    });
     if (built.steps.length === 0) {
       // empty proposal = a real finding (nothing analyzed / nothing
       // mixable), not a crash — same honesty as the web Verdict row.

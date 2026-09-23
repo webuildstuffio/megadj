@@ -18,8 +18,9 @@ export interface PlanRow {
   fileExists: boolean;
 }
 
-/** Minimal structural view of a content row for the plan/apply arm (the
- *  full shape is declared on the read side in rb-adopt.ts). */
+/** Structural view of a content row for the plan/apply arm — the ONE
+ *  declaration (#316: rb-adopt.ts's read-side `RekordboxContentRow`
+ *  extends this with the metadata doc). */
 export interface RekordboxContentRowRef {
   contentId: string;
   folderPath: string;
@@ -271,6 +272,32 @@ export function insertedCount(plan: PlanRow[]): number {
   ).size;
 }
 
+/** The zeroed rb-adopt envelope for an early gate refusal (#316: the
+ *  three gate returns in `reconcileRekordboxRows` each rebuilt these 16
+ *  lines inline). `error` is required — a gate return always has one. */
+function gateResult(
+  opts: ReconcileOptionsShape,
+  error: string,
+): ReconcileRekordboxResultShape {
+  return {
+    command: "rb-adopt",
+    sourceDb: opts.sourceDb,
+    total: opts.rows.length,
+    uniqueFiles: 0,
+    matchedExisting: 0,
+    wouldCreate: 0,
+    duplicateContentPaths: 0,
+    missingFiles: 0,
+    linked: 0,
+    created: 0,
+    applied: 0,
+    staleLinksRemoved: 0,
+    appliedMode: opts.apply,
+    ok: false,
+    error,
+  };
+}
+
 /** Option shape for reconcileRekordboxRows. */
 export interface ReconcileOptionsShape {
   state: ArchiveState;
@@ -286,66 +313,24 @@ export function reconcileRekordboxRows(
   opts: ReconcileOptionsShape,
 ): ReconcileRekordboxResultShape {
   if (opts.rows.length === 0)
-    return {
-      command: "rb-adopt",
-      sourceDb: opts.sourceDb,
-      total: opts.rows.length,
-      uniqueFiles: 0,
-      matchedExisting: 0,
-      wouldCreate: 0,
-      duplicateContentPaths: 0,
-      missingFiles: 0,
-      linked: 0,
-      created: 0,
-      applied: 0,
-      staleLinksRemoved: 0,
-      appliedMode: opts.apply,
-      ok: false,
-      error: "master Content census is empty; refusing to prune",
-    };
+    return gateResult(
+      opts,
+      "master Content census is empty; refusing to prune",
+    );
   const duplicateIds = new Set<string>();
   const seenIds = new Set<string>();
   for (const row of opts.rows) {
     if (!row.contentId) {
-      return {
-        command: "rb-adopt",
-        sourceDb: opts.sourceDb,
-        total: opts.rows.length,
-        uniqueFiles: 0,
-        matchedExisting: 0,
-        wouldCreate: 0,
-        duplicateContentPaths: 0,
-        missingFiles: 0,
-        linked: 0,
-        created: 0,
-        applied: 0,
-        staleLinksRemoved: 0,
-        appliedMode: opts.apply,
-        ok: false,
-        error: "master contains a Content row with an empty ID",
-      };
+      return gateResult(opts, "master contains a Content row with an empty ID");
     }
     if (seenIds.has(row.contentId)) duplicateIds.add(row.contentId);
     seenIds.add(row.contentId);
   }
   if (duplicateIds.size > 0)
-    return {
-      command: "rb-adopt",
-      sourceDb: opts.sourceDb,
-      total: opts.rows.length,
-      uniqueFiles: 0,
-      matchedExisting: 0,
-      wouldCreate: 0,
-      duplicateContentPaths: 0,
-      missingFiles: 0,
-      linked: 0,
-      created: 0,
-      applied: 0,
-      staleLinksRemoved: 0,
-      appliedMode: opts.apply,
-      ok: false,
-      error: `master contains duplicate Content IDs: ${[...duplicateIds].slice(0, 5).join(", ")}`,
-    };
+    return gateResult(
+      opts,
+      `master contains duplicate Content IDs: ${[...duplicateIds].slice(0, 5).join(", ")}`,
+    );
 
   const { plan, matchedExisting, uniqueFiles } = buildPlan(
     opts.state,

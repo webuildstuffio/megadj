@@ -17,6 +17,7 @@ import {
   type RunHandle,
 } from "./job-runtime";
 import type { LegArgs } from "./job-legs-types";
+import { awaitLegExit } from "./job-legs-shared";
 
 export async function runIngest({
   deps,
@@ -63,14 +64,7 @@ export async function runIngest({
     drain(proc, onLine, handle, deps.cfg.jobTimeoutMin * 60_000),
     drain(proc.stderr, onLine, handle),
   ]);
-  await proc.exited;
-  if (handle.cancelled) throw new Error("cancelled");
-  if (proc.exitCode !== 0) {
-    const suffix = errResult.out.trim()
-      ? `: ${errResult.out.trim().slice(-400)}`
-      : "";
-    throw new Error(`megadj ingest exited ${proc.exitCode}${suffix}`);
-  }
+  await awaitLegExit(proc, handle, "megadj ingest", errResult.out);
   const { summary } = splitIntakeStdout(result.out);
   const counters = parseIngestSummary(summary);
   const { audit, auditErrors } = await auditArchive(

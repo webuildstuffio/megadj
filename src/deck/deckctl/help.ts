@@ -14,7 +14,7 @@
 // one implementation of "explain a job" across the help/explain verbs.
 
 import { HELP_JOBS, HELP_SURFACES, HELP_TERMS } from "../shared/help";
-import { apiPost, resolveDriveOrExit } from "../deckapi";
+import { resolveDriveOrExit, dismissNote } from "../deckapi";
 import { KIND_DOCS, printKindDoc } from "./docs";
 import { emitJson } from "./runtime";
 
@@ -108,13 +108,12 @@ export async function cmdDismiss(
   noteId: string,
 ): Promise<void> {
   const d = await resolveDriveOrExit(h, nameOrId);
-  const res = await apiPost(
-    `/api/drives/${d.id}/notes/${encodeURIComponent(noteId)}/dismiss`,
-  );
-  const body = (await res.json()) as { ok?: boolean; error?: string };
-  if (!res.ok || !body.ok) {
-    h.errOut(body.error ?? `dismiss failed (${res.status})`);
-    h.exit(res.status === 404 ? 2 : 1);
+  try {
+    await dismissNote(d.id, noteId);
+  } catch (e) {
+    const err = e as Error & { status?: number };
+    h.errOut(err.message);
+    h.exit(err.status === 404 ? 2 : 1);
   }
   if (h.jsonMode)
     await emitJson({ dismissed: true, drive: d.name, id: noteId });
