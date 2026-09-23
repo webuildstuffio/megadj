@@ -41,7 +41,6 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#220: subject mood.ts lives in analysis/",
   "src/fulltags/booth/booth-fix.e2e.test.ts":
     "#220: subject booth-fix.ts lives in booth/",
-  "src/fulltags/cli/enrich.test.ts": "#220: subject is fetch/enrich.ts",
   "src/fulltags/genre/genre-vocab-crossmap.test.ts":
     "#220: subject genre-vocab.ts",
   "src/fulltags/sources/clean-search-parts.test.ts":
@@ -96,6 +95,8 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#315: pool admission/cues-join contract (multi-subject: pool+reader+types)",
   "src/deck/megaset/surface.test.ts":
     "#315: megaset surface over routes+tools+reader (domain-dir test)",
+  "src/fulltags/cli/enrich.test.ts":
+    "#319: enrich stage test lives with the CLI that dispatches it (subject fetch/enrich kept at #220 row)",
 
   // ---- #319 root tidy: multi-subject/domain-dir tests co-located to the
   // owning dir (same pattern as the #214 rows above):
