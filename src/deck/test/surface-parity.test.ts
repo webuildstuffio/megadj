@@ -136,7 +136,7 @@ function mcpTools(): string[] {
   const files = [
     "src/deck/mcp.ts",
     "src/deck/report/tools.ts",
-    "src/deck/getdat-tools.ts",
+    "src/getdat/tools.ts",
   ];
   const tools = files
     .flatMap((f) =>
@@ -466,7 +466,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const cli = read("src/fulltags/cli/cli-commands.ts").join("\n");
     expect(cli).toMatch(/^\s{2}megaset,$/m);
     expect(read("src/fulltags/megaset/megaset.ts").join("\n")).toContain(
-      'from "../deck/megaset/engine"',
+      'from "../../deck/megaset/engine"',
     );
   });
 

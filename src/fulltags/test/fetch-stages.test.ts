@@ -68,7 +68,7 @@ function runScenario(
          ${JSON.stringify(rowLabel)}, '/nonexistent/track.mp3', NULL, NULL, NULL);
     \`);
     const stages = await import(${JSON.stringify(join(REPO, "src/fulltags/fetch/fetch-stages.ts"))});
-    const lib = await import(${JSON.stringify(join(REPO, "src/fulltags/archive-ledger.ts"))});
+    const lib = await import(${JSON.stringify(join(REPO, "src/fulltags/core/archive-ledger.ts"))});
     const row = lib.db
       .query("SELECT video_id, title, artist, album, genre, label, file_path, format_id FROM tracks WHERE video_id='vid1'")
       .get();
