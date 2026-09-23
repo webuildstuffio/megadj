@@ -1,8 +1,11 @@
 /**
- * Ingest Phase-D helpers: artwork acquisition + AI-art queueing.
- * The art ladder itself is FullTags-owned (soundcloudUrlInTags +
- * soundcloudArtwork/itunesArtwork via embed.ts shims); this module adds
- * the ingest-specific outcome tracking and the AI-generation queue flush.
+ * Ingest Phase-D helpers: artwork acquisition (the fetch ladder).
+ * The queue FORMAT lives in fulltags/write/artwork.ts (#322 merge 3 —
+ * the image-maker pass owns reading it; this module's outcome tracking +
+ * the flush call are the ingest-side write half). The art ladder itself
+ * is FullTags-owned (soundcloudUrlInTags + soundcloudArtwork/
+ * itunesArtwork via embed.ts shims); this module adds the ingest-specific
+ * outcome tracking around it.
  */
 import { extname } from "node:path";
 import { embedArtwork } from "../../fulltags/write/writer";
@@ -15,32 +18,10 @@ import {
 // hand-listed — a new SSOT extension never silently misses art again
 // (issue #200 class). .wav is excluded on purpose: RB ignores WAV art.
 import { AUDIO_EXTS } from "../../shared/audio-exts";
-
-export interface QueueEntry {
-  path: string;
-  title: string;
-  artist?: string | null;
-  album?: string | null;
-  reason: string;
-  remixOf?: string | null;
-  sourceUrl?: string | null;
-}
-
-export async function appendQueueEntries(
-  dbDir: string,
-  entries: QueueEntry[],
-): Promise<string> {
-  const { appendFile, mkdir } = await import("node:fs/promises");
-  const { join } = await import("node:path");
-  await mkdir(dbDir, { recursive: true });
-  const queuePath = join(dbDir, "artwork-queue.jsonl");
-  await appendFile(
-    queuePath,
-    `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`,
-    "utf8",
-  );
-  return queuePath;
-}
+export {
+  flushArtworkQueue,
+  type QueueEntry,
+} from "../../fulltags/write/artwork";
 
 /** Containers that reliably hold embedded artwork: every audio ext the
  *  scanners know, minus the formats that can't carry art. */
@@ -104,14 +85,4 @@ export async function fetchAndEmbedArtwork(
     out.failedUrl = artUrl;
   }
   return out;
-}
-
-/** Persist artwork-queue entries (AI generation fallback) after a run. */
-export async function flushArtworkQueue(
-  dbDir: string,
-  entries: QueueEntry[],
-  dryRun?: boolean,
-): Promise<void> {
-  if (entries.length === 0 || dryRun) return;
-  await appendQueueEntries(dbDir, entries);
 }

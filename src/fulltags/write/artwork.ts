@@ -13,12 +13,51 @@ import { join, basename, extname } from "node:path";
 import type { ArchiveState } from "../../core/state";
 import { embedArt, AUDIO_EXTS as ARTWORK_EXTS } from "./writer";
 import { fetchImage } from "../sources/art-sources";
-import type { QueueEntry } from "../../getdat/commands/ingest-art";
-export { type QueueEntry } from "../../getdat/commands/ingest-art";
 import { commandLog } from "../../shared/progress";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { writeJson, setExit } from "../../shared/cli-output";
 import { errMessage } from "../../shared/leaf/fmt";
+
+// ---- the artwork-queue format (folded from getdat/commands/ingest-art.ts,
+// #322 merge 3 — the queue is fulltags-owned: the image-maker pass parses
+// it here and ingest only appends, so the type lives with its reader) ----
+
+/** One queued no-artwork track (JSONL line in artwork-queue.jsonl). */
+export interface QueueEntry {
+  path: string;
+  title: string;
+  artist?: string | null;
+  album?: string | null;
+  reason: string;
+  remixOf?: string | null;
+  sourceUrl?: string | null;
+}
+
+export async function appendQueueEntries(
+  dbDir: string,
+  entries: QueueEntry[],
+): Promise<string> {
+  const fs = await import("node:fs/promises");
+  const { join: pjoin } = await import("node:path");
+  await fs.mkdir(dbDir, { recursive: true });
+  const queuePath = pjoin(dbDir, "artwork-queue.jsonl");
+  await fs.appendFile(
+    queuePath,
+    `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`,
+    "utf8",
+  );
+  return queuePath;
+}
+
+/** Persist artwork-queue entries (AI generation fallback) after a run. */
+export async function flushArtworkQueue(
+  dbDir: string,
+  entries: QueueEntry[],
+  dryRun?: boolean,
+): Promise<void> {
+  if (entries.length === 0 || dryRun) return;
+  await appendQueueEntries(dbDir, entries);
+}
 
 export interface ArtworkOptions {
   state: ArchiveState;
