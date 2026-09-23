@@ -35,6 +35,9 @@ function stubReader(shortFamilies: ReadonlySet<string> = new Set()) {
             key: "8A",
             valence: 5,
             arousal: 5,
+            dance: 0.5,
+            cues: [],
+            embedding: null,
             filePath: "/tmp/t.mp3",
             metadataOnly: false,
           },
@@ -152,5 +155,53 @@ describe("GET /api/archive/megaset-cohorts (rev-51)", () => {
     expect(body.all_complete).toBe(false);
     expect(body.cohorts[0]!.warmup.complete).toBe(false);
     expect(body.cohorts[0]!.warmup.pool).toBe(2);
+  });
+
+  // ---- rev-52: the format gate + the M3U8 session export --------------
+
+  test("rev-52: ?format=m3u8 renders the WHOLE session as one playlist — never JSON", async () => {
+    const res = call(
+      "http://localhost/api/archive/megaset-cohorts?families=edm&minutes=10&format=m3u8",
+      stubReader(),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("mpegurl");
+    expect(res.headers.get("content-disposition")).toContain("attachment");
+    const text = await res.text();
+    // one playlist, warmup+peak sections under the family header
+    expect(text.startsWith("#EXTM3U\n")).toBe(true);
+    expect(text).toContain("# --- edm · warmup");
+    expect(text).toContain("# --- edm · peak");
+    // the stub's mounted track appears (its stub path rides the export)
+    expect(text).toContain("/tmp/t.mp3");
+    // and it is NOT the JSON plan
+    expect(text).not.toContain('"command"');
+  });
+
+  test("rev-52: an UNKNOWN format is a 400 — the silent JSON fall-through is retired", async () => {
+    const res = call(
+      "http://localhost/api/archive/megaset-cohorts?families=edm&format=pls",
+      stubReader(),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("pls");
+    expect(body.error).toContain("m3u8");
+  });
+
+  test("rev-52: the JSON wire strips the server-side export fields (no filePath leaks)", async () => {
+    const res = call(
+      "http://localhost/api/archive/megaset-cohorts?families=edm",
+      stubReader(),
+    );
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    // filePath + poolRows + chain never serialize — the download is the
+    // one surface that legitimately carries paths
+    expect(text).not.toContain("filePath");
+    expect(text).not.toContain("poolRows");
+    expect(text).not.toContain("chain");
+    // the summary count stays
+    expect(text).toContain('"steps":1');
   });
 });

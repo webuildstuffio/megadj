@@ -12,10 +12,10 @@ import {
 import {
   buildCohortPlan,
   parseCohortFamilies,
+  type CohortArmCandidate,
   type CohortBuild,
   type CohortResult,
 } from "../../deck/megaset/cohorts";
-import type { SetCandidate } from "../../deck/megaset/scoring";
 
 describe("#295 megaset-cohorts", () => {
   test("default families are real family ids, ordered by measured spread", () => {
@@ -75,7 +75,7 @@ describe("#295 megaset-cohorts", () => {
         limit?: number | undefined,
         genre?: string | undefined,
       ): {
-        candidates: SetCandidate[];
+        candidates: CohortArmCandidate[];
         genreFiltered: number;
         total: number;
       } => {
@@ -95,6 +95,9 @@ describe("#295 megaset-cohorts", () => {
               dance: 0.5,
               cues: [],
               embedding: null,
+              // rev-52: the M3U8-export fields the arm now carries
+              filePath: "/Volumes/SHELF1/Contents/T.aiff",
+              metadataOnly: false,
             },
           ],
           genreFiltered: short ? 3 : 500,
@@ -142,6 +145,10 @@ describe("#295 megaset-cohorts", () => {
       sameArtistPairs: 0,
       genreFiltered: 683,
       pool: 700,
+      // rev-52: the server-side export fields (chain + census rows) ride
+      // the in-memory shape — they never serialize to the wire
+      chain: [],
+      poolRows: [],
     };
     expect(build.complete).toBe(false);
     expect(build.shortfallMinutes).toBeGreaterThan(0);
@@ -165,6 +172,8 @@ describe("#295 megaset-cohorts", () => {
         sameArtistPairs: 0,
         genreFiltered: 633,
         pool: 640,
+        chain: [],
+        poolRows: [],
       },
       peak: {
         preset: "peak",
@@ -178,6 +187,8 @@ describe("#295 megaset-cohorts", () => {
         sameArtistPairs: 1,
         genreFiltered: 633,
         pool: 640,
+        chain: [],
+        poolRows: [],
       },
     };
     expect(result.warmup.preset).toBe("warmup");

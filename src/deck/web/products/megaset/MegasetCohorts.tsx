@@ -4,8 +4,13 @@
 // megaset-cohorts route the CLI and MCP quote). Propose-only: nothing
 // writes; the DJ reviews, then imports per-set via the Build tab.
 import { Card } from "../../ui/data";
+import { Icon } from "../../ui/icons";
 import { SectionHead } from "../shared";
-import type { CohortArmWire, CohortsPlanner } from "./cohorts-view";
+import {
+  cohortsExportHref,
+  type CohortArmWire,
+  type CohortsPlanner,
+} from "./cohorts-view";
 
 function armSummary(arm: CohortArmWire): string {
   const flag = arm.complete ? "" : ` · short ${arm.shortfallMinutes}m`;
@@ -99,6 +104,17 @@ export function MegasetCohorts(props: { planner: CohortsPlanner }) {
               ? `All ${state.data.cohorts.length} cohort(s) complete — ${(state.data.elapsed_ms / 1000).toFixed(1)}s.`
               : `At least one arm fell short of the budget — same answer the CLI exits 1 with. (${(state.data.elapsed_ms / 1000).toFixed(1)}s)`}
           </p>
+          {/* rev-52: the whole session exports as ONE m3u8 (per-family
+              sections, SHORT arms labeled) — same honesty as the plan */}
+          <a
+            class="btn ghostbtn"
+            href={cohortsExportHref(state.data, planner.familiesInput)}
+            download
+            title="Download the whole session as one UTF-8 M3U8 playlist; this does not open or change Rekordbox"
+          >
+            <Icon name="download" size={13} /> Export session .m3u8 for
+            Rekordbox
+          </a>
           <details class="megaset-cohort-scope">
             <summary>what's outside every cohort</summary>
             <p>{state.data.outside_scope.blank_genre_note}</p>

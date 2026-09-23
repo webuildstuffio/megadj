@@ -38,6 +38,23 @@ export interface CohortPlanWire {
   elapsed_ms: number;
 }
 
+/** The cohort-session M3U8 download URL — the SAME plan re-requested
+ *  with ?format=m3u8 (rev-52: the route renders the whole session as one
+ *  importable playlist; the JSON plan stays the review surface). */
+export function cohortsExportHref(
+  plan: CohortPlanWire,
+  familiesInput: string,
+): string {
+  const q = new URLSearchParams({ minutes: String(plan.minutes) });
+  const families = familiesInput
+    .split(",")
+    .map((f) => f.trim().toLowerCase())
+    .filter((f) => f !== "");
+  if (families.length > 0) q.set("families", families.join(","));
+  q.set("format", "m3u8");
+  return `/api/archive/megaset-cohorts?${q}`;
+}
+
 export interface CohortsState {
   data: CohortPlanWire | null;
   loading: boolean;

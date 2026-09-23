@@ -33,6 +33,9 @@ status (v0 uses / planned / rejected) and the exact order things are applied
         │
         ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; no alias kept)
         ├─▶ HTTP       GET /api/archive/megaset · ?format=m3u8 (archive/routes.ts)
+        │             (rev-52: `format` is a CONTRACT param on both set-builder
+        │              routes through the ONE seam megaset/m3u.ts — an unknown
+        │              format is a 400, never a silent JSON fall-through)
         ├─▶ MCP        megaset_propose (src/deck/report/tools.ts;
         │             the pre-rename archive_set_build name is retired)
         ├─▶ Web        MegaSet product page (MegasetPage.tsx) — MegasetPanel.tsx
@@ -178,9 +181,14 @@ line names (ledgered == analyzed unless `--force`).
 pair per genre family in ONE run (defaults: `MEGASET_COHORT_FAMILIES`,
 the measured big four in `shared/megaset.ts`), reusing this exact
 census+engine per arm — no second pool. Blank-genre rows stay outside
-every cohort's scope; exit 1 names the short arm. **S13 direction-wall
-tripwire (#304)**: `scoring.test.ts` pins the shipped presets'
-monotone-envelope contract and the repair pass's honest
+every cohort's scope; exit 1 names the short arm. **rev-52 session
+export**: `GET /api/archive/megaset-cohorts?format=m3u8` renders the
+WHOLE session (every family, warmup then peak, SHORT arms labeled in
+section comments) as ONE importable playlist through the shared
+`megaset/m3u.ts` seam — the JSON wire stays summary-only (chain +
+poolRows are server-side fields and never serialize). **S13
+direction-wall tripwire (#304)**: `scoring.test.ts` pins the shipped
+presets' monotone-envelope contract and the repair pass's honest
 `landmarks_missing` refusal — the day a non-monotone preset ships, the
 pin-through-wall test must land in the same commit.
 

@@ -14,6 +14,8 @@
 // with json(); the MCP tool aims callers at the route. None re-derive
 // the plan.
 import { buildMegaset } from "./engine";
+import type { MegasetStep } from "../shared/megaset";
+import type { SetCandidate } from "./scoring";
 import {
   clampMegasetPool,
   MEGASET_GENRE_FAMILIES,
@@ -21,21 +23,48 @@ import {
   MEGASET_PRESET_DEFS,
 } from "../shared/types";
 
+/** One census row as the cohorts engine sees it: the SetCandidate the
+ *  scorer consumes PLUS the file fields the M3U8 export needs. The real
+ *  ArchiveReader returns ArchiveSetCandidate rows (a structural
+ *  superset) — tests stub exactly this shape. */
+export type CohortArmCandidate = SetCandidate & {
+  filePath: string | null;
+  metadataOnly: boolean;
+};
+
+/** The census-row fields the M3U8 export needs (rev-52: the plan now
+ *  carries its own path index — the route never re-censuses, and the
+ *  rows never serialize: filePath stays server-side by contract). */
+export type CohortPoolRow = Pick<
+  CohortArmCandidate,
+  "videoId" | "filePath" | "durationS" | "metadataOnly"
+>;
+
 /** One warmup-or-peak build for one family — the per-arm honesty fields
  *  (shortfall + diversity report card ride per arm so a family-wide
- *  artist cluster is visible without re-running the single-set build). */
+ *  artist cluster is visible without re-running the single-set build).
+ *  rev-52: `chain` + `pool` ride the in-memory shape so the M3U8 export
+ *  renders the plan WITHOUT re-censusing or re-building — they are
+ *  server-side fields, stripped before the JSON wire (the wire keeps
+ *  `steps` as a COUNT under the same name). */
 export interface CohortBuild {
   preset: string;
   actualMinutes: number;
   requestedMinutes: number;
   complete: boolean;
   shortfallMinutes: number;
+  /** Wire: the number of tracks in the chain. In-memory: the chain
+   *  itself (the wire serializer overwrites it with `chain.length`). */
   steps: number;
   avgTransition: number | null;
   minTransition: number | null;
   sameArtistPairs: number;
   genreFiltered: number;
   pool: number;
+  /** Server-side: the ordered chain, for the M3U8 export seam. */
+  chain: MegasetStep[];
+  /** Server-side: this arm's census rows (path index source). */
+  poolRows: CohortPoolRow[];
 }
 
 /** One cohort's outcome: the warmup + peak pair under one family id. */
@@ -107,7 +136,7 @@ export function buildCohortArm(
       limit?: number | undefined,
       genre?: string | undefined,
     ) => {
-      candidates: Parameters<typeof buildMegaset>[0]["candidates"];
+      candidates: CohortArmCandidate[];
       genreFiltered: number;
       total: number;
     };
@@ -144,6 +173,16 @@ export function buildCohortArm(
     sameArtistPairs: built.same_artist_pairs,
     genreFiltered: census.genreFiltered,
     pool: census.total,
+    // rev-52: the chain + census rows ride server-side so the M3U8
+    // export renders the SAME build the wire summarizes (never a
+    // second, possibly-divergent rebuild)
+    chain: built.steps,
+    poolRows: census.candidates.map((c): CohortPoolRow => ({
+      videoId: c.videoId,
+      filePath: c.filePath,
+      durationS: c.durationS,
+      metadataOnly: c.metadataOnly,
+    })),
   };
 }
 

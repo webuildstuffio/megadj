@@ -135,9 +135,12 @@ const SHARED_OPT_HELPERS: Readonly<
     strings: ["playlist", "group"],
     bools: ["apply", "yes", "json"],
   },
-  // parseAnalysisFlags (fulltags/cli/cli-commands.ts): the beats/catch-up
-  // shared flag block (#316 unified the two handlers onto this helper —
-  // the parseFlags call now lives here, not in the handler bodies).
+  // parseAnalysisFlags (fulltags/cli-commands.ts, #316): the analysis
+  // flag block shared by beats + catch-up — the nonNegOpt chain moved
+  // INTO this helper, so the census must read the flags THROUGH it
+  // (rev-52: landed refactor blinded the census; beats advertised
+  // --limit/--jobs/--max-seconds/--force/--dry-run that the arm
+  // genuinely accepts but the census could no longer see)
   parseAnalysisFlags: {
     strings: ["limit", "jobs", "max-seconds"],
     bools: ["force", "dry-run", "json"],

@@ -14,13 +14,22 @@ import {
 } from "../megaset/engine";
 import { buildCohortPlan, parseCohortFamilies } from "../megaset/cohorts";
 import {
+  m3uCandidateIndex,
+  m3uCohortSessionLines,
+  m3uResponse,
+  m3uSetLines,
+  m3uSkipNote,
+  parseFormatParam,
+} from "../megaset/m3u";
+import {
+  buildMegasetPayload,
   clampMegasetPool,
   isMegasetSearchOverride,
   megasetNearestGenreFamily,
-  MEGASET_EXCLUDED_PREVIEW_MAX,
 } from "../shared/megaset";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 import { intakeCandidateDirs } from "../jobs/intake-run";
+import { cliOk } from "../hygiene/routes";
 import type { DB } from "../db";
 import type { CrateConfig } from "../config";
 
@@ -75,7 +84,16 @@ function resolveSetBuild(
   | { error: string }
   | {
       built: ReturnType<typeof buildMegaset>;
-      census: ReturnType<ArchiveReader["setCandidates"]>;
+      census: Omit<ReturnType<ArchiveReader["setCandidates"]>, "stagesMs"> & {
+        /** engine is ALWAYS set here — resolveSetBuild times the build
+         *  and sums it in before returning (non-optional on the wire). */
+        stagesMs: {
+          sql: number;
+          fileCheck: number;
+          keyFills: number;
+          engine: number;
+        };
+      };
     } {
   const parsed = parseMegasetQuery({
     preset: url.searchParams.get("preset"),
@@ -132,17 +150,9 @@ function resolveSetBuild(
 }
 
 /** M3U comment fields are one physical line; strip control characters rather
- * than allowing track metadata to inject playlist directives. Built from
- * code points instead of a literal control-char class (no-control-regex). */
-const M3U_CONTROL_CHARS = new RegExp(
-  `[${String.fromCharCode(0x00)}-${String.fromCharCode(
-    0x1f,
-  )}${String.fromCharCode(0x7f)}]+`,
-  "g",
-);
-function m3uText(value: string | null, fallback: string): string {
-  return (value ?? fallback).replaceAll(M3U_CONTROL_CHARS, " ").trim();
-}
+ * than allowing track metadata to inject playlist directives. BUILT ONCE in
+ * megaset/m3u.ts (rev-52): the route renders every playlist through that
+ * seam — never a route-local twin. */
 
 /** One handler per /api/archive/* route. `archiveRoutes` derives the route
  *  list from these keys — the keys ARE the route census, never a second
@@ -279,63 +289,36 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     megaset: (url, archive) => {
       const resolved = resolveSetBuild(url, archive);
       if ("error" in resolved) return json({ error: resolved.error }, 400);
-      // A downloaded UTF-8 playlist is the safe Rekordbox bridge: import it
-      // through File → Import → Playlist. This format stays read-only and
-      // never opens or mutates master.db.
-      if (url.searchParams.get("format") === "m3u8") {
-        const byId = new Map(
-          resolved.census.candidates.map((candidate) => [
-            candidate.videoId,
-            candidate,
-          ]),
-        );
-        const lines = ["#EXTM3U"];
-        let skippedMetadataOnly = 0;
-        for (const step of resolved.built.steps) {
-          const candidate = byId.get(step.videoId);
-          if (!candidate?.filePath) {
-            // B1 (#104): metadata-only steps have no mounted file — they
-            // must NOT become dead playlist entries. Counted so the
-            // export tells the truth about what it dropped.
-            if (candidate?.metadataOnly) skippedMetadataOnly++;
-            continue;
-          }
-          const duration = Math.max(0, Math.round(candidate.durationS ?? 300));
-          const artist = m3uText(step.artist, "Unknown artist");
-          const title = m3uText(step.title, step.videoId);
-          const filePath = m3uText(candidate.filePath, "");
-          if (!filePath) continue;
-          // #106 Phase D: carry the derived handoff windows as comments.
-          // m3u8 tolerates unknown directives; rekordbox import keeps the
-          // text visible as track descriptions (positions are seconds from
-          // track start — matching rekordbox's own cue unit).
-          const windows = [
-            step.mixInCue
-              ? `mix-in @ ${Math.round(step.mixInCue.position)}s (bar ${step.mixInCue.bar})`
-              : null,
-            step.mixOutCue
-              ? `mix-out @ ${Math.round(step.mixOutCue.position)}s (bar ${step.mixOutCue.bar})`
-              : null,
-          ].filter((part) => part !== null);
+      // rev-52 format gate: `?format=` is a CONTRACT param — m3u8
+      // renders the Rekordbox playlist (a downloaded UTF-8 file is the
+      // safe bridge: import through File → Import → Playlist; read-only,
+      // never opens master.db), absent/blank/json is the wire default,
+      // and ANYTHING ELSE is a 400 — never the silent JSON fall-through
+      // that made a requested file look like success (the exact defect
+      // class that shipped on /megaset-cohorts).
+      const format = parseFormatParam(url.searchParams.get("format"));
+      if (typeof format === "object" && "error" in format)
+        return json({ error: format.error }, 400);
+      if (format === "m3u8") {
+        // through the ONE seam (megaset/m3u.ts) — the same renderer the
+        // cohorts export uses, never a route-local twin
+        const index = m3uCandidateIndex(resolved.census.candidates);
+        const render = m3uSetLines(resolved.built.steps, index);
+        const lines = [...render.lines];
+        if (render.skippedMetadataOnly > 0) {
+          // B1 (#104): metadata-only steps are counted, never dead entries
           lines.push(
-            `#EXTINF:${duration},${artist} - ${title}`,
-            ...(windows.length > 0 ? [`#EXTREM:${windows.join(" · ")}`] : []),
-            filePath,
-          );
-        }
-        if (skippedMetadataOnly > 0) {
-          lines.push(
-            `# megadj: ${skippedMetadataOnly} of ${resolved.built.steps.length} proposal tracks skipped — no mounted file (shelf offline; rebuild after mounting to get the full playlist)`,
+            m3uSkipNote(
+              resolved.built.steps.length,
+              render.skippedMetadataOnly,
+            ),
           );
         }
         const actual = String(resolved.built.actualMinutes).replace(".", "-");
-        return new Response(`${lines.join("\n")}\n`, {
-          headers: {
-            "Cache-Control": "no-store",
-            "Content-Disposition": `attachment; filename="set-${resolved.built.preset}-${actual}m.m3u8"`,
-            "Content-Type": "application/vnd.apple.mpegurl; charset=utf-8",
-          },
-        });
+        return m3uResponse(
+          lines,
+          `set-${resolved.built.preset}-${actual}m.m3u8`,
+        );
       }
       const {
         sourceTotal,
@@ -353,67 +336,35 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         stagesMs,
       } = resolved.census;
       const { built } = resolved;
-      return json({
-        available: archive.available(),
-        source_total: sourceTotal,
-        pool: total,
-        missing_files: missingFiles,
-        metadata_only: metadataOnly,
-        duplicate_files: duplicateFiles,
-        relocated_files: relocatedFiles,
-        rekordbox_key_hits: rekordboxKeyHits,
-        rekordbox_bpm_hits: rekordboxBpmHits,
-        // how many files needed a live key read this request (cache
-        // misses) — a slow first build is explainable, later ones are fast
-        key_reads: keyReads,
-        key_read_failures: keyReadFailures,
-        // ledger ages (newest beats/mood analysis) — the UI staleness
-        // line derives from this, never a hand-copied clock read
-        freshness,
-        // #283: matched-row count when a ?genre= filter ran (0 = none) —
-        // the UI/CLI show it so a filtered pool is visible
-        genre_filtered: genreFiltered,
-        // #286: measured per-stage timings — the loading phase list swaps
-        // to these once the response lands (honest timing, not a schedule)
-        stages_ms: stagesMs,
-        // #290: nearest known genre family when the filter matched 0
-        // rows (absent otherwise) — CLI + web + MCP quote the same seam
-        ...(genreFiltered === 0 &&
-        (url.searchParams.get("genre") ?? "").trim() !== ""
-          ? {
-              genre_suggestion:
-                megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
-                  ?.family ?? undefined,
-            }
-          : {}),
-        // the wire contract is the preset ID (MegasetPayload.preset: string)
-        // — consumers resolve labels from the shared MEGASET_PRESET_DEFS registry
-        preset: built.preset,
-        minutes: built.minutes,
-        actualMinutes: built.actualMinutes,
-        shortfallMinutes: built.shortfallMinutes,
-        complete: built.complete,
-        steps: built.steps,
-        // the excluded preview shares one cap with the CLI/panel
-        // (MEGASET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
-        excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
-        // B13: reason groups derived from the FULL excluded list engine-side
-        // (#291: budget-fill excluded — it is the budget_filled status)
-        excluded_groups: built.excluded_groups,
-        excluded_total: built.excluded.length,
-        // #291: budget-fill as a STATUS, not a quality bucket
-        budget_filled: built.budget_filled,
-        // #283-followup: set-level quality stats (mean/lowest transition)
-        avg_transition: built.avg_transition,
-        min_transition: built.min_transition,
-        // B6 (#107): same-artist adjacency count — the diversity report card
-        same_artist_pairs: built.same_artist_pairs,
-        // S13 (#107): landmark pins that could not be placed
-        landmarks_missing: built.landmarks_missing,
-        // which sequencer ran (beam = deep search on small pools) — the
-        // UI and CLI quote this, never re-derive the threshold themselves
-        search: built.search,
-      });
+      return json(
+        buildMegasetPayload({
+          built,
+          available: archive.available(),
+          census: {
+            sourceTotal,
+            total,
+            missingFiles,
+            metadataOnly,
+            duplicateFiles,
+            relocatedFiles,
+            rekordboxKeyHits,
+            rekordboxBpmHits,
+            keyReads,
+            keyReadFailures,
+            genreFiltered,
+            freshness,
+            stagesMs,
+          },
+          ...(genreFiltered === 0 &&
+          (url.searchParams.get("genre") ?? "").trim() !== ""
+            ? {
+                genreSuggestion:
+                  megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
+                    ?.family ?? undefined,
+              }
+            : {}),
+        }),
+      );
     },
     // FullTags read side (the enrichment engine's mirror columns):
     // genre/year/artwork/energy/codec profile of the playable archive.
@@ -461,6 +412,15 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // that falls short keeps `complete: false` + shortfall on the wire
     // (200 — a short plan is a RESULT, not a request error).
     "megaset-cohorts": (url, archive) => {
+      // rev-52 format gate FIRST (before any build work): m3u8 → the
+      // whole session as ONE importable playlist (per-family sections,
+      // SHORT arms labeled — the export never dresses up a shortfall);
+      // absent/blank/json → the plan wire; anything else → 400. The old
+      // shape silently IGNORED ?format=m3u8 and returned JSON — a query
+      // param a route never reads is a lie, not a default.
+      const format = parseFormatParam(url.searchParams.get("format"));
+      if (typeof format === "object" && "error" in format)
+        return json({ error: format.error }, 400);
       const parsedQ = parseMegasetQuery({
         preset: "peak",
         minutes: url.searchParams.get("minutes"),
@@ -483,11 +443,37 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         families: families.families,
         limit,
       });
+      if (format === "m3u8") {
+        // union every arm's census rows into ONE path index (same family
+        // shares the pool today, but stay correct for any future per-arm
+        // divergence — a missing path still skips honestly)
+        const index = new Map<
+          string,
+          (typeof plan)["cohorts"][number]["warmup"]["poolRows"][number]
+        >();
+        for (const row of plan.cohorts) {
+          for (const arm of [row.warmup, row.peak]) {
+            for (const c of arm.poolRows) index.set(c.videoId, c);
+          }
+        }
+        const render = m3uCohortSessionLines(plan, index);
+        return m3uResponse(
+          render.lines,
+          `cohort-session-${plan.minutes}m-${plan.cohorts.length}x.m3u8`,
+        );
+      }
+      // the JSON wire strips the server-side export fields (chain +
+      // poolRows never serialize: filePath stays server-side by
+      // contract; `steps` stays a COUNT on the wire)
       return json({
         command: "megaset-cohorts" as const,
         minutes: plan.minutes,
         families: plan.families,
-        cohorts: plan.cohorts,
+        cohorts: plan.cohorts.map((row) => ({
+          family: row.family,
+          warmup: cohortArmWire(row.warmup),
+          peak: cohortArmWire(row.peak),
+        })),
         all_complete: plan.allComplete,
         outside_scope: {
           blank_genre_note: plan.blankGenreNote,
@@ -497,6 +483,26 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         elapsed_ms: plan.elapsedMs,
       });
     },
+  };
+}
+
+/** The wire arm for /megaset-cohorts: summary counts only — chain +
+ *  poolRows are the server-side export fields and never serialize. */
+function cohortArmWire(
+  arm: ReturnType<typeof buildCohortPlan>["cohorts"][number]["warmup"],
+) {
+  return {
+    preset: arm.preset,
+    actualMinutes: arm.actualMinutes,
+    requestedMinutes: arm.requestedMinutes,
+    complete: arm.complete,
+    shortfallMinutes: arm.shortfallMinutes,
+    steps: arm.steps,
+    avgTransition: arm.avgTransition,
+    minTransition: arm.minTransition,
+    sameArtistPairs: arm.sameArtistPairs,
+    genreFiltered: arm.genreFiltered,
+    pool: arm.pool,
   };
 }
 
@@ -538,13 +544,9 @@ let archiveJobs: ArchiveJobs | undefined;
 async function skipRoute(url: URL, megadjCli: MegadjCli): Promise<Response> {
   const id = url.searchParams.get("id") ?? "";
   if (!/^[\w-]{6,24}$/.test(id)) return json({ error: "id is required" }, 400);
-  const r = await megadjCli(["skip", id, "--json"]);
-  if (r.code !== 0)
-    return json(
-      { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
-      409,
-    );
-  return json({ ok: true, id });
+  const res = await cliOk(megadjCli, json, ["skip", id, "--json"]);
+  // the skip wire contract carries the id back (the UI's row update reads it)
+  return json({ ...(await res.json()), id });
 }
 
 /** Parse a JSON object body or return an error Response. Shared by the
@@ -580,13 +582,8 @@ async function surfacedNoteRoute(
   const done = gate.body.done !== false;
   const args = ["surfaced-note", id, "--json"];
   if (!done) args.push("--undone");
-  const r = await megadjCli(args);
-  if (r.code !== 0)
-    return json(
-      { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
-      409,
-    );
-  return json({ ok: true, id, done });
+  const res = await cliOk(megadjCli, json, args);
+  return json({ ...(await res.json()), id, done });
 }
 
 /** POST /api/archive/surfaced-batch — body {ids, folder}: the checklist's

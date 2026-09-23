@@ -210,6 +210,19 @@ describe("megaset_propose candidate-pool contract", () => {
     );
   });
 
+  test("rev-52: an unknown ?format= is a 400 on the single-set route too (never silent JSON)", async () => {
+    const archive = oneTrackArchive();
+    const response = await archiveRoutes(
+      "/archive/megaset",
+      new URL("http://localhost/api/archive/megaset?format=pls"),
+      { archive, db: {} as DB, cfg: {} as CrateConfig },
+    );
+    expect(response?.status).toBe(400);
+    expect(await response?.json()).toEqual({
+      error: 'unknown format "pls" — supported: json (default), m3u8',
+    });
+  });
+
   test("B1 (#104): the M3U8 export skips metadata-only steps (no dead paths) and says so", async () => {
     const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
     const archive = {

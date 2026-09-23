@@ -10,8 +10,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
 import { MegasetCohorts } from "../products/megaset/MegasetCohorts";
+import {
+  cohortsExportHref,
+  type CohortPlanWire,
+} from "../products/megaset/cohorts-view";
 import { PRODUCT_TABS } from "../products/shared/product-meta";
-import type { CohortPlanWire } from "../products/megaset/cohorts-view";
 
 const plan: CohortPlanWire = {
   command: "megaset-cohorts",
@@ -177,5 +180,34 @@ describe("#295/rev-51 Cohorts tab", () => {
     const html = render(<MegasetCohorts planner={planner()} />);
     expect(html).toContain("Plan cohorts");
     expect(html).toContain("families");
+  });
+
+  test("rev-52: a built plan carries the session .m3u8 export link (?format=m3u8)", () => {
+    const html = render(
+      <MegasetCohorts
+        planner={planner({
+          state: {
+            data: plan,
+            loading: false,
+            error: null,
+            requestedMinutes: 30,
+          },
+          familiesInput: "edm, techno",
+        })}
+      />,
+    );
+    expect(html).toContain("Export session .m3u8");
+    expect(html).toContain(
+      'href="/api/archive/megaset-cohorts?minutes=30&amp;families=edm%2Ctechno&amp;format=m3u8"',
+    );
+  });
+
+  test("rev-52: cohortsExportHref echoes the plan's minutes and the CURRENT families input", () => {
+    // families input edited after the build still rides the export URL —
+    // the link must never silently export a different cohort set
+    const href = cohortsExportHref(plan, "house");
+    expect(href).toContain("minutes=30");
+    expect(href).toContain("families=house");
+    expect(href.endsWith("format=m3u8")).toBe(true);
   });
 });
