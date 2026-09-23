@@ -34,6 +34,12 @@ const CENSUS_DIR = /^src\/census\//u;
  *  RATCHET: rows may be removed when the move lands; new rows need the
  *  same. The census fails on rows that no longer match a real file. */
 const ALLOWLIST: Readonly<Record<string, string>> = {
+  // ---- rev-51 (#295): the megaset-cohorts route contract test — the
+  // subject is the "megaset-cohorts" KEY inside routes-archive.ts's
+  // handler map (routes are map keys, not files), so there is no
+  // same-stem subject file to co-locate beside.
+  "src/deck/api/megaset-cohorts-route.test.ts":
+    "#295 rev-51: subject = megaset-cohorts route key in routes-archive.ts",
   // ---- src/census/: the census dir itself is sanctioned by rule, but the
   // walker needs no special case — these prove the sanctioned regex works.
   // ---- fulltags co-location debt (rides #220's folder pass):
