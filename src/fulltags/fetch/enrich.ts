@@ -10,7 +10,7 @@
 import type { ArchiveState } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
-import { mbGenreForArtist } from "../sources/mb";
+import { mbGenreForArtist } from "../sources/mb-lookup";
 import { writePatch } from "../write/writer";
 
 export interface EnrichOptions {

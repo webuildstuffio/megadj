@@ -27,7 +27,6 @@ export * from "../sources/bandcamp";
 export * from "../sources/name-match";
 export * from "../analysis/beats-analysis";
 export * from "../analysis/grid-audit";
-export * from "../sources/mb";
 export * from "../analysis/gold";
 export * from "../analysis/gold-score";
 export * from "../analysis/anlz";

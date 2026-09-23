@@ -1,11 +1,24 @@
-// mb_lookup.ts — the MusicBrainz recording lookup (1 rps, in-process
-// cache), split from pipeline.ts at the complexity guard. ONE wire seam
-// below (mbFetchRecordings): query encode + UA + timeout + not-ok
-// degrade + guarded JSON parse, written once (issue #99) — the two
-// lookups used to carry byte-twin fetch blocks that had already drifted
-// (only the cached path bounded its request; an unbounded ad-hoc lookup
-// could stall an ingest batch on a dead connection). The wire parse
-// (recordings[0] → truth row) is recordingToTruth, also written once.
+/**
+ * MusicBrainz source module (folded from mb.ts + mb-lookup.ts, #322 m2) —
+ * one module per external source, one politeness seam.
+ *
+ * Two arms:
+ *  - recording lookup (mbRecording / mbLookupCached / MbTruth): fills
+ *    missing artist/album/date through ONE wire seam (mbFetchRecordings,
+ *    issue #99) — query encode + UA + timeout + not-ok degrade + guarded
+ *    JSON parse written once; the two lookups used to carry byte-twin
+ *    fetch blocks that had already drifted (only the cached path bounded
+ *    its request; an unbounded ad-hoc lookup could stall an ingest batch
+ *    on a dead connection).
+ *  - folksonomy genre harvest (mbGenreForArtist, roadmap #5): the third
+ *    genre vote alongside SoundCloud tags + AI. Artist-level tags
+ *    ("house", "uk garage") mapped through the same canonical vocabulary
+ *    as every other source. `megadj enrich` delegates here — the old
+ *    duplicate writer in src/commands/enrich.ts is deleted.
+ *
+ * 1 rps politeness (RATE_MS); per-arm in-process caches; never throws.
+ */
+import { canonGenre } from "../write/schema";
 
 /** The one-row truth shape an MB hit fills. */
 export interface MbTruth {
@@ -79,8 +92,7 @@ export async function mbLookupCached(
     console.error(`MusicBrainz lookup failed for ${key}`, e);
   }
   mbCache.set(key, out);
-  // Be polite to MusicBrainz: 1 rps even for misses.
-  await new Promise((r) => setTimeout(r, 1050));
+  await rateLimit();
   return out;
 }
 
@@ -93,6 +105,20 @@ interface MbRecording {
     artist?: { name?: string; tags?: { name: string; count: number }[] };
   }[];
   releases?: { title?: string; date?: string }[];
+}
+
+/** MB hard limit 1 rps — stay over it. */
+const RATE_MS = 1050;
+let lastCall = 0;
+
+/** THE shared politeness seam: trailing-edge sleep to RATE_MS after the
+ *  last MB request. Both arms call it (the recording cached path used to
+ *  sleep inline — same math, now one seam). */
+async function rateLimit(): Promise<void> {
+  const now = Date.now();
+  const wait = lastCall + RATE_MS - now;
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCall = Date.now();
 }
 
 /** Bound every MB request — a dead connection must never stall a batch
@@ -159,4 +185,53 @@ function recordingToTruth(
     date,
     artistTags: tags.join(","),
   };
+}
+
+// ---- folksonomy genre harvest (folded from mb.ts) ----
+
+interface MbArtistSearch {
+  artists?: {
+    name?: string;
+    tags?: { name: string; count: number }[];
+  }[];
+}
+
+const artistCache = new Map<string, string | null>();
+
+/** Artist → canonical genre via MB folksonomy tags. Null on miss/error. */
+export async function mbGenreForArtist(
+  artist: string,
+): Promise<string | null> {
+  const key = artist.toLowerCase().trim();
+  if (artistCache.has(key)) return artistCache.get(key) ?? null;
+  await rateLimit();
+  const url = `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(`"${artist}"`)}&fmt=json&limit=1`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
+      },
+      signal: AbortSignal.timeout(MB_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as MbArtistSearch;
+    const a = data.artists?.[0];
+    if (!a) {
+      artistCache.set(key, null);
+      return null;
+    }
+    // Folksonomy: highest-count tag wins through the canonical map.
+    const tags = [...(a.tags ?? [])].toSorted((x, y) => y.count - x.count);
+    const raw = tags.map((t) => t.name).join(" ");
+    const genre = canonGenre(raw) ?? null;
+    artistCache.set(key, genre);
+    return genre;
+  } catch {
+    return null;
+  }
+}
+
+/** Reset the in-process cache (tests). */
+export function mbGenreCacheReset(): void {
+  artistCache.clear();
 }
