@@ -132,6 +132,8 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#327: byte-identical-chain golden pins over engine+plan (multi-subject)",
   "src/deck/megaset/megaset-calibration.test.ts":
     "#306: scoring-calibration digest over the full stack (multi-subject: engine+scoring+search+pool)",
+  "src/fulltags/analysis/mood-first-chunk.test.ts":
+    "#308: pre-first-chunk visibility contract over the mood pipeline stages (multi-subject: mood+queue+summary)",
 };
 
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */
