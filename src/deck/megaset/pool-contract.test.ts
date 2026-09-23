@@ -97,6 +97,32 @@ describe("setCandidates pool contract", () => {
     }
   });
 
+  test("#286: stagesMs carries the measured per-stage split (zero behavioral change)", () => {
+    const dir = t.dir();
+    const existingPath = join(dir, "actual.m4a");
+    writeFileSync(existingPath, "cached test fixture");
+    const reader = readerOver([poolRow("actual", existingPath, 128)]);
+    try {
+      const t0 = Date.now();
+      const result = setCandidates(reader, 0);
+      const wall = Date.now() - t0;
+      // every stage is a non-negative number and they don't overcount the
+      // wall clock by much (generous 2× bound — CI can be slow)
+      const { sql, fileCheck, keyFills } = result.stagesMs;
+      for (const ms of [sql, fileCheck, keyFills]) {
+        expect(ms).toBeGreaterThanOrEqual(0);
+      }
+      expect(sql + fileCheck + keyFills).toBeLessThanOrEqual(
+        Math.max(50, wall * 2),
+      );
+      // the census results are unchanged by the timing instrumentation
+      expect(result.total).toBe(1);
+      expect(result.sourceTotal).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("B1 (#104): a missing file with MEASURED tempo stays in the pool as metadata-only", () => {
     const dir = t.dir();
     const existingPath = join(dir, "actual.m4a");

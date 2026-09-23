@@ -195,6 +195,16 @@ export interface MegasetPayload extends MegasetResult {
    *  (absent when the filter matched, was absent, or nothing is near —
    *  the honest gap). Suggests the family the matcher DOES know. */
   genre_suggestion?: string | undefined;
+  /** #286: measured per-stage wall-clock (ms). sql = ledger query,
+   *  fileCheck = path existence/rebase, keyFills = key cache misses +
+   *  live reads, engine = buildMegaset. The web phase list and the CLI
+   *  epilogue render these — honest timing, not a fixed schedule. */
+  stages_ms: {
+    sql: number;
+    fileCheck: number;
+    keyFills: number;
+    engine: number;
+  };
   /** Ledger ages for the newest beats/mood analysis — a stale pool is
    *  VISIBLE ("proposed from analysis older than your latest drops"),
    *  never silent. Null when that ledger is empty. */

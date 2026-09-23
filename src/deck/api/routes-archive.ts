@@ -101,27 +101,32 @@ function resolveSetBuild(
     limit,
     url.searchParams.get("genre") ?? undefined,
   );
+  // #286: the engine stage is timed here (the caller's job) and summed
+  // into the census's stagesMs on the wire.
+  const engineT0 = Date.now();
+  const built = buildMegaset({
+    candidates: census.candidates,
+    preset: SET_PRESETS[parsed.preset],
+    minutes: parsed.minutes,
+    openerId: url.searchParams.get("opener") ?? undefined,
+    // S13 (#107): repeatable ?landmark=<video_id> pins — must-plays the
+    // engine slots at arc-legal positions; unplaceable pins are
+    // excluded + counted in landmarks_missing, never silent.
+    landmarkIds: url.searchParams.getAll("landmark"),
+    // A/B hook (E7): ?search=greedy|beam forces one strategy so the UI
+    // compare mode can diff them on the same pool; absent = pool-size
+    // rule decides. An unknown value falls back to the automatic pick
+    // rather than erroring — the knob is an explore control, not a
+    // contract param (unlike preset, which IS a contract and 400s).
+    searchOverride: (() => {
+      const raw = url.searchParams.get("search");
+      return isMegasetSearchOverride(raw) ? raw : undefined;
+    })(),
+  });
+  const engineMs = Date.now() - engineT0;
   return {
-    census,
-    built: buildMegaset({
-      candidates: census.candidates,
-      preset: SET_PRESETS[parsed.preset],
-      minutes: parsed.minutes,
-      openerId: url.searchParams.get("opener") ?? undefined,
-      // S13 (#107): repeatable ?landmark=<video_id> pins — must-plays the
-      // engine slots at arc-legal positions; unplaceable pins are
-      // excluded + counted in landmarks_missing, never silent.
-      landmarkIds: url.searchParams.getAll("landmark"),
-      // A/B hook (E7): ?search=greedy|beam forces one strategy so the UI
-      // compare mode can diff them on the same pool; absent = pool-size
-      // rule decides. An unknown value falls back to the automatic pick
-      // rather than erroring — the knob is an explore control, not a
-      // contract param (unlike preset, which IS a contract and 400s).
-      searchOverride: (() => {
-        const raw = url.searchParams.get("search");
-        return isMegasetSearchOverride(raw) ? raw : undefined;
-      })(),
-    }),
+    census: { ...census, stagesMs: { ...census.stagesMs, engine: engineMs } },
+    built,
   };
 }
 
@@ -344,6 +349,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         keyReadFailures,
         genreFiltered,
         freshness,
+        stagesMs,
       } = resolved.census;
       const { built } = resolved;
       return json({
@@ -366,6 +372,9 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         // #283: matched-row count when a ?genre= filter ran (0 = none) —
         // the UI/CLI show it so a filtered pool is visible
         genre_filtered: genreFiltered,
+        // #286: measured per-stage timings — the loading phase list swaps
+        // to these once the response lands (honest timing, not a schedule)
+        stages_ms: stagesMs,
         // #290: nearest known genre family when the filter matched 0
         // rows (absent otherwise) — CLI + web + MCP quote the same seam
         ...(genreFiltered === 0 &&

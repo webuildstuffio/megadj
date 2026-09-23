@@ -258,6 +258,35 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
   });
 };
 
+// #289: one catch-up command — the analysis gap pass (beats, then mood)
+// for new imports waiting on analysis. Ledgered == analyzed (#278/#279):
+// a re-run on a fresh library is a fast no-op unless --force.
+const catchUp: CliCommandHandler = async (rest, { state, musicDir }) => {
+  const flags = parseFlags(
+    rest,
+    ["limit", "jobs", "max-seconds"],
+    ["force", "dry-run", "json"],
+  );
+  const json = flags.bools.has("json");
+  if (nonNegOptInvalid(flags, "limit", "catch-up", json)) return;
+  const limit = nonNegOpt(flags, "limit", "catch-up", json);
+  if (nonNegOptInvalid(flags, "max-seconds", "catch-up", json)) return;
+  const maxSeconds = nonNegOpt(flags, "max-seconds", "catch-up", json);
+  if (nonNegOptInvalid(flags, "jobs", "catch-up", json)) return;
+  const jobs = nonNegOpt(flags, "jobs", "catch-up", json);
+  const { catchUp: runCatchUp } = await import("../analysis/catch-up");
+  await runCatchUp({
+    state,
+    musicDir,
+    jobs,
+    limit,
+    force: flags.bools.has("force"),
+    dryRun: flags.bools.has("dry-run"),
+    json,
+    maxSeconds,
+  });
+};
+
 const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
   const flags = parseFlags(
     rest,
@@ -559,6 +588,7 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   years,
   beats,
   mood,
+  "catch-up": catchUp,
   similar,
   megaset,
   genre,

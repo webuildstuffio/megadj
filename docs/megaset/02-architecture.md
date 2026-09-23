@@ -150,6 +150,13 @@ comparison reads components, not the pooled magnitude. **Genre guard
 family table — no twin list) via `genre_suggestion` on the wire; the
 starvation fallback resolves by FAMILY (`megasetGenreFallbackTerms`),
 so `--genre tropical` widens exactly like `--genre "tropical house"`.
+**Measured stage timings (#286)**: the census carries `stagesMs`
+(`sql`/`fileCheck`/`keyFills` from `setCandidates`; `engine` timed by
+the caller around `buildMegaset`) and the wire payload exposes it as
+`stages_ms` — the web phase list's fixed pre-response schedule is
+framing, the post-build split is measurement. **Freshness action**:
+`megadj catch-up` (#289) is the one analysis gap pass the freshness
+line names (ledgered == analyzed unless `--force`).
 
 ## 3. The invariants
 

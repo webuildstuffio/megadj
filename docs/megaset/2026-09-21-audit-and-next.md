@@ -99,6 +99,9 @@ verbatim for the audit record.
    waiting — the freshness line says "run `megadj beats` + `megadj mood`";
    the web could link the run instead of telling. One catch-up gap pass:
    [#289](https://github.com/webuildstuffio/megadj/issues/289).
+   **SHIPPED Sep 23**: `megadj catch-up` (one beats→mood gap pass,
+   ledgered == analyzed unless `--force`); the web freshness line now
+   names the one verb.
 
 ## 4b. Issue batch from this audit (Sep 21, filed same evening)
 

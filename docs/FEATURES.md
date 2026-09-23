@@ -89,7 +89,8 @@ the remix's, not the original's.
 mood → cues → organize → tag-check → audit), `megadj fetch`, `megadj
 enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
 structure + booth-text health), `megadj years`, `megadj booth-fix`,
-`megadj beats`, `megadj mood`, `megadj cues`, `megadj similar`,
+`megadj beats`, `megadj mood`, `megadj catch-up` (one analysis gap pass:
+beats → mood for new imports), `megadj cues`, `megadj similar`,
 `megadj megaset`, `megadj gold-report`/`regate` (gold-set gate harness)
 **Also:** FullTags ships standalone in [`src/fulltags/`](../src/fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
@@ -174,7 +175,7 @@ proposal is retained only as [archive evidence](archive/roadmap-proposal.md).
 ```bash
 megadj sync                    # GetDat: pull new music
 megadj fetch && megadj audit   # FullTags: perfect the metadata
-megadj beats && megadj mood    # FullTags: beats + mood ledgers (DB-side)
+megadj catch-up                # FullTags: beats + mood gap pass in one (ledgered == analyzed)
 megadj years                   # FullTags: verify years vs SC page (kills AI 2023 guesses)
 megadj shelf-sync              # shelf: archive → shelf master (new music out)
 megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive intake)

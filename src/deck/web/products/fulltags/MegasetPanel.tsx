@@ -2,6 +2,7 @@
 // the resulting chain stays visibly stale until rebuilt after any change.
 import { Card } from "../../ui/data";
 import { SectionHead } from "../shared";
+import { LoadDraft } from "./MegasetForm";
 import { MegasetOpenerPicker } from "./MegasetOpenerPicker";
 import { MegasetProposal } from "./megaset-proposal";
 import { MegasetSettings } from "./megaset-settings";
@@ -31,6 +32,7 @@ export function MegasetPanel() {
         whole archive, removes missing files and duplicates, then orders a
         playable draft using tempo, key, and mood.
       </p>
+      <LoadDraft onLoad={model.loadDraft} />
       <MegasetSettings model={model} openerPicker={openerPicker} />
       <MegasetProposal model={model} />
     </Card>

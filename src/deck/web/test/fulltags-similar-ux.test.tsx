@@ -6,6 +6,8 @@ import { MegasetPanel } from "../products/fulltags/MegasetPanel";
 import { MegasetArcChart } from "../products/fulltags/MegasetArcChart";
 import { MegasetChain } from "../products/fulltags/megaset-chain";
 import { MegasetResult } from "../products/fulltags/MegasetResult";
+import { StageTimings } from "../products/fulltags/megaset-proposal";
+import { parseDraft } from "../products/fulltags/megaset-draft";
 import {
   MegasetLoading,
   ReproLine,
@@ -39,6 +41,10 @@ const source = [
     readFileSync(join(import.meta.dir, "../products/fulltags", file), "utf8"),
   )
   .join("\n");
+const builderSource = readFileSync(
+  join(import.meta.dir, "../products/fulltags/megaset-builder.ts"),
+  "utf8",
+);
 const similarSource = readFileSync(
   join(import.meta.dir, "../products/fulltags/SimilarTab.tsx"),
   "utf8",
@@ -446,6 +452,23 @@ describe("FullTags Similar and Set Builder UX", () => {
     );
   });
 
+  test("#286: the build result renders the measured stage split (stages_ms)", () => {
+    // the component reads the WIRE field, never a local clock guess
+    expect(source).toContain("stages_ms");
+    expect(source).toContain("StageTimings");
+    const timed: MegasetPayload = {
+      ...baseData,
+      stages_ms: { sql: 1200, fileCheck: 300, keyFills: 80, engine: 6 },
+    };
+    const html = render(<StageTimings data={timed} />);
+    // the loading phase list promises real work; the result shows the
+    // measured cost ("where the 1.6 s went" — summed across stages)
+    expect(html).toContain("where the");
+    expect(html).toContain("1.6 s");
+    expect(html).toContain("archive database read");
+    expect(html).toContain("1,200 ms");
+  });
+
   test("#285: the Genre step suggests families from the producer table and surfaces genre_suggestion", () => {
     // datalist options derive from the SHARED producer table — a hand-copied
     // family list in the component would be a twin (census-pinned pattern)
@@ -575,6 +598,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     key_reads: 201,
     key_read_failures: 0,
     genre_filtered: 0,
+    stages_ms: { sql: 0, fileCheck: 0, keyFills: 0, engine: 0 },
     avg_transition: null,
     min_transition: null,
     same_artist_pairs: 0,
@@ -681,5 +705,71 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(shellCss).toMatch(
       /@media \(max-width: 720px\)[\s\S]*\.topbar \.search,[\s\S]*display: none;/,
     );
+  });
+
+  test("#293: a saved draft loads back into the builder (parse + hydrate pin)", () => {
+    // save → parse → knobs: the exact round-trip the save format promises
+    const saved = JSON.stringify({
+      kind: "megadj-set-draft",
+      savedAt: "2026-09-22T10:00:00.000Z",
+      status: "complete",
+      request: {
+        preset: "afterhours",
+        minutes: 60,
+        search: "beam",
+        poolLimit: 200,
+        openerId: "abc123",
+        genre: "deep house",
+        landmarkIds: ["pin-1", "pin-2"],
+        repro: "megadj megaset --preset afterhours --minutes 60 …",
+      },
+      preset: "afterhours",
+      minutes: 60,
+      steps: [],
+    });
+    const parsed = parseDraft(saved);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.knobs).toEqual({
+      preset: "afterhours",
+      minutes: 60,
+      search: "beam",
+      poolLimit: 200,
+      openerId: "abc123",
+      genre: "deep house",
+      landmarkIds: ["pin-1", "pin-2"],
+    });
+    // old-format draft (pre-request{}): payload fallbacks still restore
+    const legacy = parseDraft(
+      JSON.stringify({ preset: "warmup", minutes: 45, steps: [] }),
+    );
+    expect(legacy.ok).toBe(true);
+    if (!legacy.ok) return;
+    expect(legacy.knobs.preset).toBe("warmup");
+    expect(legacy.knobs.minutes).toBe(45);
+    expect(legacy.knobs.search).toBe("auto"); // unknown → auto (honest)
+    expect(legacy.knobs.poolLimit).toBeNull();
+    // junk input is a MESSAGE, never a crash or a silent pass
+    const junk = parseDraft("not json at all");
+    expect(junk.ok).toBe(false);
+    if (junk.ok) return;
+    expect(junk.error).toContain("not valid JSON");
+    const wrongKind = parseDraft(
+      JSON.stringify({ kind: "some-other-export", preset: "peak" }),
+    );
+    expect(wrongKind.ok).toBe(false);
+    if (wrongKind.ok) return;
+    expect(wrongKind.error).toContain("wrong file kind");
+    // the widget + hydrator are wired: LoadDraft renders the file input,
+    // loadDraft drives every control (opener deliberately NOT restored —
+    // a stale id must not silently pin the rebuild)
+    const formSource = readFileSync(
+      join(import.meta.dir, "../products/fulltags/MegasetForm.tsx"),
+      "utf8",
+    );
+    expect(formSource).toContain("megaset-load-input");
+    expect(source).toContain("<LoadDraft onLoad={model.loadDraft} />");
+    expect(builderSource).toContain("loadDraft");
+    expect(builderSource).toContain("setOpener(null)");
   });
 });

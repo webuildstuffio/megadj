@@ -36,8 +36,8 @@ export function FreshnessLine(props: {
       ]}
       note={
         <>
-          newer imports? run <code>megadj beats</code> +{" "}
-          <code>megadj mood</code>
+          newer imports? run <code>megadj catch-up</code> (one pass: beats →
+          mood, skips ledgered work)
         </>
       }
     />
@@ -95,7 +95,8 @@ export function MegasetLoading(props: { startedAt: number }) {
         </ol>
         <small>
           Read-only: nothing is written to the archive or Rekordbox. A
-          whole-shelf build usually takes 15–30 seconds.
+          whole-shelf build usually takes 15–30 seconds; the measured per-stage
+          split appears here once the build returns.
         </small>
       </span>
     </div>

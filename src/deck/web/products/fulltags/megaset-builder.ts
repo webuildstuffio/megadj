@@ -13,6 +13,7 @@ import { api } from "../../ui/toast";
 import { useFetched } from "../../ui/useFetched";
 import type { TrackPick } from "./TrackPickSearch";
 import { keyGlideOf } from "./MegasetStatus";
+import type { MegasetDraftKnobs } from "./megaset-draft";
 
 export type MegasetSearchChoice = "auto" | "greedy" | "beam";
 
@@ -40,6 +41,14 @@ function defaultPreset(): MegasetPresetDef {
   return (
     MEGASET_PRESET_DEFS.find((preset) => preset.id === "peak") ??
     MEGASET_PRESET_DEFS[0]!
+  );
+}
+
+/** #293: resolve a draft's preset ID to the shared registry def; an
+ *  unknown id falls back to the default (same shape as defaultPreset). */
+function presetFrom(id: string): MegasetPresetDef {
+  return (
+    MEGASET_PRESET_DEFS.find((preset) => preset.id === id) ?? defaultPreset()
   );
 }
 
@@ -278,6 +287,24 @@ export function useMegasetBuilder() {
         landmarkIds,
         setBuild,
       ),
+    // #293: hydrate the controls from a saved draft's parsed knobs, then
+    // the user presses Build (the standard button) — no auto-request, the
+    // restore is reviewable. Only the knobs the draft actually carries
+    // change; unknown/older-draft fields keep their current values.
+    loadDraft: (knobs: MegasetDraftKnobs) => {
+      setPreset(presetFrom(knobs.preset));
+      setMinutesInput(String(knobs.minutes));
+      setSearchChoice(knobs.search);
+      setPoolLimitInput(
+        knobs.poolLimit === null ? "" : String(knobs.poolLimit),
+      );
+      setGenreInput(knobs.genre ?? "");
+      setLandmarksInput(knobs.landmarkIds.join(", "));
+      // the opener stays unresolved until the user re-picks it: the id
+      // rides the repro/knobs, but a stale id cannot silently pin the build
+      setOpener(null);
+      invalidateProposal();
+    },
   };
 }
 

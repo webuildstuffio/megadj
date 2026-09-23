@@ -268,6 +268,10 @@ export function setCandidates(
    *  terms derived from the shared family table (megasetGenreTerms). */
   genre?: string | undefined,
 ): ArchiveSetCandidates {
+  // #286: per-stage wall-clock pairs — the web phase list and the CLI
+  // report MEASURED timings, never a fixed schedule. Summed into the
+  // census's stagesMs; zero behavioral change otherwise.
+  const t0 = Date.now();
   // Escape LIKE wildcards so a literal "% house" query is a substring,
   // never a pattern (SQLite LIKE has no ESCAPE default here — strip).
   const strictTerms = megasetGenreTerms(genre).map((t) =>
@@ -381,6 +385,8 @@ export function setCandidates(
     ...(genreParams.length > 0 ? genreParams : []),
     ...(limit !== undefined && limit > 0 ? [limit] : []),
   );
+  // #286: SQL census stage closed here (main query is the bulk of it)
+  const sqlMs = Date.now() - t0;
   /** B1 (#104): a row whose FILE is gone can still be scored when
    *  MEASURED tempo exists — the beats ledger's folded BPM, or the
    *  rekordbox mirror's BPM (analysis rekordbox ran itself). Both are
@@ -447,6 +453,8 @@ export function setCandidates(
     });
   const duplicateFiles =
     existingRows.length - (actualRows.length - metadataRows.length);
+  // #286: the path-existence/rebase pass (existingCandidatePath per row)
+  const fileCheckMs = Date.now() - t0 - sqlMs;
   const relocatedFiles = actualRows.filter((row) => row.relocated).length;
   let rekordboxKeyHits = 0;
   let rekordboxBpmHits = 0;
@@ -527,6 +535,14 @@ export function setCandidates(
      *  genre filter ran — surface it so a filtered build is visible. */
     genreFiltered: genreParams.length > 0 ? rows.length : 0,
     freshness: poolFreshness(reader),
+    /** #286: measured per-stage wall-clock (ms). The census's own
+     *  split; the engine stage is timed by the CALLER around
+     *  buildMegaset and summed in. */
+    stagesMs: {
+      sql: sqlMs,
+      fileCheck: fileCheckMs,
+      keyFills: Date.now() - t0 - sqlMs - fileCheckMs,
+    },
   };
 }
 

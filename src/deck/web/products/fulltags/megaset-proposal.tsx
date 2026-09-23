@@ -58,6 +58,39 @@ function Exclusions(props: { data: MegasetPayload }) {
   return <ExcludedBreakdown data={props.data} />;
 }
 
+/** #286: the measured stage split (stages_ms) — rendered once the build
+ *  returns so the phase list's promises get their actual numbers. The
+ *  loading checklist (MegasetLoading) stays schedule-based pre-response;
+ *  this is the honest "what it actually cost" answer after. Exported for
+ *  the direct-render test (the panel wires it below). */
+export function StageTimings(props: { data: MegasetPayload }) {
+  const stages = props.data.stages_ms;
+  if (!stages) return null;
+  const rows: [string, number][] = [
+    ["archive database read", stages.sql],
+    ["shelf file check", stages.fileCheck],
+    ["analysis joins + key fills", stages.keyFills],
+    ["chain sequencing", stages.engine],
+  ];
+  const total = rows.reduce((sum, [, ms]) => sum + ms, 0);
+  if (total <= 0) return null;
+  return (
+    <details class="megaset-stages">
+      <summary>
+        where the{" "}
+        {total < 1000 ? `${total} ms` : `${(total / 1000).toFixed(1)} s`} went
+      </summary>
+      <ul>
+        {rows.map(([label, ms]) => (
+          <li key={label}>
+            {label}: <strong>{ms.toLocaleString("en-US")} ms</strong>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 function ProposalBody(props: { model: MegasetBuilder; genre: string | null }) {
   const { model } = props;
   const data = model.build.data;
@@ -66,6 +99,7 @@ function ProposalBody(props: { model: MegasetBuilder; genre: string | null }) {
     <>
       <MegasetResult data={data} />
       <PartialDraftNotice data={data} />
+      <StageTimings data={data} />
       <FreshnessLine freshness={data.freshness} pool={data.pool} />
       <MegasetActions
         data={data}

@@ -94,6 +94,16 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "catch-up",
+    group: "fulltags",
+    block: [
+      "  megadj catch-up [--limit N] [--jobs N] [--max-seconds S] [--force] [--dry-run] [--json]",
+      "                                               ONE analysis gap pass for new imports: beats → mood, ledgered == analyzed",
+      "                                               (a fresh library is a fast no-op; --force re-analyzes; parallelism lives here,",
+      "                                               not in sync)",
+    ],
+  },
+  {
     name: "similar",
     group: "fulltags",
     block: [

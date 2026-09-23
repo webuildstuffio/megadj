@@ -287,6 +287,16 @@ export interface ArchiveSetCandidates {
    *  ran; 0 = unfiltered. The UI/CLI surface it so a filtered pool is
    *  visible, never a silent subset. */
   genreFiltered: number;
+  /** #286: measured per-stage wall-clock (ms) for this census+build.
+   *  sql/fileCheck/keyFills come from setCandidates; engine is timed by
+   *  the caller around buildMegaset and added here. The phase list
+   *  renders these once the build returns — measured, not a schedule. */
+  stagesMs: {
+    sql: number;
+    fileCheck: number;
+    keyFills: number;
+    engine?: number;
+  };
 }
 
 // ---- tag census (fulltags vs rekordbox side-by-side) -----------------------

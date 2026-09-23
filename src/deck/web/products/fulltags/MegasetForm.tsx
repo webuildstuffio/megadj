@@ -7,6 +7,7 @@
 // schema and the engine quote. Help text is written for a DJ who has
 // never read the docs: what it does, when to touch it, what happens if
 // they don't.
+import { useState } from "preact/hooks";
 import {
   MEGASET_PRESET_DEFS,
   MEGASET_TRACK_MINUTES_MAX,
@@ -20,6 +21,7 @@ import {
   type MegasetPresetDef,
 } from "../../../shared/types";
 import { Icon } from "../../ui/icons";
+import { parseDraft, type MegasetDraftKnobs } from "./megaset-draft";
 
 const energyBand = (value: number): string =>
   value < 3.5 ? "Low" : value < 6 ? "Medium" : value < 8 ? "High" : "Maximum";
@@ -269,5 +271,50 @@ export function AdvancedDrawer(props: {
         )}
       </div>
     </details>
+  );
+}
+
+/** #293: "Load draft" — pick a saved draft JSON, hydrate the controls
+ *  from its request context, review, then press Build. The parse is
+ *  pure (parseDraft in megaset-draft.ts); this widget owns the file
+ *  input + feedback only. Wrong files get a message, never a crash. */
+export function LoadDraft(props: {
+  onLoad: (knobs: MegasetDraftKnobs) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const onFile = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // reset so re-picking the SAME file re-triggers change
+    input.value = "";
+    if (!file) return;
+    setError(null);
+    void file.text().then((text) => {
+      const parsed = parseDraft(text);
+      if (parsed.ok) {
+        props.onLoad(parsed.knobs);
+      } else {
+        setError(parsed.error);
+      }
+    });
+  };
+  return (
+    <div class="megaset-load-draft">
+      <label class="btn ghostbtn megaset-load-label">
+        <Icon name="download" size={13} /> Load a saved draft…
+        <input
+          type="file"
+          accept="application/json,.json"
+          class="megaset-load-input"
+          aria-label="Load a saved MegaSet draft JSON file"
+          onChange={onFile}
+        />
+      </label>
+      {error !== null && (
+        <span class="megaset-load-error" role="alert">
+          {error}
+        </span>
+      )}
+    </div>
   );
 }

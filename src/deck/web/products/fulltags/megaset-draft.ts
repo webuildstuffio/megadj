@@ -9,6 +9,8 @@
 // self-describing months later — the old file could not answer "what
 // settings produced this?".
 import type { MegasetPayload } from "../../../shared/types";
+import { isRecord } from "../../../../shared/leaf/guards";
+import { parseJsonObject } from "../../../../fulltags/utils/parse-json";
 import { toast } from "../../ui/toast";
 
 /** The exact terminal invocation for this build — kept in sync with the
@@ -100,4 +102,78 @@ export function saveDraft(
     data.complete ? "MegaSet draft saved" : "Partial set draft saved",
     "ok",
   );
+}
+
+/** #293: the knobs a saved draft can restore into the builder controls.
+ *  Derived from the draft's `request{}` block (Sep 21+ format); older
+ *  drafts degrade to what their payload fields still carry (preset +
+ *  minutes + search were always on the wire). */
+export interface MegasetDraftKnobs {
+  preset: string;
+  minutes: number;
+  search: "auto" | "greedy" | "beam";
+  poolLimit: number | null;
+  openerId: string | null;
+  genre: string | null;
+  landmarkIds: string[];
+}
+
+/** #293: parse a saved draft file's text into restorable knobs. Returns
+ *  an error string for anything that is not a megadj set draft (never
+ *  throws — a wrong file is a message, not a crash). Old-format drafts
+ *  (pre-`request{}`) restore preset/minutes/search and leave the knobs
+ *  they cannot know untouched. */
+export function parseDraft(
+  text: string,
+): { ok: true; knobs: MegasetDraftKnobs } | { ok: false; error: string } {
+  // #274 rule: boundary JSON goes through the guarded parser seam — a
+  // malformed draft file is an error MESSAGE, never a throw.
+  const parsed = parseJsonObject(text);
+  if (parsed === null)
+    return { ok: false, error: "not valid JSON — is this the draft file?" };
+  if (parsed.kind !== undefined && parsed.kind !== "megadj-set-draft")
+    return { ok: false, error: `wrong file kind: ${String(parsed.kind)}` };
+  // preset: request{} first, payload fallback; must be a non-empty string
+  const request = isRecord(parsed.request) ? parsed.request : null;
+  const preset = request?.preset ?? parsed.preset;
+  if (typeof preset !== "string" || preset.trim() === "")
+    return { ok: false, error: "draft has no preset to restore" };
+  const minutes = request?.minutes ?? parsed.minutes;
+  if (typeof minutes !== "number" || !Number.isFinite(minutes) || minutes <= 0)
+    return { ok: false, error: "draft has no usable minutes value" };
+  const search =
+    request?.search === "greedy" || request?.search === "beam"
+      ? request.search
+      : "auto";
+  const poolLimit =
+    typeof request?.poolLimit === "number" &&
+    Number.isFinite(request.poolLimit) &&
+    request.poolLimit > 0
+      ? request.poolLimit
+      : null;
+  const openerId =
+    typeof request?.openerId === "string" && request.openerId.trim() !== ""
+      ? request.openerId.trim()
+      : null;
+  const genre =
+    typeof request?.genre === "string" && request.genre.trim() !== ""
+      ? request.genre.trim()
+      : null;
+  const landmarkIds = Array.isArray(request?.landmarkIds)
+    ? request.landmarkIds.filter(
+        (id): id is string => typeof id === "string" && id.trim() !== "",
+      )
+    : [];
+  return {
+    ok: true,
+    knobs: {
+      preset: preset.trim(),
+      minutes,
+      search,
+      poolLimit,
+      openerId,
+      genre,
+      landmarkIds,
+    },
+  };
 }

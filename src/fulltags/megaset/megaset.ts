@@ -110,6 +110,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       keyReadFailures,
       genreFiltered,
       freshness,
+      stagesMs: censusStagesMs,
     } = reader.setCandidates(
       // shared clamp — an explicit --limit is bounded by the same contract
       // as the route/MCP (1–1000); absent → whole analyzed library
@@ -117,6 +118,9 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       // #283 genre pool filter — same family matcher as the route/MCP
       opts.genre,
     );
+    // #286: the engine stage is timed by the caller and merged into the
+    // census's measured stage split before it hits the wire.
+    const engineT0 = Date.now();
     const built = buildMegaset({
       candidates,
       preset: SET_PRESETS[parsed.preset],
@@ -125,6 +129,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       landmarkIds: opts.landmarkIds,
       searchOverride: opts.search,
     });
+    const stagesMs = { ...censusStagesMs, engine: Date.now() - engineT0 };
     // #290: unknown-genre guard. A filter that matched ZERO rows builds
     // an honest empty pool — but "gqom" vs "afro" should not both end
     // there: when the value matched nothing, suggest the nearest family
@@ -173,6 +178,9 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       metadata_only: metadataOnly,
       // #283: matched rows when a --genre filter ran (0 = unfiltered)
       genre_filtered: genreFiltered,
+      // #286: measured per-stage timings (ms) — the CLI epilogue and the
+      // web phase list quote these, never a fixed schedule
+      stages_ms: stagesMs,
       // #290: the nearest known family when the filter matched 0 rows
       ...(genreSuggestion !== undefined
         ? { genre_suggestion: genreSuggestion }
@@ -244,6 +252,11 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       if (built.landmarks_missing.length > 0) {
         log(`  landmarks not placed: ${built.landmarks_missing.join(", ")}`);
       }
+      // #286: the measured stage split — same numbers the wire carries
+      const sm = payload.stages_ms;
+      log(
+        `  stages: sql ${sm.sql}ms · files ${sm.fileCheck}ms · key fills ${sm.keyFills}ms · engine ${sm.engine}ms`,
+      );
       log(`  total ${at} min — propose-only, nothing written`);
       if (!built.complete) setExit(1);
     }
