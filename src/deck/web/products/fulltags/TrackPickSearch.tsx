@@ -3,7 +3,10 @@
 // opener): two hand-rolled variants had already drifted once. Split out of
 // SimilarTab.tsx (file-length guard + no circular import: MegasetPanel
 // imports the picker, SimilarTab imports MegasetPanel).
+import { useState } from "preact/hooks";
 import type { ArchiveSearchHit } from "../../../shared/types";
+import { api } from "../../ui/toast";
+import { useFetched } from "../../ui/useFetched";
 import { Card, KVRows, KVKey, KVVal, SearchBar } from "../../ui/data";
 import { TrackTitle } from "../shared";
 
@@ -86,3 +89,42 @@ export function TrackPickSearch(props: {
 }
 
 export type { HitsStatus };
+
+/** PickedTrackSearch — the tabs' standard "search + pick ONE track" block:
+ *  the search fetch (≥2 chars → /api/archive/search) and the picker row,
+ *  wired to the caller's picked-track state. ONE copy of the query/URL/
+ *  empty-voice contract (#316: GenreWhyTab and SimilarTab carried the
+ *  21L+14L twins; MegasetPanel keeps the raw TrackPickSearch — it drives
+ *  its own state shape). */
+export function PickedTrackSearch(props: {
+  picked: TrackPick | null;
+  onPick: (t: TrackPick) => void;
+}) {
+  const [query, setQuery] = useState("");
+  // The search endpoint's wire shape is a BARE ARRAY (ArchiveTrack[]) —
+  // derived from the producer in shared/types.ts, not re-declared here
+  // (the round-4 lesson: a local duplicate drifted and crashed the render).
+  const search = useFetched<ArchiveSearchHit[] | null>(
+    () =>
+      query.trim().length >= 2
+        ? api<ArchiveSearchHit[]>(
+            `/api/archive/search?q=${encodeURIComponent(query)}`,
+          )
+        : Promise.resolve(null),
+    [query],
+  );
+  return (
+    <TrackPickSearch
+      query={query}
+      onQuery={setQuery}
+      hits={search.status === "ok" ? search.data : null}
+      hitsStatus={search.status}
+      placeholder="Pick a track — search by title or artist…"
+      emptyNote={`no tracks match “${query.trim()}”`}
+      onPick={(t) => {
+        props.onPick(t);
+        setQuery("");
+      }}
+    />
+  );
+}

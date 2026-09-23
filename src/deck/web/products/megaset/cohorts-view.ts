@@ -38,6 +38,24 @@ export interface CohortPlanWire {
   elapsed_ms: number;
 }
 
+/** The ONE cohorts query builder (#316: was a 7L twin in the export-href
+ *  and the fetch below — minutes + normalized families, one wire contract).
+ *  `format` extends the query when the caller asks for a non-JSON render. */
+function cohortsQuery(
+  minutes: number,
+  familiesInput: string,
+  format?: "m3u8",
+): string {
+  const q = new URLSearchParams({ minutes: String(minutes) });
+  const families = familiesInput
+    .split(",")
+    .map((f) => f.trim().toLowerCase())
+    .filter((f) => f !== "");
+  if (families.length > 0) q.set("families", families.join(","));
+  if (format) q.set("format", format);
+  return `/api/archive/megaset-cohorts?${q}`;
+}
+
 /** The cohort-session M3U8 download URL — the SAME plan re-requested
  *  with ?format=m3u8 (rev-52: the route renders the whole session as one
  *  importable playlist; the JSON plan stays the review surface). */
@@ -45,14 +63,7 @@ export function cohortsExportHref(
   plan: CohortPlanWire,
   familiesInput: string,
 ): string {
-  const q = new URLSearchParams({ minutes: String(plan.minutes) });
-  const families = familiesInput
-    .split(",")
-    .map((f) => f.trim().toLowerCase())
-    .filter((f) => f !== "");
-  if (families.length > 0) q.set("families", families.join(","));
-  q.set("format", "m3u8");
-  return `/api/archive/megaset-cohorts?${q}`;
+  return cohortsQuery(plan.minutes, familiesInput, "m3u8");
 }
 
 export interface CohortsState {
@@ -95,13 +106,7 @@ export function useCohortsPlanner() {
       error: null,
       requestedMinutes: minutes,
     });
-    const q = new URLSearchParams({ minutes: String(minutes) });
-    const families = familiesInput
-      .split(",")
-      .map((f) => f.trim().toLowerCase())
-      .filter((f) => f !== "");
-    if (families.length > 0) q.set("families", families.join(","));
-    api<CohortPlanWire>(`/api/archive/megaset-cohorts?${q}`, {
+    api<CohortPlanWire>(cohortsQuery(minutes, familiesInput), {
       timeoutMs: 120_000,
     })
       .then((data) =>

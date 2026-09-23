@@ -10,13 +10,12 @@ import { useState } from "preact/hooks";
 import {
   genreVoteRungsInOrder,
   type ArchiveGenreWhy,
-  type ArchiveSearchHit,
 } from "../../../shared/types";
 import { api } from "../../ui/toast";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { KVRows, KVRow, KVKey, KVVal, Card, ListHead } from "../../ui/data";
 import { SectionHead, TrackTitle } from "../shared";
-import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
+import { PickedTrackSearch, type TrackPick } from "./TrackPickSearch";
 
 /** The read seam: same route as deckctl/MCP (surface-parity hub). */
 const genreWhyUrl = (id: string) =>
@@ -30,7 +29,6 @@ const totalWeight = (votes: { weight: number }[]): number =>
   votes.reduce((sum, v) => sum + v.weight, 0);
 
 export function GenreWhyTab() {
-  const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<TrackPick | null>(null);
   const why = useFetched<ArchiveGenreWhy | null>(
     () =>
@@ -39,18 +37,6 @@ export function GenreWhyTab() {
         : Promise.resolve(null),
     [picked],
   );
-  // The search endpoint's wire shape is a BARE ARRAY (ArchiveTrack[]) —
-  // derived from the producer in shared/types.ts, not re-declared here
-  // (the round-4 lesson: a local duplicate drifted and crashed the render).
-  const search = useFetched<ArchiveSearchHit[] | null>(
-    () =>
-      query.trim().length >= 2
-        ? api<ArchiveSearchHit[]>(
-            `/api/archive/search?q=${encodeURIComponent(query)}`,
-          )
-        : Promise.resolve(null),
-    [query],
-  );
 
   return (
     <div>
@@ -58,18 +44,7 @@ export function GenreWhyTab() {
         icon="info"
         title="Genre why — the vote ladder's breakdown"
       />
-      <TrackPickSearch
-        query={query}
-        onQuery={setQuery}
-        hits={search.status === "ok" ? search.data : null}
-        hitsStatus={search.status}
-        placeholder="Pick a track — search by title or artist…"
-        emptyNote={`no tracks match “${query.trim()}”`}
-        onPick={(t) => {
-          setPicked(t);
-          setQuery("");
-        }}
-      />
+      <PickedTrackSearch picked={picked} onPick={setPicked} />
       {picked &&
         (why.status !== "ok" ? (
           <FetchedGate page={why} loading="replaying the vote election…" />

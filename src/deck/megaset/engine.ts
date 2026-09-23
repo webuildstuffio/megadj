@@ -117,25 +117,21 @@ export function parseMegasetQuery(params: {
   };
 }
 
-/** First sorted index whose value is strictly greater than `target`. */
-function upperBound(sorted: number[], target: number): number {
+/** Binary-search bound helpers (#316: was two 6L twins differing only in
+ *  the comparison operator). `allowEqual` picks the semantic: true =
+ *  first index with value >= target (lowerBound), false = first index
+ *  with value > target (upperBound). */
+function boundIndex(
+  sorted: number[],
+  target: number,
+  allowEqual: boolean,
+): number {
   let lo = 0;
   let hi = sorted.length;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo) / 2);
-    if (sorted[mid]! <= target) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
-
-/** First sorted index whose value is greater than or equal to `target`. */
-function lowerBound(sorted: number[], target: number): number {
-  let lo = 0;
-  let hi = sorted.length;
-  while (lo < hi) {
-    const mid = lo + Math.floor((hi - lo) / 2);
-    if (sorted[mid]! < target) lo = mid + 1;
+    if (allowEqual ? sorted[mid]! <= target : sorted[mid]! < target)
+      lo = mid + 1;
     else hi = mid;
   }
   return lo;
@@ -390,8 +386,8 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   const windowFactor = 1 - MEGASET_TEMPO_WINDOW;
   const sortedBpms = mixable.map((c) => c.bpm).toSorted((a, b) => a - b);
   const tempoNeighbors = (bpm: number): number =>
-    lowerBound(sortedBpms, bpm / windowFactor) -
-    upperBound(sortedBpms, bpm * windowFactor);
+    boundIndex(sortedBpms, bpm / windowFactor, true) -
+    boundIndex(sortedBpms, bpm * windowFactor, false);
   const anchored =
     opener && mixableBpm(opener)
       ? opener

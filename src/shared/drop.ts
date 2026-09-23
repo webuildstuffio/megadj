@@ -92,6 +92,36 @@ export interface DropSummary {
 
 const isUrl = (s: string) => /^https?:\/\//.test(s);
 
+/** The ONE yt-dlp spawn→DownloadResult wrapper (#316: the exit-code →
+ *  bounded-stderr-tail mapping was a hand-copied twin across the direct
+ *  download and the single rip; the set loop keeps its own shape — it
+ *  classifies per-entry, not whole-run). `timeoutMs` is optional: the
+ *  SC rip needs the 10-min budget, direct downloads don't. */
+function spawnYtdlp(opts: {
+  target: string;
+  args: string[];
+  opts: DropOptions;
+  timeoutMs?: number;
+}): DownloadResult {
+  const proc = Bun.spawnSync({
+    cmd: [ytdlpBinOf(opts.opts), ...opts.args],
+    stdout: "pipe",
+    stderr: "pipe",
+    ...(opts.timeoutMs !== undefined ? { timeout: opts.timeoutMs } : {}),
+  });
+  if (proc.exitCode !== 0) {
+    const err =
+      new TextDecoder()
+        .decode(proc.stderr)
+        .split("\n")
+        .slice(-2)
+        .join(" ")
+        .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
+    return { downloaded: 0, error: err };
+  }
+  return { downloaded: 1 };
+}
+
 interface DownloadResult {
   downloaded: number;
   error?: string;
@@ -185,20 +215,8 @@ async function downloadUrl(
     ...ytdlpCookieArgs(opts.cookiesFile, opts.cookiesFromBrowser),
   ];
   args.push(target);
-  const proc = Bun.spawnSync({
-    cmd: [ytdlpBinOf(opts), ...args],
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (proc.exitCode !== 0) {
-    const err = new TextDecoder()
-      .decode(proc.stderr)
-      .split("\n")
-      .slice(-2)
-      .join(" ")
-      .slice(0, 200);
-    return { downloaded: 0, error: err || `yt-dlp exit ${proc.exitCode}` };
-  }
+  const r = spawnYtdlp({ target, args, opts });
+  if (r.downloaded === 0) return r;
   return { downloaded: 1 };
 }
 
@@ -388,22 +406,8 @@ async function downloadScUrl(
     ...cookies,
     target,
   ];
-  const proc = Bun.spawnSync({
-    cmd: [ytdlpBinOf(opts), ...args],
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: 600_000,
-  });
-  if (proc.exitCode !== 0) {
-    const err =
-      new TextDecoder()
-        .decode(proc.stderr)
-        .split("\n")
-        .slice(-2)
-        .join(" ")
-        .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
-    return { downloaded: 0, error: err };
-  }
+  const r = spawnYtdlp({ target, args, opts, timeoutMs: 600_000 });
+  if (r.downloaded === 0) return r;
   return { downloaded: 1, folder: musicDir };
 }
 
