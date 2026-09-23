@@ -8,12 +8,13 @@ import { join } from "node:path";
 import { homedir, platform, userInfo } from "node:os";
 import type { CheckResult } from "./doctor";
 import { nonEmptyEnv } from "./leaf/guards";
+import { crateDeckRoot } from "./volume";
 import { DECK_SERVICE_LABEL, classifyDeckService } from "../ops/deck-service";
 import { resolveServerPort } from "../deck/server/server-port";
 
 export const MUSIC_DIR =
   nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${homedir()}/Music/DJ-Imports`;
-export const CRATEDECK_DIR = join(import.meta.dir, "..", "deck");
+export const CRATEDECK_DIR = crateDeckRoot();
 
 export function have(bin: string): string | null {
   try {

@@ -13,11 +13,11 @@
 // rows still reports (pool 0, complete false); a short arm keeps its
 // shortfall visible and drops the exit to 1.
 import { join } from "node:path";
-import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { ArchiveReader } from "../../deck/db/reader";
 import { loadConfig } from "../../deck/config";
 import { DB_PATH } from "../../cli-env";
 import { commandLog } from "../../shared/progress";
+import { crateDeckRoot } from "../../shared/volume";
 import {
   writeJson,
   finishCommandError,
@@ -43,9 +43,7 @@ export async function megasetCohorts(
   opts: MegasetCohortsOptions,
 ): Promise<void> {
   const log = commandLog(opts);
-  const configRoot =
-    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../deck");
-  const cfg = loadConfig(configRoot);
+  const cfg = loadConfig(crateDeckRoot());
   const archive = new ArchiveReader(
     DB_PATH,
     join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),

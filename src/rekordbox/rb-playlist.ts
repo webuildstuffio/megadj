@@ -31,7 +31,7 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ArchiveReader } from "../deck/db/reader";
 import { loadConfig } from "../deck/config";
-import { nonEmptyEnv } from "../shared/leaf/guards";
+import { crateDeckRoot } from "../shared/volume";
 import {
   buildMegaset,
   parseMegasetQuery,
@@ -133,9 +133,7 @@ function buildChain(
   parsed: { preset: MegasetPresetId; minutes: number },
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
-  const cfg = loadConfig(
-    nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../deck"),
-  );
+  const cfg = loadConfig(crateDeckRoot());
   const archive = new ArchiveReader(
     DB_PATH,
     // #283-followup: the shelf Contents root is LOAD-BEARING — without it,
