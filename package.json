@@ -1,7 +1,7 @@
 {
   "name": "megadj",
   "version": "0.2.0",
-  "description": "Rate-limited YouTube Music library archiver with rekordbox-ready metadata — GetDat (acquire), FullTags (enrich), CrateDeck (USB drives)",
+  "description": "Rate-limited YouTube Music library archiver with rekordbox-ready metadata \u2014 GetDat (acquire), FullTags (enrich), CrateDeck (USB drives)",
   "license": "MIT",
   "type": "module",
   "module": "src/cli.ts",
@@ -39,11 +39,11 @@
     "deps:age": "bun -e 'const p=require(\"./package.json\");for(const n of Object.keys({...p.dependencies,...p.devDependencies})){const r=await fetch(\"https://registry.npmjs.org/\"+n).then(r=>r.json());const ks=Object.keys(r.time).filter(k=>!k.includes(\"-\")&&k!==\"created\");console.log(n.padEnd(20),ks[ks.length-1].slice(0,10))}'"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.0",
-    "knip": "^6.34.0",
-    "oxlint": "1.81.0",
-    "prettier": "^3.9.6",
+    "@types/bun": "^1.4.2",
+    "knip": "^6.36.0",
+    "oxlint": "1.83.0",
+    "prettier": "^3.9.7",
     "type-coverage": "^2.30.1",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.3"
   }
 }
