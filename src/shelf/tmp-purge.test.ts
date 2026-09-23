@@ -307,6 +307,10 @@ describe("tmp sweep: multi-root scan (#254)", () => {
     // The regression: macOS's tmpdir() moved to ~/.tmp while suites still
     // leak into /tmp — the sweep must report BOTH roots. This test creates
     // nothing: it pins the contract on whatever the host has right now.
+    // Timeout 20s: this is a LIVE whole-root walk (no fixture isolation is
+    // possible — the contract IS the host roots), so under the 16-way
+    // parallel suite it legitimately exceeds the 5s default (~6s observed
+    // Sep 23, 2026) without being wedged.
     const r = tmpPurgeSweep({
       apply: false,
       all: false,
@@ -329,7 +333,7 @@ describe("tmp sweep: multi-root scan (#254)", () => {
     // Aggregate invariants hold across the union of roots.
     expect(r.eligible).toBeLessThanOrEqual(r.scanned);
     expect(r.applied).toBe(0); // dry-run: never deletes
-  });
+  }, 20_000);
 
   test("both roots age fixtures identically (an old fixture is eligible, a fresh one is not)", () => {
     // Dedicated roots avoid host temp cleanup racing this age-gate fixture.
