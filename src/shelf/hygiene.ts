@@ -14,15 +14,15 @@
 import { openLedger } from "../shared/sqlite-ledger";
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { HygieneStore } from "../archive/hygiene/store";
-import { walkShelf } from "../archive/hygiene/walk";
-import { REGISTERED_KINDS, runChecks } from "../archive/hygiene/checks";
+import { HygieneStore } from "../core/hygiene/store";
+import { walkShelf } from "../core/hygiene/walk";
+import { REGISTERED_KINDS, runChecks } from "../core/hygiene/checks";
 import {
   BUCKET_MEMBERSHIP,
   inBucket,
   isListenFirst,
-} from "../archive/hygiene/subcategory";
-import { applyFinding, validateFinding } from "../archive/hygiene/apply";
+} from "../core/hygiene/subcategory";
+import { applyFinding, validateFinding } from "../core/hygiene/apply";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { setExit, writeJson } from "../shared/cli-output";
 import { isUnknownArray, nonEmptyEnv } from "../shared/leaf/guards";
@@ -30,7 +30,7 @@ import type {
   CheckCtx,
   DbContentRow,
   FindingKind,
-} from "../archive/hygiene/types";
+} from "../core/hygiene/types";
 import {
   applyConfirmationRefusal,
   lastJsonLine,

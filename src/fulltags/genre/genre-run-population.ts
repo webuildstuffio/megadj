@@ -1,9 +1,9 @@
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import {
   genreFamily,
   parseEmbeddingVector,
   type GenreSeed,
-} from "../../archive/similar";
+} from "../../core/similar";
 import { l2normalize } from "../../shared/leaf/vector-space";
 import type { ProbeRow } from "../analysis/linear-probe";
 

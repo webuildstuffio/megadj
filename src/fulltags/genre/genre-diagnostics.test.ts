@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { tier0Diagnostics } from "./genre-diagnostics";
-import type { GenreSeed, LoORowOutcome } from "../../archive/similar";
+import type { GenreSeed, LoORowOutcome } from "../../core/similar";
 
 /** A two-family population: 6 house rows by "Alice" (a tight cluster)
  *  + 4 techno rows by "Bob", all unit-ish 2-d vectors. */

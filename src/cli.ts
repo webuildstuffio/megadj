@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { ArchiveState } from "./archive/state";
+import { ArchiveState } from "./core/state";
 import { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 export { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 import { dispatchCommand } from "./cli-dispatch";

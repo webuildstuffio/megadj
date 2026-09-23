@@ -1,4 +1,4 @@
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { goldDir, loadGoldSet, type GoldAnnotation } from "../gold";
 import { runRegate, type GateObservation, type GateResult } from "../gates";
 import { regateEffnet, regateGenre } from "./regate-genre";

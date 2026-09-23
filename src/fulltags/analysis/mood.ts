@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { analyzeMoods, type MoodResult } from "./models";
 import { groundTruth } from "../write/readers";
 import { parseMoodStamp } from "../pipeline/pipeline";
-import type { ArchiveState, TrackRow } from "../../archive/state";
+import type { ArchiveState, TrackRow } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 

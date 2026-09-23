@@ -13,8 +13,8 @@
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { openLedger } from "../shared/sqlite-ledger";
-import { HygieneStore } from "../archive/hygiene/store";
-import { QUARANTINE_DIR } from "../archive/hygiene/apply";
+import { HygieneStore } from "../core/hygiene/store";
+import { QUARANTINE_DIR } from "../core/hygiene/apply";
 import { resolveShelfVolume } from "../shared/volume";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 

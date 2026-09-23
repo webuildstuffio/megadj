@@ -8,7 +8,7 @@ import { tempDir } from "../test-support/testutil";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { walkAudio } from "./dupescan";
-import { walkShelf } from "../archive/hygiene/walk";
+import { walkShelf } from "../core/hygiene/walk";
 import { AUDIO_EXTS_RE } from "../shared/audio-exts";
 import { walkAudioDir } from "../shared/audio-walk";
 

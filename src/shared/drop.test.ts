@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, cliEnv } from "../test-support/cli-run";
 import { tempDir, tempState } from "../test-support/testutil";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { drop, missedEntry, type DropSummary } from "./drop";
 import { setScSetIdsForTest } from "../getdat/soundcloud";
 

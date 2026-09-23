@@ -11,7 +11,7 @@ restore loop CLOSED Sep 19 (rev-43, #35/#36): `shelf-restore` /
 plus the QuarantinePanel (`/api/hygiene/*`), and empty flips rows to
 `archived` behind the typed-confirm gate. Remaining detectors
 (`stale-pointer`, `orphan-audio`, `re-download`) stay with #37. The landed
-code is the truth: `src/archive/hygiene/` (engine/store/apply),
+code is the truth: `src/core/hygiene/` (engine/store/apply),
 `src/deck/hygiene/*.ts` (API/job/reader), parity pinned by
 `src/deck/test/surface-parity.test.ts`; current state lives in
 [product-state-2026-09-07.md](../product-state-2026-09-07.md),
@@ -120,7 +120,7 @@ archive DB + filesystem.
 Same fingerprint ≠ same decision — a 0.2% tag difference and a 30%
 bitrate difference demand different levels of trust. Every acoustic-twin
 finding carries `evidence.subcategory` from
-`src/archive/hygiene/subcategory.ts`:
+`src/core/hygiene/subcategory.ts`:
 
 | subcategory     | size delta | meaning                                | batch-confirm? |
 | --------------- | ---------- | -------------------------------------- | -------------- |

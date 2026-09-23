@@ -10,7 +10,7 @@ import { basename, join } from "node:path";
 import { walkAudioFiles } from "../../fulltags/write/writer";
 import { groundTruth } from "../../fulltags/write/readers";
 import { normalize } from "../../fulltags/identity";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { walkTree } from "../../shared/walk-tree";
 import { resolveShelfVolume } from "../../shared/volume";

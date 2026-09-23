@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { nameKey } from "../shared/name-key";
 import { backupStamp } from "./guard.js";
 

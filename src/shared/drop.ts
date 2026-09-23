@@ -40,7 +40,7 @@ import {
 } from "../getdat/commands/intake-folder";
 import { mkdirSync } from "node:fs";
 import { isRecord } from "./leaf/guards";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { commandLog } from "./progress";
 import { errMessage as errorText } from "./leaf/fmt";
 import { writeJson, setExit } from "./cli-output";

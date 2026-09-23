@@ -23,8 +23,8 @@ const SANCTIONED: Record<string, string> = {
   "src/shared/leaf/fmt.ts": "the SSOT itself",
   "src/getdat/commands/ingest-probe.ts": "EXDEV guard needs error.code",
   "src/getdat/commands/upgrade.ts": "detail-prefix ': msg' + '' degrade",
-  "src/archive/similar-storage.ts": "detail-prefix ': msg' + '' degrade",
-  "src/archive/ledgers.ts": "detail-prefix ': msg' + '' degrade",
+  "src/core/similar-storage.ts": "detail-prefix ': msg' + '' degrade",
+  "src/core/ledgers.ts": "detail-prefix ': msg' + '' degrade",
   "src/deck/deckctl.ts": "crash print keeps the stack",
   "src/ops/deck-install.ts": "installer top-level catch prints the stack",
   "src/deck/web/products/getdat/surfaced-card.tsx":

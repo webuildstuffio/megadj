@@ -28,7 +28,7 @@ import {
   fingerprintFiles,
   sameSizeSafe,
 } from "./dupescan-engine";
-import { nameSimilarity } from "../archive/hygiene/checks/similarity";
+import { nameSimilarity } from "../core/hygiene/checks/similarity";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
 import { nonEmptyEnv } from "../shared/leaf/guards";

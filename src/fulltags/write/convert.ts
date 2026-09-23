@@ -24,7 +24,7 @@ import {
   type QueueEntry,
 } from "../../getdat/commands/ingest-art";
 import { commandLog } from "../../shared/progress";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 
 export interface ConvertOptions {
   state: ArchiveState;

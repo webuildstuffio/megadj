@@ -8,7 +8,7 @@ import {
 } from "bun:test";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { RateLimiter, TrackGoneError } from "../ratelimit";
 import { Downloader } from "../downloader";
 import {

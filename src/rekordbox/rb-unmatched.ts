@@ -34,7 +34,7 @@ import {
   makeFail,
   printResult,
 } from "./rb-command-kit.js";
-import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
+import { QUARANTINE_DIR, quarantineDest } from "../core/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";

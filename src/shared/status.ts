@@ -1,5 +1,5 @@
-import type { ArchiveState } from "../archive/state";
-import type { TrackRow } from "../archive/state-types";
+import type { ArchiveState } from "../core/state";
+import type { TrackRow } from "../core/state-types";
 import { isLowq } from "../getdat/commands/upgrade";
 import { writeJson } from "./cli-output";
 import { storageReport, printStorageReport } from "./storage";

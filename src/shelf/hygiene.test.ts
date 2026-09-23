@@ -3,7 +3,7 @@ import { tempDir } from "../test-support/testutil";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { HygieneStore } from "../archive/hygiene/store";
+import { HygieneStore } from "../core/hygiene/store";
 import { shelfHygiene } from "./hygiene";
 import { hygieneFinding } from "../test-support/scan-rows";
 

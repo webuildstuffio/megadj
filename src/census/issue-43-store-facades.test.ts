@@ -29,7 +29,7 @@ function classMemberCount(path: string, className: string): number {
 test("#43: DB and ArchiveState are thin store facades", () => {
   const repo = join(import.meta.dir, "..", "..");
   const dbPath = join(repo, "src", "deck", "db.ts");
-  const archiveStatePath = join(repo, "src", "archive", "state.ts");
+  const archiveStatePath = join(repo, "src", "core", "state.ts");
 
   expect(
     classMemberCount(dbPath, "DB"),

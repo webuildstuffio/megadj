@@ -103,7 +103,7 @@ describe("apply-confirmation census (#79)", () => {
     const files = [
       ...listSourceFiles(join(ROOT, "src/rekordbox")),
       ...listSourceFiles(join(ROOT, "src/shelf")),
-      ...listSourceFiles(join(ROOT, "src/archive")),
+      ...listSourceFiles(join(ROOT, "src/core")),
     ];
     const offenders: string[] = [];
     for (const file of files) {

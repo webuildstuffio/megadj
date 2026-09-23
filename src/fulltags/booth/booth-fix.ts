@@ -38,7 +38,7 @@ import { playerCompat, isHiresOnly } from "./player-compat";
 import { boothTextCompat, type TextCompatResult } from "./booth-text";
 import { fixBoothText } from "./booth-fix-text";
 import type { BoothFixRow, BoothFixResult } from "./booth-fix-types";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 
 // Text sanitizers moved to booth-fix-text.ts with the fixer; re-exported so
 // existing `from "./booth-fix"` import sites (tests, CLI help) stay put.

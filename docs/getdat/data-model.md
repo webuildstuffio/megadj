@@ -10,7 +10,7 @@ create a second source of truth.
 
 | Store                | Role                                                                                  | Schema owner                                                                                                                                 | Read/write boundary                                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `archive.db`         | GetDat pipeline state and FullTags/Set analysis ledgers                               | [`src/archive/state-core.ts`](../../src/archive/state-core.ts) plus the extension producers listed below                                     | megadj owns writes; CrateDeck opens its archive view read-only                                                      |
+| `archive.db`         | GetDat pipeline state and FullTags/Set analysis ledgers                               | [`src/core/state-core.ts`](../../src/core/state-core.ts) plus the extension producers listed below                                     | megadj owns writes; CrateDeck opens its archive view read-only                                                      |
 | `cratedeck.sqlite`   | Drive registry, events, snapshots, jobs, checksums, benchmarks, and fleet projections | [`src/deck/db/core.ts`](../../src/deck/db/core.ts) and the domain stores behind [`src/deck/db.ts`](../../src/deck/db.ts) | CrateDeck only; WAL-backed local application state                                                                  |
 | rekordbox collection | `master.db` rows plus the `masterPlaylists6.xml` playlist twin                        | rekordbox/pyrekordbox, reached through `src/rekordbox/*` and the CrateDeck Python seam                                                       | rekordbox is authoritative; megadj mutations require rekordbox closed, dated backups, and full re-read verification |
 
@@ -20,22 +20,22 @@ size. The `rekordbox_content` table is an explicit cross-reference created by
 
 ## `archive.db` producers
 
-- [`src/archive/state-core.ts`](../../src/archive/state-core.ts) owns the connection,
+- [`src/core/state-core.ts`](../../src/core/state-core.ts) owns the connection,
   core `tracks`/`runs` tables, analysis tables, indexes, and additive column
   migration seam.
-- [`src/archive/ledgers.ts`](../../src/archive/ledgers.ts),
-  [`state_beats.ts`](../../src/archive/state-beats.ts), and
-  [`similar.ts`](../../src/archive/similar.ts) own typed access to beats, mood,
+- [`src/core/ledgers.ts`](../../src/core/ledgers.ts),
+  [`state_beats.ts`](../../src/core/state-beats.ts), and
+  [`similar.ts`](../../src/core/similar.ts) own typed access to beats, mood,
   cues, embeddings, and key caches.
-- [`src/archive/hygiene/store.ts`](../../src/archive/hygiene/store.ts) owns hygiene
+- [`src/core/hygiene/store.ts`](../../src/core/hygiene/store.ts) owns hygiene
   findings and the operation lock.
-- [`src/archive/sweeps.ts`](../../src/archive/sweeps.ts) owns shelf-sweep receipts.
+- [`src/core/sweeps.ts`](../../src/core/sweeps.ts) owns shelf-sweep receipts.
 - [`src/rekordbox/rb-adopt.ts`](../../src/rekordbox/rb-adopt.ts) owns the
   rekordbox-content cross-reference.
 - [`src/shelf/dupescan-shared.ts`](../../src/shelf/dupescan-shared.ts) owns the
   fingerprint cache used by shelf duplicate scans.
 
-The stable public façade is [`src/archive/state.ts`](../../src/archive/state.ts).
+The stable public façade is [`src/core/state.ts`](../../src/core/state.ts).
 Consumers import the façade or a documented narrow reader, not a copied table
 shape.
 

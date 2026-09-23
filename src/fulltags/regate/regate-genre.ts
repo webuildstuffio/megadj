@@ -1,6 +1,6 @@
 // regate-genre.ts — `megadj regate genre` (#169): the standing one-command
 // re-gate for the genre kNN. Runs the SAME LOO harness `genre --eval`
-// runs (evalLeaveOneOut in src/archive/similar.ts — no second eval
+// runs (evalLeaveOneOut in src/core/similar.ts — no second eval
 // implementation) over the same evalPopulation read, and reports against
 // the ≥65% ship gate from the tier-0 work (genre-pipeline.md §V2, measured
 // 69.2% at baseline). Effnet rides the same shape: its reference ledger
@@ -8,12 +8,12 @@
 // exist yet, so the CLI honestly reports unavailable — never a
 // manufactured pass (roadmap §4 gap 2's own rule).
 
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import {
   evalLeaveOneOut,
   genreFamily,
   parseEmbeddingVector,
-} from "../../archive/similar";
+} from "../../core/similar";
 import type { GateResult } from "../gates";
 
 /** The genre ship gate (genre-pipeline.md §V2, tier-0 arbitration bar). */

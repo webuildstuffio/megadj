@@ -201,7 +201,7 @@ Megamem's hardest-won space-geometry lessons, with our transfer verdicts:
   model-versioned cache); a model change forces reindex (F238: config/model
   mismatch produced "fresh-reindex artifacts, not true measurements"). Our
   `embeddings` ledger has `source_path` + `analyzed_at` but **no model id
-  column** — verified against `src/archive/state-core.ts` on Sep 18: the
+  column** — verified against `src/core/state-core.ts` on Sep 18: the
   `cues` table already carries a `model` column and the `addColumnIfMissing`
   migration seam exists, so this is a one-line DDL + one write-site change.
   Effnet is currently the only writer so the gap is theoretical; add `model`
@@ -511,7 +511,7 @@ docs/archive/embedding-research-2026-09-14.md (external review + adoption
 ladder), docs/megaset/02-architecture.md §2b T10 + §4 (B10p ownership),
 src/deck/shared/megaset.ts (`MEGASET_SIMILARITY_WEIGHT` 0.1),
 src/shared/leaf/vector-space.ts (all-but-the-top + CSLS, CSLS_R=10),
-src/archive/state-core.ts (embeddings schema — model column still absent,
+src/core/state-core.ts (embeddings schema — model column still absent,
 verified Sep 18).
 
 ## 11. Provenance note — workspace health incident during analysis

@@ -1,4 +1,4 @@
-import { inferGenre } from "../../archive/similar";
+import { inferGenre } from "../../core/similar";
 import { writeJson } from "../../shared/cli-output";
 import type { GenreOptions } from "./genre-run-types";
 import { parseInferencePopulation } from "./genre-run-population";

@@ -38,8 +38,8 @@
 
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { ArchiveState } from "../archive/state";
-import type { ShelfSweeps } from "../archive/sweeps";
+import { ArchiveState } from "../core/state";
+import type { ShelfSweeps } from "../core/sweeps";
 import { ShelfIndex } from "./index-files";
 import { sweepVolume, type DriveResult } from "./archive-file";
 import { resolveShelfVolume } from "../shared/volume";

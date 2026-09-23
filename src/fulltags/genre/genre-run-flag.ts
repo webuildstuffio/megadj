@@ -1,4 +1,4 @@
-import { evalLeaveOneOut } from "../../archive/similar";
+import { evalLeaveOneOut } from "../../core/similar";
 import { writeJson } from "../../shared/cli-output";
 import { classifyDisputes } from "./genre-flag";
 import type { GenreOptions } from "./genre-run-types";

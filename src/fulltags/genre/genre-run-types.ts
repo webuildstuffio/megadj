@@ -1,4 +1,4 @@
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 
 /** The `--eval --refold` JSON block: the arbitration A/B against the
  * pinned baseline on the same population. */

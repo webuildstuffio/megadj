@@ -10,7 +10,7 @@
  */
 import { readFile, appendFile } from "node:fs/promises";
 import { join, basename, extname } from "node:path";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { embedArt, AUDIO_EXTS as ARTWORK_EXTS } from "./writer";
 import { fetchImage } from "../sources/art-sources";
 import type { QueueEntry } from "../../getdat/commands/ingest-art";

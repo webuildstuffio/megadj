@@ -12,7 +12,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { ArchiveState } from "../archive/state";
+import { ArchiveState } from "../core/state";
 
 /** Registers before/after hooks around the current test file. The test
  * file keeps its own `let dir: string; let state: ArchiveState;` and

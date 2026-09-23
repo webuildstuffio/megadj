@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { genreEvalRow } from "../../test-support/genre-row";
 import { genre } from "./genre";
 

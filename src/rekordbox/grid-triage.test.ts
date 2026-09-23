@@ -9,7 +9,7 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import {
   anlzBpm,
   buildLedgerIndex,

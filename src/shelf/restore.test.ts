@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { HygieneStore } from "../archive/hygiene/store";
+import { HygieneStore } from "../core/hygiene/store";
 import {
   detectAndApply,
   hygieneShelfFixture,

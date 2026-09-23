@@ -25,7 +25,7 @@
  * is empty — an empty report reads as success otherwise).
  */
 
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { commandLog } from "../shared/progress";
 import { printResult } from "../rekordbox/rb-command-kit";
 import { MUSIC_DIR } from "../cli-env";

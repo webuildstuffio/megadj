@@ -49,7 +49,7 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
     "#283 megaset wire shapes (SetSearchOverride guard) — fold with #225A",
   "src/deck/shared/hygiene": "#225A shared-only fold",
   "src/deck/shared/dump":
-    "#225A shared-only fold (dump contract, used by src/archive/dump-ledger)",
+    "#225A shared-only fold (dump contract, used by src/core/dump-ledger)",
   "src/deck/shared/ledger-freshness": "#225A shared-only fold",
   // ---- former cratedeck → src seams: fulltags readers/fleet/grid/vote/
   // name-key/audio-exts + test-support; #225A or #214 folds these trees

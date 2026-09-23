@@ -18,7 +18,7 @@ import { mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tempState } from "../test-support/testutil";
 import { storageReport } from "./storage";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 
 const ts = tempState("megadj-storage-test-");
 let dir: string;

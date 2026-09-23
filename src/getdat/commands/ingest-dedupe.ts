@@ -11,7 +11,7 @@
 import { basename } from "node:path";
 import { md5FileStream } from "../../shared/hash";
 import { pickScoredKeeper } from "../../shared/keeper";
-import type { ArchiveState, TrackRow } from "../../archive/state";
+import type { ArchiveState, TrackRow } from "../../core/state";
 import {
   compareFingerprint,
   nameSimilarityTokens,

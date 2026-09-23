@@ -225,7 +225,7 @@ describe("archive", () => {
   });
 });
 
-import { ShelfSweeps, type ShelfSweepRow } from "../archive/sweeps";
+import { ShelfSweeps, type ShelfSweepRow } from "../core/sweeps";
 import { Database } from "bun:sqlite";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).

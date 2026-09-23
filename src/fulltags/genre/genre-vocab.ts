@@ -1,6 +1,6 @@
 /**
  * Genre vocabulary — ONE module owning every named genre map (#187).
- * The SSOT the fetch ladder, the embedding kNN (src/archive/similar.ts),
+ * The SSOT the fetch ladder, the embedding kNN (src/core/similar.ts),
  * and the refold arbitration (src/fulltags/genre-refold.ts) read:
  *   repairEscapes          — shared `\uXXXX` ingestion-artifact repair
  *   SC_GENRE_CANON         — SC/MB/BP claim labels → canonical display
@@ -12,7 +12,7 @@
  *   UMBRELLA_LABELS + isUmbrellaLabel — parent-only labels that abstain
  *                            from scoring (policy lives in genre-refold)
  *   AI_VOCAB               — closed AI classifier label set
- * `inferGenre` is the kNN inference in src/archive/similar.ts — the
+ * `inferGenre` is the kNN inference in src/core/similar.ts — the
  * free-text regex guess is `guessFromFreeText`, never the same name.
  * Pure — no DB, no IO, no tag writes.
  */
@@ -98,7 +98,7 @@ const GENRE_MAP: [RegExp, string][] = [
 ];
 
 /** Guess a coarse genre from free text (titles, channel names, MB tags).
- *  NOT the kNN inference — that is `inferGenre` in src/archive/similar.ts. */
+ *  NOT the kNN inference — that is `inferGenre` in src/core/similar.ts. */
 export function guessFromFreeText(
   inputs: (string | null | undefined)[],
 ): string | null {

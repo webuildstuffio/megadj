@@ -15,7 +15,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { expect } from "bun:test";
-import { HygieneStore } from "../archive/hygiene/store";
+import { HygieneStore } from "../core/hygiene/store";
 import { shelfHygiene } from "../shelf/hygiene";
 import { writeFakeAudio } from "./audio-fixtures";
 

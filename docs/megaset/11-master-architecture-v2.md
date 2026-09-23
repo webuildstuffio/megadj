@@ -306,7 +306,7 @@ this doc documents, never twins.
   megaset/embedding-learnings-from-megamem-2026-09-17 (v2, same-day);
   src/deck/shared/megaset.ts (weight const 0.1, beam consts),
   src/shared/leaf/vector-space.ts (all-but-the-top + CSLS, CSLS_R=10,
-  CSLS_REF_CAP=1500), src/archive/state-core.ts (embeddings schema — model
+  CSLS_REF_CAP=1500), src/core/state-core.ts (embeddings schema — model
   column absent, verified Sep 18).
 - **Megamem corpus (foreign, prose):** mem-bench ARCHITECTURE reference
   (R90 baseline table, component map, decision lineage) and retrieval-engine

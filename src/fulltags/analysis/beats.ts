@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { analyzeBeats, foldTempo, openBeatSession } from "./beats-analysis";
-import type { ArchiveState, TrackRow } from "../../archive/state";
+import type { ArchiveState, TrackRow } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 

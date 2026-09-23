@@ -1,4 +1,4 @@
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 
 export type GenreEvalRow = ReturnType<ArchiveState["evalPopulation"]>[number];
 

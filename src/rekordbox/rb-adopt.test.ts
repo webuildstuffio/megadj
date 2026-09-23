@@ -2,7 +2,7 @@ import { describe, expect, test, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { rbAdopt, type RekordboxContentRow } from "./rb-adopt";
 import { reconcileRekordboxRows, rekordboxCodec } from "./rb-adopt-apply";
 import { tempDir, stateIn } from "../test-support/testutil";

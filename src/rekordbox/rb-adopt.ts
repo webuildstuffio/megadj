@@ -13,7 +13,7 @@
  * archive snapshot) lives in rb-adopt-apply.ts.
  */
 import { existsSync } from "node:fs";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { rbPythonFile } from "./rb-python-file.js";
 import {
   applyConfirmationRefusal,

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { afterAll, describe, expect, test } from "bun:test";
 import { tempState } from "../test-support/testutil";
-import { cosineSimilarity, similarTracks } from "../archive/state";
+import { cosineSimilarity, similarTracks } from "../core/state";
 
 const ts = tempState("megadj-similar-");
 const { dir, state } = ts.next();

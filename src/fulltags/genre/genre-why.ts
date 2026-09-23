@@ -21,7 +21,7 @@ import {
   electGenre,
   type GenreVoteRung,
 } from "./genre-vote";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 
 export interface GenreWhyOptions {
   state: ArchiveState;

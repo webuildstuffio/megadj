@@ -155,7 +155,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // under src/ops and joins the scanned surface, adding deck-install's
     // already-isFinite-gated launchctl pid parse (audited 43→44,
     // guarded 28→29, sanctioned unchanged) — digest shifted below.
-    digest: "90127ae7b4345511bdf397b7f1381db1241e793b9d143bbf20239d7df0b501ff",
+    // Sep 22 (#314): src/archive → src/core rename — same calls, same guards,
+    // counts unchanged, new paths in digest input.
+    digest: "f2dcd2674da073706890ab8ddf3fd427d958a50469cff68ecb6f26ebd747eec8",
   });
 });
 

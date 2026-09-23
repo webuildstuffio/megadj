@@ -1,7 +1,7 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { mkdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { organize } from "./organize";
 import { downloadBatchDir } from "./intake-folder";
 import { tempState } from "../../test-support/testutil";

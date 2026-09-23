@@ -17,7 +17,7 @@ import {
 } from "../shared/cli-output";
 import { mountFrom, volumePath } from "../shared/volume";
 import { DB_PATH, MUSIC_DIR } from "../cli-env";
-import { ArchiveState } from "../archive/state";
+import { ArchiveState } from "../core/state";
 import { runShelfArchive, runShelfSweeps, runShelfSync } from "./cli-cmds";
 
 const shelfSync: CliCommandHandler = async (rest) => {

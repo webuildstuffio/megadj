@@ -448,7 +448,7 @@ the LEAST valuable BPM output anyway. The valuable outputs — downbeats +
 beat grids — now live in the archive DB ledger, and that shipped:**
 
 1. `megadj beats` (`src/fulltags/analysis/beats.ts` + the `beats` schema in
-   `src/archive/state-core.ts`): beat_this over every downloaded track →
+   `src/core/state-core.ts`): beat_this over every downloaded track →
    `beats(video_id PK, bpm_raw, bpm_folded, beats_json, downbeats_json,
 model, source_path, analyzed_at)`. No tags are touched — ever.
    Idempotent (ledgered tracks skipped without `--force`), `--json` P1-

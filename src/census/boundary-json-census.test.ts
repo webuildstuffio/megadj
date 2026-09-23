@@ -176,7 +176,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // counts, new file paths in the digest input.
     // Sep 21 (cratedeck→src/deck fold): whole-tree re-root — sanction
     // keys re-pathed, same calls, same guards, counts unchanged.
-    digest: "fe04d3db1caa562c033b4d531a04ad97bdd61623308707a8a2d02eb662ab87e0",
+    // Sep 22 (#314): src/archive → src/core rename — audited files re-rooted,
+    // same calls, same guards, counts unchanged, new paths in digest input.
+    digest: "3493608b3173506c81b11921b0a4deebd13e7cf5255b1b12b5369d38cd9a3ffa",
   });
 });
 

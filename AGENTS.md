@@ -53,7 +53,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   `src/census/naming-convention-census.test.ts` fails when a snake_case
   `.ts`/`.tsx` basename appears outside node_modules — module AND test files
   alike (the Sep-2026 pass renamed the 77-file snake majority in
-  cratedeck/src plus the src/archive, fulltags, and cratedeck/shared
+  cratedeck/src plus the src/core, fulltags, and cratedeck/shared
   strays). New files are kebab; a rename moves code+docs+census pins in the
   SAME commit via `git mv` + specifier rewrites (`src/deck/shared/check-matrix.ts`
   is pinned by name in this file). Python keeps snake_case (PEP 8,

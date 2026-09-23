@@ -1,6 +1,6 @@
 // naming-convention-census.test.ts — the #240 guard: repo-wide kebab-case
 // file naming. The Sep-2026 pass renamed the 77-file snake majority in
-// cratedeck/src (13% kebab → 100%) plus the 3 src/archive strays, the
+// cratedeck/src (13% kebab → 100%) plus the 3 src/core strays, the
 // fulltags mb_lookup stray, the 2 cratedeck/shared strays, and their 9
 // tests; without this pin the next extraction re-splits the convention
 // (#207 re-created a kebab/snake pair inside one directory three days

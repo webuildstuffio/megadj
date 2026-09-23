@@ -1,6 +1,6 @@
 /** Verify SoundCloud-sourced years from page metadata, then yt-dlp. */
 import { DB_PATH, MUSIC_DIR } from "../cli-env";
-import { ArchiveState } from "../archive/state";
+import { ArchiveState } from "../core/state";
 import { writeJson } from "../shared/cli-output";
 import { groundTruth } from "./write/readers";
 import { writePatchSync } from "./write/writer";

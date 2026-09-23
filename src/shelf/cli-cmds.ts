@@ -3,7 +3,7 @@
 // parsed rest-args and owns its dynamic import; main stays the dispatcher
 // (the usage census parses PRE_SERVER_VERBS in cli.ts, so the verbs
 // themselves never move).
-import { ArchiveState } from "../archive/state";
+import { ArchiveState } from "../core/state";
 import { MUSIC_DIR, DB_PATH } from "../cli-env";
 import { resolveShelfVolume, volumePath } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";

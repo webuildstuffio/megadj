@@ -4,7 +4,7 @@
 // domain command records (#235: getdat/shelf/fulltags/rekordbox
 // cli-commands.ts — the separate maintenance branch in cli.ts is gone;
 // every verb routes through this ONE table).
-import type { ArchiveState } from "./archive/state";
+import type { ArchiveState } from "./core/state";
 
 export interface CliContext {
   state: ArchiveState;

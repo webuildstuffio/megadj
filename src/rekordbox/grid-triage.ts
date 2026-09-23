@@ -24,7 +24,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { commandLog } from "../shared/progress";
 import { gridAuditFull } from "../fulltags/grid-audit";
 import { parseAnlzGrid } from "../fulltags/anlz";

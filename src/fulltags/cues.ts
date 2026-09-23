@@ -1,4 +1,4 @@
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { commandLog } from "../shared/progress";
 import { writeJson } from "../shared/cli-output";
 

@@ -8,7 +8,7 @@
 
 import { $ } from "bun";
 import { mkdirSync } from "node:fs";
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { type RateLimiter, TrackGoneError, withRetry } from "../ratelimit";
 import {
   Downloader,

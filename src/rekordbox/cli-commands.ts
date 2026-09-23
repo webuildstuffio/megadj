@@ -20,7 +20,7 @@ import {
 } from "../shared/cli-output";
 import { configuredMasterDrive, mountFrom } from "../shared/volume";
 import { DB_PATH } from "../cli-env";
-import { ArchiveState } from "../archive/state";
+import { ArchiveState } from "../core/state";
 import type { AnlzBeat, AnlzSpikeMode } from "./anlz-spike";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 import { isMegasetSearchOverride } from "../deck/shared/megaset";

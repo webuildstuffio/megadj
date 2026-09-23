@@ -2,7 +2,7 @@ import {
   evalLeaveOneOut,
   evalLeaveOneOutArtistDisjoint,
   type GenreSeed,
-} from "../../archive/similar";
+} from "../../core/similar";
 import { setExit, writeJson } from "../../shared/cli-output";
 import { tier0Diagnostics } from "./genre-diagnostics";
 import { probeLeaveOneOut, type ProbeRow } from "../analysis/linear-probe";

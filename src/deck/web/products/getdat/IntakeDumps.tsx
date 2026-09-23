@@ -1,7 +1,7 @@
 // IntakeDumps.tsx — the GetDat dumps strip (#20, wire 3/3 of the tab's
 // flow): every ingest batch as ONE unit with its process state (done |
 // partial + what's pending). Reads /api/intake/dumps — the ledger ingest
-// itself writes (src/archive/dump-ledger.ts), so the strip can never
+// itself writes (src/core/dump-ledger.ts), so the strip can never
 // disagree with the CLI's --json summary. Loads once per mount (the tab
 // remounts on run completion, so the strip refreshes with it).
 import type { IntakeDumpsResponse } from "../../../shared/types";

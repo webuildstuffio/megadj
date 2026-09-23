@@ -1,7 +1,7 @@
 /**
  * Dump types on the wire — the shared contract for #20's dump census.
  * DEFINED here (the hygiene.ts pattern: a leaf both trees import) and
- * re-exported by src/archive/dump-ledger.ts so the engine reads one
+ * re-exported by src/core/dump-ledger.ts so the engine reads one
  * namespace. `src` side owns the SQLite seam; this side owns the wire.
  */
 

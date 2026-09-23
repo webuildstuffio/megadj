@@ -13,7 +13,7 @@ test("#48: engine and spoke import the one cosine implementation", () => {
   expect(cosineSimilarity([1, 0], [0, 1])).toBe(0);
   expect(cosineSimilarity([1], [1, 0])).toBe(0);
 
-  const engine = readFileSync(join(root, "src/archive/similar.ts"), "utf8");
+  const engine = readFileSync(join(root, "src/core/similar.ts"), "utf8");
   const spoke = readFileSync(join(root, "src/deck/archive/similar.ts"), "utf8");
   expect(engine).toContain('from "../shared/leaf/vector-space"');
   // the folded spoke sits deeper under src/ — two ups to the same leaf
@@ -27,10 +27,7 @@ test("#48: both hygiene readers hydrate rows through the shared contract", () =>
     join(root, "src/deck/shared/hygiene.ts"),
     "utf8",
   );
-  const engine = readFileSync(
-    join(root, "src/archive/hygiene/store.ts"),
-    "utf8",
-  );
+  const engine = readFileSync(join(root, "src/core/hygiene/store.ts"), "utf8");
   const spoke = readFileSync(join(root, "src/deck/hygiene/reader.ts"), "utf8");
 
   expect(contract).toContain("export function hydrateHygieneFinding");

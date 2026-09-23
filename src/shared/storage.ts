@@ -7,7 +7,7 @@
 // never deletes, moves, or writes anything.
 import { readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../core/state";
 import { resolveShelfVolume } from "./volume";
 
 export interface StorageFreshness {

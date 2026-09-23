@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { classifyDisputes, type DisputedRow } from "./genre-flag";
-import type { EvalSummary, LoORowOutcome } from "../../archive/similar";
+import type { EvalSummary, LoORowOutcome } from "../../core/similar";
 
 const row = (
   videoId: string,

@@ -10,9 +10,9 @@ import {
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { openLedger } from "../shared/sqlite-ledger";
-import { HygieneStore } from "../archive/hygiene/store";
-import { QUARANTINE_DIR } from "../archive/hygiene/apply";
-import type { Finding } from "../archive/hygiene/types";
+import { HygieneStore } from "../core/hygiene/store";
+import { QUARANTINE_DIR } from "../core/hygiene/apply";
+import type { Finding } from "../core/hygiene/types";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
 import { md5Cli } from "./md5-cli";

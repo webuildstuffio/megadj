@@ -7,7 +7,7 @@
  * all the heavy lifting (MB lookup, canonical mapping, format-safe atomic
  * write) lives in FullTags.
  */
-import type { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 import { mbGenreForArtist } from "../sources/mb";

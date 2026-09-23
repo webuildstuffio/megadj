@@ -23,8 +23,8 @@ import { join } from "node:path";
 // hand-rolled twin (audio-ext-drift-census pins this).
 import { isAudioFile } from "../shared/audio-exts";
 
-import type { ArchiveState, TrackRow } from "../archive/state";
-import { DumpLedger, type DumpCensus } from "../archive/dump-ledger";
+import type { ArchiveState, TrackRow } from "../core/state";
+import { DumpLedger, type DumpCensus } from "../core/dump-ledger";
 
 /** NFC + casefold: the path identity for every compare in this census. */
 export function pathKey(p: string): string {

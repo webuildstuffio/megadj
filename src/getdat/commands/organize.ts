@@ -17,7 +17,7 @@
 import { $ } from "bun";
 import { mkdirSync } from "node:fs";
 import { basename } from "node:path";
-import type { ArchiveState, TrackRow } from "../../archive/state";
+import type { ArchiveState, TrackRow } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 import { downloadBatchDir } from "./intake-folder";
