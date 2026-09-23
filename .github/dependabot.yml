@@ -1,0 +1,54 @@
+---
+# webuildstuffio org standard — monthly, grouped, bun-first
+# Policy: 5-day poison window enforced via bunfig.toml minimumReleaseAge
+version: 2
+updates:
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "05:00"
+    versioning-strategy: increase-if-necessary
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    groups:
+      all-dependencies:
+        dependency-type: "all"
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      major-updates:
+        update-types:
+          - "major"
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "bun"
+      - "monthly-update"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "05:00"
+    rebase-strategy: "auto"
+    open-pull-requests-limit: 10
+    groups:
+      all-actions:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "monthly-update"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
