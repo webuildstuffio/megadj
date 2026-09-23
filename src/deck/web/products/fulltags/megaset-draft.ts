@@ -159,7 +159,10 @@ export function parseDraft(
       ? request.genre.trim()
       : null;
   const landmarkIds = Array.isArray(request?.landmarkIds)
-    ? request.landmarkIds.filter(
+    ? // Array.isArray on unknown narrows to any[] — an implicit-any
+      // type-predicate param (the f6f62026 class). Cast to unknown[] so
+      // the predicate's `id` is properly checked.
+      (request.landmarkIds as unknown[]).filter(
         (id): id is string => typeof id === "string" && id.trim() !== "",
       )
     : [];
