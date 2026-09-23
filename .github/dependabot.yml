@@ -1,6 +1,8 @@
 ---
 # webuildstuffio org standard — monthly, grouped, bun-first
 # Policy: 5-day poison window enforced via bunfig.toml minimumReleaseAge
+# NOTE: dependency-type omitted = includes all types (dev + prod).
+# "all" is NOT a valid value — Dependabot rejects the config.
 version: 2
 updates:
   - package-ecosystem: "bun"
@@ -14,7 +16,6 @@ updates:
     rebase-strategy: "auto"
     groups:
       all-dependencies:
-        dependency-type: "all"
         update-types:
           - "minor"
           - "patch"
