@@ -50,12 +50,19 @@ export async function mood(opts: MoodOptions): Promise<void> {
     opts.maxSeconds === undefined ? DEFAULT_MAX_MOOD_SECONDS : opts.maxSeconds;
   if (opts.dryRun) log("dry run: probing queue, no ONNX analysis");
 
+  // #308 pre-first-chunk visibility: every expensive stage below logs its
+  // ENTRY with a count, so a library-scale queue shows movement within
+  // seconds instead of minutes of silence before the first chunk line.
+  const t0 = Date.now();
   const candidates = opts.state
     .allTracks()
     .filter(
       (t) =>
         t.status === "downloaded" && t.file_path && existsSync(t.file_path),
     );
+  log(
+    `  queue: ${candidates.length} downloaded file(s) on disk (scan ${Date.now() - t0}ms)`,
+  );
 
   // Shared record shape for both passes (file-stamp sync + ONNX analysis).
   const record = (t: TrackRow, m: MoodResult): void => {
@@ -87,8 +94,13 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // scan is ffprobe+mutagen PER FILE, and on a 3.9k-file library with
   // network mounts it was minutes of silent spawning (the "mood wedges"
   // report). Only UNledgered candidates pay the file-read cost.
-  const pass1 = syncPass(opts, candidates, record);
-  const needAnalysis = buildAnalysisQueue(opts, pass1, candidates);
+  // #308: pass 1 announces its size AND emits a heartbeat every 250 files
+  // — the groundTruth scan is the stage that ran silent for minutes on
+  // network mounts; a wedge here is now locatable within ~a file or two.
+  const pass1T0 = Date.now();
+  const pass1 = syncPass(opts, candidates, record, log);
+  log(`  stamp sync done in ${((Date.now() - pass1T0) / 1000).toFixed(1)}s`);
+  const needAnalysis = buildAnalysisQueue(opts, pass1, candidates, log);
 
   // Length cap (Sep 19): probe duration once; over-cap files are counted
   // honestly (`overLengthCap`) instead of wedging the batch — the queue
@@ -128,9 +140,18 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // chunks: analyzeMoods streams ONE python worker over its whole input,
   // so results only land per completed file — chunking bounds the blast
   // radius of a wedged decode and makes progress visible per chunk.
+  // #308: the FIRST chunk line now prints BEFORE the uv/model bootstrap
+  // (it always did) but the queue header above it names the full shape —
+  // the wedge report was "no output at all", so every pre-chunk stage
+  // has announced itself by now.
   let analyzed = 0;
   let failed = 0;
   const CHUNK = 20;
+  if (runnable.length > 0) {
+    log(
+      `  analysis: ${runnable.length} file(s) in ${Math.ceil(runnable.length / CHUNK)} chunk(s) of ${CHUNK} (uv bootstrap + model load precede the first result — tens of seconds on a cold cache)`,
+    );
+  }
   for (let i = 0; i < runnable.length; i += CHUNK) {
     const chunk = runnable.slice(i, i + CHUNK);
     log(`  mood chunk ${i + 1}-${i + chunk.length} of ${runnable.length}…`);
@@ -155,16 +176,26 @@ interface SyncCounts {
 
 /** Pass 1 — for every candidate: mirror the file's energy stamp into the
  *  DB column, and ledger the mood record when a valid stamp exists.
- *  Stamped-but-unembedded tracks are returned for pass 2 (ONNX only). */
+ *  Stamped-but-unembedded tracks are returned for pass 2 (ONNX only).
+ *  #308: `log` carries a heartbeat every HEARTBEAT_EVERY visited files —
+ *  this pass is the per-file spawn storm the #278 wedge hid inside. */
 function syncPass(
   opts: MoodOptions,
   candidates: TrackRow[],
   record: (t: TrackRow, m: MoodResult) => void,
+  log: (msg: string) => void,
 ): SyncCounts & { needEmbedding: TrackRow[] } {
   let synced = 0;
   let energySynced = 0;
   const needEmbedding: TrackRow[] = [];
-  for (const t of candidates) {
+  const HEARTBEAT_EVERY = 250;
+  for (let ci = 0; ci < candidates.length; ci++) {
+    const t = candidates[ci]!;
+    if (ci > 0 && ci % HEARTBEAT_EVERY === 0) {
+      log(
+        `  stamp sync: ${ci}/${candidates.length} files scanned (${synced} synced, ${needEmbedding.length} embedding gaps)…`,
+      );
+    }
     // Embedding-gap check is a CHEAP DB read — do it before any file scan.
     // A row that still owes an embedding is the ONE case where an
     // --embeddings run has pass-2 work beyond fresh analysis (and under
@@ -220,7 +251,19 @@ function buildAnalysisQueue(
   opts: MoodOptions,
   pass1: SyncCounts & { needEmbedding: TrackRow[] },
   candidates: TrackRow[],
+  log: (msg: string) => void,
 ): TrackRow[] {
+  // #308: the probe sweep (groundTruth per unledgered file) announces its
+  // size — on a --force run over the full library this is ANOTHER silent
+  // per-file spawn storm.
+  const probeT0 = Date.now();
+  const toProbe = candidates.filter(
+    (t) => opts.force || opts.dryRun || !opts.state.moodRecord(t.video_id),
+  );
+  log(
+    `  analysis probe: ${toProbe.length} file(s) need a stamp check (skipping ${candidates.length - toProbe.length} ledgered)…`,
+  );
+  let probed = 0;
   const needAnalysis = candidates.filter((t) => {
     // DB short-circuit first (#278): file scans are the expensive part.
     // --embeddings does NOT lift this (#279): a ledgered row is analyzed;
@@ -230,9 +273,16 @@ function buildAnalysisQueue(
     // would-do report stays honest.
     if (!opts.force && !opts.dryRun && opts.state.moodRecord(t.video_id))
       return false;
+    probed++;
+    if (probed % 250 === 0) {
+      log(`  analysis probe: ${probed}/${toProbe.length} stamp checks done…`);
+    }
     const truth = groundTruth(t.file_path!);
     return !(truth.mood && parseMoodStamp(truth.mood));
   });
+  log(
+    `  analysis probe done in ${((Date.now() - probeT0) / 1000).toFixed(1)}s: ${needAnalysis.length - pass1.needEmbedding.length} unstamped`,
+  );
   needAnalysis.push(...pass1.needEmbedding);
   const analysisQueue = needAnalysis.slice(
     0,
