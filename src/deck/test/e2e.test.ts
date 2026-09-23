@@ -67,26 +67,23 @@ beforeAll(async () => {
   });
   // Drain the pipes: a pipe buffer that fills (64 KB) blocks the server
   // mid-boot and looks exactly like a hang.
-  void (async () => {
+  const pump = async (side: "stdout" | "stderr"): Promise<void> => {
     const dec = new TextDecoder();
+    const stream = side === "stdout" ? serverProc.stdout : serverProc.stderr;
     const reader =
-      serverProc.stdout.getReader() as ReadableStreamDefaultReader<Uint8Array>;
+      stream.getReader() as ReadableStreamDefaultReader<Uint8Array>;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      serverStdout += dec.decode(value, { stream: true });
+      if (side === "stdout")
+        serverStdout += dec.decode(value, { stream: true });
+      else serverStderr += dec.decode(value, { stream: true });
     }
-  })().catch(() => {});
-  void (async () => {
-    const dec = new TextDecoder();
-    const reader =
-      serverProc.stderr.getReader() as ReadableStreamDefaultReader<Uint8Array>;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      serverStderr += dec.decode(value, { stream: true });
-    }
-  })().catch(() => {});
+  };
+  // a pump failure must not mask the boot result: the output surfaces
+  // in the boot-failure error below either way
+  void pump("stdout").catch(() => {}); // quiet: boot verdict reads the pipes
+  void pump("stderr").catch(() => {}); // quiet: boot verdict reads the pipes
   // wait for boot; on failure surface the server's own output so the
   // root cause is in the test log (was: silent 5s loop → ConnectionRefused)
   let up = false;
@@ -98,7 +95,9 @@ beforeAll(async () => {
         up = true;
         break;
       }
-    } catch {}
+    } catch {
+      // connection refused = not up yet; the retry loop below is the handling
+    }
     await new Promise((r) => setTimeout(r, 100));
   }
   if (!up) {

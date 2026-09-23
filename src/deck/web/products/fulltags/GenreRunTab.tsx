@@ -85,7 +85,7 @@ export function GenreRunTab() {
               next: s.next,
             }));
         })
-        .catch(() => {});
+        .catch(() => {}); // quiet: the tab self-heals on the next poll
     };
     poll();
     const t = setInterval(poll, 1_000);

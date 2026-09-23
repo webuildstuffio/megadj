@@ -35,10 +35,11 @@ export interface StorageReport {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** >7d without a sync for a cohort = stale (the LL 27-day freeze class). */
-const STALE_AFTER_DAYS = 7;
 /** Same fixture prefixes tmp-purge sweeps (one definition — imported). */
 import { FIXTURE_PREFIXES } from "../shelf/tmp-purge";
+// #321: the staleness RULE is ledger-freshness.ts's red band (≥7d, the
+// LL 27-day freeze threshold) — imported, never re-declared here.
+import { ledgerFreshness as ledgerBand } from "../deck/shared/ledger-freshness";
 
 /** Recursive byte size — the same walk tmp-purge uses for its report. */
 function treeBytes(path: string): number {
@@ -53,13 +54,6 @@ function treeBytes(path: string): number {
     return total;
   }
   return total;
-}
-
-function ageDaysOf(iso: string | null): number | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return null;
-  return (Date.now() - t) / DAY_MS;
 }
 
 /** Count fixture-prefixed dirs at ONE tmp root. */
@@ -153,15 +147,19 @@ export function storageReport(
   const shelfMounted = existsSync(shelfVolume);
 
   // ---- ledger freshness per source cohort ----
+  // #321: the staleness RULE lives in ledger-freshness.ts (the #161
+  // module — red band ≥7d, the same LL-freeze threshold); storage.ts
+  // only maps its own wire shape onto it. No second 7-day constant.
   const bySource = state.lastSyncAtBySource();
   const ledgerFreshness: SourceFreshness[] = Object.entries(bySource)
     .map(([source, lastSyncAt]) => {
-      const ageDays = ageDaysOf(lastSyncAt);
+      const fresh = ledgerBand(lastSyncAt);
       return {
         source,
         lastSyncAt,
-        ageDays: ageDays === null ? null : Math.floor(ageDays),
-        stale: ageDays === null ? false : ageDays > STALE_AFTER_DAYS,
+        ageDays:
+          fresh.ageHours === null ? null : Math.floor(fresh.ageHours / 24),
+        stale: fresh.band === "red",
       };
     })
     .toSorted((a, b) => (b.ageDays ?? -1) - (a.ageDays ?? -1));

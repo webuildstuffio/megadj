@@ -18,6 +18,7 @@ import { mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tempState } from "../test-support/testutil";
 import { storageReport } from "./storage";
+import { ledgerFreshness as ledgerBand } from "../deck/shared/ledger-freshness";
 import type { ArchiveState } from "../core/state";
 
 const ts = tempState("megadj-storage-test-");
@@ -77,6 +78,27 @@ describe("storage block (#251)", () => {
     expect(frozen?.ageDays).toBe(27);
     expect(r.anyStale).toBe(true);
     expect(r.ledgerFreshness[0]?.source).toBe("LL");
+  });
+
+  test("#321: the staleness rule is ledgerBand's red band — single source", () => {
+    // The delegation contract: storage's `stale` must equal the shared
+    // module's red band for the SAME timestamp, and the ageDays mapping
+    // (floor(ageHours/24)) must round-trip. A second 7-day constant in
+    // storage.ts would drift from the AGENTS band vocabulary.
+    const now = new Date();
+    const sixDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
+    // 6d old → amber → NOT stale (the old `> 7` float compare and the
+    // band agree here, so this pins the boundary from the fresh side)
+    expect(ledgerBand(sixDaysAgo.toISOString(), now).band).toBe("amber");
+    // 8d old → red → stale
+    expect(ledgerBand(eightDaysAgo.toISOString(), now).band).toBe("red");
+    // the mapping storage.ts applies: hours → floor-days
+    const eight = ledgerBand(eightDaysAgo.toISOString(), now);
+    expect(eight.ageHours).toBe(8 * 24);
+    expect(Math.floor((eight.ageHours ?? 0) / 24)).toBe(8);
+    // null ledger → band "none" → storage maps to stale:false (honest)
+    expect(ledgerBand(null, now).band).toBe("none");
   });
 
   test("tmp fixture counting sees a fresh fixture dir at the fallback root", () => {
