@@ -2,7 +2,7 @@
 name: metrics-weekly
 "on":
   schedule:
-    - cron: "0 13 * * 0" # Sundays 09:00 ET
+    - cron: "0 13 * * 0" # Sundays 09:00 ET (re-registered)
   release:
     types: [published]
   workflow_dispatch:
