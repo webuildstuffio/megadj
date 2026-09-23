@@ -5,10 +5,10 @@
 import {
   cleanSearchParts,
   cleanSearchQuery,
+  nameTokens,
+  primaryArtist,
   type SearchQueryParts,
-} from "./search-query";
-import { nameTokens, primaryArtist } from "./name-match";
-
+} from "./name-match";
 // ---------- SoundCloud search (feeds genre + art + year in one call) ----------
 export interface ScHit {
   url: string;

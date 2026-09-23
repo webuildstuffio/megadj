@@ -27,9 +27,9 @@
  * resets to the real impls.
  */
 import { canonGenre, SC_GENRE_CANON } from "../write/schema";
-import { cleanSearchQuery } from "./search-query";
 import {
   ARTIST_MIN_LEN,
+  cleanSearchQuery,
   nameTokens as words,
   primaryArtist,
   titleOverlap,

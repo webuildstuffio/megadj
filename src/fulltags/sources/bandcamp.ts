@@ -27,8 +27,13 @@
  * must never write a genre (the Taylor Swift class, fixed for SC in
  * Sep 15's gate work).
  */
-import { cleanSearchParts, type SearchQueryParts } from "./search-query";
-import { artistGate, primaryArtist, titleOverlap } from "./name-match";
+import {
+  artistGate,
+  cleanSearchParts,
+  primaryArtist,
+  titleOverlap,
+  type SearchQueryParts,
+} from "./name-match";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";

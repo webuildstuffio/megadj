@@ -10,7 +10,7 @@
 import { readdirSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 
-export { cleanSearchParts } from "./search-query";
+export { cleanSearchParts } from "./name-match";
 
 const UA = {
   "User-Agent":

@@ -50,7 +50,7 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
   "src/fulltags/genre/genre-vocab-crossmap.test.ts":
     "#220: subject genre-vocab.ts",
   "src/fulltags/sources/clean-search-parts.test.ts":
-    "#220: subject art-sources.ts",
+    "#220: subject art-sources.ts + #322: query-building folded into name-match.ts",
   "src/fulltags/sources/mb-lookup.test.ts": "#220: subject mb_lookup.py seam",
   "src/fulltags/sources/models.test.ts":
     "#220: integration of models+pipeline+writer",
