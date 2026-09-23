@@ -199,9 +199,7 @@ interface MbArtistSearch {
 const artistCache = new Map<string, string | null>();
 
 /** Artist → canonical genre via MB folksonomy tags. Null on miss/error. */
-export async function mbGenreForArtist(
-  artist: string,
-): Promise<string | null> {
+export async function mbGenreForArtist(artist: string): Promise<string | null> {
   const key = artist.toLowerCase().trim();
   if (artistCache.has(key)) return artistCache.get(key) ?? null;
   await rateLimit();
