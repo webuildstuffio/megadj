@@ -135,6 +135,13 @@ const SHARED_OPT_HELPERS: Readonly<
     strings: ["playlist", "group"],
     bools: ["apply", "yes", "json"],
   },
+  // parseAnalysisFlags (fulltags/cli/cli-commands.ts): the beats/catch-up
+  // shared flag block (#316 unified the two handlers onto this helper —
+  // the parseFlags call now lives here, not in the handler bodies).
+  parseAnalysisFlags: {
+    strings: ["limit", "jobs", "max-seconds"],
+    bools: ["force", "dry-run", "json"],
+  },
 };
 
 interface RegistryEntry {

@@ -6,6 +6,7 @@
 // and the analysis arms (beats/mood/similar/megaset/genre/cues/regate)
 // share one domain, one vote-ladder engine, one ledger family.
 import type { CliCommandHandler } from "../../cli-dispatch";
+import type { ArchiveState } from "../../core/state";
 import {
   firstPositional,
   nonNegOpt,
@@ -270,7 +271,7 @@ function parseAnalysisFlags(
  *  the two handlers assembled the same 9-field object). */
 function analysisPassOptions(
   parsed: NonNullable<ReturnType<typeof parseAnalysisFlags>>,
-  state: import("../../core/state").ArchiveState,
+  state: ArchiveState,
   musicDir: string,
 ) {
   const { flags, json } = parsed;

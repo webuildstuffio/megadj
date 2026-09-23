@@ -224,9 +224,7 @@ const hygieneApi = makeHygieneRoutes({
       throw new Error("shelf drive not mounted — hygiene needs SHELF1");
     return jobs.enqueue(shelf.id, kind, `/Volumes/${shelf.name}`, "web");
   },
-  megadjCli: async (args) => {
-    return spawnMegadjCli(cfg.root, args);
-  },
+  megadjCli: (args) => spawnMegadjCli(cfg.root, args),
   // quarantine census (#36): the engine (megadj CLI) owns the layout
   // math — index.ts just binds the call; stdout is the one JSON object.
   quarantineCensus: async () => {
@@ -375,9 +373,7 @@ const apiRouter = makeApiRouter({
   fleetRoutes,
   json,
   sse,
-  megadjCli: async (args) => {
-    return spawnMegadjCli(cfg.root, args);
-  },
+  megadjCli: (args) => spawnMegadjCli(cfg.root, args),
   stopServer: () => {
     watcher.stop();
     void jobs.shutdown();

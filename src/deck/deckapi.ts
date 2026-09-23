@@ -103,9 +103,12 @@ export async function dismissNote(
   );
   const body = (await res.json()) as { ok?: boolean; error?: string };
   if (!res.ok || !body.ok)
-    throw Object.assign(new Error(body.error ?? `dismiss failed (${res.status})`), {
-      status: res.status,
-    });
+    throw Object.assign(
+      new Error(body.error ?? `dismiss failed (${res.status})`),
+      {
+        status: res.status,
+      },
+    );
 }
 
 /** Wait for the server, auto-starting it if it isn't running. Tests (and

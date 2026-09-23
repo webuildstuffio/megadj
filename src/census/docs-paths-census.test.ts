@@ -122,6 +122,10 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "docs/usb-sync-log.md":
       "intentionally gitignored local operator log (.gitignore)",
   },
+  "docs/runbooks/0e-full-pipeline.md": {
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
+  },
 };
 
 function docFiles(): string[] {

@@ -9,7 +9,14 @@
 // mcp/read-tools.ts; mcp.ts owns assembly.
 
 import { str, num, RpcParamError, obj, s, sEnum, sArr, n, b } from "./params";
-import { apiGetJson, apiPost, PORT, waitForJob, type Job , dismissNote } from "../deckapi";
+import {
+  apiGetJson,
+  apiPost,
+  PORT,
+  waitForJob,
+  type Job,
+  dismissNote,
+} from "../deckapi";
 import { JOB_KINDS } from "../shared/types";
 import type { ToolDef } from "./server";
 import { DRIVE_PARAM, needDrive } from "./read-tools";
