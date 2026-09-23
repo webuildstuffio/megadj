@@ -9,7 +9,7 @@ import { statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
 import { walkAudioFiles } from "../../fulltags/write/writer";
 import { groundTruth } from "../../fulltags/write/readers";
-import { normalize } from "../../fulltags/identity";
+import { normalize } from "../../fulltags/pipeline/identity";
 import type { ArchiveState } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { walkTree } from "../../shared/walk-tree";

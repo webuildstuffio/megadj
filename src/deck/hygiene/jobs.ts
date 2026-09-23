@@ -2,7 +2,11 @@
 // extracted from jobs.ts (file-length guard). The shared spawn/drain/
 // summary runner lives in cli_job_leg.ts (one implementation; this module
 // was its byte-twin until jscpd flagged it).
-import { runCliJobLeg, summaryCount, type CliJobDeps } from "../cli-job-leg";
+import {
+  runCliJobLeg,
+  summaryCount,
+  type CliJobDeps,
+} from "../jobs/cli-job-leg";
 
 /** Kept as a named alias — the deps shape is the shared CliJobDeps. */
 export type HygieneJobDeps = CliJobDeps;

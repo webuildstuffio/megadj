@@ -5,7 +5,7 @@
  * claim lives or dies by the fit being exact on clean grids).
  */
 import { describe, test, expect } from "bun:test";
-import { fitConstantTempo, gridAudit } from "../grid-audit";
+import { fitConstantTempo, gridAudit } from "../analysis/grid-audit";
 import { foldTempo } from "../analysis/beats-analysis";
 
 /** Perfect machine grid: n beats at exactly `bpm` starting at t0. */

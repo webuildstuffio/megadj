@@ -454,9 +454,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(source).toContain('list="megaset-genre-families"');
     // the payload's #290 hint renders as a did-you-mean, not a dead end
     expect(source).toContain("genre_suggestion");
-    const withSuggestion = render(
-      <MegasetPanel />,
-    ); // panel mounts with no data — suggestion path renders only when set
+    const withSuggestion = render(<MegasetPanel />); // panel mounts with no data — suggestion path renders only when set
     expect(withSuggestion).toContain("megaset-genre-input");
   });
 

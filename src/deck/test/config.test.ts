@@ -3,7 +3,10 @@ import { tempDir } from "./testutil";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config";
-import { parseBoothFleetRequest, writeConfigBoothFleet } from "../booth-routes";
+import {
+  parseBoothFleetRequest,
+  writeConfigBoothFleet,
+} from "../server/booth-routes";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("cratedeck-config-").rippable();

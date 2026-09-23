@@ -6,8 +6,8 @@ import {
   lineIsReady,
   lineHasRequestId,
 } from "../analysis/analysis-worker";
-import { lineReader } from "../stdio";
-import { parseJsonObject } from "../parse-json";
+import { lineReader } from "../utils/stdio";
+import { parseJsonObject } from "../utils/parse-json";
 import { join } from "node:path";
 
 /** The fake workers live as real files: `bun -e` heredoc scripts proved

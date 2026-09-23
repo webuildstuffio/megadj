@@ -9,7 +9,7 @@ import {
   intakePhaseFor,
   megadjCliPath,
   splitIntakeStdout,
-} from "../intake-run";
+} from "./intake-run";
 import {
   drain,
   type JobLog,

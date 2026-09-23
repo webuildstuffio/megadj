@@ -5,7 +5,7 @@ import {
   setBoothFleet,
   type CompatResult,
 } from "../booth/player-compat";
-import type { Probe } from "../media-probe";
+import type { Probe } from "../utils/media-probe";
 
 // Every test pins its fleet explicitly — the default trio (XZ/3000/NXS2)
 // differs from the four-player floor the older cases were written for.

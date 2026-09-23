@@ -16,7 +16,7 @@ import { tempSiblingPath } from "../../shared/atomic-file";
 import { applyTags } from "../../fulltags/write/writer";
 import { fingerprintFile } from "../../fulltags/analysis/fingerprint";
 import type { EnrichedMetadata } from "../../fulltags/write/schema";
-import { probeMediaSync } from "../../fulltags/media-probe";
+import { probeMediaSync } from "../../fulltags/utils/media-probe";
 import { Downloader, type DownloadResult } from "../downloader";
 import type { ArchiveState } from "../../core/state";
 import { commandLog } from "../../shared/progress";

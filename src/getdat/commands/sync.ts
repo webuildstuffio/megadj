@@ -35,7 +35,7 @@ import {
 export type { SyncSource as PlaylistSource } from "../soundcloud";
 import { commandLog, ProgressBar } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
-import { probeFile } from "../../fulltags/media-probe";
+import { probeFile } from "../../fulltags/utils/media-probe";
 import { organize } from "./organize";
 import { downloadBatchDir } from "./intake-folder";
 import {

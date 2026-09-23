@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FLEET_PROFILES, DEFAULT_FLEET } from "../fulltags/booth/fleet";
 import { isUnknownArray, nonEmptyEnv } from "../shared/leaf/guards";
-import { resolveServerPort } from "./server-port";
+import { resolveServerPort } from "./server/server-port";
 
 export type ImageProvider = "brave" | "exa";
 

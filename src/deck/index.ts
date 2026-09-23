@@ -6,23 +6,26 @@
 import { join } from "node:path";
 import { loadConfig } from "./config";
 import { DB } from "./db";
-import { Guard } from "./guard";
+import { Guard } from "./server/guard";
 import { watchVolumes } from "./detect/detect";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs/engine";
 import { ImageService } from "./image/store";
-import { ShelfSweepReader } from "./shelf-sweep-reader";
+import { ShelfSweepReader } from "./tools/shelf-sweep-reader";
 import { HygieneReader } from "./hygiene/reader";
-import { DumpReader } from "./dump-reader";
+import { DumpReader } from "./tools/dump-reader";
 import { makeHygieneRoutes } from "./hygiene/routes";
 import { makeFixesRoutes } from "./fixes/routes";
 import { makeGridHealthRoutes } from "./grid/routes";
 import { ArchiveReader } from "./db/reader";
 import { type ReportDeps } from "./report/inputs";
 import { playersFromConfig } from "./players";
-import { megadjCliPath } from "./intake-run";
-import { isTrustedMutationRequest, withSecurityHeaders } from "./http-security";
-import { makeServerLifecycle } from "./server-lifecycle";
+import { megadjCliPath } from "./jobs/intake-run";
+import {
+  isTrustedMutationRequest,
+  withSecurityHeaders,
+} from "./server/http-security";
+import { makeServerLifecycle } from "./server/server-lifecycle";
 import { makeFleetRoutes } from "./fleet/routes";
 import { makeDriveRoutes } from "./drive/routes";
 import { makeApiRouter } from "./api/routes";

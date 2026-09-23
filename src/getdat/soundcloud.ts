@@ -11,7 +11,7 @@
 // Pure logic is exported for tests; the spawn lives in the Downloader.
 // Metadata-only SC reads (the genre/art/year ladders) stay in
 // fulltags/sources/sc-search.ts — this file never duplicates them.
-import { parseJsonObject } from "../fulltags/parse-json";
+import { parseJsonObject } from "../fulltags/utils/parse-json";
 
 /** The ledger `source` value for SoundCloud rows (tracks.source). */
 export const SC_SOURCE = "soundcloud";

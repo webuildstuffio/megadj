@@ -7,7 +7,7 @@ import { tempDir } from "./testutil";
 import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { usbLinkClass } from "../detect/detect";
-import { speedProbe } from "../bench";
+import { speedProbe } from "../tools/bench";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-speedprobe-").rippable();

@@ -27,9 +27,9 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
   // (owner+path moved; the sanction follows the site).
   "src/fulltags/pipeline/pipeline-stamps.ts::parseMoodStamp::Number(m[2])":
     "m[2] is a digits-and-decimal-only regex capture and need() finite-checks every consumed value.",
-  "src/fulltags/years.ts::parseScPageDates::Number(year)":
+  "src/fulltags/pipeline/years.ts::parseScPageDates::Number(year)":
     "year is a four-digit regex capture.",
-  "src/fulltags/years.ts::ytdlpYearsBatch::Number(uploadDate.slice(0, 4))":
+  "src/fulltags/pipeline/years.ts::ytdlpYearsBatch::Number(uploadDate.slice(0, 4))":
     "the enclosing branch first validates uploadDate as exactly eight digits.",
   "src/getdat/commands/intake-folder.ts::dumpDateFromNameParts::Number(m[1])":
     "m[1] is a digits-only date regex capture.",

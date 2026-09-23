@@ -8,7 +8,7 @@ import { redundancy, diff } from "./coverage-fleet";
 import { radar, type RadarSource } from "./radar";
 import { ArchiveReader } from "../db/reader";
 import type { FleetRadar, RadarResult } from "../shared/types";
-import { fetchWeeklyPrepInput, renderWeeklyPrep } from "../weekly-prep";
+import { fetchWeeklyPrepInput, renderWeeklyPrep } from "../jobs/weekly-prep";
 
 export function makeFleetRoutes(deps: {
   db: DB;

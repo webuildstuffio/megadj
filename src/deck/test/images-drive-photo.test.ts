@@ -26,7 +26,7 @@ process.env.CRATEDECK_VOLUMES = join(FIX, "vol");
 
 // static imports resolve before env is set — config reads env at call time
 const { ImageService, readBoundedImageBody } = await import("../image/store");
-const { Guard } = await import("../guard");
+const { Guard } = await import("../server/guard");
 const { DB } = await import("../db");
 const { loadConfig } = await import("../config");
 
@@ -271,7 +271,7 @@ describe("drive cover photos (dual-save)", () => {
   });
 
   it("scan's walker skips Contents/CrateDeck (not DJ data)", async () => {
-    const { walkTree } = await import("../walk");
+    const { walkTree } = await import("../tools/walk");
     const seen: string[] = [];
     await walkTree(VOL, {
       onlySubdir: "Contents",

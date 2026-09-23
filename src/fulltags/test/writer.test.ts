@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { writePatch, embedArt, groundTruth } from "../index-all";
+import { writePatch, embedArt, groundTruth } from "../pipeline/index-all";
 import { parseMutagenJsonOutput } from "../write/mutagen";
 
 const DIR = `/tmp/fulltags-writer-test-${process.pid}`;
@@ -123,7 +123,7 @@ describe("wavToAiff output validity", () => {
       await $`mkdir -p ${DIR}`.quiet();
       const wav = `${DIR}/hi24.wav`;
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 -c:a pcm_s24le -metadata title=Original ${wav}`.quiet();
-      const { wavToAiff } = await import("../index-all");
+      const { wavToAiff } = await import("../pipeline/index-all");
       const aiff = await wavToAiff(wav);
       expect(aiff).not.toBeNull();
       // The output MUST parse as valid audio — ffprobe is the gate.

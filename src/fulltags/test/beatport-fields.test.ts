@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { writePatch, groundTruth } from "../index-all";
+import { writePatch, groundTruth } from "../pipeline/index-all";
 
 const DIR = `/tmp/fulltags-bp-fields-test-${process.pid}`;
 

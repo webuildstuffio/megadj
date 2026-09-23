@@ -19,7 +19,7 @@ import {
   MEGASET_EXCLUDED_PREVIEW_MAX,
 } from "../shared/megaset";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
-import { intakeCandidateDirs } from "../intake-run";
+import { intakeCandidateDirs } from "../jobs/intake-run";
 import type { DB } from "../db";
 import type { CrateConfig } from "../config";
 

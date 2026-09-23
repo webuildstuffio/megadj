@@ -15,7 +15,7 @@ import type { makeFixesRoutes } from "../fixes/routes";
 import type { makeHygieneRoutes } from "../hygiene/routes";
 import type { makeGridHealthRoutes } from "../grid/routes";
 import type { ReportDeps } from "../report/inputs";
-import type { DumpReader } from "../dump-reader";
+import type { DumpReader } from "../tools/dump-reader";
 
 /** The HTTP API's dependency bundle: built once in index.ts, threaded
  *  through every route family and the dynamic dispatch tail. */

@@ -8,7 +8,7 @@
 import { join } from "node:path";
 // #227: ONE port resolution for the server AND its CLI/MCP clients —
 // the private configuredPort() twin here used to drift on strictness.
-import { resolveServerPort } from "./server-port";
+import { resolveServerPort } from "./server/server-port";
 
 // Port must match what the server actually binds. Reading only the
 // constant default here meant a configured port silently broke deckctl

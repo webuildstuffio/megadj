@@ -3,7 +3,7 @@ import { tempDir } from "../../test-support/testutil";
 import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { sweepArchive, type LedgerRow } from "./sweep";
-import { renderWeeklyPrep, type WeeklyPrepInput } from "../weekly-prep";
+import { renderWeeklyPrep, type WeeklyPrepInput } from "../jobs/weekly-prep";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-sweep-test-").rippable();

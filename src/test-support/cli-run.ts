@@ -7,7 +7,7 @@
  *  - src/numeric-options.test.ts
  *  - src/shared/drop.test.ts
  *  - src/shared/maintenance-flags.test.ts
- *  - src/fulltags/gold-report.test.ts
+ *  - src/fulltags/analysis/gold-report.test.ts
  *  - src/getdat/commands/upgrade.test.ts
  *
  * Every variant captured argv, a MEGADJ_DB/MEGADJ_MUSIC_DIR/MEGADJ_COOKIES

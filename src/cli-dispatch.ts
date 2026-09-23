@@ -21,7 +21,7 @@ export type CliCommandHandler = (
 
 import { GETDAT_COMMANDS } from "./getdat/cli-commands";
 import { SHELF_COMMANDS } from "./shelf/cli-commands";
-import { FULLTAGS_COMMANDS } from "./fulltags/cli-commands";
+import { FULLTAGS_COMMANDS } from "./fulltags/cli/cli-commands";
 import { REKORDBOX_COMMANDS } from "./rekordbox/cli-commands";
 
 const COMMANDS: Readonly<Record<string, CliCommandHandler>> = {

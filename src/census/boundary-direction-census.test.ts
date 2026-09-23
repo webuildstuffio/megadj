@@ -57,7 +57,7 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   "src/shared/audio-exts": "#225A shared-only fold",
   "src/test-support/testutil": "#214/#225B test tree fold",
   "src/fulltags/write/readers": "#225A shared-only fold",
-  "src/fulltags/grid-audit": "#225A shared-only fold",
+  "src/fulltags/analysis/grid-audit": "#225A shared-only fold",
   "src/fulltags/genre/genre-vote": "#225A shared-only fold",
   "src/fulltags/booth/fleet": "#225A shared-only fold",
   "src/shared/progress": "#244 landed (progress lives in src/shared)",

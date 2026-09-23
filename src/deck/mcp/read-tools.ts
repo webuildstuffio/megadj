@@ -245,7 +245,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
       // same fetch-and-render seam as deckctl cmdPrep (one implementation,
       // two spokes — surface-parity.md GAP-2 closed)
       const { fetchWeeklyPrepInput, renderWeeklyPrep } =
-        await import("../weekly-prep");
+        await import("../jobs/weekly-prep");
       const input = await fetchWeeklyPrepInput(apiGetJsonT);
       return { markdown: renderWeeklyPrep(input) };
     },

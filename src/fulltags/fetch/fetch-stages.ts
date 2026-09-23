@@ -25,7 +25,7 @@ import {
   type BpTrack,
   type Row,
   type TagValues,
-} from "../archive-ledger";
+} from "../core/archive-ledger";
 import { stageGenreArm, stageYearArm } from "./fetch-genre-year";
 // #275: the SAME download-time title split heals legacy rows at fetch
 // time — a row carrying uploader-as-artist still queries BP with the

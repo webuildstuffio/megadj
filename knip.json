@@ -7,7 +7,7 @@
         "src/deck/test/testutil.ts",
         "src/deck/web/app/main.tsx",
         "src/deck/web/vite.config.ts",
-        "src/fulltags/cli.ts",
+        "src/fulltags/cli/cli.ts",
         "src/fulltags/test/*.test.ts",
         "src/fulltags/test/analysis.ts",
         "src/fulltags/test/fake-echo-worker.ts",

@@ -55,13 +55,13 @@ import {
   hygieneFixesDispatch,
   jobDispatch,
 } from "./dispatch";
-import { intakeCandidateDirs, intakeWatchDir } from "../intake-run";
-import { fetchFeedSince } from "../fetch-feed";
+import { intakeCandidateDirs, intakeWatchDir } from "../jobs/intake-run";
+import { fetchFeedSince } from "../tools/fetch-feed";
 import {
   boothFleetPayload,
   parseBoothFleetRequest,
   writeConfigBoothFleet,
-} from "../booth-routes";
+} from "../server/booth-routes";
 import { errMessage as errorText } from "../../shared/leaf/fmt";
 // ApiDeps/Handler moved to the api_deps leaf (#173 madge pass): dispatch's
 // type-only back-edge into this file WAS a cycle. Both sides import the

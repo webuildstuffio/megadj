@@ -20,8 +20,8 @@ import {
   probeFile,
   qualityScore,
   trueContainerExt,
-} from "../../fulltags/media-probe";
-import { identityKey } from "../../fulltags/identity";
+} from "../../fulltags/utils/media-probe";
+import { identityKey } from "../../fulltags/pipeline/identity";
 import type { Record_ } from "./ingest-probe";
 
 /** Probe every file; returns the dedupe input records + the broken list. */

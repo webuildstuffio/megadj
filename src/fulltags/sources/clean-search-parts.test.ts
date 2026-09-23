@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { cleanSearchParts } from "./art-sources";
-import { cleanArtist } from "../archive-ledger";
+import { cleanArtist } from "../core/archive-ledger";
 
 /** Sep 11 regression: junk-composed artist/title strings reached the SC
  *  search keys and the uploader scorer — every query poisoned, 13 pool

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, it, expect } from "bun:test";
-import { ageBucket, freeBytes, nfcCasefold, scanVolume } from "../scan";
+import { ageBucket, freeBytes, nfcCasefold, scanVolume } from "../tools/scan";
 import { buildChecks, buildReportSummary, overall } from "./report";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import type {

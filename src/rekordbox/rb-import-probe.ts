@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { isRecord, isUnknownArray } from "../shared/leaf/guards";
-import { probeMediaSync } from "../fulltags/media-probe";
+import { probeMediaSync } from "../fulltags/utils/media-probe";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { rbPythonFile } from "./rb-python-file.js";
 import { lastJsonLine, parseJsonBoundary } from "./rb-command-kit.js";

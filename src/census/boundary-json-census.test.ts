@@ -39,8 +39,8 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
     "src/deck/report/overview.ts::parseCuePoints::JSON.parse(raw)",
-    "src/fulltags/parse-json.ts::parseJsonObject::JSON.parse(raw)",
-    "src/fulltags/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
+    "src/fulltags/utils/parse-json.ts::parseJsonObject::JSON.parse(raw)",
+    "src/fulltags/utils/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
     // corrupt JSON reads as an empty breakdown, never a throw into a query.
     "src/fulltags/genre/genre-vote.ts::parseVotes::JSON.parse(raw)",

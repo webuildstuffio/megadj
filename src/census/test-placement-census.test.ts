@@ -41,12 +41,9 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#220: subject mood.ts lives in analysis/",
   "src/fulltags/booth/booth-fix.e2e.test.ts":
     "#220: subject booth-fix.ts lives in booth/",
-  "src/fulltags/enrich.test.ts": "#220: subject is fetch/enrich.ts",
-  "src/fulltags/fetch.test.ts": "#220: subject is fetch/fetch.ts",
+  "src/fulltags/cli/enrich.test.ts": "#220: subject is fetch/enrich.ts",
   "src/fulltags/genre/genre-vocab-crossmap.test.ts":
     "#220: subject genre-vocab.ts",
-  "src/fulltags/megaset-cli.test.ts":
-    "#220: exercises the megadj CLI arms; no single subject",
   "src/fulltags/sources/clean-search-parts.test.ts":
     "#220: subject art-sources.ts",
   "src/fulltags/sources/mb-lookup.test.ts": "#220: subject mb_lookup.py seam",
@@ -99,6 +96,27 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#315: pool admission/cues-join contract (multi-subject: pool+reader+types)",
   "src/deck/megaset/surface.test.ts":
     "#315: megaset surface over routes+tools+reader (domain-dir test)",
+
+  // ---- #319 root tidy: multi-subject/domain-dir tests co-located to the
+  // owning dir (same pattern as the #214 rows above):
+  "src/deck/tools/bench-hash-cancel.test.ts":
+    "#319: bench cancel/hash contract (multi-subject: bench+db)",
+  "src/deck/tools/fetch-routes.test.ts":
+    "#319: fetch feed HTTP surface (multi-subject: fetch-feed+routes)",
+  "src/deck/tools/scan-detect.test.ts":
+    "#319: scan+usb-tree integration (multi-subject: scan+detect)",
+  "src/deck/tools/walk-async.test.ts":
+    "#319: async-only invariant over walk/scan/bench (dir IS the subject set)",
+  "src/fulltags/analysis/gold-set.test.ts":
+    "#319: gold harness contract over gold+gold-score (domain-dir test)",
+  "src/fulltags/cli/cli-options.test.ts":
+    "#319: fulltags CLI arg safety (spawns cli/cli.ts, domain-dir test)",
+  "src/fulltags/cli/fetch.test.ts":
+    "#319: fetch end-to-end through the CLI dispatch (domain-dir test)",
+  "src/fulltags/megaset/megaset-cli.test.ts":
+    "#319: megaset CLI verbs (multi-subject: cli-verbs+megaset)",
+  "src/fulltags/pipeline/identity-split.test.ts":
+    "#319: identity split contract (multi-subject: identity+metadata-build)",
 };
 
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */

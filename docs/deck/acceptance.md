@@ -35,13 +35,13 @@ manual — run the recipes below when the gig drives are at hand).
 - **F3 photo identity** — `src/deck/image/store.ts`, picker in
   `src/deck/web/products/drives/PhotoTab.tsx`, cached under `src/deck/data/images/`
 - **F4 rekordbox introspection** — `src/deck/rb.ts` (the seam) +
-  `src/deck/python/rb_read.py`, light scan in `src/deck/scan.ts`
+  `src/deck/python/rb_read.py`, light scan in `src/deck/tools/scan.ts`
 - **F5 sync status** — master/mirror parity in `src/deck/report/report.ts`
   (`mirror parity` checks, superset tolerance)
-- **F6 jobs & interlock** — `src/deck/jobs/engine.ts`, `src/deck/bench.ts`, `GET /jobs`,
+- **F6 jobs & interlock** — `src/deck/jobs/engine.ts`, `src/deck/tools/bench.ts`, `GET /jobs`,
   interlock route + banner
 - **F7 health & corruption** — `src/deck/report/report.ts` (dual-DB gate, grids, space,
-  bitrot ledger, junk), junk detection in `src/deck/scan.ts`
+  bitrot ledger, junk), junk detection in `src/deck/tools/scan.ts`
 - **F8 timeline** — events table + `GET /drives/:id/timeline`,
   `src/deck/web/products/drives/TimelineTab.tsx` (day grouping, event icons, kind chips)
 - **F9 cockpit UI** — hash-routed two-pane UI: `src/deck/web/app/router.ts` (deep

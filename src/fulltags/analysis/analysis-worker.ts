@@ -17,8 +17,8 @@
  *  - Handshake failure (env missing / slow load) returns null — callers
  *    keep their degrade-to-null contract.
  */
-import { lineReader } from "../stdio";
-import { parseJsonObject } from "../parse-json";
+import { lineReader } from "../utils/stdio";
+import { parseJsonObject } from "../utils/parse-json";
 
 /** Resolve the next stdout line matching `pred`, or null on timeout/EOF.
  * Deterministic: consumes a buffered line or awaits exactly one read(). */

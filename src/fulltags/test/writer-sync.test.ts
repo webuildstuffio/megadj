@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { embedArt, groundTruth, writePatchSync } from "../index-all";
+import { embedArt, groundTruth, writePatchSync } from "../pipeline/index-all";
 import { hasValidContainerHeader } from "../write/writer-mutagen";
 import type { WriterAtomicOps } from "../write/writer";
 import { tempDir } from "../../test-support/testutil";

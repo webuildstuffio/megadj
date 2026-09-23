@@ -13,7 +13,7 @@ import { $ } from "bun";
 import { readdirSync } from "node:fs";
 import { writePatch, writePatchSync } from "../write/writer";
 import { readAiStamps } from "../pipeline/pipeline";
-import { qualityScore, probeFile } from "../media-probe";
+import { qualityScore, probeFile } from "../utils/media-probe";
 
 const DIR = `/tmp/fulltags-bugfix-test-${process.pid}`;
 const REPO = `${import.meta.dir}/../../../`; // #193; depth re-leveled by the Sep 17 test/ rename
@@ -34,7 +34,7 @@ function runCli(args: string[]): {
   stdout: string;
 } {
   const proc = Bun.spawnSync({
-    cmd: ["bun", "run", "src/fulltags/cli.ts", ...args],
+    cmd: ["bun", "run", "src/fulltags/cli/cli.ts", ...args],
     cwd: REPO,
     stdout: "pipe",
     stderr: "pipe",

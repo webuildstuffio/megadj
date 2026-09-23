@@ -15,7 +15,7 @@ import {
   runFixes,
   runGridHealth,
   type LegArgs,
-} from "../job-legs";
+} from "./job-legs";
 
 export async function executeJob(args: LegArgs): Promise<unknown> {
   switch (args.job.kind) {

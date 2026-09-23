@@ -1,6 +1,6 @@
 import type { ArchiveState } from "../../core/state";
-import { goldDir, loadGoldSet, type GoldAnnotation } from "../gold";
-import { runRegate, type GateObservation, type GateResult } from "../gates";
+import { goldDir, loadGoldSet, type GoldAnnotation } from "../analysis/gold";
+import { runRegate, type GateObservation, type GateResult } from "../cli/gates";
 import { regateEffnet, regateGenre } from "./regate-genre";
 
 export interface RegateResult {

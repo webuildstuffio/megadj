@@ -22,7 +22,7 @@ import {
 import { readdir } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "../config";
-import type { Guard } from "../guard";
+import type { Guard } from "../server/guard";
 import type { DB } from "../db";
 import type { DriveImage } from "../shared/types";
 import { searchProviders, type ImageHit } from "./search";

@@ -54,11 +54,11 @@ import {
   parseAnlzInventory,
   rewriteAnlzGrid,
   type AnlzBeat,
-} from "../fulltags/anlz";
+} from "../fulltags/analysis/anlz";
 
 export type AnlzSpikeMode = "snapshot" | "compare" | "set-grid";
 
-export type { AnlzBeat } from "../fulltags/anlz";
+export type { AnlzBeat } from "../fulltags/analysis/anlz";
 
 export interface SpikeOptions {
   mount: string;

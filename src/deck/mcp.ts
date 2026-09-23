@@ -61,8 +61,8 @@ import { deriveDeckTools, type DeckMcpVerb } from "./mcp/surfaces";
 import { ensureServer } from "./deckapi";
 export { jobTerminal } from "./deckapi";
 import { serveMcp, type ToolDef } from "./mcp/server";
-import { getdatTools } from "./getdat-tools";
-import { DumpReader } from "./dump-reader";
+import { getdatTools } from "../getdat/tools";
+import { DumpReader } from "./tools/dump-reader";
 import { DECK_READ_HANDLERS } from "./mcp/read-tools";
 import { DECK_ACTION_HANDLERS } from "./mcp/action-tools";
 

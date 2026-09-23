@@ -22,7 +22,7 @@ import {
 } from "../sources/beatport";
 import { appendQueue, artLadder, scArt } from "./pipeline-art";
 import { parseMoodStamp, readEnergyStamp, readStamp } from "./pipeline-stamps";
-import { energyFromLufs, measureRms } from "../media-probe";
+import { energyFromLufs, measureRms } from "../utils/media-probe";
 import { analyzeBeats, foldTempo } from "../analysis/beats-analysis";
 import { analyzeKey } from "../analysis/key-analysis";
 import { fingerprintWithDuration } from "../analysis/fingerprint";

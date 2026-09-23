@@ -14,7 +14,11 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { anlzSpike } from "./anlz-spike";
-import { buildAnlz, parseAnlzGrid, parseAnlzInventory } from "../fulltags/anlz";
+import {
+  buildAnlz,
+  parseAnlzGrid,
+  parseAnlzInventory,
+} from "../fulltags/analysis/anlz";
 import { tempDir } from "../test-support/testutil";
 
 const t = tempDir("megadj-anlz-spike-test-").rippable();

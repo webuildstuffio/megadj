@@ -1,7 +1,7 @@
 import type { FixesPayload } from "../../shared/leaf/fixes";
 import { fmtBytes } from "../../shared/leaf/fmt";
-import { benchmarkDrive, checksumLedger, speedProbe } from "../bench";
-import { runCliJob } from "../cli-job-leg";
+import { benchmarkDrive, checksumLedger, speedProbe } from "../tools/bench";
+import { runCliJob } from "./cli-job-leg";
 import { recordGridHealth } from "../grid/routes";
 import { summarizeGridHealth } from "../grid/parse";
 import { finiteJobNumber } from "./job-legs-parse";

@@ -30,7 +30,7 @@ import {
   energyFromLufs,
   firstTag,
   measureRms,
-} from "../../fulltags/media-probe";
+} from "../../fulltags/utils/media-probe";
 import { walkAudio, type Record_ } from "./ingest-probe";
 import {
   expandZips,

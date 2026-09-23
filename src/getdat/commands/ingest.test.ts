@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { detectRemix } from "../../fulltags/sources/remix";
-import { parseFilename, qualityScore } from "../../fulltags/media-probe";
-import { normalize } from "../../fulltags/identity";
+import { parseFilename, qualityScore } from "../../fulltags/utils/media-probe";
+import { normalize } from "../../fulltags/pipeline/identity";
 
 describe("parseFilename", () => {
   test("NNN - Artist - Title prefix", () => {

@@ -18,7 +18,7 @@
 
 Repo-wide tracked `.ts` census: **108,168 LOC** (loc-budget gate targets 75k). The two trees are **30% of the repo** — the largest unmerged pair in `src/`.
 
-Largest files (non-test): `getdat/commands/sync.ts` 826 · `src/fulltags/cli-commands.ts` 556 · `src/fulltags/fetch/fetch-stages.ts` 506 · `src/fulltags/sources/beatport.ts` 498 · `src/fulltags/fetch/fetch-pipeline.ts` 475 · `src/fulltags/write/writer.ts` 474 · `getdat/commands/ingest.ts` 401 · `getdat/downloader.ts` 373.
+Largest files (non-test): `getdat/commands/sync.ts` 826 · `src/fulltags/cli/cli-commands.ts` 556 · `src/fulltags/fetch/fetch-stages.ts` 506 · `src/fulltags/sources/beatport.ts` 498 · `src/fulltags/fetch/fetch-pipeline.ts` 475 · `src/fulltags/write/writer.ts` 474 · `getdat/commands/ingest.ts` 401 · `getdat/downloader.ts` 373.
 
 ### 1.1 What each tree actually is
 
@@ -55,7 +55,7 @@ So `getdat` cannot be understood, moved, or tested without `fulltags`, and `full
 
 **Third parties pin the tangle in place:**
 
-- `src/shared/drop.ts` (732 LOC) — imports both trees heavily, but is dispatched as a **fulltags verb** and re-imported only by `src/fulltags/cli-commands.ts` + `src/test-support/cli-run.ts`. It lives in `shared/` but is not shared — it is the merged pipeline's orchestrator parked in the wrong directory.
+- `src/shared/drop.ts` (732 LOC) — imports both trees heavily, but is dispatched as a **fulltags verb** and re-imported only by `src/fulltags/cli/cli-commands.ts` + `src/test-support/cli-run.ts`. It lives in `shared/` but is not shared — it is the merged pipeline's orchestrator parked in the wrong directory.
 - `src/shared/status.ts` imports `isLowq` from `getdat/commands/upgrade` (the HIGHQ-bar SSOT) — so even `shared/` reaches into getdat.
 - `src/deck/` imports four fulltags modules directly (`write/readers`, `grid-audit`, `genre/genre-vote`, `booth/fleet`) — allowlisted crossings in `src/census/boundary-direction-census.test.ts` tagged "#225A shared-only fold". CrateDeck depends on fulltags-as-a-library; it depends on getdat not at all (only `getdat_*` MCP tool *names*, which are contract, not code).
 - No cratedeck file imports getdat code. Direction of the merge is settled by this alone: **getdat moves into fulltags.**
@@ -67,13 +67,13 @@ These are the measured twins. Each is small; together they are the standardizati
 1. **Artwork-queue path: FOUR constants, TWO different env names.**
    - `src/fulltags/write/artwork.ts`: `MEGADJ_ART_QUEUE ?? ~/.local/state/megadj/artwork-queue.jsonl`
    - `src/fulltags/pipeline/pipeline-art.ts`: `FULLTAGS_ARTWORK_QUEUE ?? <same default>` — a **different env var** for the same queue, so `MEGADJ_ART_QUEUE` is silently ignored by the fetch pipeline's art stage
-   - `src/fulltags/archive-ledger.ts`: `QUEUE` — hardcoded, honors **neither** env
+   - `src/fulltags/core/archive-ledger.ts`: `QUEUE` — hardcoded, honors **neither** env
    - `getdat/commands/ingest-art.ts`: `appendQueueEntries(dbDir, …)` — joins a caller-supplied dir, its own fourth derivation
    - `src/usage.ts` documents only `MEGADJ_ART_QUEUE`. This is a live bug class, not a style nit: set the documented env, run `fetch --art`, and the queue lands in the default path anyway.
 2. **`ext-` short-id twin:** `getdat/commands/ingest-register.ts` exports `extIdFor(file)` = `ext-${sha1(file).slice(0,12)}`; `getdat/commands/ingest-one-stages.ts` re-rolls the identical expression inline instead of calling it. Ledger keys minted by two code paths — the exact "one source of truth per shared surface" violation.
-3. **Two CLI grammars for one binary.** megadj verbs go through the host kit (`cli-flags.ts` `parseFlags`/`nonNegOpt`/`firstPositional`); the standalone `fulltags` CLI has its own `cli-args.ts` (159 LOC: `CliArgs`/`parseArgs`/BOOL/VALUE tables) + `cli.ts` (92 LOC) + `cli-verbs.ts` (208 LOC). Both exist, both are census-pinned (`harness-entry-census` pins `src/fulltags/cli.ts` as an entry).
+3. **Two CLI grammars for one binary.** megadj verbs go through the host kit (`cli-flags.ts` `parseFlags`/`nonNegOpt`/`firstPositional`); the standalone `fulltags` CLI has its own `cli-args.ts` (159 LOC: `CliArgs`/`parseArgs`/BOOL/VALUE tables) + `cli.ts` (92 LOC) + `cli-verbs.ts` (208 LOC). Both exist, both are census-pinned (`harness-entry-census` pins `src/fulltags/cli/cli.ts` as an entry).
 4. **The standalone-package fiction.** `src/fulltags/package.json` declares `bin: fulltags`, version 0.2.0 — but root `workspaces` lists only `cratedeck`, there is no `node_modules/fulltags`, and nothing links the bin. It is an inert costume. `sync`'s error text even tells users to run `bun run fulltags/cli.ts ensure-models` — a path, not a product.
-5. **Two yt-dlp spawn conventions:** `getdat/downloader.ts` (download) vs `src/fulltags/sources/sc-search.ts`'s `COL|` spawner (metadata). Legitimately different concerns, but the child-process conventions (hermetic gating, group-kill, line-streaming) should come from one helper surface (`src/fulltags/stdio.ts` already exists for this).
+5. **Two yt-dlp spawn conventions:** `getdat/downloader.ts` (download) vs `src/fulltags/sources/sc-search.ts`'s `COL|` spawner (metadata). Legitimately different concerns, but the child-process conventions (hermetic gating, group-kill, line-streaming) should come from one helper surface (`src/fulltags/utils/stdio.ts` already exists for this).
 6. **`parse-json.ts` vs shared guards:** a 19-LOC wrapper that already routes through `shared/leaf/guards` — fine as-is, but it is fulltags-namespace packaging of a shared concern; after the merge it can move to the shared leaf family or stay as the one guarded-parse seam for analysis probes.
 7. **`archive-ledger.ts` module-level `export const db = new Database(DB_PATH)`** — a side-effectful open-at-import singleton in the fetch path, while the archive state seam lazy-opens. Standardizing this onto the lazy seam removes the "expensive session opened for no work" trap class from AGENTS.md.
 
@@ -112,7 +112,7 @@ Plus four structural moves that finish the job:
 | M1 | `getdat/*` → `fulltags/{acquire,intake}/` | kills the 31-import edge | ~0 (moves) |
 | M2 | `ingest-art.ts` queue types+ladder → `src/fulltags/write/artwork.ts` absorbs `QueueEntry`/`appendQueueEntries`/`flushArtworkQueue` | kills the 3-import **back edge** — the cycle | ~−40 |
 | M3 | `shared/drop.ts` → src/fulltags/drop.ts (proposed) | it is a fulltags verb importing both trees; `shared/` stops lying | ~0 (732 moves) |
-| M4 | Retire `src/fulltags/cli.ts` + `cli-args.ts` + `package.json`; add `verify-key` + `ensure-models` as megadj verbs | one CLI grammar (host kit), one entry, no fake package | ~−400 |
+| M4 | Retire `src/fulltags/cli/cli.ts` + `cli-args.ts` + `package.json`; add `verify-key` + `ensure-models` as megadj verbs | one CLI grammar (host kit), one entry, no fake package | ~−400 |
 | M5 | `isLowq` (HIGHQ SSOT) → stays put initially; post-merge it is an intra-tree import from `status.ts` (optionally later to a quality.ts module inside fulltags) | removes a `shared/` → domain import | 0 |
 | M6 | `archive-ledger.ts` lazy-DB + queue-path SSOT fold | kills twin #1 and trap #7 | ~−30 |
 
@@ -127,12 +127,12 @@ Each is independently shippable and shrinks the diff the moves have to carry:
 ### 2.3 Naming and surface contracts (the part that must NOT churn)
 
 - **Verb names, help text, group ordering: unchanged.** `command-registry.ts` deliberately interleaves `GETDAT_COMMAND_DOCS.slice(0,5) / FULLTAGS / CRATEDECK.slice(0,1) / GETDAT.slice(5)…`; `help-flag-census` pins the rendering. The merge keeps the `getdat` and `fulltags` *groups* (they are user-facing taxonomy, and `drop` stays a fulltags-group verb) — we are merging code trees, not help menus. `cli-dispatch.ts` imports the merged tables from their new paths; the registry facade is untouched.
-- **MCP tool names `getdat_*`: unchanged.** `docs-surface-names-census` derives them from `src/deck/getdat-tools.ts`; renaming them would churn census + live UI for zero value (#215 lesson). Same for `megaset_*`.
+- **MCP tool names `getdat_*`: unchanged.** `docs-surface-names-census` derives them from `src/getdat/tools.ts`; renaming them would churn census + live UI for zero value (#215 lesson). Same for `megaset_*`.
 - **AGENTS/CLAUDE.md pinned strings:** line 399 pins `src/getdat/soundcloud.ts` by name; the census tests also pin several `src/fulltags/...` and `src/getdat/...` literals. Every rename lands **code + docs + census pins in the SAME commit** (repo rule). Measured pin surface to update, by tree:
   - census tests: **49 literal pins** referencing `src/fulltags`, **10** referencing `src/getdat`, across 12 census files (worst: `test-placement-census` 16, `boundary-number-census` 16, `boundary-json-census` 5, `harness-entry-census` 4, `docs-paths-census` 4, `boundary-direction-census` 4, `tsconfig-bunfig-census` 3)
   - docs: **19 files** reference `src/fulltags`, **4** reference `src/getdat`
   - skills: `.claude/skills/new-music-intake`, `.claude/skills/booth-check`
-  - knip entries: `src/fulltags/cli.ts` + 6 test-support entries (M4 deletes the first; the test entries move paths)
+  - knip entries: `src/fulltags/cli/cli.ts` + 6 test-support entries (M4 deletes the first; the test entries move paths)
 - **`docs/getdat/` → folded into `docs/fulltags/`** with status headers (`data-model.md`, `soundcloud-downloads-plan.md`, `usb-sync.md`, `shelf-hygiene-2026-09-09.md` — the hygiene doc may belong beside shelf docs instead; decide during the docs pass). The docs README "four products" section becomes three (GetDat absorbed; MegaSet already effectively lives inside fulltags + cratedeck seam). Docs audit gate before push.
 
 ### 2.4 Phase plan (each phase: `bun run check` + touched tests green, commit, push; full `check:full` + `bun test` at each push)
@@ -144,7 +144,7 @@ Each is independently shippable and shrinks the diff the moves have to carry:
   - 2b: `git mv` getdat/commands → `fulltags/intake/`; update `test-placement-census` allowlist rows (they move paths, count unchanged), knip entries, docs paths.
   - 2c: absorb ingest-art into `src/fulltags/write/artwork.ts` (kills the back edge); `git mv shared/drop.ts fulltags/drop.ts` + update its two importers + pins.
   - Every census listed in §2.3 re-run before each commit (concurrent-agent rule: re-run touched censuses after any foreign commit lands mid-flight).
-- **Phase 3 — CLI standardization (M4).** Add megadj verify-key and megadj ensure-models verbs (thin arms over the existing `cmdVerifyKey`/`cmdEnsureModels` bodies, host-kit flag parsing) — proposed, not built yet; retire `src/fulltags/cli.ts`, `cli-args.ts`, `cli-verbs.ts`, `package.json`; update `harness-entry-census` (entry list shrinks by one, the "hidden entry points" note rewrites to megadj verbs), `src/fulltags/README.md` quick-start, `sync.ts`'s error string, knip entries. **Note:** `verify-key` becomes a newly first-class verb, so `docs-surface-names-census` must re-derive it from `command-doc-*` — add the doc entry in the same commit.
+- **Phase 3 — CLI standardization (M4).** Add megadj verify-key and megadj ensure-models verbs (thin arms over the existing `cmdVerifyKey`/`cmdEnsureModels` bodies, host-kit flag parsing) — proposed, not built yet; retire `src/fulltags/cli/cli.ts`, `cli-args.ts`, `cli-verbs.ts`, `package.json`; update `harness-entry-census` (entry list shrinks by one, the "hidden entry points" note rewrites to megadj verbs), `src/fulltags/README.md` quick-start, `sync.ts`'s error string, knip entries. **Note:** `verify-key` becomes a newly first-class verb, so `docs-surface-names-census` must re-derive it from `command-doc-*` — add the doc entry in the same commit.
 - **Phase 4 — archive-ledger hygiene (M6).** Lazy DB open via the existing seam conventions; QUEUE constant deleted (Phase 1 already SSOT'd the path).
 - **Phase 5 — docs + memory.** Fold `docs/getdat/` → `docs/fulltags/`, rewrite the README products section, status-header the merged docs, update `docs/surface-parity.md` rows (group column only), update AGENTS/CLAUDE.md structural references (keeping all pinned strings' *content* true), docs audit, then a final `check:full` + full suite + live `drop --dry-run` re-proof (super-sure pass: the merged pipeline must re-prove acceptance on a real intake folder, not just green gates).
 

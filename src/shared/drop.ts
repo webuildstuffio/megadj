@@ -18,7 +18,7 @@
 import { ingest } from "../getdat/commands/ingest";
 import { beats } from "../fulltags/analysis/beats";
 import { mood } from "../fulltags/analysis/mood";
-import { cues } from "../fulltags/cues";
+import { cues } from "../fulltags/pipeline/cues";
 import { organize } from "../getdat/commands/organize";
 import { ytdlpCookieArgs } from "../getdat/downloader";
 import {
@@ -494,7 +494,7 @@ const STAGE_RUNNERS: StageSpec[] = [
     name: "years",
     noFetchDetail: "no-fetch flag",
     run: async ({ opts }) => {
-      const { runFixYears } = await import("../fulltags/years");
+      const { runFixYears } = await import("../fulltags/pipeline/years");
       await runFixYears({ dryRun: opts.dryRun ?? false, json: true });
     },
   },
@@ -521,7 +521,7 @@ const STAGE_RUNNERS: StageSpec[] = [
       const { moodModelsPresent } = await import("../fulltags/analysis/models");
       return moodModelsPresent()
         ? null
-        : "models absent (bun run fulltags/cli.ts ensure-models)";
+        : "models absent (bun run src/fulltags/cli/cli.ts ensure-models)";
     },
     run: async ({ opts }) => {
       await mood({

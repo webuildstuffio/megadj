@@ -20,7 +20,13 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import * as ts from "typescript";
+import {
+  forEachChild,
+  isNoSubstitutionTemplateLiteral,
+  isStringLiteral,
+  parseSourceFile,
+  type Node,
+} from "../test-support/ts-ast";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
@@ -61,18 +67,12 @@ function stripDocstrings(src: string): string {
  *  AST — doc comments and // prose can never trip the census (no
  *  comment-stripping heuristics needed). */
 function shelfLiterals(path: string): { line: number; text: string }[] {
-  const sf = ts.createSourceFile(
-    path,
-    readFileSync(path, "utf8"),
-    ts.ScriptTarget.Latest,
-    true,
-    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
+  const sf = parseSourceFile(path, readFileSync(path, "utf8"));
   const out: { line: number; text: string }[] = [];
-  const visit = (node: ts.Node): void => {
-    const text = ts.isStringLiteral(node)
+  const visit = (node: Node): void => {
+    const text = isStringLiteral(node)
       ? node.text
-      : ts.isNoSubstitutionTemplateLiteral(node)
+      : isNoSubstitutionTemplateLiteral(node)
         ? node.text
         : null;
     if (text !== null && /\/Volumes\/SHELF1/u.test(text)) {
@@ -81,7 +81,7 @@ function shelfLiterals(path: string): { line: number; text: string }[] {
         text: node.getText(sf).slice(0, 90),
       });
     }
-    ts.forEachChild(node, visit);
+    forEachChild(node, visit);
   };
   visit(sf);
   return out;

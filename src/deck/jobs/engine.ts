@@ -4,7 +4,7 @@
 // functions) — re-exported here for import-path stability.
 import type { CrateConfig } from "../config";
 import type { DB } from "../db";
-import type { Guard } from "../guard";
+import type { Guard } from "../server/guard";
 import type { Job, JobKind, VerifyReport } from "../shared/types";
 import { executeJob } from "./job-execution";
 import {

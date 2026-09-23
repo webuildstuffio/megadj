@@ -202,10 +202,10 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
 ## 🧪 Usage
 
 ```bash
-bun src/fulltags/cli.ts <folder-or-file>               # enrich (folder or single file)
-bun src/fulltags/cli.ts track.mp3 --energy --dry-run   # stage subset, no write
-bun src/fulltags/cli.ts audit <archive-folder>         # completeness gate (--json for machines)
-bun src/fulltags/cli.ts ensure-models                  # pre-pull the ~320 MB mood model set
+bun src/fulltags/cli/cli.ts <folder-or-file>               # enrich (folder or single file)
+bun src/fulltags/cli/cli.ts track.mp3 --energy --dry-run   # stage subset, no write
+bun src/fulltags/cli/cli.ts audit <archive-folder>         # completeness gate (--json for machines)
+bun src/fulltags/cli/cli.ts ensure-models                  # pre-pull the ~320 MB mood model set
 ```
 
 Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key

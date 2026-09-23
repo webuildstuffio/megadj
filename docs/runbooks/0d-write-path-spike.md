@@ -99,7 +99,7 @@ megadj rb-anlz-spike compare --tag q2   # did anything change?
 ## Q4 — Direct ANLZ grid edit (only if Q3 failed)
 
 **Armament shipped (2026-09-18): `rb-anlz-spike set-grid`** — the direct
-PQTZ rewrite, built on `src/fulltags/anlz.ts`'s `rewriteAnlzGrid`
+PQTZ rewrite, built on `src/fulltags/analysis/anlz.ts`'s `rewriteAnlzGrid`
 (container walk stays byte-exact; only the grid span differs). Safety
 pattern = rb-fix-paths: **dry-run by default**, pre-edit backup kept
 automatically, whole-file re-verify after write (decode-back must equal

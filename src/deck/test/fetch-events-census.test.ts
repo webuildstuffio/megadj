@@ -12,7 +12,7 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "..", "..", "..");
 const read = (rel: string): string => readFileSync(join(ROOT, rel), "utf8");
 
-import { parseFetchStart, parseFetchTask, fetchArgs } from "../job-legs";
+import { parseFetchStart, parseFetchTask, fetchArgs } from "../jobs/job-legs";
 import {
   emitFetchStart,
   emitTaskDone,
@@ -25,7 +25,7 @@ import {
   fetchFeedSince,
   fetchFeedReset,
   fetchFeedClear,
-} from "../fetch-feed";
+} from "../tools/fetch-feed";
 import { JOB_KINDS } from "../shared/types";
 
 describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {

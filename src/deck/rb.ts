@@ -4,7 +4,7 @@
 import { copyFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { SnapshotData } from "./shared/types";
-import type { Guard } from "./guard";
+import type { Guard } from "./server/guard";
 import type { CrateConfig } from "./config";
 
 const RB = "rekordbox";

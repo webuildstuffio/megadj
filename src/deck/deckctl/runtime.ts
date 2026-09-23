@@ -30,7 +30,7 @@ export function baseHooks() {
 /** `deckctl prep` — the weekly-prep digest, markdown to stdout or a file. */
 export async function cmdPrep(outPath: string | undefined): Promise<void> {
   const { fetchWeeklyPrepInput, renderWeeklyPrep } =
-    await import("../weekly-prep");
+    await import("../jobs/weekly-prep");
   const input = await fetchWeeklyPrepInput(getJson);
   const markdown = renderWeeklyPrep(input);
   if (outPath) await Bun.write(outPath, `${markdown}\n`);

@@ -24,7 +24,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { isFiniteNumberArray } from "../../shared/leaf/guards";
 import { errMessage as errorText } from "../../shared/leaf/fmt";
-import { lineReader } from "../stdio";
+import { lineReader } from "../utils/stdio";
 
 // Fail fast on a missing HOME: `)?? ""` produced "/.local/share/…" which
 // failed much later with a confusing EACCES/ENOENT far from the cause.

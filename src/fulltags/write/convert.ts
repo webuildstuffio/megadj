@@ -15,7 +15,7 @@
  */
 import { basename } from "node:path";
 import { walkAudioFiles } from "./writer";
-import { probeFile } from "../media-probe";
+import { probeFile } from "../utils/media-probe";
 import { playerCompat, isHiresOnly } from "../booth/player-compat";
 import { wavToAiff } from "./convert-aiff";
 import {

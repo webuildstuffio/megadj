@@ -33,7 +33,7 @@ import { basename } from "node:path";
 import { existsSync } from "node:fs";
 import { groundTruth } from "../write/readers";
 import { walkAudioFiles } from "../write/writer";
-import { probeFile } from "../media-probe";
+import { probeFile } from "../utils/media-probe";
 import { playerCompat, isHiresOnly } from "./player-compat";
 import { boothTextCompat, type TextCompatResult } from "./booth-text";
 import { fixBoothText } from "./booth-fix-text";

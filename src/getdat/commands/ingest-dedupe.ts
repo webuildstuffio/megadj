@@ -16,8 +16,8 @@ import {
   compareFingerprint,
   nameSimilarityTokens,
 } from "../../fulltags/analysis/fingerprint-dedupe";
-import { probeFile, qualityScore } from "../../fulltags/media-probe";
-import { identityKey } from "../../fulltags/identity";
+import { probeFile, qualityScore } from "../../fulltags/utils/media-probe";
+import { identityKey } from "../../fulltags/pipeline/identity";
 import { quarantine, type Record_ } from "./ingest-probe";
 
 const md5File = md5FileStream;

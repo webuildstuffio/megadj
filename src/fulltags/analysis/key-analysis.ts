@@ -8,8 +8,8 @@
  * before spending compute.
  */
 import { existsSync } from "node:fs";
-import { parseJsonObject } from "../parse-json";
-import { lineReader } from "../stdio";
+import { parseJsonObject } from "../utils/parse-json";
+import { lineReader } from "../utils/stdio";
 import { readUntilLine } from "./analysis-worker";
 import { keyscanDir } from "./fingerprint";
 

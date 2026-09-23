@@ -23,7 +23,7 @@ test("no bun-shebang scripts outside the three CLI entry files", () => {
   // git hook, not by operators — it IS its surface).
   const allowed = new Set([
     "src/cli.ts",
-    "src/fulltags/cli.ts",
+    "src/fulltags/cli/cli.ts",
     "src/ops/deck-install.ts", // `bun run deck:install` (#247) — operator surface
     "tools/loc-budget.ts",
   ]);
@@ -75,7 +75,7 @@ test("knip lists no library module as a workspace entry point", () => {
 });
 
 test("fulltags verify-key verb exists and is documented", () => {
-  const cli = read("src/fulltags/cli.ts");
+  const cli = read("src/fulltags/cli/cli.ts");
   expect(cli).toContain('"verify-key"');
   const help = cli;
   expect(help).toContain("verify-key <folder>");
@@ -83,7 +83,7 @@ test("fulltags verify-key verb exists and is documented", () => {
   expect(help).toContain("80% exact agreement");
   // the old bare path is gone everywhere operators look
   expect(read("src/fulltags/README.md")).not.toContain(
-    "fulltags/verify-key.ts",
+    "fulltags/utils/verify-key.ts",
   );
 });
 

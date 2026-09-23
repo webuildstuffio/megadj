@@ -20,7 +20,10 @@
 // `aok` is the count of clean tracks; offender lists stay per-class so
 // the UI keeps its fix-first ordering (octave > off > drift).
 import type { ArchiveQuery } from "../shared/types/archive-reader";
-import { gridAudit, type GridAuditVerdict } from "../../fulltags/grid-audit";
+import {
+  gridAudit,
+  type GridAuditVerdict,
+} from "../../fulltags/analysis/grid-audit";
 import { isFiniteNumberArray } from "../../shared/leaf/guards";
 import type { ArchiveGridCrossCheck } from "../shared/archive-wire";
 

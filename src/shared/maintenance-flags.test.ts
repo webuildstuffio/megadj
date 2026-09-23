@@ -11,7 +11,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildAnlz } from "../fulltags/anlz";
+import { buildAnlz } from "../fulltags/analysis/anlz";
 import { runCli } from "../test-support/cli-run";
 import { tempDir } from "../test-support/testutil";
 

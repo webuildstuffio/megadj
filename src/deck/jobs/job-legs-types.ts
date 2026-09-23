@@ -1,7 +1,7 @@
 import type { Job } from "../shared/types";
 import type { CrateConfig } from "../config";
 import type { DB } from "../db";
-import type { Guard } from "../guard";
+import type { Guard } from "../server/guard";
 import type { JobLog, JobTick, RunHandle } from "./job-runtime";
 
 /** Dependencies shared by every execution leg. Kept independent from the

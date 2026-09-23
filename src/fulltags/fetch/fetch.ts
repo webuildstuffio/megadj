@@ -18,12 +18,12 @@ export type FetchTarget = (typeof FETCH_TARGETS)[number];
 import { existsSync } from "node:fs";
 import { groundTruth } from "../write/readers";
 import { walkAudioFiles } from "../write/writer";
-import { probeFile } from "../media-probe";
+import { probeFile } from "../utils/media-probe";
 import { playerCompat, isHiresOnly } from "../booth/player-compat";
 import { boothTextCompat } from "../booth/booth-text";
 import { completeness } from "../write/schema";
-import type { AuditRow } from "../audit-row";
-export { type AuditRow } from "../audit-row";
+import type { AuditRow } from "../analysis/audit-row";
+export { type AuditRow } from "../analysis/audit-row";
 
 export interface FetchOptions {
   all?: boolean | undefined;

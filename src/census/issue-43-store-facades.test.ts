@@ -1,24 +1,23 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import * as ts from "typescript";
+import {
+  forEachChild,
+  isClassDeclaration,
+  parseSourceFile,
+  type Node,
+} from "../test-support/ts-ast";
 
 function classMemberCount(path: string, className: string): number {
   const sourceText = readFileSync(path, "utf8");
-  const sourceFile = ts.createSourceFile(
-    path,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
+  const sourceFile = parseSourceFile(path, sourceText);
   let count: number | undefined;
-  const visit = (node: ts.Node): void => {
-    if (ts.isClassDeclaration(node) && node.name?.text === className) {
+  const visit = (node: Node): void => {
+    if (isClassDeclaration(node) && node.name?.text === className) {
       count = node.members.length;
       return;
     }
-    ts.forEachChild(node, visit);
+    forEachChild(node, visit);
   };
   visit(sourceFile);
   if (count === undefined)

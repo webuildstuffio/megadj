@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseFilename } from "../media-probe";
+import { parseFilename } from "../utils/media-probe";
 
 /** Sep 11 regression: pool-rip filenames composed by an upstream tool as
  *  `UnknownArtist · UnknownAlbum · <rest>` used to parse "UnknownArtist"

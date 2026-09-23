@@ -7,7 +7,7 @@
 import { $ } from "bun";
 import { existsSync, rmSync } from "node:fs";
 import { sanitizeGenreFolder } from "../fulltags/write/schema";
-import { probeFile } from "../fulltags/media-probe";
+import { probeFile } from "../fulltags/utils/media-probe";
 import type { YtdlpInfo } from "../fulltags/write/metadata-build";
 import { TrackGoneError } from "./ratelimit";
 import {

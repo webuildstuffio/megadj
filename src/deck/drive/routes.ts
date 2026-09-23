@@ -8,7 +8,7 @@ import type { DB } from "../db";
 import type { Registry } from "../registry";
 import type { ImageService } from "../image/store";
 import type { CrateConfig } from "../config";
-import { freeBytes } from "../scan";
+import { freeBytes } from "../tools/scan";
 import { driveBadges, parseSnapshotJson, syncBadge } from "../shared/badges";
 import { buildReport, buildReportSummary, overall } from "../report/report";
 import { VERIFY_HELP } from "../verify/help";

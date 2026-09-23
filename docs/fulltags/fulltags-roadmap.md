@@ -655,7 +655,7 @@ the OpenKeyScan SSOT decision (#3).
 
 ### Re-gate harness (issue #18)
 
-`src/fulltags/gates.ts` is the shared verdict harness for BPM, genre, and
+`src/fulltags/cli/gates.ts` is the shared verdict harness for BPM, genre, and
 effnet reference runs. It reports every track's relative offset, applies the
 80% pass bar (BPM's default tolerance is 2%), and rejects a detector whose
 non-null output is saturated to one value. A passing verdict is the only

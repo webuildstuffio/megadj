@@ -1,4 +1,4 @@
-import type { ChecksumResult } from "../bench";
+import type { ChecksumResult } from "../tools/bench";
 import {
   apiPost,
   jobTerminal,

@@ -28,7 +28,7 @@ import {
   plistPath,
   renderPlist,
 } from "./deck-service";
-import { DEFAULT_PORT, resolveServerPort } from "../deck/server-port";
+import { DEFAULT_PORT, resolveServerPort } from "../deck/server/server-port";
 
 // ops/ sits at <repo>/src/ops (the Sep 2026 cratedeck fold) — the repo
 // root is TWO levels up. A single `..` here baked WorkingDirectory=<repo>/src

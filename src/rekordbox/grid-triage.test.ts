@@ -3,7 +3,7 @@
  * Runs the pure core (`triageRow`, path resolution, ledger join) plus a
  * full-command pass against a fake mount: a temp "shelf" with a master
  * DB path present (rows injected via the test seam — no python) and
- * real ANLZ bytes built by fulltags/anlz.ts, plus a fake stick for the
+ * real ANLZ bytes built by fulltags/analysis/anlz.ts, plus a fake stick for the
  * byte-compare.
  */
 import { describe, expect, test, afterAll } from "bun:test";
@@ -19,7 +19,7 @@ import {
   triageRow,
   type MasterRow,
 } from "./grid-triage";
-import { buildAnlz, parseAnlzGrid } from "../fulltags/anlz";
+import { buildAnlz, parseAnlzGrid } from "../fulltags/analysis/anlz";
 import { tempDir, stateIn } from "../test-support/testutil";
 
 // ---- fixtures -------------------------------------------------------------

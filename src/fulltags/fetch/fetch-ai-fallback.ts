@@ -11,7 +11,7 @@ import {
   setFileTags,
   type Row,
   type TagValues,
-} from "../archive-ledger";
+} from "../core/archive-ledger";
 import type { Stats } from "./fetch-stages";
 
 const BATCH = 20;

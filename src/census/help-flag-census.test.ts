@@ -36,7 +36,7 @@ const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
 const DISPATCH_FILES = [
   "src/getdat/cli-commands.ts",
   "src/shelf/cli-commands.ts",
-  "src/fulltags/cli-commands.ts",
+  "src/fulltags/cli/cli-commands.ts",
   "src/rekordbox/cli-commands.ts",
   "src/shelf/cli-cmds.ts",
 ];

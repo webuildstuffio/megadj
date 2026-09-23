@@ -36,7 +36,7 @@ import {
   archiveFiles,
   cleanArtist,
   type Row,
-} from "../archive-ledger";
+} from "../core/archive-ledger";
 import { existsSync } from "node:fs";
 import { ProgressBar } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";

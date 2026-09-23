@@ -90,7 +90,7 @@ ships.
 **Hardening found in the Sep 13 code audit (fold into F1/F3):**
 
 - `rg DjmdCue src/ tools/` returns **nothing** — cue writing exists only in
-  transcript heredocs. `src/fulltags/cues.ts` owns the ledger surface and its
+  transcript heredocs. `src/fulltags/pipeline/cues.ts` owns the ledger surface and its
   docstring correctly gates RB writes, but F3 has zero repo code to start
   from. F1's re-stamp must land as `src/rekordbox/rb-cues.ts` (shared by F1
   re-stamp and F3 command) or we re-commit the same bug via a third heredoc.

@@ -9,7 +9,7 @@ import { homedir, platform, userInfo } from "node:os";
 import type { CheckResult } from "./doctor";
 import { nonEmptyEnv } from "./leaf/guards";
 import { DECK_SERVICE_LABEL, classifyDeckService } from "../ops/deck-service";
-import { resolveServerPort } from "../deck/server-port";
+import { resolveServerPort } from "../deck/server/server-port";
 
 export const MUSIC_DIR =
   nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${homedir()}/Music/DJ-Imports`;

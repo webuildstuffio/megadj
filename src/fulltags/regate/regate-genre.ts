@@ -14,7 +14,7 @@ import {
   genreFamily,
   parseEmbeddingVector,
 } from "../../core/similar";
-import type { GateResult } from "../gates";
+import type { GateResult } from "../cli/gates";
 
 /** The genre ship gate (genre-pipeline.md §V2, tier-0 arbitration bar). */
 export const GENRE_GATE_PERCENT = 65;

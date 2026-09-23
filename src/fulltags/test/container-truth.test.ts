@@ -4,7 +4,7 @@ import {
   parseFfprobeJson,
   trueContainerExt,
   type Probe,
-} from "../media-probe";
+} from "../utils/media-probe";
 
 /** A well-formed probe (all fields present, mp3 by default). */
 function probe(over: Partial<Probe> = {}): Probe {

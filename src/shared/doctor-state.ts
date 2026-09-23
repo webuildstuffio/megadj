@@ -296,37 +296,50 @@ export function checkDupes(dbPath?: string): CheckResult {
 
 /** F7 gate: every AGENT-MANAGED playlist has its masterPlaylists6.xml
  *  NODE (#282 scoping — the DJ-Imports/MegaSets subtrees the rb-* seams
- *  write; RB-managed rows stay DB-side by design and are never judged). */
-export function checkPlaylistXml(dbPath?: string): CheckResult {
-  const p = runStateProbe(dbPath ?? masterDbPath());
-  if (!p.ran) {
+ *  write; RB-managed rows stay DB-side by design and are never judged).
+ *
+ *  #323 output contract (was reworded by 3437a574 — automation parses
+ *  this): the detail/fix lines are built by `playlistXmlResult` from the
+ *  probe counts; `fix` carries the ONE repair command. The contract pin
+ *  lives in doctor-state.test.ts. */
+export function playlistXmlResult(probe: {
+  ran: boolean;
+  error?: string;
+  playlistsMissingXml: number;
+  playlistRows: number;
+}): CheckResult {
+  if (!probe.ran) {
     return {
       id: "playlist-xml",
       label: "playlist XML twins (F7 gate)",
       required: false,
       ok: true,
-      detail: `skipped — ${p.error}`,
+      detail: `skipped — ${probe.error}`,
     };
   }
-  const ok = p.playlistsMissingXml === 0;
-  const unknownXml = p.playlistsMissingXml < 0;
+  const missing = probe.playlistsMissingXml;
+  // A negative count is the probe's "unknown" — report it honestly
+  // instead of reading it as a 0-missing pass.
+  const unknownXml = missing < 0;
+  const ok = missing === 0 && !unknownXml;
+  const detail = unknownXml
+    ? "XML twin probe did not answer — missing-node count UNKNOWN (rerun doctor)"
+    : ok
+      ? `all agent-managed playlists have XML NODEs (${probe.playlistRows} DB rows)`
+      : `${missing} agent-managed playlist(s) missing XML NODEs. fix: megadj rb-playlist reconcile <drive> --apply --yes`;
   return {
     id: "playlist-xml",
     label: "playlist XML twins (F7 gate)",
     required: false,
-    // A negative count is the probe's "unknown" — report it honestly
-    // instead of reading it as a 0-missing pass.
-    ok: ok && !unknownXml,
-    detail: unknownXml
-      ? "XML twin probe did not answer — missing-node count UNKNOWN (rerun doctor)"
-      : ok
-        ? `all agent-managed playlists have XML NODEs (${p.playlistRows} DB rows)`
-        : `${p.playlistsMissingXml} agent-managed playlist(s) missing XML NODEs. fix: megadj rb-playlist reconcile <drive> --apply --yes`,
+    ok,
+    detail,
     fix:
-      ok && !unknownXml
+      ok || unknownXml
         ? undefined
-        : unknownXml
-          ? undefined
-          : "run: megadj rb-playlist reconcile <drive> --apply --yes (rekordbox quit)",
+        : "run: megadj rb-playlist reconcile <drive> --apply --yes (rekordbox quit)",
   };
+}
+
+export function checkPlaylistXml(dbPath?: string): CheckResult {
+  return playlistXmlResult(runStateProbe(dbPath ?? masterDbPath()));
 }

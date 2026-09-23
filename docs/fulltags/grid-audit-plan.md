@@ -39,7 +39,7 @@ of 2026-09-10. Everything else in this doc is re-scoped around it.
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Beat + downbeat arrays, whole archive | `megadj beats` → `beats` table (`src/fulltags/analysis/beats.ts`, `src/core/state-core.ts`)                                          | Ledgered and idempotent; live coverage comes from `megadj status --json`. beat_this v1.1.0, MIT, **peak-picking (no DBN), device=cpu**                                                      |
 | Tempo readouts                        | `src/fulltags/analysis/beats-analysis.ts` (`analyzeBeats`, median inter-beat; the since-deleted `tempoFromBeatGrid` bar-lag)            | TBPM tag writes **blocked by gate** (12/24, re-gate 16/24 — the ~2.2–2.6% phase-lock); arrays are DB-only by decision                                                                       |
-| 8-bar phrase cues                     | `megadj cues` → `cues` table (`src/fulltags/cues.ts`)                                                                                   | DB-side only; live coverage comes from the ledger rather than this plan                                                                                                                     |
+| 8-bar phrase cues                     | `megadj cues` → `cues` table (`src/fulltags/pipeline/cues.ts`)                                                                                   | DB-side only; live coverage comes from the ledger rather than this plan                                                                                                                     |
 | Independent grid cross-check          | `ArchiveReader.gridCrossCheck` (`src/deck/db/reader.ts`), `GET /api/archive/grid-cross-check`, MCP `archive_grid_cross_check` | Coarse: BPM-level ok / off (>2%) / octave vs RB. **No anchor/drift/phase — that's the A2 gap**                                                                                              |
 | Drive verify grid check               | `usb_verify.py` `anlz_consistency` → `src/deck/verify/report.ts`                                                                   | **Self-referential** (duration×BPM vs beat count from the same analysis). ANLZ existence + between-drive parity are real; independent grid correctness comes from the cross-check           |
 | ANLZ hash-path math                   | `.claude/skills/rekordbox-usb-sync/scripts/anlz-paths.py`                                                                               | The A1 drive-vs-collection byte compare can be built directly on this                                                                                                                       |
@@ -112,8 +112,8 @@ this table as issues are filed.
 ### GA-00 — Build the set
 
 **STATUS: HARNESS SHIPPED 2026-09-10** — schema, guards, loader, and the
-dev/holdout split live in `src/fulltags/gold.ts` (tested in
-`src/fulltags/test/gold-set.test.ts`); scoring runs via `megadj gold-report`
+dev/holdout split live in `src/fulltags/analysis/gold.ts` (tested in
+`src/fulltags/analysis/gold-set.test.ts`); scoring runs via `megadj gold-report`
 (GA-00b). What remains is the manual half: annotate 30 tracks into
 `~/Music/DJ-Imports/_gold/` — one versioned JSON per track, shape
 enforced by `goldSchemaError` (blake2b hash key, first downbeat ms, BPM,
@@ -134,7 +134,7 @@ Store as JSON next to the audio, keyed by file hash (blake2b — the same
 hash the archive sweep already computes), versioned. Expected location:
 `~/Music/DJ-Imports/_gold/` (NOT in the repo) + a schema + loader test in
 repo. Annotation itself is manual; the loader, schema guards, and split
-logic are code (`src/fulltags/test/gold-set.test.ts`).
+logic are code (`src/fulltags/analysis/gold-set.test.ts`).
 
 ### GA-00b — Metrics harness
 
@@ -178,7 +178,7 @@ numbers, but enough to catch overfitting to your own 20 favourite records.
 ### GA-01 — Constant-tempo constraint for house
 
 **STATUS: SHIPPED 2026-09-10.** `fitConstantTempo` +
-`gridAudit` live in `src/fulltags/grid-audit.ts` (pure, tested in
+`gridAudit` live in `src/fulltags/analysis/grid-audit.ts` (pure, tested in
 `src/fulltags/test/analysis-grid.test.ts`); `megadj beats` stores
 `bpm_fitted` + `bpm_residual_std` (columns auto-migrate); the CrateDeck
 grid cross-check derives its verdicts from the SAME functions — one SSOT.
@@ -270,7 +270,7 @@ this doc's execution log.
 (rows + `anlz_paths.py` hash dirs), optionally byte-compares each
 track's collection sidecar against the stick's (`SYNC` issues get a
 re-export, never a re-analysis), decodes the collection PQTZ grid
-(`src/fulltags/anlz.ts`, spec-validated), and audits our fitted ledger
+(`src/fulltags/analysis/anlz.ts`, spec-validated), and audits our fitted ledger
 grids via `gridAuditFull` — SHIFT/PHASE/TEMPO/DRIFT/CHAOS + A-OK, worst-
 first offender sample, read-only end to end. Gaps are visible classes
 (`NO-ANLZ`, `NO-GRID`, `NO-LEDGER`), never silent skips. The ANLZ
@@ -330,7 +330,7 @@ against fitted 124.00 grids, ~1.6 s of accumulated slide: exactly the
 predicted class.
 
 Deliverable (library-side SHIPPED): the grid-math SSOT `gridAudit`
-(`src/fulltags/grid-audit.ts`, consumed by CrateDeck's
+(`src/fulltags/analysis/grid-audit.ts`, consumed by CrateDeck's
 `archive/grid.ts` and `megadj rb-grid-triage`) — one row per track,
 cached, resumable. The standalone grid-audit CLI face and the CrateDeck
 surface card (GA-05c) remain open.
