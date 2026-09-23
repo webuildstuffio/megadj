@@ -14,7 +14,7 @@
  * summary names every straggler so a re-run can retry them.
  */
 import { basename } from "node:path";
-import { walkAudioFiles } from "./writer";
+import { walkAudioDir } from "../../shared/audio-walk";
 import { probeFile } from "../utils/media-probe";
 import { playerCompat, isHiresOnly } from "../booth/player-compat";
 import { wavToAiff } from "./convert-aiff";
@@ -194,7 +194,7 @@ export async function convertArchive(
 
   // Whole-archive walk (batch subfolders included; hidden quarantine dirs
   // are skipped by the shared walker).
-  const wavs = walkAudioFiles(opts.musicDir).filter((p) => /\.wav$/i.test(p));
+  const wavs = walkAudioDir(opts.musicDir).filter((p) => /\.wav$/i.test(p));
   res.total = wavs.length;
   if (wavs.length === 0) {
     log("no WAVs in the archive — nothing to convert");

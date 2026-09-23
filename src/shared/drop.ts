@@ -565,10 +565,10 @@ const STAGE_RUNNERS: StageSpec[] = [
     // in the booth" trap). Report-only here: drop reports, the operator
     // fixes via booth-fix; a failed gate fails the run.
     run: async ({ opts }) => {
-      const { walkAudioFiles } = await import("../fulltags/write/writer");
+      const { walkAudioDir } = await import("./audio-walk");
       const { tagHealth } = await import("../fulltags/write/tag-health");
       const bad: { file: string; reasons: string[] }[] = [];
-      for (const f of walkAudioFiles(opts.musicDir)) {
+      for (const f of walkAudioDir(opts.musicDir)) {
         const h = tagHealth(f);
         if (!h.ok) bad.push({ file: f, reasons: h.reasons });
       }

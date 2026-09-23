@@ -7,7 +7,7 @@
 
 import { statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
-import { walkAudioFiles } from "../../fulltags/write/writer";
+import { walkAudioDir } from "../../shared/audio-walk";
 import { groundTruth } from "../../fulltags/write/readers";
 import { normalize } from "../../fulltags/pipeline/identity";
 import type { ArchiveState } from "../../core/state";
@@ -37,7 +37,7 @@ export interface AdoptOptions {
  * FullTags walker, filtered to .m4a for the YouTube-intake format. Sync
  * walk is fine here: adopt is a short CLI pass. */
 function walkM4a(dir: string): string[] {
-  return walkAudioFiles(dir).filter((f) => f.toLowerCase().endsWith(".m4a"));
+  return walkAudioDir(dir).filter((f) => f.toLowerCase().endsWith(".m4a"));
 }
 
 /** NFC+casefold basename index of every audio file under `<shelf>/Contents/`.

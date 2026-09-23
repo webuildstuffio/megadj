@@ -195,9 +195,9 @@ const audit: CliCommandHandler = async (rest, { musicDir }) => {
 
 const tagCheck: CliCommandHandler = async (rest, { musicDir }) => {
   const flags = parseFlags(rest, [], ["json"]);
-  const { walkAudioFiles } = await import("../write/writer");
+  const { walkAudioDir } = await import("../../shared/audio-walk");
   const { tagHealth } = await import("../write/tag-health");
-  const files = walkAudioFiles(musicDir);
+  const files = walkAudioDir(musicDir);
   const bad: { file: string; reasons: string[] }[] = [];
   for (const file of files) {
     const health = tagHealth(file);

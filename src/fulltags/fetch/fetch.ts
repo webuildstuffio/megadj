@@ -17,7 +17,7 @@ export type FetchTarget = (typeof FETCH_TARGETS)[number];
  */
 import { existsSync } from "node:fs";
 import { groundTruth } from "../write/readers";
-import { walkAudioFiles } from "../write/writer";
+import { walkAudioDir } from "../../shared/audio-walk";
 import { probeFile } from "../utils/media-probe";
 import { playerCompat, isHiresOnly } from "../booth/player-compat";
 import { boothTextCompat } from "../booth/booth-text";
@@ -46,8 +46,8 @@ export interface FetchOptions {
 /** Audio files under the archive, recursively — organize() moves tracks
  * into dated batch subfolders, so a top-level readdir would audit an
  * empty set and always report "all complete" (0/0 is vacuous). Shared
- * FullTags walker: same skip/extension rules as every other collect pass. */
-const walkArchive = walkAudioFiles;
+ * walker: same skip/extension rules as every other collect pass. */
+const walkArchive = walkAudioDir;
 
 /** Ground-truth audit of every audio file in the archive (player-compat
  * included — the gate is async because the codec probe is a process). */

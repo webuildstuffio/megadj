@@ -9,11 +9,8 @@
  * shapes shared by the stages.
  */
 import { Database } from "bun:sqlite";
-import {
-  embedArt as ftEmbedArt,
-  walkAudioFiles,
-  writePatchSync,
-} from "../write/writer";
+import { embedArt as ftEmbedArt, writePatchSync } from "../write/writer";
+import { walkAudioDir } from "../../shared/audio-walk";
 import { fetchImage as ftFetchImage } from "../sources/art-sources";
 import { groundTruth as ftGroundTruth } from "../write/readers";
 import { validatePatch } from "../write/schema-guards";
@@ -32,7 +29,7 @@ export const db = new Database(DB_PATH);
  * organize() moves tracks into them, so a top-level readdir skipped every
  * organized track and let same-named files in different folders collide). */
 export function archiveFiles(): Set<string> {
-  return new Set(walkAudioFiles(ARCH));
+  return new Set(walkAudioDir(ARCH));
 }
 
 export interface Row {

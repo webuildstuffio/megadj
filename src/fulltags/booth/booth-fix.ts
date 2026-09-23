@@ -32,7 +32,7 @@
 import { basename } from "node:path";
 import { existsSync } from "node:fs";
 import { groundTruth } from "../write/readers";
-import { walkAudioFiles } from "../write/writer";
+import { walkAudioDir } from "../../shared/audio-walk";
 import { probeFile } from "../utils/media-probe";
 import { playerCompat, isHiresOnly } from "./player-compat";
 import { boothTextCompat, type TextCompatResult } from "./booth-text";
@@ -79,8 +79,8 @@ export function trackIdForFile(
 }
 
 function walkRoots(musicDir: string, alsoWalk?: string): string[] {
-  const roots = [walkAudioFiles(musicDir)];
-  if (alsoWalk && existsSync(alsoWalk)) roots.push(walkAudioFiles(alsoWalk));
+  const roots = [walkAudioDir(musicDir)];
+  if (alsoWalk && existsSync(alsoWalk)) roots.push(walkAudioDir(alsoWalk));
   return roots.flat();
 }
 

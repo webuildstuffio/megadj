@@ -20,7 +20,7 @@ import { openLedger } from "../shared/sqlite-ledger";
 import { basename, join } from "node:path";
 import { fingerprintFile } from "../fulltags/analysis/fingerprint";
 import { nameSimilarityTokens } from "../fulltags/analysis/fingerprint-dedupe";
-import { walkAudioFiles } from "../fulltags/write/writer";
+import { walkAudioDir } from "../shared/audio-walk";
 import { commandLog } from "../shared/progress";
 import { DupFpCache, type DupGroup as DupeGroup } from "./dupescan-shared";
 import {
@@ -86,7 +86,7 @@ export async function dedupeArchive(
     applied: false,
   };
 
-  const files = walkAudioFiles(opts.musicDir).filter(
+  const files = walkAudioDir(opts.musicDir).filter(
     (p) =>
       !p.includes("/ingest-duplicates/") && !p.includes("/.ingest-duplicates/"),
   );

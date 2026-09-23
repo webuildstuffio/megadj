@@ -14,7 +14,6 @@
 import { $ } from "bun";
 import { extname } from "node:path";
 import { existsSync, renameSync, unlinkSync } from "node:fs";
-import { walkAudioDir } from "../../shared/audio-walk";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 import { id3Open } from "./mutagen";
@@ -46,17 +45,9 @@ export type { WriterAtomicOps } from "./writer-mutagen";
 export { AUDIO_EXTS } from "../../shared/audio-exts";
 export { isAudioFile } from "../../shared/audio-exts";
 
-/** Recursively list audio files under `dir`, skipping hidden entries.
- * One shared walker for every "collect the archive" pass — fetch/audit,
- * fetch-lib's ground-truth set, adopt's intake — so skip rules and the
- * extension filter can never drift apart again. A missing/unreadable dir
- * returns [] (soft-fail: callers treat an absent music dir as empty, a
- * typoed path must not crash the pass). Sync on purpose: callers are
- * short CLI passes; for server/event-loop contexts use cratedeck's
- * async walkTree instead. */
-export function walkAudioFiles(dir: string, out: string[] = []): string[] {
-  return walkAudioDir(dir, out);
-}
+/** walkAudioFiles moved to shared/audio-walk (walkAudioDir) — #317: the
+ * writer's pass-through wrapper is retired; callers import the shared
+ * walker directly. */
 
 /**
  * #230: the ONE year gate for legacy metadata dates — the first 4-digit
