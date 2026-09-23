@@ -446,6 +446,20 @@ describe("FullTags Similar and Set Builder UX", () => {
     );
   });
 
+  test("#285: the Genre step suggests families from the producer table and surfaces genre_suggestion", () => {
+    // datalist options derive from the SHARED producer table — a hand-copied
+    // family list in the component would be a twin (census-pinned pattern)
+    expect(source).toContain("Object.keys(MEGASET_GENRE_FAMILIES)");
+    expect(source).toContain('id="megaset-genre-families"');
+    expect(source).toContain('list="megaset-genre-families"');
+    // the payload's #290 hint renders as a did-you-mean, not a dead end
+    expect(source).toContain("genre_suggestion");
+    const withSuggestion = render(
+      <MegasetPanel />,
+    ); // panel mounts with no data — suggestion path renders only when set
+    expect(withSuggestion).toContain("megaset-genre-input");
+  });
+
   test("#284/#294: the mix pill shows the inline magnitude and hover carries the evidence breakdown", () => {
     const step: MegasetStep = {
       ...baseData.steps[0]!,

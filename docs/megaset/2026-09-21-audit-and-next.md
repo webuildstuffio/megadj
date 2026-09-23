@@ -62,6 +62,15 @@ or filed (§4):
 
 ## 4. What to improve next (ordered, owner-decision ready)
 
+**Status note (2026-09-22):** items 1, 4, 5, 6 have since shipped or been
+superseded — item 1 shipped in `23379c2c` (#284, with #291/#290/#294 in the
+same burn-down); item 4's CLI half shipped in `23379c2c` (#290
+`genre_suggestion`; the web datalist remains open as #285); item 5 is open as
+[#286](https://github.com/webuildstuffio/megadj/issues/286); item 6 is open as
+[#288](https://github.com/webuildstuffio/megadj/issues/288). Item 2 shipped
+Sep 21 (`3437a574`, #282). The list below is the original Sep 21 text, kept
+verbatim for the audit record.
+
 1. **[#284](https://github.com/webuildstuffio/megadj/issues/284) — per-step scoring evidence on the wire** (`tempo`/`key`/`arc`/
    `anchor`/`similarity` per transition): makes every blend auditable and
    cross-build comparison honest. Small wire change, engine already

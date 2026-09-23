@@ -6,6 +6,12 @@ experiments, ~140 sprints), third-party research, or the engine benchmarks.
 Nothing here overrides the [plan of record](03-competitive-analysis.md); this
 doc is the architecture layer that binds the evidence together and proposes
 what v2 builds, in what order, and what it refuses to build.
+**v3 relationship (2026-09-22):** §4c's *shape* is superseded by
+[12-playlist-generator-v3](12-playlist-generator-v3.md) §3 (transition
+grammar) — one spec, one implementation; §4a action #1 (the `model` column)
+is now owning issue [#310](https://github.com/webuildstuffio/megadj/issues/310);
+the §4e failure taxonomy lands with v3 sessions (#315). Everything else here
+still binds as v3 law.
 
 v1 · 2026-09-18 · Consumes [01-prd](01-prd.md) (product story),
 [02-architecture](02-architecture.md) (v1 engine map — unchanged by this doc),

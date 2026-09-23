@@ -6,8 +6,11 @@
 [03-competitive-analysis](03-competitive-analysis.md),
 [08-audit-and-plan](08-audit-and-plan.md),
 [10-findings](10-findings.md), [11-master-architecture-v2](11-master-architecture-v2.md))
-or measured live against the code at HEAD. Nothing is built; on approval, each
-numbered move becomes an owning issue and lands through the normal gates.
+or measured live against the code at HEAD. Approved 2026-09-22 (#298); the
+per-move owning issues were filed 2026-09-22 (M1→#325, M2→#326, M3→#327,
+M4→#328, M5→#329, M6→#330 — see §8's issue column). "Nothing is built" refers
+to the v3 architecture itself; the absorbed pre-reqs (B6, B8, landmarks) DID
+ship Sep 21 and are marked as such in §0.
 
 **What this doc is:** NOT a rewrite of the engine — the engine's core verdicts
 are measured law (E6 frozen weights, E7 beam, the 7 cross-shop invariants).
@@ -31,13 +34,16 @@ analysis says the market pays for and MegaSet still lacks.
 | Phrase handoffs (Phase D item 16) | **Shipped** (#106): `mixInCue`/`mixOutCue` per step, `#EXTREM` in M3U8, dry-run rows, hover cards | `megasetMixInCue`/`megasetMixOutCue` |
 | Embedding prior (B10p) | **Shipped** (#171): capped 0.1 tie-break, gates-first precedence, honest-gap both ways | `similarityScore` |
 | Offline mirror pool (B1), preview cap (B11), grouped exclusions (B13), minutes validation (B7) | **Shipped** (#104/#105) | 08 header receipts |
-| B6 diversity, landmarks `--track`, N-candidates, 0–100 quality score | **NOT built** — open [#107](https://github.com/webuildstuffio/megadj/issues/107), consolidations (#59 → #107, #172 → #107) are tracking folds, not ships | issue body acceptance boxes unchecked |
+| B6 diversity, landmarks `--track`, 0–100 quality score, N-candidates | **B6 + landmarks SHIPPED Sep 21** (`46adc385`): artist-repeat penalty + `same_artist_pairs` counter; `--landmark` repair pass + `landmarks_missing` — see the [Sep 21 audit](2026-09-21-audit-and-next.md). **N-candidates + quality score NOT built** — open [#107](https://github.com/webuildstuffio/megadj/issues/107) item 4, actionable slice [#288](https://github.com/webuildstuffio/megadj/issues/288); consolidations (#59 → #107, #172 → #107) are tracking folds, not ships | `megaset/scoring.ts` (B6), `megaset/engine.ts` (S13), [#288](https://github.com/webuildstuffio/megadj/issues/288) |
+| B8 half/double-time scoring | **Half-shipped Sep 21**: pair lane 0.75 × 0.9 exists for ×2/×½/×1.5/×⅔ (`MEGASET_HALFTIME_PENALTY`), but `bpmScore` still scores 0 for a raw 87↔174 pair OUTSIDE the lane, and the family gate (#107 box 2) is NOT wired — tracked in [#326](https://github.com/webuildstuffio/megadj/issues/326) (v3 move M2) | `megaset/scoring.ts` `bpmScore` + `withinAnchorBudget` |
 | Failure taxonomy (v2 §4e), coverage counters (v2 §4f), ledger `model` column (v2 action #1), pre-registered B10p A/B (v2 §4b) | **NOT built** — v2 is still 📐 proposal | [11 §4](11-master-architecture-v2.md) |
-| Tests | 87 megaset tests across 4 files (41 engine + 21 contract + 11 pool + 14 surface) | `src/deck/test/megaset*` |
+| Tests | 131 megaset tests across 7 files (engine + contract + pool + scoring + surface + sweep + shared) — grew from 87 with the Sep 21 B6/B8/landmark/evidence passes | `src/deck/megaset/*.test.ts` + `src/deck/test/megaset-contract.test.ts` |
 
-The honest read: **v1's Phase A landed, Phase D's first item landed, B10p
-landed; Phase B/C scoring depth and v2's ops hardening did not.** A v3
-re-architecture must *absorb* those, not re-propose them.
+The honest read (updated 2026-09-22): **v1's Phase A, Phase D item 16, B10p,
+B6, B8 (pair lane), and S13 landmarks have all landed; the remaining gaps are
+N-candidates + quality score (#288), the B8 completion inside `bpmScore` +
+family gate (#311), and v2's ops hardening.** A v3 re-architecture must
+*absorb* those, not re-propose them.
 
 ## 1. The diagnosis — why re-architect at all
 
@@ -182,10 +188,11 @@ not a canvas.
 
 | Open item | Disposition under v3 |
 | --- | --- |
-| #107 B6 diversity (artist/family run penalties) | Lands **before** v3 — the grammar's `double-drop` gating and `SetQuality.diversity` both consume it; it is also the smallest unblocked item (refold prerequisite shipped Sep 15) |
-| #107 B8 half/double-time scoring | Already half-landed via the branch lane; v3 completes it inside `bpmScore` (×2/×½ at 0.9×), family-gated by B6 |
-| #107 landmarks `--track` | Becomes **plan input**: landmarks pin slots at arc-appropriate positions during `buildPlan`, fill respects pins |
-| #107 N-candidates + quality | §4 above — the reason v3 exists |
+| #107 B6 diversity (artist/family run penalties) | **SHIPPED Sep 21** (`46adc385`) — artist half landed; the grammar's `double-drop` gating and `SetQuality.diversity` consume it. Family-run caps (≤3) remain open under [#107](https://github.com/webuildstuffio/megadj/issues/107) |
+| #107 B8 half/double-time scoring | **Half-landed Sep 21** (pair lane); v3 completes it inside `bpmScore` (×2/×½ at 0.9×), family-gated by B6 — owning issue [#311](https://github.com/webuildstuffio/megadj/issues/326) (M2) |
+| #107 landmarks `--track` | **SHIPPED Sep 21** (`46adc385`, repair pass + `landmarks_missing`); v3 builds on it: landmarks pin slots at arc-appropriate positions during `buildPlan`, fill respects pins — owning issue [#327](https://github.com/webuildstuffio/megadj/issues/327) (M3) |
+| #107 N-candidates + quality | §4 above — the reason v3 exists — owning issue [#328](https://github.com/webuildstuffio/megadj/issues/328) (M4) |
+| v2 §4a ledger `model` column | Unchanged, still first (hours, blocks nothing); v3's sessions snapshot ledger freshness, making it more urgent — owning issue [#325](https://github.com/webuildstuffio/megadj/issues/325) (M1) |
 | v2 §4a ledger `model` column | Unchanged, still first (hours, blocks nothing); v3's sessions snapshot ledger freshness, making it more urgent |
 | v2 §4b pre-registered B10p A/B | Still the gate for ANY similarity-weight touch; v3 does not move the weight |
 | v2 §4e failure taxonomy | Lands with sessions (the taxonomy aggregates `excluded_groups` per session — the PAR-197 loop gets real data) |
@@ -209,19 +216,19 @@ of its own:
 
 ## 8. Build order (dependency-honest)
 
-1. **#107 B6 diversity** (pre-req for grammar + quality; smallest unblocked).
-2. **v2 action #1: embeddings `model` column** (hours; sessions snapshot freshness).
-3. **`buildPlan()` extraction** — refactor-only: arc segments + opener + drift
-   targets become a serializable Plan; engine consumes it; zero behavior
-   change, pinned by byte-identical-chain tests (the move-before-split rule).
-4. **`SetQuality` + N-candidates** (#107.4 + #59's scope) — pure functions, tabs.
-5. **Transition grammar** — types + `legalTransitions` + `#EXTREM` type names.
-6. **Sessions table + keep/swap/regen verbs + `rb-playlist --session`**.
-7. **v2 §4e taxonomy on sessions** — read it before building anything else downstream.
-8. **Only on evidence:** the §4b A/B for any prior-weight change; MERT question untouched.
+| # | Move | Owning issue | State |
+| --- | --- | --- | --- |
+| 1 | v2 action #1: embeddings `model` column (M1) | [#310](https://github.com/webuildstuffio/megadj/issues/325) | open — hours, blocks nothing |
+| 2 | #107 B6 family-run caps + B8 completion in `bpmScore` with the B6 family gate (M2) | [#311](https://github.com/webuildstuffio/megadj/issues/326) | open — artist penalty + pair lane already shipped Sep 21 |
+| 3 | `buildPlan()` extraction (M3) — refactor-only, byte-identical-chain pinned; landmarks become plan inputs | [#312](https://github.com/webuildstuffio/megadj/issues/327) | open — the careful one |
+| 4 | `SetQuality` + N-candidates (M4) — #107.4 + #59's scope | [#313](https://github.com/webuildstuffio/megadj/issues/328) | open (actionable slice [#288](https://github.com/webuildstuffio/megadj/issues/288) folds here or ships first) |
+| 5 | Transition grammar (M5) — types + `legalTransitions` + `#EXTREM` type names | [#314](https://github.com/webuildstuffio/megadj/issues/329) | open |
+| 6 | Sessions table + keep/swap/regen verbs + `rb-playlist --session` (M6) | [#315](https://github.com/webuildstuffio/megadj/issues/330) | open |
+| 7 | v2 §4e taxonomy on sessions (M7) — read it before building anything else downstream | folds into [#330](https://github.com/webuildstuffio/megadj/issues/330) acceptance | — |
+| 8 | Only on evidence: the §4b A/B for any prior-weight change; MERT question untouched | no issue until evidence | — |
 
 Sizes: 1–2 are a session each; 3 is the careful one (pure refactor, census
-pins); 4–7 are a session each, parallelizable after 3 lands.
+pins); 4–6 are a session each, parallelizable after 3 lands.
 
 ## 9. Gates
 

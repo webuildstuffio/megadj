@@ -3,6 +3,7 @@ import {
   MEGASET_MINUTES_MAX,
   MEGASET_MINUTES_MIN,
   MEGASET_PRESET_DEFS,
+  MEGASET_GENRE_FAMILIES,
 } from "../../../shared/types";
 import { Icon } from "../../ui/icons";
 import {
@@ -100,6 +101,11 @@ function DurationSettings(props: { model: MegasetBuilder }) {
 function GenreSettings(props: { model: MegasetBuilder }) {
   const { model } = props;
   const filtered = model.build.data?.genre_filtered ?? 0;
+  const suggestion = model.build.data?.genre_suggestion;
+  // #285: options derive from the PRODUCER table (MEGASET_GENRE_FAMILIES
+  // keys, re-exported through the shared leaf) — never a hand-copied twin.
+  // Free-form input still works: a datalist suggests, it does not constrain.
+  const familyKeys = Object.keys(MEGASET_GENRE_FAMILIES);
   return (
     <fieldset class="megaset-length" disabled={model.build.loading}>
       <StepTitle
@@ -112,11 +118,23 @@ function GenreSettings(props: { model: MegasetBuilder }) {
         class="megaset-genre-input"
         placeholder="e.g. tropical house, house, techno, dnb…"
         aria-label="Genre filter (substring match, blank = whole library)"
+        list="megaset-genre-families"
         value={model.genreInput}
         onInput={(event) =>
           model.setGenreInput((event.target as HTMLInputElement).value)
         }
       />
+      <datalist id="megaset-genre-families">
+        {familyKeys.map((family) => (
+          <option key={family} value={family} />
+        ))}
+      </datalist>
+      {suggestion !== undefined && suggestion !== "" && (
+        <p class="megaset-genre-count" role="status">
+          no tracks matched “{model.genreInput.trim()}” — did you mean{" "}
+          <strong>{suggestion}</strong>?
+        </p>
+      )}
       {filtered > 0 && (
         <p class="megaset-genre-count" role="status">
           pool narrowed to <strong>{filtered}</strong>{" "}
