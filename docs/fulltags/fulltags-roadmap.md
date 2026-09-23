@@ -508,7 +508,7 @@ log: Git history (rev 6.1–6.2).
 
 ### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1)**
 
-`src/fulltags/sources/mb.ts`: MB artist folksonomy harvest (1 rps, cached,
+`src/fulltags/sources/mb-lookup.ts`: MB artist folksonomy harvest (1 rps, cached,
 canonGenre-mapped). `megadj enrich` is now a thin shim over it + the
 shared writer — the last duplicate ffmpeg writer is deleted; genre
 ladder = SC tag → canonical map → MB folksonomy → AI (conf ≥ 0.7).
@@ -823,7 +823,7 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 | Adopt (#3)  | OpenKeyScan analyzer (repo mode)                         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
 | Fallback    | essentia `Key` / keyfinder-cli                           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
 | Adopt (#4)  | Essentia ONNX heads + onnxruntime                        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/sources/mb.ts + enrich fold (rev 6.1)                                                                               |
+| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/sources/mb-lookup.ts + enrich fold (rev 6.1)                                                                               |
 | Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `src/fulltags/sources/beatport.ts` (rev 6.4)                   |
 | Verified    | Dubspot 200-track test                                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
 | Verified    | rekordbox tag matrix                                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |

@@ -118,19 +118,24 @@ export function parseMegasetQuery(params: {
 }
 
 /** Binary-search bound helpers (#316: was two 6L twins differing only in
- *  the comparison operator). `allowEqual` picks the semantic: true =
- *  first index with value >= target (lowerBound), false = first index
- *  with value > target (upperBound). */
-function boundIndex(
+ *  the comparison operator). `"lower"` = first index with value >=
+ *  target; `"upper"` = first index with value > target. Exported pure
+ *  for the boundary pin. The tempo neighborhood is the OPEN interval
+ *  (bpm*w, bpm/w) — `lower` at the hi end, `upper` at the lo end; a
+ *  track at the exact -6% boundary is NOT a neighbor. A boolean-param
+ *  version of this merge silently flipped both ends to CLOSED (the
+ *  doc comment even labeled the modes backwards); pinned in
+ *  engine.test.ts. */
+export function boundIndex(
   sorted: number[],
   target: number,
-  allowEqual: boolean,
+  mode: "lower" | "upper",
 ): number {
   let lo = 0;
   let hi = sorted.length;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo) / 2);
-    if (allowEqual ? sorted[mid]! <= target : sorted[mid]! < target)
+    if (mode === "lower" ? sorted[mid]! < target : sorted[mid]! <= target)
       lo = mid + 1;
     else hi = mid;
   }
@@ -386,8 +391,8 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   const windowFactor = 1 - MEGASET_TEMPO_WINDOW;
   const sortedBpms = mixable.map((c) => c.bpm).toSorted((a, b) => a - b);
   const tempoNeighbors = (bpm: number): number =>
-    boundIndex(sortedBpms, bpm / windowFactor, true) -
-    boundIndex(sortedBpms, bpm * windowFactor, false);
+    boundIndex(sortedBpms, bpm / windowFactor, "lower") -
+    boundIndex(sortedBpms, bpm * windowFactor, "upper");
   const anchored =
     opener && mixableBpm(opener)
       ? opener

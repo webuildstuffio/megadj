@@ -7,6 +7,7 @@ import {
   SET_PRESETS,
   buildMegaset,
   bpmScore,
+  boundIndex,
   camelotOf,
   keyScore,
   withinAnchorBudget,
@@ -468,6 +469,29 @@ describe("buildMegaset", () => {
     expect(r.steps.length).toBeGreaterThanOrEqual(2);
     const excluded = r.excluded.find((row) => row.videoId === "req");
     expect(excluded?.reason).toContain("requested opener");
+  });
+
+  test("boundIndex bounds are STRICT/INCLUSIVE exactly as labeled — the open ±6% window", () => {
+    // Regression pin for the #316 boundIndex merge: a boolean-param
+    // version flipped BOTH comparison operators (and its doc comment
+    // labeled the modes backwards), so a track at the exact -6% tempo
+    // boundary (94 BPM vs a 100 BPM opener) counted itself as a tempo
+    // neighbor — the closed interval, not the original open one. The
+    // operator semantics are pinned here at exact-boundary values; any
+    // future merge that swaps `<`/`<=` fails these.
+    const s = [88, 94, 94.001, 100, 150];
+    // "lower": first index with value >= target (the hi window end is
+    // inclusive to the search value only when strictly >=)
+    expect(boundIndex(s, 94, "lower")).toBe(1);
+    expect(boundIndex(s, 94.0005, "lower")).toBe(2);
+    expect(boundIndex(s, 20, "lower")).toBe(0);
+    expect(boundIndex(s, 200, "lower")).toBe(5);
+    // "upper": first index with value > target — the exact-boundary
+    // value itself is EXCLUDED (this is the assertion the shipped bug
+    // failed: it returned 1 here, folding 94 into 100's neighborhood)
+    expect(boundIndex(s, 94, "upper")).toBe(2);
+    expect(boundIndex(s, 93.999, "upper")).toBe(1);
+    expect(boundIndex(s, 150, "upper")).toBe(5);
   });
 
   test("requested opener missing from the pool is excluded loudly, never silently dropped", () => {
