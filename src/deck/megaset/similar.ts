@@ -1,4 +1,4 @@
-// archive/similar.ts — the I49 sounds-like + set-builder extensions to
+// megaset/similar.ts — the I49 sounds-like + set-builder extensions to
 // ArchiveReader, split out
 // of archive.ts (file-length guard). Same readonly ArchiveReader handle,
 // same rules: pure reads over megadj's archive DB — a bug here cannot
@@ -7,7 +7,7 @@
 //   similarTracks — I49 "sounds like": cosine kNN over the embeddings
 //   similarTracks — I49 "sounds like": cosine kNN over the embeddings
 //                   ledger (written by `megadj mood --embeddings`)
-//   (the set-builder pool reader lives in archive/pool.ts)
+//   (the set-builder pool reader lives in megaset/pool.ts)
 import { isFiniteNumberArray } from "../../shared/leaf/guards";
 import {
   applySpace,
@@ -18,7 +18,7 @@ import {
   isSimilarSpace,
 } from "../../shared/leaf/vector-space";
 import type { ArchiveSimilar } from "../shared/archive-wire";
-import type { ArchiveQuery } from "./types";
+import type { ArchiveQuery } from "../shared/types/archive-reader";
 
 /** Round to 4 decimals for wire payloads. Pure — module-level. */
 const r4 = (v: number): number => Math.round(v * 10000) / 10000;

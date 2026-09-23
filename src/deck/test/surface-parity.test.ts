@@ -116,7 +116,7 @@ function httpApiRoutes(): string[] {
   if (index.includes('if (route.startsWith("/fleet/"))'))
     routes.add("/fleet/prep");
   if (index.includes("if (!sub) {")) routes.add("/drives/:id");
-  const archive = read("src/deck/archive/routes.ts").join("\n");
+  const archive = read("src/deck/api/routes-archive.ts").join("\n");
   const handlers = archive.match(
     /function archiveHandlers\(\)[\s\S]*?return \{([\s\S]*?)\n  \};/,
   );
@@ -135,7 +135,7 @@ function httpApiRoutes(): string[] {
 function mcpTools(): string[] {
   const files = [
     "src/deck/mcp.ts",
-    "src/deck/archive/tools.ts",
+    "src/deck/report/tools.ts",
     "src/deck/getdat-tools.ts",
   ];
   const tools = files
@@ -659,7 +659,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
   });
 
   test("archive tools stay readonly (the sqlite handle never opens rw)", () => {
-    const src = readFileSync(join(ROOT, "src/deck/archive/reader.ts"), "utf8");
+    const src = readFileSync(join(ROOT, "src/deck/db/reader.ts"), "utf8");
     expect(src).toContain("readonly: true");
     expect(src).not.toMatch(/readonly:\s*false/);
   });

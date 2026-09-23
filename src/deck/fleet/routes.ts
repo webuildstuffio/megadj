@@ -6,7 +6,7 @@ import type { CrateConfig } from "../config";
 import { coverage, trackLocations } from "./coverage";
 import { redundancy, diff } from "./coverage-fleet";
 import { radar, type RadarSource } from "./radar";
-import { ArchiveReader } from "../archive/reader";
+import { ArchiveReader } from "../db/reader";
 import type { FleetRadar, RadarResult } from "../shared/types";
 import { fetchWeeklyPrepInput, renderWeeklyPrep } from "../weekly-prep";
 

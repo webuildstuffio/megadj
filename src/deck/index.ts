@@ -17,7 +17,7 @@ import { DumpReader } from "./dump-reader";
 import { makeHygieneRoutes } from "./hygiene/routes";
 import { makeFixesRoutes } from "./fixes/routes";
 import { makeGridHealthRoutes } from "./grid/routes";
-import { ArchiveReader } from "./archive/reader";
+import { ArchiveReader } from "./db/reader";
 import { type ReportDeps } from "./report/inputs";
 import { playersFromConfig } from "./players";
 import { megadjCliPath } from "./intake-run";

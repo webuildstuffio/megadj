@@ -1,4 +1,4 @@
-// archive/mood.ts — the MOOD / dance / valence profile, split out of
+// megaset/mood.ts — the MOOD / dance / valence profile, split out of
 // archive.ts under the file-length guard (the same delegate pattern as
 // archive_similar/archive_overview/archive_tagcensus).
 //
@@ -8,7 +8,7 @@
 // pickers, highest/lowest valence + arousal + danceability tracks for
 // "play me something…". Degrades to available:false on pre-mood DBs
 // (no `mood` table).
-import type { ArchiveQuery } from "./types";
+import type { ArchiveQuery } from "../shared/types/archive-reader";
 import type { ArchiveMoodProfile } from "../shared/archive-wire";
 
 /** Round to 3 decimals for wire payloads (null degrades to 0). Pure. */

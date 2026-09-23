@@ -56,7 +56,7 @@
  *   getdat_intake {action?,folder?,dry_run?}  dump census (#20) / process a dump
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
-import { archiveTools } from "./archive/tools";
+import { archiveTools } from "./report/tools";
 import { deriveDeckTools, type DeckMcpVerb } from "./mcp/surfaces";
 import { ensureServer } from "./deckapi";
 export { jobTerminal } from "./deckapi";

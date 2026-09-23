@@ -13,11 +13,11 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { archiveHandlers, archiveRoutes } from "../archive/routes";
-import type { ArchiveReader } from "../archive/reader";
+import { archiveHandlers, archiveRoutes } from "./routes-archive";
+import type { ArchiveReader } from "../db/reader";
 import type { CrateConfig } from "../config";
 import type { DB } from "../db";
-import { tempDir } from "./testutil";
+import { tempDir } from "../../test-support/testutil";
 
 /** Minimal deps: some handlers reach the reader even before param guards
  *  (`track` reads unconditionally), so the stub throws — the point is

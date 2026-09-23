@@ -12,7 +12,7 @@
 // (1 = no archive / nothing mixable, 2 = bad flag input, 0 = proposal).
 import { join } from "node:path";
 import { nonEmptyEnv } from "../shared/leaf/guards";
-import { ArchiveReader } from "../deck/archive/reader";
+import { ArchiveReader } from "../deck/db/reader";
 import { loadConfig } from "../deck/config";
 import { DB_PATH } from "../cli-env";
 import { commandLog } from "../shared/progress";

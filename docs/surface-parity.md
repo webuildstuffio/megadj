@@ -340,7 +340,7 @@ honest, in order of strength:
    - every `archive_*` tool source keeps the `readonly` DB handle;
    - census numbers match this doc's §1 table (the doc and the code
      can't drift apart silently).
-2. **`src/deck/test/api-parity-census.test.ts` (#249, shipped
+2. **`src/deck/api/api-parity-census.test.ts` (#249, shipped
    2026-09-19).** The client↔server contract pin that closes what
    surface-parity's G4 pass approximated: the server leg derives from
    the producers (slice-table return keys, delegator literals,

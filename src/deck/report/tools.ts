@@ -1,4 +1,4 @@
-// archive/tools.ts — the O82b archive half of the MCP surface.
+// report/tools.ts — the O82b archive half of the MCP surface.
 //
 // Extracted from mcp.ts (file-length guard): every archive_* tool is a
 // thin read over the server's /api/archive/* routes (which open megadj's

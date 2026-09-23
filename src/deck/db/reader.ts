@@ -4,26 +4,32 @@
 // `playlist_diff`, `lowq_queue` — "the same thin-wrapper pattern over the
 // archive DB". This module is the public façade; the SQLite query body
 // (readonly handle, rows/row seam, track_keys cache, TRACK_COLS) lives in
-// archive/reader-core.ts (#205 split, the #203/#204 pattern). index.ts +
+// db/reader-core.ts (#205 split, the #203/#204 pattern). index.ts +
 // mcp.ts wrap it.
 //
 // READ-ONLY, by construction and by promise: opened with `readonly: true` so
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
-import { similarTracks as similarTracksImpl } from "./similar";
-import { genreWhy as genreWhyImpl, type ArchiveGenreWhy } from "./genre";
+import { similarTracks as similarTracksImpl } from "../megaset/similar";
+import {
+  genreWhy as genreWhyImpl,
+  type ArchiveGenreWhy,
+} from "../megaset/genre";
 import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
-} from "./overview";
-import { tagCensus as tagCensusImpl } from "./tag-census";
+} from "../report/overview";
+import { tagCensus as tagCensusImpl } from "../hygiene/tag-census";
 import {
   poolFreshness as poolFreshnessImpl,
   setCandidates as setCandidatesImpl,
-} from "./pool";
-import { trackTagCompare as trackTagCompareImpl } from "./tag-compare";
-import { gridCrossCheck as gridCrossCheckImpl } from "./grid";
-import { moodProfile as moodProfileImpl } from "./mood";
-import type { ArchiveQuery, ArchiveTrack } from "./types";
+} from "../megaset/pool";
+import { trackTagCompare as trackTagCompareImpl } from "../hygiene/tag-compare";
+import { gridCrossCheck as gridCrossCheckImpl } from "../report/grid";
+import { moodProfile as moodProfileImpl } from "../megaset/mood";
+import type {
+  ArchiveQuery,
+  ArchiveTrack,
+} from "../shared/types/archive-reader";
 import type {
   ArchiveAnalysisCoverage,
   ArchiveCueStats,
@@ -40,11 +46,11 @@ import type {
   ArchiveTagCensus,
   ArchiveTrackTagCompare,
 } from "../shared/archive-wire";
-// ArchiveTrack is canonically defined in the leaf archive/types.ts (along
+// ArchiveTrack is canonically defined in the leaf shared/types/archive-reader.ts (along
 // with the ArchiveQuery seam the split-out modules type against); re-export
-// keeps every existing `from "./reader.ts/archive"` import working unchanged.
-export type { ArchiveTrack } from "./types";
-// The core stays importable from archive/reader-core.ts (the canonical
+// keeps every existing `from "./reader"` import working unchanged.
+export type { ArchiveTrack } from "../shared/types/archive-reader";
+// The core stays importable from ./reader-core.ts (the canonical
 // home); no re-export here — the split modules type against the
 // ArchiveQuery leaf, not this class.
 import { ArchiveReaderCore, TRACK_COLS } from "./reader-core";

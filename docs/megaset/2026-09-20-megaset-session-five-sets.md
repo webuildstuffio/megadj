@@ -142,7 +142,7 @@ applied on top of round 1's, every one verified 12/12-style zero-unmatched.
   `poolTitleKey` now strips unclosed bracket suffixes and **lends the
   title-embedded artist back** to the key for unknown-artist rows; all four
   DB variants of the recording collapse to one key
-  (pinned in `src/deck/archive/pool.test.ts`).
+  (pinned in `src/deck/megaset/pool-contract.test.ts`).
 
 **The five sets (v2/v3, all in rekordbox under `MegaSets`, all DB+XML twins,
 zero unmatched):**

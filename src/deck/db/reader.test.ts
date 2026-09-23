@@ -4,8 +4,8 @@ import { Database } from "bun:sqlite";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveReader } from "./reader";
-import { similarTracks } from "./similar";
-import type { ArchiveQuery } from "./types";
+import { similarTracks } from "../megaset/similar";
+import type { ArchiveQuery } from "../shared/types/archive-reader";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("cratedeck-archive-").rippable();

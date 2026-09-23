@@ -37,9 +37,9 @@ scope blocks below name the old `setbuild.*` paths as they were when written.
 
 > Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
-_2026-09-13. Scope: `src/deck/setbuild.ts` (engine), `src/deck/archive/similar.ts`
+_2026-09-13. Scope: `src/deck/setbuild.ts` (engine), `src/deck/megaset/similar.ts`
 (candidate pool), `src/deck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
-`src/fulltags/setbuild.ts` (CLI), `src/deck/archive/tools.ts` (MCP), `src/deck/archive/routes.ts`
+`src/fulltags/setbuild.ts` (CLI), `src/deck/report/tools.ts` (MCP), `src/deck/api/routes-archive.ts`
 (HTTP + M3U8), `web/products/fulltags/SimilarTab.tsx` (UI), `src/rekordbox/rb-playlist.ts`
 (master-DB write-off). Product home: [01-prd.md](01-prd.md).
 Companion to [fulltags/fulltags-roadmap.md](../fulltags/fulltags-roadmap.md) and

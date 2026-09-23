@@ -22,7 +22,7 @@ status (v0 uses / planned / rejected) and the exact order things are applied
    rekordbox mirror (master.db read-only seam) ── BPM×100 · KeyName
         │
         ▼
-   setCandidates() ── pool census w/ honest counters (src/deck/archive/pool.ts)
+   setCandidates() ── pool census w/ honest counters (src/deck/megaset/pool.ts)
         │
         ▼
    buildMegaset() ── pure engine, zero I/O (src/deck/megaset/engine.ts)
@@ -33,7 +33,7 @@ status (v0 uses / planned / rejected) and the exact order things are applied
         │
         ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; no alias kept)
         ├─▶ HTTP       GET /api/archive/megaset · ?format=m3u8 (archive/routes.ts)
-        ├─▶ MCP        megaset_propose (src/deck/archive/tools.ts;
+        ├─▶ MCP        megaset_propose (src/deck/report/tools.ts;
         │             the pre-rename archive_set_build name is retired)
         ├─▶ Web        MegaSet product page (MegasetPage.tsx) — MegasetPanel.tsx
         │             (form + proposal) · TrackPickSearch.tsx (shared picker)

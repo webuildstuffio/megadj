@@ -6,7 +6,7 @@
 // index.ts calls archiveRoutes({ archive, getArchiveSweepDeps }) with the
 // URL already sliced to the route part ("/archive/..."). Returns null when
 // no archive route matched so index.ts can fall through.
-import type { ArchiveReader } from "./reader";
+import type { ArchiveReader } from "../db/reader";
 import {
   SET_PRESETS,
   buildMegaset,
@@ -436,7 +436,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // event loop — the engine hashes file-by-file with await (dynamic
     // import keeps the sweep module out of the boot path).
     sweep: (_url, archive, db, cfg) =>
-      import("./sweep").then(({ sweepArchive, tracksForSweep }) =>
+      import("../megaset/sweep").then(({ sweepArchive, tracksForSweep }) =>
         sweepArchive(
           cfg.musicDir,
           tracksForSweep(archive),

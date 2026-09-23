@@ -1,11 +1,11 @@
-// archive/types.ts — the leaf under archive.ts: the ArchiveTrack row shape
-// plus the tiny read seam the split-out modules (archive/similar.ts /
-// archive/overview.ts) need from ArchiveReader.
+// shared/types/archive-reader.ts — the leaf under the archive reader (db/reader.ts): the ArchiveTrack row shape
+// plus the tiny read seam the split-out modules (megaset/similar.ts /
+// report/overview.ts) need from ArchiveReader.
 //
 // This server-only seam imports the browser-safe wire leaf, never the other
 // way around. That keeps ArchiveTrack single-sourced without recreating the
 // old shared → src back-edge.
-export type { ArchiveTrack } from "../shared/archive-wire";
+export type { ArchiveTrack } from "../archive-wire";
 
 /** The read seam ArchiveReader exposes to the split-out modules:
  *  availability probe, parameterised SELECT (read-only by construction in

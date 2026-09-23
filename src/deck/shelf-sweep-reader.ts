@@ -4,7 +4,7 @@
 // attach in bun is per-connection), and the degrade-to-empty guarantee
 // live in ArchiveLedgerReader; this subclass adds only the sweep query
 // and its ageDays projection.
-import { ArchiveLedgerReader } from "./archive/ledger-reader";
+import { ArchiveLedgerReader } from "./db/ledger-reader";
 
 export interface ShelfSweepSummary {
   drive: string;

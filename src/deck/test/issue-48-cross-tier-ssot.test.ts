@@ -14,7 +14,7 @@ test("#48: engine and spoke import the one cosine implementation", () => {
   expect(cosineSimilarity([1], [1, 0])).toBe(0);
 
   const engine = readFileSync(join(root, "src/core/similar.ts"), "utf8");
-  const spoke = readFileSync(join(root, "src/deck/archive/similar.ts"), "utf8");
+  const spoke = readFileSync(join(root, "src/deck/megaset/similar.ts"), "utf8");
   expect(engine).toContain('from "../shared/leaf/vector-space"');
   // the folded spoke sits deeper under src/ — two ups to the same leaf
   expect(spoke).toContain('from "../../shared/leaf/vector-space"');

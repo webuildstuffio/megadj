@@ -27,7 +27,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { archiveHandlers } from "../archive/routes";
+import { archiveHandlers } from "./routes-archive";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
@@ -200,7 +200,7 @@ function deckctlTargets(): ClientTarget[] {
     // command leg: a new nested client must enter parity automatically.
     "src/deck/deckctl.ts",
     ...clientSourceFiles("src/deck/deckctl"),
-    "src/deck/archive/tools.ts",
+    "src/deck/report/tools.ts",
     "src/deck/deckapi.ts",
     // drive-images producer whose entries carry an /api URL the web client
     // renders verbatim (`src={img.url}`).

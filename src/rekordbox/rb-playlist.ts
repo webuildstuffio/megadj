@@ -29,7 +29,7 @@
 
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { ArchiveReader } from "../deck/archive/reader";
+import { ArchiveReader } from "../deck/db/reader";
 import { loadConfig } from "../deck/config";
 import { nonEmptyEnv } from "../shared/leaf/guards";
 import {

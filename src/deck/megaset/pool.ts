@@ -1,5 +1,5 @@
-// archive/pool.ts — the set-builder's pool reader (#89 diet extraction
-// from archive/similar.ts): candidate load (tracks ⋈ beats ⋈ mood ⋈ TKEY
+// megaset/pool.ts — the set-builder's pool reader (#89 diet extraction
+// from megaset/similar.ts (pre-fold)): candidate load (tracks ⋈ beats ⋈ mood ⋈ TKEY
 // ⋈ embeddings ledgers) + pool freshness. Feeds the pure engine in
 // megaset.ts. Unparsable keys/rows degrade to null, never throw.
 import { existsSync } from "node:fs";
@@ -19,7 +19,7 @@ import type {
   ArchiveFreshness,
   ArchiveSetCandidates,
 } from "../shared/archive-wire";
-import type { ArchiveQuery } from "./types";
+import type { ArchiveQuery } from "../shared/types/archive-reader";
 
 /** ExFAT is case-insensitive. Normalize separators, Unicode, and case so two
  * archive rows cannot propose the same physical shelf file twice. */

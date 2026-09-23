@@ -38,7 +38,7 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   // ---- former src → cratedeck/src seams (config/archive/megaset/server):
   // now ordinary intra-src modules at their folded paths — #225A
   "src/deck/config": "#225A shared-only fold",
-  "src/deck/archive/reader": "#225A shared-only fold",
+  "src/deck/db/reader": "#225A shared-only fold",
   "src/deck/megaset/engine": "#225A shared-only fold",
   "src/deck/server-port": "#225A shared-only fold",
   // ---- the former cratedeck/shared declared leaves (AGENTS.md pinned

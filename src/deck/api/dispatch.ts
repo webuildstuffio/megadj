@@ -5,7 +5,7 @@
 // Each family below is its own flat probe: Response when the family owns
 // the route, null to fall through to the next probe. makeApiRouter walks
 // the probes in order and 404s when every one declines.
-import { archiveRoutes } from "../archive/routes";
+import { archiveRoutes } from "./routes-archive";
 import type { ApiDeps } from "./deps";
 
 /** The dynamic /drives family: /drives (list) + /drives/:id/<sub> (the

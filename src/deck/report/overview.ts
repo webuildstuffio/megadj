@@ -1,7 +1,10 @@
 // cueStats + libraryOverview — the FullTags-read-side halves of the archive
 // surface. Split from archive.ts for the file-length guard; ArchiveReader
 // delegates so the call sites (`archive.cueStats(... + `) are unchanged.
-import type { ArchiveQuery, ArchiveTrack } from "./types";
+import type {
+  ArchiveQuery,
+  ArchiveTrack,
+} from "../shared/types/archive-reader";
 import type {
   ArchiveCueStats,
   ArchiveLibraryOverview,

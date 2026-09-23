@@ -157,7 +157,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // guarded 28→29, sanctioned unchanged) — digest shifted below.
     // Sep 22 (#314): src/archive → src/core rename — same calls, same guards,
     // counts unchanged, new paths in digest input.
-    digest: "f2dcd2674da073706890ab8ddf3fd427d958a50469cff68ecb6f26ebd747eec8",
+    // Sep 22 (#314): src/archive → src/core rename — same calls, same guards,
+    // counts unchanged, new paths in digest input.
+    // Sep 22 (#315): deck-archive fold — files re-homed; counts unchanged,
+    // new paths in digest input.
+    digest: "0440912fa0b585f2a7b9190dc8721afa7d92da670215bc7eea9c6f1602281764",
   });
 });
 

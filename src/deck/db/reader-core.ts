@@ -1,4 +1,4 @@
-// archive/reader-core.ts — the SQLite query body of the archive reader
+// db/reader-core.ts — the SQLite query body of the archive reader
 // (#205 split from archive.ts): the readonly handle, the rows/row seam
 // the split-out modules type against, the track_keys read-cache, and
 // TRACK_COLS. archive.ts keeps the ArchiveReader façade and imports this

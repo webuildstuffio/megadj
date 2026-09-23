@@ -132,7 +132,7 @@ export class EmbeddingsLedger extends RecordLedger {
 /**
  * Track_keys ledger — DEPRECATED shim retained only so the type stays
  * importable; the live cache implementation is ArchiveReader's
- * keyRecord/setKeyRecord (src/deck/archive.ts). Do not extend here.
+ * keyRecord/setKeyRecord (src/deck/db/reader.ts). Do not extend here.
  * Plumbing rides RecordLedger (#74) like every other ledger.
  */
 export class KeysLedger extends RecordLedger {

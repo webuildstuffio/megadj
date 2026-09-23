@@ -1,4 +1,4 @@
-// archive/ledger-reader.ts — the shared base for read-only windows into
+// db/ledger-reader.ts — the shared base for read-only windows into
 // the megadj archive DB's ledgers (shelf_sweeps, hygiene_findings, …).
 // A dedicated readonly Database per ledger (not ATTACH — SQLCipher-free
 // plain sqlite attach in bun is per-connection) is simpler and can never

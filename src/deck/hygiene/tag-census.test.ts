@@ -3,7 +3,7 @@
 // mirror (the lossless rb-adopt payload), so schema drift breaks here
 // before it breaks the UI.
 import { describe, expect, it, beforeEach, afterAll } from "bun:test";
-import { tempDir } from "./testutil";
+import { tempDir } from "../../test-support/testutil";
 import { Database } from "bun:sqlite";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
@@ -11,9 +11,9 @@ import {
   differ as _unusedDiffer,
   hasRekordboxMirror,
   tagCensus,
-} from "../archive/tag-census";
-import { trackTagCompare } from "../archive/tag-compare";
-import { ArchiveReader } from "../archive/reader";
+} from "./tag-census";
+import { trackTagCompare } from "./tag-compare";
+import { ArchiveReader } from "../db/reader";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("cratedeck-tagcensus-").rippable();

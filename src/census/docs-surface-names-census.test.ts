@@ -83,7 +83,7 @@ function mcpTools(): string[] {
   const tools: string[] = [];
   const files = [
     "src/deck/mcp.ts",
-    "src/deck/archive/tools.ts",
+    "src/deck/report/tools.ts",
     "src/deck/getdat-tools.ts",
   ];
   for (const f of files) {

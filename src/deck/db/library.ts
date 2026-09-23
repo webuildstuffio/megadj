@@ -1,5 +1,5 @@
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
-import type { LedgerRow as ArchiveLedgerRow } from "../archive/sweep";
+import type { LedgerRow as ArchiveLedgerRow } from "../megaset/sweep";
 import type {
   ManifestRow,
   PlaylistEntryRow,

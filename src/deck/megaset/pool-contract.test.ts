@@ -5,14 +5,14 @@
 // (#106 Phase D), dedupe, mirror fallback, relocation, and the readonly
 // key-cache guarantees.
 import { afterAll, describe, expect, test } from "bun:test";
-import { tempDir } from "./testutil";
+import { tempDir } from "../../test-support/testutil";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { setCandidates } from "../archive/pool";
-import { ArchiveReader } from "../archive/reader";
-import type { ArchiveQuery } from "../archive/types";
+import { setCandidates } from "./pool";
+import { ArchiveReader } from "../db/reader";
+import type { ArchiveQuery } from "../shared/types/archive-reader";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-setbuild-pool-").rippable();

@@ -38,7 +38,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   'src/deck/deckctl/queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
-    "src/deck/archive/overview.ts::parseCuePoints::JSON.parse(raw)",
+    "src/deck/report/overview.ts::parseCuePoints::JSON.parse(raw)",
     "src/fulltags/parse-json.ts::parseJsonObject::JSON.parse(raw)",
     "src/fulltags/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
@@ -51,7 +51,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // Sep 16 (#89/#90 diet): re-keyed to archive/tag-compare.ts — the
   // one-track compare family (readRekordboxMirror included) moved out
   // of archive/tag-census.ts; same call, same sanction, new file path.
-  "src/deck/archive/tag-compare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
+  "src/deck/hygiene/tag-compare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
     "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
@@ -178,7 +178,11 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // keys re-pathed, same calls, same guards, counts unchanged.
     // Sep 22 (#314): src/archive → src/core rename — audited files re-rooted,
     // same calls, same guards, counts unchanged, new paths in digest input.
-    digest: "3493608b3173506c81b11921b0a4deebd13e7cf5255b1b12b5369d38cd9a3ffa",
+    // Sep 22 (#314): src/archive → src/core rename — audited files re-rooted,
+    // same calls, same guards, counts unchanged, new paths in digest input.
+    // Sep 22 (#315): deck-archive fold — overview→report/, tag-compare→hygiene/;
+    // sanction keys re-pathed, counts unchanged, new paths in digest input.
+    digest: "0e1d4991b94a892cb8eaeed9aa73d9ee7f17b9dba3e1eb30d62301d6f82b9fc5",
   });
 });
 

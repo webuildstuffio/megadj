@@ -4,7 +4,7 @@
 // shelf-sweeps readers: missing DB → empty answers, never a 500. The
 // wire types come from shared/dump.ts (the leaf both trees import).
 import type { DumpRecord, DumpCensus } from "./shared/dump";
-import { ArchiveLedgerReader } from "./archive/ledger-reader";
+import { ArchiveLedgerReader } from "./db/ledger-reader";
 
 interface DumpRow {
   folder: string;

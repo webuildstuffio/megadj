@@ -89,6 +89,16 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#214: coverage+coverage-fleet+fleet-db engine round-trip (domain test)",
   "src/deck/mcp/mcp.test.ts":
     "#214: mcp stdio protocol over spawned server (domain-dir test)",
+  // ---- #315 deck-archive fold: tests moved beside their subjects, but
+  // multi-subject/domain tests keep the domain-dir pattern above:
+  "src/deck/api/api-parity-census.test.ts":
+    "#315: client↔server route parity census (domain-dir test, api is the subject class)",
+  "src/deck/api/archive-dispatch-census.test.ts":
+    "#315: /api/archive/* dispatch reachability (domain-dir test)",
+  "src/deck/megaset/pool-contract.test.ts":
+    "#315: pool admission/cues-join contract (multi-subject: pool+reader+types)",
+  "src/deck/megaset/surface.test.ts":
+    "#315: megaset surface over routes+tools+reader (domain-dir test)",
 };
 
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */

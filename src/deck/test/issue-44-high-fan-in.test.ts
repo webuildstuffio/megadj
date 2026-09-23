@@ -5,7 +5,7 @@ import { afterAll, afterEach, expect, test } from "bun:test";
 import { tempDir } from "./testutil";
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
-import { ArchiveLedgerReader } from "../archive/ledger-reader";
+import { ArchiveLedgerReader } from "../db/ledger-reader";
 import { createDeckctlOutput } from "../deckctl/output";
 import { api, ApiError, apiPost, setApiErrorReporter } from "../web/ui/api";
 import { Icon, ICON_NAMES } from "../web/ui/icons";
