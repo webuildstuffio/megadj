@@ -12,3 +12,7 @@ coverageSkipTestFiles = true
 
 [install]
 # Workspaces resolve from the root lockfile.
+
+# Org standard (chore/standardize-supply-chain): 5-day automated poison window.
+# Ignore package versions published < 5 days ago. 5d = 432000s.
+minimumReleaseAge = 432000
