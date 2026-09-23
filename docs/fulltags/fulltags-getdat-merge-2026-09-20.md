@@ -56,7 +56,7 @@ So `getdat` cannot be understood, moved, or tested without `fulltags`, and `full
 **Third parties pin the tangle in place:**
 
 - `src/shared/drop.ts` (732 LOC) — imports both trees heavily, but is dispatched as a **fulltags verb** and re-imported only by `src/fulltags/cli/cli-commands.ts` + `src/test-support/cli-run.ts`. It lives in `shared/` but is not shared — it is the merged pipeline's orchestrator parked in the wrong directory.
-- `src/shared/status.ts` imports `isLowq` from `getdat/commands/upgrade` (the HIGHQ-bar SSOT) — so even `shared/` reaches into getdat.
+- src/shared/status.ts imported `isLowq` from `getdat/commands/upgrade` (the HIGHQ-bar SSOT) — so even `shared/` reaches into getdat. (status.ts has since folded into getdat/cli-commands.ts, m7.)
 - `src/deck/` imports four fulltags modules directly (`write/readers`, `grid-audit`, `genre/genre-vote`, `booth/fleet`) — allowlisted crossings in `src/census/boundary-direction-census.test.ts` tagged "#225A shared-only fold". CrateDeck depends on fulltags-as-a-library; it depends on getdat not at all (only `getdat_*` MCP tool *names*, which are contract, not code).
 - No cratedeck file imports getdat code. Direction of the merge is settled by this alone: **getdat moves into fulltags.**
 
