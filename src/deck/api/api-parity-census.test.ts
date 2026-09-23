@@ -163,6 +163,16 @@ function walkWebTargets(dir: string, out: ClientTarget[]): void {
           }
         }
       }
+      // Builder-mediated (#316 class): a module-local URL builder (e.g.
+      // cohorts-view's cohortsQuery) hides the literal from every call
+      // shape — api(builder(q)) puts an identifier, not a literal, after
+      // the call. Scan /api/ template literals ANYWHERE in the file so a
+      // landed extraction can't blind the census (the parseAnalysisFlags
+      // precedent: the census must read through the helper).
+      for (const m of src.matchAll(/`[^`\n]*\/api\/[^`\n]*`/g)) {
+        const lit = m[0].slice(1, -1);
+        out.push({ family: normalizeFamily(lit), where: rel });
+      }
       // Scaffold-mediated: useScanApply's readPath/actionPath props plus
       // the literal scan/apply kinds it POSTs — the composite targets a
       // call-literal scan cannot see (the #231 dead-endpoint class).
