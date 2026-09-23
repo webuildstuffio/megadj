@@ -130,6 +130,8 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
   // subjects, one contract (multi-subject: engine+plan):
   "src/deck/megaset/engine-plan.test.ts":
     "#327: byte-identical-chain golden pins over engine+plan (multi-subject)",
+  "src/deck/megaset/megaset-calibration.test.ts":
+    "#306: scoring-calibration digest over the full stack (multi-subject: engine+scoring+search+pool)",
 };
 
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */
