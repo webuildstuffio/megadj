@@ -21,10 +21,17 @@ import { hasOrderedNumberGuard } from "./boundary-census-guard";
 export type { BoundaryCall, CensusResult } from "./boundary-census-shared";
 export { isProductionSourcePath } from "./boundary-census-shared";
 
-type CallPredicate = (node: ts.CallExpression) => boolean;
-type GuardPredicate = (node: ts.CallExpression, call: BoundaryCall) => boolean;
+type CallPredicate = (node: CallExpression) => boolean;
+type GuardPredicate = (node: CallExpression, call: BoundaryCall) => boolean;
 
-import * as ts from "typescript";
+import {
+  forEachChild,
+  isCallExpression,
+  isIdentifier,
+  isPropertyAccessExpression,
+  type CallExpression,
+  type Node,
+} from "./ts-ast";
 
 function scanSources(
   sources: Readonly<Record<string, string>>,
@@ -37,13 +44,13 @@ function scanSources(
     a.localeCompare(b),
   )) {
     const sourceFile = parseSource(file, text);
-    const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && matches(node)) {
+    const visit = (node: Node): void => {
+      if (isCallExpression(node) && matches(node)) {
         const call = callSite(sourceFile, node, file);
         calls.push(call);
         if (guardedBy(node, call)) guarded.add(call);
       }
-      ts.forEachChild(node, visit);
+      forEachChild(node, visit);
     };
     visit(sourceFile);
   }
@@ -66,14 +73,14 @@ export function scanJsonSource(file: string, text: string): BoundaryCall[] {
   return scanOne(file, text, isJsonParse);
 }
 
-function isNumberCall(node: ts.CallExpression): boolean {
-  return ts.isIdentifier(node.expression) && node.expression.text === "Number";
+function isNumberCall(node: CallExpression): boolean {
+  return isIdentifier(node.expression) && node.expression.text === "Number";
 }
 
-function isJsonParse(node: ts.CallExpression): boolean {
+function isJsonParse(node: CallExpression): boolean {
   return (
-    ts.isPropertyAccessExpression(node.expression) &&
-    ts.isIdentifier(node.expression.expression) &&
+    isPropertyAccessExpression(node.expression) &&
+    isIdentifier(node.expression.expression) &&
     node.expression.expression.text === "JSON" &&
     node.expression.name.text === "parse"
   );

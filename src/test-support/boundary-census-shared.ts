@@ -5,7 +5,22 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { extname, join, relative } from "node:path";
-import * as ts from "typescript";
+import {
+  isArrowFunction,
+  isFunctionDeclaration,
+  isFunctionExpression,
+  isIdentifier,
+  isMethodDeclaration,
+  isVariableDeclaration,
+  parseSourceFile,
+  type ArrowFunction,
+  type CallExpression,
+  type FunctionDeclaration,
+  type FunctionExpression,
+  type MethodDeclaration,
+  type Node,
+  type SourceFile,
+} from "./ts-ast";
 
 export interface BoundaryCall {
   key: string;
@@ -71,47 +86,59 @@ export function productionSources(repo: string): Record<string, string> {
   return sources;
 }
 
-export function parseSource(file: string, text: string): ts.SourceFile {
-  return ts.createSourceFile(
-    file,
-    text,
-    ts.ScriptTarget.Latest,
-    true,
-    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
+export function parseSource(file: string, text: string): SourceFile {
+  return parseSourceFile(file, text);
 }
 
-export function isFunctionBoundary(node: ts.Node): boolean {
+export function isFunctionBoundary(node: Node): boolean {
   return (
-    ts.isFunctionDeclaration(node) ||
-    ts.isMethodDeclaration(node) ||
-    ts.isArrowFunction(node) ||
-    ts.isFunctionExpression(node)
+    isFunctionDeclaration(node) ||
+    isMethodDeclaration(node) ||
+    isArrowFunction(node) ||
+    isFunctionExpression(node)
   );
 }
 
-export function ownerOf(node: ts.Node): string {
-  for (let parent = node.parent; parent; parent = parent.parent) {
+export function ownerOf(node: Node): string {
+  for (
+    let parent: Node | undefined = node.parent;
+    parent;
+    parent = parent.parent
+  ) {
     if (
-      (ts.isFunctionDeclaration(parent) ||
-        ts.isMethodDeclaration(parent) ||
-        ts.isFunctionExpression(parent)) &&
-      parent.name
-    )
-      return parent.name.getText();
-    if (
-      (ts.isArrowFunction(parent) || ts.isFunctionExpression(parent)) &&
-      ts.isVariableDeclaration(parent.parent) &&
-      ts.isIdentifier(parent.parent.name)
-    )
-      return parent.parent.name.text;
+      ((isFunctionDeclaration(parent) ||
+        isMethodDeclaration(parent) ||
+        isFunctionExpression(parent)) &&
+        parent.name !== undefined) ||
+      isArrowFunction(parent) ||
+      isFunctionExpression(parent)
+    ) {
+      const decl = parent as
+        | FunctionDeclaration
+        | MethodDeclaration
+        | FunctionExpression
+        | ArrowFunction;
+      if (
+        (isFunctionDeclaration(decl) ||
+          isMethodDeclaration(decl) ||
+          isFunctionExpression(decl)) &&
+        decl.name !== undefined
+      )
+        return decl.name.getText();
+      if (
+        (isArrowFunction(decl) || isFunctionExpression(decl)) &&
+        isVariableDeclaration(decl.parent) &&
+        isIdentifier(decl.parent.name)
+      )
+        return decl.parent.name.text;
+    }
   }
   return "<module>";
 }
 
 export function callSite(
-  sourceFile: ts.SourceFile,
-  node: ts.CallExpression,
+  sourceFile: SourceFile,
+  node: CallExpression,
   file: string,
 ): BoundaryCall {
   const source = node.getText(sourceFile).replace(/\s+/g, " ");
