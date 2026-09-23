@@ -94,7 +94,10 @@ export const isVariableDeclaration: typeof ts.isVariableDeclaration =
 export const isWhileStatement: typeof ts.isWhileStatement = ts.isWhileStatement;
 
 // ---- enums (value + type in one name, as the compiler API exposes them) --
-export { ScriptKind, ScriptTarget, SyntaxKind } from "typescript";
+// Only SyntaxKind is re-exported today; ScriptKind/ScriptTarget are consumed
+// inside this module via the namespace import. Add re-exports when a consumer
+// appears — knip fails the gate on unused seam surface.
+export { SyntaxKind } from "typescript";
 
 // ---- node types used across the census tooling ---------------------------
 export type {
@@ -102,13 +105,9 @@ export type {
   BinaryExpression,
   Block,
   CallExpression,
-  CaseClause,
-  CatchClause,
-  ClassDeclaration,
   ConditionalExpression,
   ConstructorDeclaration,
   Expression,
-  ForStatement,
   FunctionDeclaration,
   FunctionExpression,
   Identifier,
@@ -120,11 +119,9 @@ export type {
   PostfixUnaryExpression,
   PrefixUnaryExpression,
   PropertyAccessExpression,
-  PropertyAssignment,
   PropertyDeclaration,
   SourceFile,
   Statement,
-  ShorthandPropertyAssignment,
   TryStatement,
   VariableDeclaration,
 } from "typescript";
