@@ -255,6 +255,13 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       title:
         "Build an ordered mix proposal from the whole analyzed shelf — energy arc, length, sequencer",
     },
+    {
+      id: "cohorts",
+      label: "Cohorts",
+      icon: "grid",
+      title:
+        "Plan the whole session per genre family — a warmup + peak pair per cohort in one pass (#295)",
+    },
   ],
 };
 

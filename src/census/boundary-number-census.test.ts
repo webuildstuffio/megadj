@@ -14,6 +14,8 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
   "src/deck/web/products/fulltags/megaset-builder.ts::minutesFrom::Number(input)":
     "clampMinutes finite-checks the converted form value and supplies the default.",
+  "src/deck/web/products/megaset/cohorts-view.ts::minutesFrom::Number(input)":
+    "rev-51 cohort planner: clampMinutes finite-checks the converted form value and supplies the default (same shape as megaset-builder's sanctioned minutesFrom).",
   "src/deck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
   // #230 (Sep 17): writer.ts applyTags's year parse was UPGRADED from a
@@ -145,9 +147,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // from MegasetPanel to minutesFrom in megaset-builder; clampMinutes
     // remains the finite gate, so counts are unchanged and only the
     // reason-carrying sanction owner/digest moved: bee18045.
-    audited: 44,
-    guarded: 29,
-    sanctioned: 15,
+    // Sep 23 (rev-51 megaset-cohorts integration): counts follow.
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
     // Sep 21 (cratedeck→src/deck fold): the whole tree re-rooted —
@@ -163,7 +163,32 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // new paths in digest input.
     // Sep 22 (#319): root tidy — bench→tools/; same calls, same guards,
     // counts unchanged, new paths in digest input.
-    digest: "8b72aa4285155f829040025b67872f05823826a6cf0d068ed991d6b55e6013ab",
+    // Sep 23 (rev-51 megaset-cohorts integration): the megaset product's
+    // new Cohorts tab adds cohorts-view.ts::minutesFrom — the SAME
+    // sanction shape as megaset-builder's minutesFrom (clampMinutes
+    // finite-checks the conversion), and the cohorts route reuses ONE
+    // finite-gated parsedLimit instead of a second raw Number() —
+    // audited 44→46 (new file + route's reuse collapsed to a single
+    // site), guarded 29→30, sanctioned 15→16 — digest shifted: 5265bbe4.
+    audited: 46,
+    guarded: 30,
+    sanctioned: 16,
+    // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
+    // subdirs; same calls, same guards, counts unchanged, digest shifted.
+    // Sep 21 (cratedeck→src/deck fold): the whole tree re-rooted —
+    // sanction keys re-pathed (same calls, same guards); ops/ now sits
+    // under src/ops and joins the scanned surface, adding deck-install's
+    // already-isFinite-gated launchctl pid parse (audited 43→44,
+    // guarded 28→29, sanctioned unchanged) — digest shifted below.
+    // Sep 22 (#314): src/archive → src/core rename — same calls, same guards,
+    // counts unchanged, new paths in digest input.
+    // Sep 22 (#314): src/archive → src/core rename — same calls, same guards,
+    // counts unchanged, new paths in digest input.
+    // Sep 22 (#315): deck-archive fold — files re-homed; counts unchanged,
+    // new paths in digest input.
+    // Sep 22 (#319): root tidy — bench→tools/; same calls, same guards,
+    // counts unchanged, new paths in digest input.
+    digest: "5265bbe4e9da13a8604f5f23db7fa08227323306ea02249d20342d15b166e128",
   });
 });
 

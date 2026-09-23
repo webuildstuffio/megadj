@@ -12,6 +12,7 @@ import {
   buildMegaset,
   parseMegasetQuery,
 } from "../megaset/engine";
+import { buildCohortPlan, parseCohortFamilies } from "../megaset/cohorts";
 import {
   clampMegasetPool,
   isMegasetSearchOverride,
@@ -453,6 +454,49 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
           (row) => db.upsertArchiveLedger(row),
         ).then((report) => json(report)),
       ),
+    // #295: the genre-cohort PLAN — warmup + peak chain per genre family
+    // in ONE request, over the SAME census+engine as /megaset (the
+    // surface-neutral cohorts engine). Propose-only. Families validated
+    // by the shared parse (unknown id → 400 with the known list); an arm
+    // that falls short keeps `complete: false` + shortfall on the wire
+    // (200 — a short plan is a RESULT, not a request error).
+    "megaset-cohorts": (url, archive) => {
+      const parsedQ = parseMegasetQuery({
+        preset: "peak",
+        minutes: url.searchParams.get("minutes"),
+      });
+      if ("error" in parsedQ) return json({ error: parsedQ.error }, 400);
+      const limitParam = url.searchParams.get("limit");
+      let limit: number | undefined = undefined;
+      if (limitParam !== null) {
+        const parsedLimit = Number(limitParam);
+        if (limitParam.trim() === "" || !Number.isFinite(parsedLimit))
+          return json({ error: "limit must be a finite number" }, 400);
+        // reuse the SINGLE parsed conversion — the raw Number() below was
+        // a second, unguarded site of the same parse (number-census)
+        limit = parsedLimit;
+      }
+      const families = parseCohortFamilies(url.searchParams.get("families"));
+      if ("error" in families) return json({ error: families.error }, 400);
+      const plan = buildCohortPlan(archive, {
+        minutes: parsedQ.minutes,
+        families: families.families,
+        limit,
+      });
+      return json({
+        command: "megaset-cohorts" as const,
+        minutes: plan.minutes,
+        families: plan.families,
+        cohorts: plan.cohorts,
+        all_complete: plan.allComplete,
+        outside_scope: {
+          blank_genre_note: plan.blankGenreNote,
+        },
+        // measured wall-clock for the whole plan (the caller's timing,
+        // never a fixed schedule — same honesty as /megaset's stages_ms)
+        elapsed_ms: plan.elapsedMs,
+      });
+    },
   };
 }
 

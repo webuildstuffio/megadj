@@ -274,6 +274,59 @@ export function archiveTools(): Record<string, ToolDef> {
       },
     },
 
+    megaset_cohorts: {
+      description:
+        "[READ-ONLY, PROPOSES ONLY] Genre-cohort PLAN (#295): warmup + peak chain PER genre family in ONE call — the full warm-up→peak session plan instead of one hand-aimed megaset_propose per cohort. Same census + engine as megaset_propose (filtered per family), so per-arm honesty fields ride every arm: requested vs actual minutes, shortfall, complete flag, track count, avg/min transition, same-artist adjacency count, matched-pool size. Families validate against the shared registry (unknown id errors with the known list, never a silent skip); blank-genre tracks are outside every cohort's scope by design. all_complete=false means at least one arm fell short of its budget (a RESULT, not an error). Writes nothing.",
+      inputSchema: obj({
+        minutes: n("target length per arm in minutes (default 60, 10–240)"),
+        families: sArr(
+          "genre family ids (e.g. 'edm', 'house', 'techno', 'tech house'); omitted = the curated default four, ordered by measured pool spread",
+        ),
+        limit: n(
+          `optional per-family pool cap (max ${MEGASET_POOL_MAX}); omitted scans the whole downloaded archive DB`,
+        ),
+      }),
+      run: async (args: Record<string, unknown>) => {
+        // minutes: present-but-non-numeric is a caller bug (same contract
+        // as megaset_propose) — the route re-validates range bounds.
+        if (args.minutes !== undefined && num(args, "minutes") === undefined)
+          throw new RpcParamError(
+            `minutes must be a finite number (got ${JSON.stringify(args.minutes)})`,
+          );
+        const q = new URLSearchParams();
+        const minutes = num(args, "minutes");
+        if (minutes !== undefined) q.set("minutes", String(minutes));
+        const families = args.families;
+        if (families !== undefined) {
+          if (!Array.isArray(families))
+            throw new RpcParamError("families must be an array of family ids");
+          const ids: string[] = [];
+          for (const f of families as unknown[]) {
+            if (typeof f !== "string" || f.trim() === "")
+              throw new RpcParamError(
+                "families must be an array of family-id strings",
+              );
+            ids.push(f.trim());
+          }
+          if (ids.length > 0) q.set("families", ids.join(","));
+        }
+        const rawLimit = args.limit;
+        if (rawLimit !== undefined) {
+          const parsedLimit = num(args, "limit");
+          if (parsedLimit === undefined)
+            throw new RpcParamError("limit must be a finite number");
+          q.set("limit", String(clampMegasetPool(parsedLimit)));
+        }
+        const qs = q.toString();
+        const res = await apiGet(
+          qs === ""
+            ? "/api/archive/megaset-cohorts"
+            : `/api/archive/megaset-cohorts?${qs}`,
+        );
+        return res.json();
+      },
+    },
+
     archive_cue_ledger: {
       description:
         "[READ-ONLY] Structure-cues ledger (roadmap 'structure cues'): 8-bar DJ phrase markers per track, derived from the beats ledger's downbeats by `megadj cues`. Returns per-track cue counts + the freshest tracks' first-cue positions. analyzed=0 means run `megadj cues` first.",
