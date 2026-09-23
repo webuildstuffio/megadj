@@ -1,0 +1,16 @@
+---
+name: metrics-weekly
+"on":
+  schedule:
+    - cron: "0 13 * * 0" # Sundays 09:00 ET
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@main
+    with:
+      run_snapshot: true
+      language: typescript
+    secrets: inherit

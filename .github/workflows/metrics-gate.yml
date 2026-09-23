@@ -1,0 +1,12 @@
+---
+name: metrics-gate
+"on":
+  pull_request:
+
+jobs:
+  gate:
+    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@main
+    with:
+      run_snapshot: false
+      language: typescript
+    secrets: inherit
