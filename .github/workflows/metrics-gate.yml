@@ -76,9 +76,7 @@ jobs:
       # this PR are scanned. (Lint enforcement stays in each
       # repo's own CI, as it does today.)
       - name: Cognitive complexity warnings (warn-only)
-        if: >-
-          steps.scope.outputs.scan == 'true' &&
-          inputs.language != 'none'
+        if: steps.scope.outputs.scan == 'true'
         run: |
           set -uo pipefail
           [ -f qlty.toml ] || \
