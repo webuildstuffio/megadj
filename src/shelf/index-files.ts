@@ -6,8 +6,31 @@
 // module adds the key/variant indexing policy.
 import { existsSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
-import { isSkippedName, key } from "./match";
+import { nameKey as key } from "../shared/name-key";
 import { walkTree } from "../shared/walk-tree";
+
+// ---- junk filters (folded from match.ts, #322 merge 5) ----
+
+/** Junk that must never count as content (the AppleDouble trap). */
+export function isJunk(name: string): boolean {
+  return (
+    name.startsWith("._") ||
+    name === ".DS_Store" ||
+    name === "System Volume Information" ||
+    name === "$RECYCLE.BIN" ||
+    name === "XDJXZ.UPD" // device firmware blob, not music
+  );
+}
+
+/** Dotfiles/junk entry filter shared by the shelf walkers (#99). */
+export function isSkippedName(name: string): boolean {
+  return name.startsWith(".") || isJunk(name);
+}
+
+/** Machine-generated dirs whose contents are cache/DB, never user music. */
+export function isJunkDir(name: string): boolean {
+  return name === "USBANLZ" || name === "ARTWORK";
+}
 
 /** One indexed shelf file. */
 export interface ShelfEntry {

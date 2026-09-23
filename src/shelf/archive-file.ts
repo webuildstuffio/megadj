@@ -14,8 +14,13 @@ import {
 import { basename, dirname, join, relative } from "node:path";
 import { md5FileChunked } from "../shared/hash";
 import { walkTree } from "../shared/walk-tree";
-import { landingPath, type ShelfIndex } from "./index-files";
-import { isJunkDir, isSkippedName, key } from "./match";
+import {
+  landingPath,
+  isJunkDir,
+  isSkippedName,
+  type ShelfIndex,
+} from "./index-files";
+import { nameKey as key } from "../shared/name-key";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** Chunked sync digest via the shared seam (issue #70) — same signature
