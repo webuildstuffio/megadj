@@ -6,10 +6,10 @@ import { describe, expect, test } from "bun:test";
 import {
   GENRE_GATE_PERCENT,
   genreEvalSeeds,
+  regate,
   regateEffnet,
   regateGenre,
-} from "./regate-genre";
-import { regate } from "./regate";
+} from "./regate";
 import type { ArchiveState } from "../../core/state";
 
 /** Minimal ArchiveState double: only evalPopulation() is read. */
