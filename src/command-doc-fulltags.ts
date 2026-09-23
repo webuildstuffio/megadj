@@ -139,7 +139,19 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
       "                                               tropical house…; --landmark pins must-plays into the chain, repeatable;",
       "                                               unplaceable pins are reported, never silently dropped; --limit adds an",
       "                                               optional cap; propose-only, no tags/playlists written; prints ledger",
-      "                                               freshness; empty chain = run `megadj beats` + `megadj mood` first)",
+      "                                               freshness; empty chain = run `megadj catch-up` first)",
+    ],
+  },
+  {
+    name: "megaset-cohorts",
+    group: "fulltags",
+    block: [
+      "  megadj megaset-cohorts [--minutes N] [--limit N] [--families LIST] [--json]",
+      "                                                cohort builder (#295): warmup + peak chain PER genre family in one",
+      "                                               run — default families are the measured big four (edm, house, techno,",
+      "                                               tech house); --families narrows (comma-separated ids); blank-genre",
+      "                                               tracks are reported outside scope, never guessed; exit 1 when an arm",
+      "                                               falls short of the budget (shortfall visible in the summary)",
     ],
   },
   {

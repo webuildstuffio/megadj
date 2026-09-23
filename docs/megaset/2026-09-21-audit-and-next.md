@@ -127,6 +127,10 @@ verbatim for the audit record.
 - [#295](https://github.com/webuildstuffio/megadj/issues/295) — genre-cohort
   builder runs: one reusable command for warmup/peak pairs per family, from
   the measured genre spread in §1.
+  **SHIPPED Sep 23**: `megadj megaset-cohorts [--minutes N] [--families LIST]
+  [--json]` — defaults to the measured big four (edm/house/techno/tech
+  house), blank-genre rows reported outside scope, exit 1 when an arm falls
+  short of the budget.
 - [#296](https://github.com/webuildstuffio/megadj/issues/296) — genre backfill
   for the 198 blank-genre downloaded rows via the #173 vote ladder (real
   sources only, missing stays missing).

@@ -354,6 +354,46 @@ const similar: CliCommandHandler = async (rest, { state }) => {
   });
 };
 
+// #295: the genre-cohort builder — ONE command producing the full
+// warmup/peak plan per configured family (replaces hand-run megaset
+// incantations per cohort).
+const megasetCohorts: CliCommandHandler = async (rest) => {
+  const flags = parseFlags(rest, ["minutes", "limit", "families"], ["json"]);
+  if (
+    nonNegOptInvalid(
+      flags,
+      "minutes",
+      "megaset-cohorts",
+      flags.bools.has("json"),
+    )
+  )
+    return;
+  const minutes = nonNegOpt(
+    flags,
+    "minutes",
+    "megaset-cohorts",
+    flags.bools.has("json"),
+  );
+  if (
+    nonNegOptInvalid(flags, "limit", "megaset-cohorts", flags.bools.has("json"))
+  )
+    return;
+  const limit = nonNegOpt(
+    flags,
+    "limit",
+    "megaset-cohorts",
+    flags.bools.has("json"),
+  );
+  const { megasetCohorts: runCohorts } =
+    await import("../megaset/megaset-cohorts");
+  await runCohorts({
+    minutes,
+    limit,
+    families: flags.strings.get("families"),
+    json: flags.bools.has("json"),
+  });
+};
+
 const megaset: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
@@ -591,6 +631,7 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "catch-up": catchUp,
   similar,
   megaset,
+  "megaset-cohorts": megasetCohorts,
   genre,
   "genre-why": genreWhy,
   cues,

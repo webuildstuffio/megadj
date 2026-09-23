@@ -157,6 +157,15 @@ the caller around `buildMegaset`) and the wire payload exposes it as
 framing, the post-build split is measurement. **Freshness action**:
 `megadj catch-up` (#289) is the one analysis gap pass the freshness
 line names (ledgered == analyzed unless `--force`).
+**Cohorts (#295)**: `megadj megaset-cohorts` builds the warmup+peak
+pair per genre family in ONE run (defaults: `MEGASET_COHORT_FAMILIES`,
+the measured big four in `shared/megaset.ts`), reusing this exact
+census+engine per arm — no second pool. Blank-genre rows stay outside
+every cohort's scope; exit 1 names the short arm. **S13 direction-wall
+tripwire (#304)**: `scoring.test.ts` pins the shipped presets'
+monotone-envelope contract and the repair pass's honest
+`landmarks_missing` refusal — the day a non-monotone preset ships, the
+pin-through-wall test must land in the same commit.
 
 ## 3. The invariants
 

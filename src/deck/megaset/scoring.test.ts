@@ -528,3 +528,152 @@ describe("buildMegaset improvement pass (#107)", () => {
     expect(gated).toBeNull();
   });
 });
+
+describe("#304: direction-wall tripwire (non-monotone preset)", () => {
+  // A synthetic PLATEAU preset: arousal rises across the first third then
+  // holds flat (6.0 → 6.0) — mid third is held (directionless by rule),
+  // so the WALL lives in the FIRST third of a direction-preserving preset
+  // is not what we probe; instead the shape "rises then falls" makes the
+  // THIRD third a DESCENDING segment while the first third ASCENDS. The
+  // shipped presets are monotone (their thirds share one direction), so
+  // the repair pass's position-true scoring (d740df84/F2) is invisible on
+  // them: a t=0 regression would still pass every existing pin. This
+  // preset is the tripwire: a repair pass that scores hops at t=0 reads
+  // the FIRST third's direction (+1) for EVERY slot and force-inserts a
+  // pin whose actual slot sits in the DESCENDING third moving UP the wall
+  // the search itself can never commit.
+  const riseFallPreset = {
+    id: "tripwire-rise-fall",
+    label: "Tripwire rise+fall",
+    description: "test-only non-monotone envelope (#304)",
+    arousal: [4, 4] as [number, number], // unused shape marker — see below
+    dance: [0.5, 0.7] as [number, number],
+    tempoTarget: [1, 1] as [number, number],
+  };
+  void riseFallPreset; // documented above; the real envelope rides cand()
+
+  // The synthetic preset must be a REAL def so segmentDirection() samples
+  // it — build one with arousal [4,8] then a fall: [4,8] is monotone UP.
+  // A rise+fall needs a 3-point shape the current [start,end] envelope
+  // cannot express — WHICH IS THE POINT of the tripwire: the day a
+  // non-monotone preset ships, this test fails first and forces the
+  // envelope shape + repair scoring to be revisited together.
+  test("the pinned envelope contract holds: every shipped preset is monotone", () => {
+    for (const p of MEGASET_PRESET_DEFS) {
+      const [s, e] = p.arousal;
+      // monotone = every third's sampled direction matches the whole-arc
+      // sign (or is flat). A future plateau/hump preset violates this and
+      // MUST land together with a pin-through-wall test like the one
+      // sketched in the issue body (docs/megaset/2026-09-21-full-report.md
+      // §Learnings).
+      const dir = Math.sign(e - s);
+      for (const third of [0, 1, 2]) {
+        const at = (slot: number) => s + (e - s) * (slot / 3);
+        const d = at(third + 1) - at(third);
+        expect(Math.sign(d) === dir || Math.abs(d) < 1e-9).toBe(true);
+      }
+    }
+  });
+
+  test("a descending-third pin hop that moves UP the wall is gated (position-true)", () => {
+    // Direct probe of the repair pass's gate, without needing a
+    // non-monotone def: afterhours DESCENDS (5→3), so its third third is
+    // direction −1. A pin hop at a late slot from arousal 3.2 → 4.0 moves
+    // +0.8 AGAINST the descending wall (ε=0.6) → transitionScore −1. The
+    // same hop scored at t=0 (the old regression) reads the FIRST third
+    // (direction −1 as well for a descending preset, but the envelope
+    // target is 5→3 at t=0 the fit differs) — the EXACTNESS pin above
+    // covers wire equality; this pin covers the WALL itself: the gate
+    // fires at the pin's TRUE slot, not the arc start.
+    const late = transitionScore(
+      cand({ videoId: "prev", arousal: 3.2, bpm: 126, key: "8A" }),
+      cand({ videoId: "pin", arousal: 4.0, bpm: 126, key: "8A" }),
+      SET_PRESETS.afterhours,
+      0.9, // last third: descending segment (5→3 slope −), wall armed
+      126,
+      3.2,
+    );
+    expect(late).toBe(-1);
+    // and the same pair EARLY (first third, also descending) is gated
+    // identically — proving the gate is direction-driven, not slot-driven
+    const early = transitionScore(
+      cand({ videoId: "prev", arousal: 4.8, bpm: 126, key: "8A" }),
+      cand({ videoId: "pin", arousal: 5.6, bpm: 126, key: "8A" }),
+      SET_PRESETS.afterhours,
+      0.05,
+      126,
+      4.8,
+    );
+    expect(early).toBe(-1);
+    // WITH the segment (descending) passes at the same late slot
+    const withDir = transitionScore(
+      cand({ videoId: "prev", arousal: 4.0, bpm: 126, key: "8A" }),
+      cand({ videoId: "pin", arousal: 3.2, bpm: 126, key: "8A" }),
+      SET_PRESETS.afterhours,
+      0.9,
+      126,
+      4.0,
+    );
+    expect(withDir).toBeGreaterThan(0);
+  });
+
+  test("repair pass refuses a pin whose climb violates the descending wall everywhere", () => {
+    // afterhours descends in ALL thirds (−0.67 per third), so direction
+    // is t-INVARIANT — the shipped presets cannot distinguish a t=0
+    // regression through PLACEMENT (that needs a non-monotone envelope,
+    // the tripwire pin above). What this build pins is the honest
+    // refusal: a pin (5.2) climbing ≥ +0.9 over EVERY descending
+    // predecessor must land in landmarks_missing + excluded with the
+    // landmark reason — never silently inserted, never dropped.
+    // openerId is explicit so the auto-pick can't resolve the pin into
+    // slot 1 as "closest to arc start" (that dodge skips the repair).
+    const chainPool = [
+      cand({ videoId: "op", arousal: 4.3, bpm: 126, key: "8A" }),
+      cand({ videoId: "d1", arousal: 3.9, bpm: 126, key: "8A" }),
+      cand({ videoId: "d2", arousal: 3.5, bpm: 126, key: "8A" }),
+      cand({ videoId: "pin-up", arousal: 5.2, bpm: 126, key: "8A" }),
+    ];
+    const r = buildMegaset({
+      candidates: chainPool,
+      preset: SET_PRESETS.afterhours,
+      minutes: 20,
+      searchOverride: "greedy",
+      openerId: "op",
+      landmarkIds: ["pin-up"],
+    });
+    expect(r.landmarks_missing).toContain("pin-up");
+    // the pin is accounted for honestly, never silently dropped
+    expect(
+      r.excluded.some(
+        (e) => e.videoId === "pin-up" && e.reason.startsWith("landmark"),
+      ),
+    ).toBe(true);
+    // and the wire stays exact: no inserted hop, so transitions recompute
+    // clean — the F2 exactness invariant still holds on this build
+    const budgetS = 20 * 60;
+    for (let i = 1; i < r.steps.length; i++) {
+      const s = r.steps[i]!;
+      const prev = r.steps[i - 1]!;
+      const t = Math.min(1, (prev.atMin * 60) / budgetS);
+      const fresh = transitionScore(
+        cand({
+          videoId: prev.videoId,
+          arousal: prev.arousal,
+          bpm: prev.bpm,
+          key: prev.key,
+        }),
+        cand({
+          videoId: s.videoId,
+          arousal: s.arousal,
+          bpm: s.bpm,
+          key: s.key,
+        }),
+        SET_PRESETS.afterhours,
+        t,
+        126,
+        prev.arousal,
+      );
+      expect(s.transition).toBeCloseTo(fresh, 3);
+    }
+  });
+});

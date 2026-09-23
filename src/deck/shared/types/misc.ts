@@ -96,6 +96,7 @@ export {
   megasetNearestGenreFamily,
   megasetBudgetFilledCount,
   MEGASET_GENRE_FAMILIES,
+  MEGASET_COHORT_FAMILIES,
   type MegasetEvidence,
   MEGASET_BEAM_POOL_MAX,
   MEGASET_BEAM_WIDTH,

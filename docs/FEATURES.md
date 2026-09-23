@@ -154,6 +154,10 @@ propose-only: the DJ keeps every creative decision.
 | **Docs**          | [MegaSet docs](megaset/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](megaset/08-audit-and-plan.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 **Commands:** `megadj megaset --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--genre FAMILY] [--landmark <id> …] [--json]` (the old `setbuild` verb is retired — unknown-command since #56) ·
+`megadj megaset-cohorts [--minutes N] [--families edm,house,…] [--json]` — the
+genre-cohort builder (#295): one run builds the warmup + peak chain per
+family (defaults: the measured big four — edm, house, techno, tech house);
+blank-genre tracks stay outside scope, never guessed ·
 `megadj rb-playlist [drive] [--preset …] [--genre FAMILY] [--search greedy|beam] [--apply --yes]`
 **Vibe:** "the opener sells the night — MegaSet makes sure you never open
 with a 73-BPM track in a 128 room."
@@ -183,6 +187,7 @@ megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, lat
 megadj shelf-dupescan          # shelf: fingerprint dupes regardless of name/folder
 megadj similar <video_id>      # FullTags: sounds-like kNN over the embeddings ledger
 megadj megaset --preset peak  # MegaSet: propose a Camelot/energy-arc mix chain
+megadj megaset-cohorts        # MegaSet: warmup+peak chain PER genre family, one run (#295)
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

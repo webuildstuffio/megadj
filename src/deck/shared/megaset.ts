@@ -526,6 +526,19 @@ export const MEGASET_GENRE_FAMILIES: Record<string, string[]> = {
   afrohouse: ["afro house", "afro-house", "afro latin house", "afro"],
 };
 
+/** The default cohort plan for `megadj megaset-cohorts` (#295): the
+ *  families the Sep 21 genre-spread measurement showed can actually fill
+ *  a 60-minute warmup+peak pair (EDM 683, House 633, Techno 501, Tech
+ *  House 328 rows). Small cohorts (Deep House 134, Afro House 75) stay
+ *  opt-in via `--families` — a 134-row pool can fill ONE arm but starves
+ *  the pair. Order = spread order (biggest first). */
+export const MEGASET_COHORT_FAMILIES: readonly string[] = [
+  "edm",
+  "house",
+  "techno",
+  "tech house",
+];
+
 /** Resolve a raw `?genre=` / `--genre` / MCP `genre` value to a match-term
  *  list. Exact family id wins ("tropical house"); then a family whose id or
  *  synonyms appear in the raw value ("tropical" → "tropical house"); last
