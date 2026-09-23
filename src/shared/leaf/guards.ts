@@ -44,3 +44,21 @@ export function nonEmptyEnv(name: string): string | undefined {
   const trimmed = raw.trim();
   return trimmed === "" ? undefined : raw;
 }
+
+/** The guarded JSON.parse for untrusted boundary text (#274 rule): a
+ *  malformed payload degrades to null (the caller reports a message),
+ *  never a throw into a UI or CLI epilogue. Lives in the import leaf so
+ *  web AND node sides share one implementation — the #46 web-boundary
+ *  census allows only src/shared/leaf imports, and the boundary-json
+ *  census classifies calls through THIS seam as guarded. `null` is the
+ *  corruption signal; a literal JSON `null` payload is indistinguishable
+ *  by design (callers treat both as "no usable object"). */
+export function parseJsonOrNull(raw: string): Record<string, unknown> | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return isRecord(value) ? value : null;
+  } catch (error) {
+    void error; // the null return IS the error signal
+    return null;
+  }
+}

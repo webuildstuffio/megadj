@@ -39,7 +39,10 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
     "src/deck/report/overview.ts::parseCuePoints::JSON.parse(raw)",
-    "src/fulltags/utils/parse-json.ts::parseJsonObject::JSON.parse(raw)",
+    // Sep 23: the parse seam MOVED into the dependency-free leaf
+    // (parseJsonOrNull, src/shared/leaf/guards.ts) so the #46 web
+    // boundary can share it; same guarded shape, new file path.
+    "src/shared/leaf/guards.ts::parseJsonOrNull::JSON.parse(raw)",
     "src/fulltags/utils/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
     // corrupt JSON reads as an empty breakdown, never a throw into a query.
@@ -184,7 +187,11 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // sanction keys re-pathed, counts unchanged, new paths in digest input.
     // Sep 22 (#319): root tidy — parse-json→utils/, media-probe→utils/;
     // same calls, same guards, counts unchanged, new paths in digest input.
-    digest: "4f206303286f080c632b290e295e91a5f6e856212bc525829f68fe7786305cc6",
+    // Sep 23 (LHF #293): the parse seam moved into the dependency-free
+    // leaf (parseJsonOrNull in src/shared/leaf/guards.ts) so the #46 web
+    // boundary shares it; parse-json.ts now delegates. Counts unchanged
+    // (sanction re-pathed), new paths in digest input.
+    digest: "0ace1d394ba3fcebfc4e89ad0329e52225635ff02c8c7e1e1149e8b18b4dfe40",
   });
 });
 

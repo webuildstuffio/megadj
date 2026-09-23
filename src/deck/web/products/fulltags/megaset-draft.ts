@@ -9,8 +9,7 @@
 // self-describing months later — the old file could not answer "what
 // settings produced this?".
 import type { MegasetPayload } from "../../../shared/types";
-import { isRecord } from "../../../../shared/leaf/guards";
-import { parseJsonObject } from "../../../../fulltags/utils/parse-json";
+import { isRecord, parseJsonOrNull } from "../../../../shared/leaf/guards";
 import { toast } from "../../ui/toast";
 
 /** The exact terminal invocation for this build — kept in sync with the
@@ -128,7 +127,7 @@ export function parseDraft(
 ): { ok: true; knobs: MegasetDraftKnobs } | { ok: false; error: string } {
   // #274 rule: boundary JSON goes through the guarded parser seam — a
   // malformed draft file is an error MESSAGE, never a throw.
-  const parsed = parseJsonObject(text);
+  const parsed = parseJsonOrNull(text);
   if (parsed === null)
     return { ok: false, error: "not valid JSON — is this the draft file?" };
   if (parsed.kind !== undefined && parsed.kind !== "megadj-set-draft")
