@@ -182,7 +182,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // same calls, same guards, counts unchanged, new paths in digest input.
     // Sep 22 (#315): deck-archive fold — overview→report/, tag-compare→hygiene/;
     // sanction keys re-pathed, counts unchanged, new paths in digest input.
-    digest: "0e1d4991b94a892cb8eaeed9aa73d9ee7f17b9dba3e1eb30d62301d6f82b9fc5",
+    // Sep 22 (#319): root tidy — parse-json→utils/, media-probe→utils/;
+    // same calls, same guards, counts unchanged, new paths in digest input.
+    digest: "4f206303286f080c632b290e295e91a5f6e856212bc525829f68fe7786305cc6",
   });
 });
 

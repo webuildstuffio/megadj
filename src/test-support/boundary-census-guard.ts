@@ -3,46 +3,20 @@
 // does a `Number.isFinite`-style predicate later in the same scope protect
 // EVERY subsequent use of `x` (condition-path analysis, write detection,
 // always-exits branches)? The JSON census does not use this module.
+import * as ts from "typescript";
 import { isFunctionBoundary } from "./boundary-census-shared";
-import {
-  forEachChild,
-  isBinaryExpression,
-  isBlock,
-  isCallExpression,
-  isConditionalExpression,
-  isIdentifier,
-  isIfStatement,
-  isPostfixUnaryExpression,
-  isPrefixUnaryExpression,
-  isPropertyAccessExpression,
-  isPropertyAssignment,
-  isReturnStatement,
-  isSourceFile,
-  isStatement,
-  isThrowStatement,
-  isVariableDeclaration,
-  SyntaxKind,
-  type Block,
-  type CallExpression,
-  type ConditionalExpression,
-  type Expression,
-  type Identifier,
-  type IfStatement,
-  type Node,
-  type Statement,
-} from "./ts-ast";
 
 const NUMBER_PREDICATES = new Set(["isFinite", "isInteger", "isSafeInteger"]);
 
 export function numberPredicate(
-  node: Node,
+  node: ts.Node,
   identifier?: string,
-): CallExpression | null {
+): ts.CallExpression | null {
   if (
-    !isCallExpression(node) ||
+    !ts.isCallExpression(node) ||
     node.arguments.length !== 1 ||
-    !isPropertyAccessExpression(node.expression) ||
-    !isIdentifier(node.expression.expression) ||
+    !ts.isPropertyAccessExpression(node.expression) ||
+    !ts.isIdentifier(node.expression.expression) ||
     node.expression.expression.text !== "Number" ||
     !NUMBER_PREDICATES.has(node.expression.name.text)
   )
@@ -50,115 +24,106 @@ export function numberPredicate(
   const [argument] = node.arguments;
   return identifier === undefined ||
     (argument !== undefined &&
-      isIdentifier(argument) &&
+      ts.isIdentifier(argument) &&
       argument.text === identifier)
     ? node
     : null;
 }
 
-function enclosingScope(node: Node): Node {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  )
-    if (isFunctionBoundary(parent) || isSourceFile(parent)) return parent;
+function enclosingScope(node: ts.Node): ts.Node {
+  for (let parent = node.parent; parent; parent = parent.parent)
+    if (isFunctionBoundary(parent) || ts.isSourceFile(parent)) return parent;
   return node.getSourceFile();
 }
 
-function assignedIdentifier(node: CallExpression): string | null {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  ) {
-    if (isVariableDeclaration(parent))
-      return isIdentifier(parent.name) ? parent.name.text : null;
-    if (isStatement(parent) || isFunctionBoundary(parent)) return null;
+function assignedIdentifier(node: ts.CallExpression): string | null {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (ts.isVariableDeclaration(parent))
+      return ts.isIdentifier(parent.name) ? parent.name.text : null;
+    if (ts.isStatement(parent) || isFunctionBoundary(parent)) return null;
   }
   return null;
 }
 
-function contains(container: Node, candidate: Node): boolean {
+function contains(container: ts.Node, candidate: ts.Node): boolean {
   return (
     container.getStart() <= candidate.getStart() &&
     container.getEnd() >= candidate.getEnd()
   );
 }
 
-function ignoredIdentifier(node: Identifier): boolean {
-  const parent: Node | undefined = node.parent;
+function ignoredIdentifier(node: ts.Identifier): boolean {
+  const parent = node.parent;
   return (
-    (isPropertyAccessExpression(parent) && parent.name === node) ||
-    (isPropertyAssignment(parent) && parent.name === node) ||
-    (isVariableDeclaration(parent) && parent.name === node)
+    (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
+    (ts.isPropertyAssignment(parent) && parent.name === node) ||
+    (ts.isVariableDeclaration(parent) && parent.name === node)
   );
 }
 
-function walkScope(scope: Node, visit: (node: Node) => void): void {
-  const walk = (node: Node): void => {
+function walkScope(scope: ts.Node, visit: (node: ts.Node) => void): void {
+  const walk = (node: ts.Node): void => {
     if (node !== scope && isFunctionBoundary(node)) return;
     visit(node);
-    forEachChild(node, walk);
+    ts.forEachChild(node, walk);
   };
   walk(scope);
 }
 
-function statementAlwaysExits(statement: Statement | undefined): boolean {
+function statementAlwaysExits(statement: ts.Statement | undefined): boolean {
   if (statement === undefined) return false;
-  if (isReturnStatement(statement) || isThrowStatement(statement)) return true;
-  if (isBlock(statement))
-    return statementAlwaysExits((statement as Block).statements.at(-1));
+  if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement))
+    return true;
+  if (ts.isBlock(statement))
+    return statementAlwaysExits(statement.statements.at(-1));
   return (
-    isIfStatement(statement) &&
+    ts.isIfStatement(statement) &&
     statementAlwaysExits(statement.thenStatement) &&
     statementAlwaysExits(statement.elseStatement)
   );
 }
 
-function isWrite(node: Identifier): boolean {
-  const parent: Node | undefined = node.parent;
+function isWrite(node: ts.Identifier): boolean {
+  const parent = node.parent;
   return (
-    (isBinaryExpression(parent) &&
+    (ts.isBinaryExpression(parent) &&
       parent.left === node &&
       isAssignmentKind(parent.operatorToken.kind)) ||
-    ((isPrefixUnaryExpression(parent) || isPostfixUnaryExpression(parent)) &&
+    ((ts.isPrefixUnaryExpression(parent) ||
+      ts.isPostfixUnaryExpression(parent)) &&
       parent.operand === node &&
-      (parent.operator === SyntaxKind.PlusPlusToken ||
-        parent.operator === SyntaxKind.MinusMinusToken))
+      (parent.operator === ts.SyntaxKind.PlusPlusToken ||
+        parent.operator === ts.SyntaxKind.MinusMinusToken))
   );
 }
 
-function isAssignmentKind(kind: SyntaxKind): boolean {
+function isAssignmentKind(kind: ts.SyntaxKind): boolean {
   return (
-    kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment
+    kind >= ts.SyntaxKind.FirstAssignment &&
+    kind <= ts.SyntaxKind.LastAssignment
   );
 }
 
-function enclosingPredicate(node: Node): CallExpression | null {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  ) {
+function enclosingPredicate(node: ts.Node): ts.CallExpression | null {
+  for (let parent = node.parent; parent; parent = parent.parent) {
     const predicate = numberPredicate(parent);
     if (predicate) return predicate;
-    if (isStatement(parent) || isFunctionBoundary(parent)) break;
+    if (ts.isStatement(parent) || isFunctionBoundary(parent)) break;
   }
   return null;
 }
 
-function isNegatedBetween(node: Node, ancestor: Node): boolean {
+function isNegatedBetween(node: ts.Node, ancestor: ts.Node): boolean {
   if (node === ancestor) return false;
   let negated = false;
   for (
-    let parent: Node | undefined = node.parent;
+    let parent: ts.Node | undefined = node.parent;
     parent;
     parent = parent.parent
   ) {
     if (
-      isPrefixUnaryExpression(parent) &&
-      parent.operator === SyntaxKind.ExclamationToken
+      ts.isPrefixUnaryExpression(parent) &&
+      parent.operator === ts.SyntaxKind.ExclamationToken
     )
       negated = !negated;
     if (parent === ancestor) break;
@@ -167,16 +132,16 @@ function isNegatedBetween(node: Node, ancestor: Node): boolean {
 }
 
 function booleanPathValid(
-  guard: Node,
-  condition: Expression,
+  guard: ts.Node,
+  condition: ts.Expression,
   safeWhenTrue: boolean,
 ): boolean {
   const operator = safeWhenTrue
-    ? SyntaxKind.AmpersandAmpersandToken
-    : SyntaxKind.BarBarToken;
-  for (let child: Node = guard; child !== condition; child = child.parent)
+    ? ts.SyntaxKind.AmpersandAmpersandToken
+    : ts.SyntaxKind.BarBarToken;
+  for (let child = guard; child !== condition; child = child.parent)
     if (
-      isBinaryExpression(child.parent) &&
+      ts.isBinaryExpression(child.parent) &&
       child.parent.operatorToken.kind !== operator
     )
       return false;
@@ -184,18 +149,18 @@ function booleanPathValid(
 }
 
 function conditionUseIsProtected(
-  use: Identifier,
-  guard: CallExpression,
-  condition: Expression,
+  use: ts.Identifier,
+  guard: ts.CallExpression,
+  condition: ts.Expression,
   safeWhenTrue: boolean,
 ): boolean {
   const operator = safeWhenTrue
-    ? SyntaxKind.AmpersandAmpersandToken
-    : SyntaxKind.BarBarToken;
-  for (let child: Node = use; child !== condition; child = child.parent) {
-    const parent: Node | undefined = child.parent;
+    ? ts.SyntaxKind.AmpersandAmpersandToken
+    : ts.SyntaxKind.BarBarToken;
+  for (let child: ts.Node = use; child !== condition; child = child.parent) {
+    const parent = child.parent;
     if (
-      isBinaryExpression(parent) &&
+      ts.isBinaryExpression(parent) &&
       parent.operatorToken.kind === operator &&
       contains(parent.left, guard) &&
       contains(parent.right, use)
@@ -206,28 +171,27 @@ function conditionUseIsProtected(
 }
 
 type GuardContext =
-  | { kind: "if"; node: IfStatement }
-  | { kind: "ternary"; node: ConditionalExpression };
+  | { kind: "if"; node: ts.IfStatement }
+  | { kind: "ternary"; node: ts.ConditionalExpression };
 
-function guardContext(guard: CallExpression, scope: Node): GuardContext | null {
-  for (
-    let parent: Node | undefined = guard.parent;
-    parent !== scope;
-    parent = parent.parent
-  ) {
-    if (isIfStatement(parent) && contains(parent.expression, guard))
+function guardContext(
+  guard: ts.CallExpression,
+  scope: ts.Node,
+): GuardContext | null {
+  for (let parent = guard.parent; parent !== scope; parent = parent.parent) {
+    if (ts.isIfStatement(parent) && contains(parent.expression, guard))
       return { kind: "if", node: parent };
-    if (isConditionalExpression(parent) && contains(parent.condition, guard))
+    if (ts.isConditionalExpression(parent) && contains(parent.condition, guard))
       return { kind: "ternary", node: parent };
-    if (isStatement(parent)) return null;
+    if (ts.isStatement(parent)) return null;
   }
   return null;
 }
 
 function guardProtectsUses(
-  guard: CallExpression,
-  conversion: CallExpression,
-  scope: Node,
+  guard: ts.CallExpression,
+  conversion: ts.CallExpression,
+  scope: ts.Node,
   name: string,
 ): boolean {
   const context = guardContext(guard, scope);
@@ -237,7 +201,7 @@ function guardProtectsUses(
   const safeWhenTrue = !isNegatedBetween(guard, condition);
   if (!booleanPathValid(guard, condition, safeWhenTrue)) return false;
 
-  const safeBranch: Statement | Expression | undefined =
+  const safeBranch =
     context.kind === "if"
       ? safeWhenTrue
         ? context.node.thenStatement
@@ -255,7 +219,7 @@ function guardProtectsUses(
   walkScope(scope, (node) => {
     if (
       !protectedUses ||
-      !isIdentifier(node) ||
+      !ts.isIdentifier(node) ||
       node.text !== name ||
       ignoredIdentifier(node) ||
       node.getStart() <= conversion.getEnd() ||
@@ -289,13 +253,13 @@ function guardProtectsUses(
   return protectedUses;
 }
 
-export function hasOrderedNumberGuard(node: CallExpression): boolean {
+export function hasOrderedNumberGuard(node: ts.CallExpression): boolean {
   const parentPredicate = numberPredicate(node.parent);
   if (parentPredicate?.arguments[0] === node) return true;
   const name = assignedIdentifier(node);
   if (name === null) return false;
   const scope = enclosingScope(node);
-  const guards: CallExpression[] = [];
+  const guards: ts.CallExpression[] = [];
   walkScope(scope, (candidate) => {
     const guard = numberPredicate(candidate, name);
     if (guard && guard.getStart() > node.getEnd()) guards.push(guard);

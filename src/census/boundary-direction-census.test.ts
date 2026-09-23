@@ -40,7 +40,7 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   "src/deck/config": "#225A shared-only fold",
   "src/deck/db/reader": "#225A shared-only fold",
   "src/deck/megaset/engine": "#225A shared-only fold",
-  "src/deck/server-port": "#225A shared-only fold",
+  "src/deck/server/server-port": "#225A shared-only fold",
   // ---- the former cratedeck/shared declared leaves (AGENTS.md pinned
   // types.ts as the declared import leaf; hygiene/ledger-freshness are the
   // same class) — #225A folds or re-homes these

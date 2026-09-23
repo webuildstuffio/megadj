@@ -3,12 +3,9 @@
 // Prints the top-N functions by AST cyclomatic complexity across the given
 // files, using the SAME branch-counting rules as
 // src/test-support/source-metrics.ts (the measurer the pinned census tests
-// use — lizard phantom-folds regex tables and anonymous closures). The
-// branch rules themselves now live THERE (isBranchNode, shared via the
-// #274 compiler-API seam rewrite) — this probe consumes allFunctions()
-// directly instead of carrying a hand-copied walker twin.
+// use — lizard phantom-folds regex tables and anonymous closures).
 import { readFileSync } from "node:fs";
-import { allFunctions } from "../src/test-support/source-metrics";
+import * as ts from "typescript";
 
 const args = process.argv.slice(2);
 // numeric boundary (census-guarded shape): digits-only argv, else the
@@ -34,7 +31,6 @@ const files =
       // `i !== listIdx && i !== listIdx + 1` filter ran with listIdx -1
       // and silently dropped index 0, making `<file>` mode print nothing).
       args;
-
 interface Row {
   ccn: number;
   lines: number;
@@ -43,15 +39,77 @@ interface Row {
 }
 
 const rows: Row[] = [];
+
+function complexity(node: ts.Node): number {
+  let n = 1;
+  const visit = (x: ts.Node): void => {
+    if (
+      ts.isIfStatement(x) ||
+      ts.isForStatement(x) ||
+      ts.isForInStatement(x) ||
+      ts.isForOfStatement(x) ||
+      ts.isWhileStatement(x) ||
+      ts.isDoStatement(x) ||
+      ts.isCatchClause(x) ||
+      ts.isConditionalExpression(x) ||
+      (ts.isCaseClause(x) && x.expression !== undefined) ||
+      (ts.isBinaryExpression(x) &&
+        (x.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+          x.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+          x.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken))
+    ) {
+      n += 1;
+    }
+    ts.forEachChild(x, visit);
+  };
+  visit(node);
+  return n;
+}
+
 for (const file of files) {
-  for (const fn of allFunctions(file)) {
-    rows.push({
-      ccn: fn.cyclomaticComplexity,
-      lines: fn.lines,
-      name: `${fn.name}@${fn.startLine}-${fn.endLine}`,
-      file,
-    });
-  }
+  const sourceFile = ts.createSourceFile(
+    file,
+    readFileSync(file, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const walk = (node: ts.Node): void => {
+    const named =
+      (ts.isFunctionDeclaration(node) && node.name?.text) ||
+      ((ts.isMethodDeclaration(node) || ts.isFunctionExpression(node)) &&
+        node.parent !== undefined);
+    if (
+      ts.isFunctionDeclaration(node) ||
+      ts.isMethodDeclaration(node) ||
+      ts.isArrowFunction(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isConstructorDeclaration(node)
+    ) {
+      const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+      const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+      let name = "<anonymous>";
+      if (ts.isFunctionDeclaration(node) && node.name) name = node.name.text;
+      else if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name))
+        name = node.name.text;
+      else if (ts.isConstructorDeclaration(node)) name = "constructor";
+      else if (
+        (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) &&
+        named &&
+        ts.isVariableDeclaration(node.parent) &&
+        ts.isIdentifier(node.parent.name)
+      )
+        name = node.parent.name.text;
+      rows.push({
+        ccn: complexity(node),
+        lines: end.line - start.line + 1,
+        name: `${name}@${start.line + 1}-${end.line + 1}`,
+        file,
+      });
+    }
+    ts.forEachChild(node, walk);
+  };
+  walk(sourceFile);
 }
 
 rows

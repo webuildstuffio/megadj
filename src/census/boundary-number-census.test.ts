@@ -10,7 +10,7 @@ import {
 
 const repo = join(import.meta.dir, "..", "..");
 const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
-  "src/deck/bench.ts::biggestFiles::Number(st.size)":
+  "src/deck/tools/bench.ts::biggestFiles::Number(st.size)":
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
   "src/deck/web/products/fulltags/megaset-builder.ts::minutesFrom::Number(input)":
     "clampMinutes finite-checks the converted form value and supplies the default.",
@@ -161,7 +161,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // counts unchanged, new paths in digest input.
     // Sep 22 (#315): deck-archive fold — files re-homed; counts unchanged,
     // new paths in digest input.
-    digest: "0440912fa0b585f2a7b9190dc8721afa7d92da670215bc7eea9c6f1602281764",
+    // Sep 22 (#319): root tidy — bench→tools/; same calls, same guards,
+    // counts unchanged, new paths in digest input.
+    digest: "8b72aa4285155f829040025b67872f05823826a6cf0d068ed991d6b55e6013ab",
   });
 });
 

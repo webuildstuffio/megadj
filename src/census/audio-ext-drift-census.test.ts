@@ -71,8 +71,8 @@ test("census: the three former twins read the SSOT", () => {
       /import \{ AUDIO_EXTS \} from "\.\.\/\.\.\/shared\/audio-exts"/,
     ],
     [
-      "src/deck/scan.ts",
-      /export \{ AUDIO_EXTS as AUDIO_EXT \} from "\.\.\/shared\/audio-exts"/,
+      "src/deck/tools/scan.ts",
+      /export \{ AUDIO_EXTS as AUDIO_EXT \} from "\.\.\/\.\.\/shared\/audio-exts"/,
     ],
   ];
   for (const [rel, re] of pinned) {

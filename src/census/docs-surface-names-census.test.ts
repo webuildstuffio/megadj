@@ -84,7 +84,7 @@ function mcpTools(): string[] {
   const files = [
     "src/deck/mcp.ts",
     "src/deck/report/tools.ts",
-    "src/deck/getdat-tools.ts",
+    "src/getdat/tools.ts",
   ];
   for (const f of files) {
     for (const line of read(f).split("\n")) {
