@@ -13,7 +13,17 @@
 #   5. genre --eval (LOO harness) — gate-conditional apply at ≥65%
 # YouTube sync (--with-sync) runs LAST by owner policy, never mid-chain.
 set -u
-cd "$(dirname "$0")/.." || exit 1
+# Repo root = two levels up from this script (src/ops → src → repo root).
+# Do NOT use import.meta.dir-style single ".." here: from src/ops that lands
+# in src/, where "src/cli.ts" does not exist and every stage no-ops with
+# 'error: Module not found "src/cli.ts"' (caught live Sep 24, drive day).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$REPO_ROOT" || exit 1
+if [ ! -f "src/cli.ts" ]; then
+  echo "FATAL: repo root resolution failed — src/cli.ts not found at $REPO_ROOT" >&2
+  exit 1
+fi
 MAIN_LOG=/tmp/megadj-full-pipeline-$(date +%F).log
 SHELF="${MEGADJ_SHELF:-/Volumes/SHELF1/Contents}"
 GENRE_GATE=65
@@ -46,7 +56,8 @@ say "stage 5/5: genre --eval (gate ${GENRE_GATE}%)"
 bun src/cli.ts genre --eval --json > /tmp/genre-eval-latest.json 2>&1
 AGREE=$(bun -e 'try{const r=await Bun.file("/tmp/genre-eval-latest.json").json();console.log(String(r.agreement ?? r.measured ?? 0))}catch{console.log("0")}' 2>/dev/null || echo 0)
 say "eval agreement: $AGREE"
-if bun -e "process.exit(Number(process.argv[2]??0)*100>=Number(process.argv[3]??65)?0:1)" bun "$AGREE" "$GENRE_GATE"; then
+# bun -e argv: [bun, arg1, arg2] — arg1 = agreement, arg2 = gate (argv[1]/argv[2]).
+if bun -e "process.exit(Number(process.argv[1]??0)*100>=Number(process.argv[2]??65)?0:1)" "$AGREE" "$GENRE_GATE"; then
   bun src/cli.ts genre --apply --json >> "$MAIN_LOG" 2>&1
   say "genre --apply done (gate passed)"
 else
