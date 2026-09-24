@@ -95,15 +95,19 @@ jobs:
           set -euo pipefail
           OUT=/tmp/metrics
           mkdir -p "$OUT"
+          # qlty init FIRST (sequential): it creates qlty.toml, and
+          # scc must see a stable file set — parallel init is racy.
+          if [ "$LANGUAGE" != "none" ]; then
+            [ -f qlty.toml ] || \
+              qlty init -y --skip-plugins >/dev/null 2>&1
+          fi
           echo "--- collecting (parallel) ---"
-          # 1. LOC + files (scc)
-          scc --format csv . > "$OUT/scc.csv" 2>/dev/null &
+          # 1. LOC + files + per-file breakdown (scc, single run)
+          scc --by-file --format csv . > "$OUT/scc-files.csv" 2>/dev/null &
           P_SCC=$!
           # 2. per-function complexity (qlty), skipped if none
           if [ "$LANGUAGE" != "none" ]; then
-            ( [ -f qlty.toml ] || \
-                qlty init -y --skip-plugins >/dev/null 2>&1
-              qlty metrics --all --functions 2>/dev/null \
+            ( qlty metrics --all --functions 2>/dev/null \
                 | sed -r 's/\x1b\[[0-9;]*m//g' \
                 > "$OUT/qlty-functions.txt" ) &
             P_QLTY=$!
@@ -132,16 +136,43 @@ jobs:
           echo "--- collectors done"
           echo "    (scc=$SCC_RC qlty=$QLTY_RC jscpd=$JSCPD_RC) ---"
           # --- parse ---
-          # scc csv columns: Language,Lines,Code,Comments,Blanks,
-          # Complexity,Bytes,Files,ULOC (no Total row — sum it)
-          if [ ! -f "$OUT/scc.csv" ]; then
+          # scc --by-file csv: Language,Provider(path),Filename,
+          # Lines,Code,Comments,Blanks,Complexity,Bytes,ULOC
+          if [ ! -f "$OUT/scc-files.csv" ]; then
             echo "::error::scc failed (exit $SCC_RC), no output"
             exit 1
           fi
-          LOC=$(awk -F, 'NR>1 {loc+=$3} END {print loc+0}' \
-            "$OUT/scc.csv")
-          FILES=$(awk -F, 'NR>1 {f+=$8} END {print f+0}' \
-            "$OUT/scc.csv")
+          eval "$(awk -F, '
+            NR == 1 { next }
+            {
+              path=$2; file=$3; code=$5+0; cc=$8+0
+              loc+=code; files+=1; cct+=cc
+              f=tolower(file); p=tolower(path)
+              if (f ~ /\.(md|markdown|rst|adoc)$/ || \
+                  p ~ /(^|\/)docs\//) {
+                docs+=code
+              } else if (p ~ /(^|\/)(tests?|__tests__|spec|specs)($|\/)/ || \
+                  f ~ /([._-](test|spec|tests)\.[a-z0-9]+$|^test_.*| \
+                        .*_test\.[a-z0-9]+$)/) {
+                tests+=code
+              } else {
+                prod+=code
+              }
+            }
+            END {
+              printf "LOC=%d\nLOC_PROD=%d\nLOC_TEST=%d\nLOC_DOCS=%d\n" \
+                "FILES=%d\nCC_TOTAL=%d\n", \
+                loc, prod, tests, docs, files, cct
+            }' "$OUT/scc-files.csv")"
+          if [ "$((LOC_PROD + LOC_TEST + LOC_DOCS))" -ne "$LOC" ]; then
+            echo "::warning::LOC breakdown does not reconcile"
+          fi
+          if [ "$LOC" -gt 0 ]; then
+            CC_PER_KLOC=$(awk -v cc="$CC_TOTAL" -v loc="$LOC" \
+              'BEGIN { printf "%.2f", cc/loc*1000 }')
+          else
+            CC_PER_KLOC=null
+          fi
           # qlty functions table -> cognitive column
           # (4th pipe field), max + p90
           COG_SORTED=$(awk -F'|' '
@@ -172,28 +203,38 @@ jobs:
                 --include='*.rs' . 2>/dev/null | wc -l) ;;
             typescript)
               TEST_COUNT=$(find . -path ./node_modules -prune \
-                -o \( -name '*.test.*' -o -name '*.spec.*' \) \
+                -o -path ./.git -prune -o \
+                \( -name '*.test.*' -o -name '*.spec.*' \) \
+                -print 2>/dev/null | wc -l) ;;
+            none|shell)
+              TEST_COUNT=$(find . -path ./node_modules -prune \
+                -o -path ./.git -prune -o \
+                \( -name '*.bats' -o -name '*_test.sh' \
+                   -o -name 'test_*.sh' \) \
                 -print 2>/dev/null | wc -l) ;;
             *) TEST_COUNT=null ;;
           esac
-          MI_AVG=null # no local MI source yet; dashboard shows n/a
           jq -n \
             --arg repo "$REPO" \
             --arg sha "$COMMIT_SHA" \
             --argjson taken_at "$(date +%s)" \
             --argjson loc "$LOC" \
+            --argjson loc_prod "$LOC_PROD" \
+            --argjson loc_test "$LOC_TEST" \
+            --argjson loc_docs "$LOC_DOCS" \
             --argjson files "$FILES" \
             --argjson complexity_max "$COMPLEXITY_MAX" \
             --argjson complexity_p90 "$COMPLEXITY_P90" \
             --argjson duplication_pct "$DUPLICATION_PCT" \
-            --argjson mi_avg "$MI_AVG" \
+            --argjson cc_per_kloc "$CC_PER_KLOC" \
             --argjson test_count "$TEST_COUNT" \
             '{repo:$repo, commit_sha:$sha, taken_at:$taken_at,
-              loc:$loc, files:$files,
+              loc:$loc, loc_prod:$loc_prod, loc_test:$loc_test,
+              loc_docs:$loc_docs, files:$files,
               complexity_max:$complexity_max,
               complexity_p90:$complexity_p90,
-              duplication_pct:$duplication_pct, mi_avg:$mi_avg,
-              test_count:$test_count}' \
+              duplication_pct:$duplication_pct,
+              cc_per_kloc:$cc_per_kloc, test_count:$test_count}' \
             > "$OUT/payload.json"
           echo "payload:"; cat "$OUT/payload.json"
           curl -sSL --fail-with-body -X POST "${INGEST_URL%/}/ingest" \
