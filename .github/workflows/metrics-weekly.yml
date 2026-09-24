@@ -242,3 +242,47 @@ jobs:
             -H "Content-Type: application/json" \
             --data @"$OUT/payload.json"
           echo; echo "ingest ok"
+
+      # Gitleaks audit (warn-only, never gates): gives the dashboard a real
+      # "last gitleaks scan" timestamp per repo. Scans the working tree only
+      # (--no-git) so it's fast; the pre-commit hook stays the
+      # primary defense.
+      # NOTE (vendored copy): megadj is public and can't use the private
+      # reusable workflow — keep in sync with
+      # repo-review/.github/workflows/metrics-reusable.yml by hand.
+      - name: Gitleaks audit + supply ingest
+        if: steps.activity.outputs.active == 'true'
+        env:
+          REPO: ${{ github.repository }}
+          INGEST_TOKEN: ${{ secrets.REPO_REVIEW_INGEST_TOKEN }}
+          INGEST_URL: ${{ vars.REPO_REVIEW_URL }}
+        run: |
+          set -uo pipefail
+          if [ ! -x "$TOOLS_DIR/bin/gitleaks" ]; then
+            api="https://api.github.com/repos/gitleaks/gitleaks"
+            gv="$(curl -fsSL "$api/releases/latest" \
+              | jq -r .tag_name | sed 's/^v//')"
+            echo "installing gitleaks $gv"
+            curl -fsSL -o /tmp/gitleaks.tar.gz \
+              "https://github.com/gitleaks/gitleaks/releases/download/v${gv}/gitleaks_${gv}_linux_x64.tar.gz"
+            tar -xzf /tmp/gitleaks.tar.gz -C "$TOOLS_DIR/bin" gitleaks
+            chmod +x "$TOOLS_DIR/bin/gitleaks"
+          fi
+          if "$TOOLS_DIR/bin/gitleaks" detect --no-git --source . --redact \
+              > /tmp/gitleaks.log 2>&1; then
+            ST="pass"; N=0
+          else
+            ST="fail"; N=$(grep -c "Finding:" /tmp/gitleaks.log || echo 1)
+          fi
+          echo "gitleaks audit: $ST ($N findings, warn-only)"
+          jq -n --arg repo "$REPO" --argjson taken_at "$(date +%s)" \
+             --arg st "$ST" --argjson n "$N" \
+             '{repo:$repo,taken_at:$taken_at,gitleaks_status:$st,
+               gitleaks_findings:$n}' \
+            > /tmp/supply.json
+          curl -sSL --fail-with-body -X POST "${INGEST_URL%/}/ingest-supply" \
+            -H "Authorization: Bearer $INGEST_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @/tmp/supply.json \
+            || echo "::warning::supply ingest failed"
+          echo "supply ingest ok"
