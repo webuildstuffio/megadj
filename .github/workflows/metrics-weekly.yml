@@ -227,7 +227,7 @@ jobs:
             *) TEST_COUNT=null ;;
           esac
           # Vendored from repo-review/.github/workflows/metrics-reusable.yml
-          # at fd90d879795a5ccf9f5cf182625710720aed4b9a.
+          # at c035bd94c77592f53f4809142c5bfdb8c8f4d49d.
           # Update this job by hand when the source workflow changes.
           jq -n \
             --arg repo "$REPO" \
