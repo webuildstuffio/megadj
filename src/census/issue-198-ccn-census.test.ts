@@ -35,6 +35,7 @@ function trackedFiles(): string[] {
     // "no files to measure" — fail loud instead.
     throw new Error(
       `git ls-files failed under parallel load — CCN census cannot scan: ${String(err)}`,
+      { cause: err },
     );
   }
   return out

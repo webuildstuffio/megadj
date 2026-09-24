@@ -168,6 +168,7 @@ function trackedTests(): string[] {
     // fail loud (with the git error) instead of silently returning [].
     throw new Error(
       `git ls-files failed under parallel load (index.lock contention?) — census cannot scan: ${String(err)}`,
+      { cause: err },
     );
   }
 }

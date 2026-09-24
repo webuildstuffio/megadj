@@ -67,8 +67,8 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   `nonEmptyEnv` (`src/shared/leaf/guards.ts`), never raw `??` on
   `process.env` — `??` only catches `undefined`, so `MEGADJ_MUSIC_DIR="$SHELF"`
   with `$SHELF` unset expanded to empty string, resolved CWD-relative, and
-  dropped a dated batch folder in the repo root (#281, Sep 20: 20 downloads
-  + 20 ledger rows repaired). Present-but-empty env = typo, read it as
+  dropped a dated batch folder in the repo root (#281, Sep 20: 20 downloads,
+  20+ ledger rows repaired). Present-but-empty env = typo, read it as
   absent. `downloadBatchDir` additionally refuses relative archive dirs
   (pinned by `src/getdat/commands/intake-folder.test.ts`). Positionals go through
   `firstPositional(args, cmd, stringOpts)`/`positionalArgs` — the stringOpts
@@ -147,7 +147,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   (non-smart) `eqeqeq` is enforced (#272) — nullish presence checks use
   `=== null`/`!== null`/`=== undefined` explicitly; when narrowing an
   optional chain's base AND property, narrow both (`a !== undefined &&
-  a.prop !== null`), one strict check does NOT imply the other.
+a.prop !== null`), one strict check does NOT imply the other.
 
 ## Workflow map
 
@@ -191,11 +191,11 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   (owner call, Sep 19). Downloads land in dated batch folders
   (`<date> <label> downloads/`) — never loose, never genre folders (the Sep 19
   "loose files / genre-organized dj-imports" owner correction), and those
-folders are permanent batch sources: keep the folder even after import
-empties it — nothing deletes it, owner policy. `megadj organize` is the sweep
-that enforces this (genre folders are retired as a destination; `sync` and
-`drop` run it automatically post-run), and its summary reports shelf-mirror
-rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track analysis is
+  folders are permanent batch sources: keep the folder even after import
+  empties it — nothing deletes it, owner policy. `megadj organize` is the sweep
+  that enforces this (genre folders are retired as a destination; `sync` and
+  `drop` run it automatically post-run), and its summary reports shelf-mirror
+  rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track analysis is
   skipped by default: mood/beats cap tracks over 10 minutes
   (`DEFAULT_MAX_MOOD_SECONDS`, `--max-seconds 0` to include) — that is the
   intentional duration cap, not a bug.
@@ -290,7 +290,7 @@ rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track an
   `archive.db` backups/orphan sidecars. `spike/` JSONs are load-bearing
   compare baselines, never swept; `cratedeck.db` was a writerless 0-byte stub.
   Its `--orphan-runs` tier (Sep 20) closes crashed run rows (`finished_at
-  NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
+NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
   BOTH when nothing matched AND on real errors: exit 1 with rows printed is
   SUCCESS, never a parse failure (#270).
 - Red tests/censuses during a concurrent-agent push are a torn read first:
@@ -298,6 +298,13 @@ rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track an
   and broke a `CompareCard` import mid-run; retry was green). Same for census
   digests — a foreign WIP refactor (e.g. `job_legs.ts` → `job-legs-parse.ts`)
   feeds the digest; verify against clean HEAD, don't "fix" your own pass.
+  Git-spawning censuses FAIL LOUD on git errors (Sep 23, `21702db3`): under
+  the 16-way parallel suite a `git ls-files` can lose the index.lock race,
+  exit non-zero with empty stdout — `test-placement-census.test.ts`'s
+  `trackedTests()` silently scanned nothing and reported a misleading
+  "Expected > 100, Received 0"; both git-spawning censuses (`test-placement`,
+  `issue-198-ccn`) now throw the git error instead of returning an empty
+  inventory. An EMPTY scan must never read as a passing census.
 - The pre-push leg is the repo's OWN `.githooks/pre-push` chaining
   `$HOME/.githooks/pre-push` + `bun run test` (landed 13e43e8, Sep 17 — until
   then the AGENTS-documented full-suite-at-pre-push never ran; `core.hooksPath`
@@ -421,6 +428,7 @@ rows as an honest `outsideScope` bucket, never "missing" (Sep 20). Long-track an
 - Stash temp commits (`WIP on main:` / `index on main:` pairs) are git's internal bookkeeping from concurrent agents' stash push/pop cycles — thousands of "unreachable" commits are empty husks whose content landed through their real commits, never merge candidates. A pre-rewrite mirror repo (`megadj-backup-before-rewrite-20260904`, different root hashes / same subjects) was audited content-first and deleted once every unique blob was proven landed (Sep 19) — audit mirrors by blob comparison before deletion, and delete confirmed-dead mirrors rather than keeping them.
 - Typecov strict-miss triage under concurrency: `check:full`'s 100% typecov dips are triaged HEAD-owned vs foreign-WIP first — fixes go only into files OUTSIDE the other agent's active edit zone (an in-flight flatMap hunk was left to its owner, contract-documented in the commit message); `Array.isArray` on `unknown` narrows to `any[]` and makes type-predicate params implicit-any, so write explicit `unknown[]` casts before the predicate (fixed `f6f62026`, Sep 19).
 - The two-tree layout is GONE: `cratedeck/` folded into `src/deck` + `ops/` into `src/ops` (`7887a37a`, Sep 22, 433 files, #193-pattern atomic migration — cratedeck/{src,shared,test,web,python} → src/deck/*, docs/cratedeck → docs/deck, pyproject/python and package scripts re-pointed, knip single workspace). The #222 boundary-direction census was REWRITTEN, not deleted: the src↔cratedeck seam rule died with the fold; it now pins the folded leaf/seam paths + "no cratedeck/ regrowth" — cite that new contract, not the old two-tree rule. The fold's own incident class: hard-coded `import.meta.dir`-relative roots break one level down (deck-install REPO_ROOT crash-looped the launchd service post-push, fixed `afc6a535` with a depth-rule pin; docs CRATEDECK_DATA default `f9f12465`). STRIKE THREE of that class (Sep 23, #327 super-sure pass): the inline `nonEmptyEnv("CRATEDECK_ROOT") ?? join(import.meta.dir, "../deck")` fallback was copy-pasted into 7 files and is depth-correct only at `src/*` — the three `src/fulltags/megaset` arms silently loaded DEFAULT config (no config.toml at the phantom `src/fulltags/deck` root; calibrate's digest landed in a phantom data dir, caught live because a real one existed to compare). Config-root reads now go through ONE resolver, `crateDeckRoot()` (`src/shared/volume.ts`: env override → walk up to the package.json+.git anchor → `<anchor>/src/deck`), census-pinned by `src/shared/volume.test.ts` — never re-inline the env-fallback math, and never derive a repo/config root from `import.meta.dir` depth arithmetic in a new file.
+- The Sep 23 dedup arc (#322 + #317, all closed) fixed the small-module half of the fold debt: #322 merged seven single-importer twins (search-query→`name-match.ts`, `shelf/match`→`index-files.ts`, `mb`→`mb-lookup.ts` (one politeness/rateLimit seam per external source), artwork-queue format→`fulltags/write/artwork.ts` (layering un-inverted), regate-genre→`regate.ts`, `shared/status`→`getdat/cli-commands.ts`); #317 retired pass-through twins (`walkAudioFiles`/dupescan `walkAudio` → direct `walkAudioDir`, progress's private `fmtBytes`/`fmtDur` → leaf/fmt). Its KEPT-BOTH judgments are recorded in file headers, not bugs: `src/deck/tools/walk.ts` (async server-side walker) vs `src/shared/walk-tree.ts` (sync CLI walker) stay separate per RUNTIME; `src/deck/deckapi.ts` (CLI/MCP client: offline gate, auto-start, absolute BASE) vs `src/deck/web/ui/api.ts` (browser client: same-origin, ApiError, FormData) stay separate per PROCESS — don't merge either pair without overturning those headers.
 - rb-playlist reconcile (XML-twin healer) scopes to AGENT-MANAGED subtrees only (#282, `3437a574`, Sep 21): descendants of the DJ-Imports/MegaSets roots (+`--group` extras), `--all` opts back into whole-DB for manual audits — the XML sidecar intentionally carries only agent-written playlists, so a whole-DB diff false-flags ~180 rekordbox-managed rows (user playlists/folders never get NODEs, DB-side by design); doctor F7 shares the same scoping with root names interpolated from `agentGroupRoots()` (one SSOT).
 - The TypeScript compiler API lives behind ONE seam, `src/test-support/ts-ast.ts` (#274, Sep 22): every census/test/tool imports `parseSourceFile`/`forEachChild`/`is*` guards/enums through it, and `src/census/ts-api-seam-census.test.ts` fails any direct `import * as ts from "typescript"` elsewhere. TS7 IS the toolchain now (#338 landed Sep 23 via dumpster-clean): the `typescript` package root is a 2-export stub and its `unstable/ast*` subpaths ship the 345 `is*` guards + enums but NO text→SourceFile parser (probed live — the parser lives inside the native binary). The seam therefore binds the compiler API to the aliased devDep `typescript-compiler-api` (= `npm:typescript@5.9.3`, the last full JS API) — exactly that ONE file imports the twin; the boundary/CCN census digests stayed byte-identical through the swap (122 census tests re-run green). The earlier "type-coverage crashes on TS7" claim is OBSOLETE: type-coverage 2.30.1 passes 100% (187,872/187,872) under the native compiler. Do not re-inline `typescript` imports in census files — the native package has no parser to import.
 - Doctor F7's output contract is TEST-PINNED (`doctor-state.test.ts`, #323): 3437a574 reworded the fix line from whole-DB to agent-managed scope and any automation parsing the old wording would have misfired. The `fix:` line carries the ONE repair command (`run: megadj rb-playlist reconcile <drive> --apply --yes (rekordbox quit)`), a negative missing-count reads as UNKNOWN (never a silent pass), and the green detail names the agent-managed scope — change any of those and the named test fails in the same commit. Audit result (Sep 22): no in-repo automation parses doctor fix lines today (checked MCP tools, runbooks, skills, ops scripts, deckctl); the pin is the guard for FUTURE parsers.
