@@ -214,6 +214,40 @@ jobs:
                 -print 2>/dev/null | wc -l) ;;
             *) TEST_COUNT=null ;;
           esac
+          # --- gitleaks audit (warn-only, never gates) ---
+          # Gives the dashboard a real "last scan" timestamp per repo.
+          # Scans the working tree only (--no-git) so it's fast;
+          # the pre-commit hook stays the primary defense.
+          # Failures here must never break the metrics ingest.
+          # NOTE (vendored): keep in sync with
+          # repo-review/.github/workflows/metrics-reusable.yml by hand.
+          GITLEAKS_STATUS="pass"; GITLEAKS_FINDINGS=0
+          if [ ! -x "$TOOLS_DIR/bin/gitleaks" ]; then
+            if api="https://api.github.com/repos/gitleaks/gitleaks" \
+              && gv="$(curl -fsSL "$api/releases/latest" \
+                | jq -r .tag_name | sed 's/^v//')" \
+              && dl="https://github.com/gitleaks/gitleaks/releases" \
+              && curl -fsSL -o /tmp/gitleaks.tar.gz \
+                "$dl/download/v${gv}/gitleaks_${gv}_linux_x64.tar.gz" \
+              && tar -xzf /tmp/gitleaks.tar.gz -C "$TOOLS_DIR/bin" gitleaks \
+              && chmod +x "$TOOLS_DIR/bin/gitleaks"; then
+              echo "installed gitleaks $gv"
+            else
+              echo "::warning::gitleaks install failed, skipping audit"
+            fi
+          fi
+          if [ -x "$TOOLS_DIR/bin/gitleaks" ]; then
+            if "$TOOLS_DIR/bin/gitleaks" detect --no-git --source . \
+                --redact > /tmp/gitleaks.log 2>&1; then
+              GITLEAKS_STATUS="pass"; GITLEAKS_FINDINGS=0
+            else
+              GITLEAKS_STATUS="fail"
+              GITLEAKS_FINDINGS=$(grep -c "Finding:" \
+                /tmp/gitleaks.log || true)
+            fi
+            echo "gitleaks audit: $GITLEAKS_STATUS" \
+              "($GITLEAKS_FINDINGS findings, warn-only)"
+          fi
           jq -n \
             --arg repo "$REPO" \
             --arg sha "$COMMIT_SHA" \
@@ -228,13 +262,17 @@ jobs:
             --argjson duplication_pct "$DUPLICATION_PCT" \
             --argjson cc_per_kloc "$CC_PER_KLOC" \
             --argjson test_count "$TEST_COUNT" \
+            --arg gitleaks_status "$GITLEAKS_STATUS" \
+            --argjson gitleaks_findings "$GITLEAKS_FINDINGS" \
             '{repo:$repo, commit_sha:$sha, taken_at:$taken_at,
               loc:$loc, loc_prod:$loc_prod, loc_test:$loc_test,
               loc_docs:$loc_docs, files:$files,
               complexity_max:$complexity_max,
               complexity_p90:$complexity_p90,
               duplication_pct:$duplication_pct,
-              cc_per_kloc:$cc_per_kloc, test_count:$test_count}' \
+              cc_per_kloc:$cc_per_kloc, test_count:$test_count,
+              gitleaks_status:$gitleaks_status,
+              gitleaks_findings:$gitleaks_findings}' \
             > "$OUT/payload.json"
           echo "payload:"; cat "$OUT/payload.json"
           curl -sSL --fail-with-body -X POST "${INGEST_URL%/}/ingest" \
@@ -242,47 +280,3 @@ jobs:
             -H "Content-Type: application/json" \
             --data @"$OUT/payload.json"
           echo; echo "ingest ok"
-
-      # Gitleaks audit (warn-only, never gates): gives the dashboard a real
-      # "last gitleaks scan" timestamp per repo. Scans the working tree only
-      # (--no-git) so it's fast; the pre-commit hook stays the
-      # primary defense.
-      # NOTE (vendored copy): megadj is public and can't use the private
-      # reusable workflow — keep in sync with
-      # repo-review/.github/workflows/metrics-reusable.yml by hand.
-      - name: Gitleaks audit + supply ingest
-        if: steps.activity.outputs.active == 'true'
-        env:
-          REPO: ${{ github.repository }}
-          INGEST_TOKEN: ${{ secrets.REPO_REVIEW_INGEST_TOKEN }}
-          INGEST_URL: ${{ vars.REPO_REVIEW_URL }}
-        run: |
-          set -uo pipefail
-          if [ ! -x "$TOOLS_DIR/bin/gitleaks" ]; then
-            api="https://api.github.com/repos/gitleaks/gitleaks"
-            gv="$(curl -fsSL "$api/releases/latest" \
-              | jq -r .tag_name | sed 's/^v//')"
-            echo "installing gitleaks $gv"
-            curl -fsSL -o /tmp/gitleaks.tar.gz \
-              "https://github.com/gitleaks/gitleaks/releases/download/v${gv}/gitleaks_${gv}_linux_x64.tar.gz"
-            tar -xzf /tmp/gitleaks.tar.gz -C "$TOOLS_DIR/bin" gitleaks
-            chmod +x "$TOOLS_DIR/bin/gitleaks"
-          fi
-          if "$TOOLS_DIR/bin/gitleaks" detect --no-git --source . --redact \
-              > /tmp/gitleaks.log 2>&1; then
-            ST="pass"; N=0
-          else
-            ST="fail"; N=$(grep -c "Finding:" /tmp/gitleaks.log || echo 1)
-          fi
-          echo "gitleaks audit: $ST ($N findings, warn-only)"
-          jq -n --arg repo "$REPO" --argjson taken_at "$(date +%s)" \
-             --arg st "$ST" --argjson n "$N" \
-             '{repo:$repo,taken_at:$taken_at,gitleaks_status:$st,
-               gitleaks_findings:$n}' \
-            > /tmp/supply.json
-          curl -sSL --fail-with-body -X POST "${INGEST_URL%/}/ingest-supply" \
-            -H "Authorization: Bearer $INGEST_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data @/tmp/supply.json \
-            || echo "::warning::supply ingest failed"
-          echo "supply ingest ok"
