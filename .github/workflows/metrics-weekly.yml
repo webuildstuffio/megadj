@@ -6,7 +6,7 @@
 name: metrics-weekly
 "on":
   schedule:
-    - cron: "0 13 * * 0"  # Sundays 09:00 ET
+    - cron: "0 13 * * 0" # Sundays 09:00 ET
   release:
     types: [published]
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # activity check needs history
+          fetch-depth: 0 # activity check needs history
 
       - name: Skip if quiet (no commits in the last 7 days)
         id: activity
@@ -209,10 +209,12 @@ jobs:
             DUPLICATION_PCT=null
           fi
           # test count (cheap approximation, no build)
+          # grep exits 1 on zero matches; under pipefail that fails the
+          # step, so mask it (synced with repo-review build-payload.sh).
           case "$LANGUAGE" in
             rust)
-              TEST_COUNT=$(grep -rho '#\[test\]' \
-                --include='*.rs' . 2>/dev/null | wc -l) ;;
+              TEST_COUNT=$( (grep -rho '#\[test\]' \
+                --include='*.rs' . 2>/dev/null || true) | wc -l) ;;
             typescript)
               TEST_COUNT=$(find . -path ./node_modules -prune \
                 -o -path ./.git -prune -o \

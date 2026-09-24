@@ -1,0 +1,6 @@
+# actionlint config — org runner labels, so `runs-on:` checks pass.
+# Auto-read by actionlint (pre-commit hook + reviewdog CI action).
+# Synced from repo-review/.github/actionlint.yaml.
+self-hosted-runner:
+  labels:
+    - ubicloud-standard-2
