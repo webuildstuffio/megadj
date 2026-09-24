@@ -227,7 +227,7 @@ jobs:
             *) TEST_COUNT=null ;;
           esac
           # Vendored from repo-review/.github/workflows/metrics-reusable.yml
-          # at c035bd94c77592f53f4809142c5bfdb8c8f4d49d.
+          # at 8e5c8d19dda977b3a1b2be82e4b2262aba90f1f7.
           # Update this job by hand when the source workflow changes.
           jq -n \
             --arg repo "$REPO" \
@@ -256,4 +256,4 @@ jobs:
             -H "Authorization: Bearer $INGEST_TOKEN" \
             -H "Content-Type: application/json" \
             --data @"$OUT/payload.json"
-          echo; echo "ingest ok"
+          echo "ingest ok"
