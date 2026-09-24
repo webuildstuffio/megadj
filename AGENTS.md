@@ -45,8 +45,9 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   (Sep 19: 13 commits shipped as a stranger's `nick@users.noreply.github.com`;
   a legacy-format noreply address resolves to the owner of the short username).
   This repo pins `Nicholas Montgomery <1810803+nichm@users.noreply.github.com>`
-  locally; `src/census/git-identity-census.test.ts` fails any commit outside
-  that identity. Machine-wide identity lives in shell-config `gitconfig.local`;
+  locally. The git-identity census was RETIRED (Sep 23, owner call — the pin
+  "didn't need it anymore, simplify"); local identity config remains the only
+  enforcement. Machine-wide identity lives in shell-config `gitconfig.local`;
   git `[include]` cannot override values set earlier in `~/.gitconfig` (first
   value wins), so the template's `[user]` placeholders must stay commented out.
 - One file-naming convention repo-wide (#240, kebab-case):
