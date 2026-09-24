@@ -1,25 +1,24 @@
 // ts-ast.ts — the repo's ONE TypeScript-compiler-API seam (#274).
 //
-// Every consumer of the `typescript` package (the AST census measurer, the
+// Every consumer of the TypeScript compiler API (the AST census measurer, the
 // boundary-census family, the CCN probe, per-issue census tests) imports
 // through THIS module — never `import * as ts from "typescript"` directly.
 // The census `src/census/ts-api-seam-census.test.ts` enforces it repo-wide.
 //
-// Why the seam exists: TS7 (the Go-native compiler, measured Sep 20-22)
-// drops the compiler API from the package root — `import * as ts from
-// "typescript"` resolves to a 2-export version stub under TS7, and the AST
-// surface moves behind `typescript/unstable/ast*` subpaths that (as probed
-// live against typescript@7.0.2) ship the 345 `is*` guards + enums but NO
-// text→SourceFile parser (`createSourceFile` there only assembles
-// pre-parsed statements; the parser lives behind the `unstable/sync`
-// Program server API). The day `typescript@7` lands in devDependencies,
-// THIS is the only file that migrates — and every census that depends on
-// these helpers keeps its pinned digests byte-identical.
+// TS7 era (Sep 23, #338 landed): the `typescript` package is now the Go-native
+// compiler — its root resolves to a 2-export version stub and its
+// `unstable/ast*` subpaths ship the 345 `is*` guards + enums but NO
+// text→AST parser (probed live: no createSourceFile anywhere in the package;
+// the parser lives inside the native tsc binary). The JS compiler API ships
+// separately, so the seam binds the parser/guards/enums to the aliased
+// devDep `typescript-compiler-api` (= typescript@5.9.3, the last release with
+// the full JS API). The toolchain (tsc, type-coverage, knip) runs on
+// typescript@7; ONLY this file imports the compiler-API twin.
 //
-// Keep this module dependency-free (imports only `typescript`) so both the
-// TS5 and TS7 eras can load it from any census, test, or tool.
+// Keep this module dependency-free (imports only the compiler-API package)
+// so every census, test, and tool loads its AST surface from one place.
 
-import * as ts from "typescript";
+import * as ts from "typescript-compiler-api";
 
 /** Parse `text` as a TS/TSX source file at the latest supported target,
  *  with parent pointers set. TSX is chosen purely by the `.tsx` suffix —
@@ -97,7 +96,7 @@ export const isWhileStatement: typeof ts.isWhileStatement = ts.isWhileStatement;
 // Only SyntaxKind is re-exported today; ScriptKind/ScriptTarget are consumed
 // inside this module via the namespace import. Add re-exports when a consumer
 // appears — knip fails the gate on unused seam surface.
-export { SyntaxKind } from "typescript";
+export { SyntaxKind } from "typescript-compiler-api";
 
 // ---- node types used across the census tooling ---------------------------
 export type {
@@ -124,4 +123,4 @@ export type {
   Statement,
   TryStatement,
   VariableDeclaration,
-} from "typescript";
+} from "typescript-compiler-api";
