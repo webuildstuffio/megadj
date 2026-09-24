@@ -25,9 +25,19 @@ const ROOT = join(import.meta.dir, "..", "..");
 const CEILING = 60;
 
 function trackedFiles(): string[] {
-  const out = execFileSync("git", ["ls-files", "*.ts", "*.tsx"], {
-    cwd: ROOT,
-  })
+  let out: Buffer;
+  try {
+    out = execFileSync("git", ["ls-files", "*.ts", "*.tsx"], {
+      cwd: ROOT,
+    });
+  } catch (err) {
+    // Parallel-suite git spawn collision (index.lock): empty would read as
+    // "no files to measure" — fail loud instead.
+    throw new Error(
+      `git ls-files failed under parallel load — CCN census cannot scan: ${String(err)}`,
+    );
+  }
+  return out
     .toString()
     .split("\n")
     .map((l) => l.trim())
@@ -39,7 +49,6 @@ function trackedFiles(): string[] {
         !l.includes("test-support/") &&
         !l.endsWith(".d.ts"),
     );
-  return out;
 }
 
 test("#198: no real function exceeds the CCN ceiling (AST span-verified)", () => {

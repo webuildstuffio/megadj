@@ -153,13 +153,23 @@ function trackedTests(): string[] {
       opts?: { cwd?: string },
     ) => Buffer;
   };
-  return execFileSync("git", ["ls-files", "*.test.ts", "*.test.tsx"], {
-    cwd: ROOT,
-  })
-    .toString()
-    .split("\n")
-    .map((l: string) => l.trim())
-    .filter((l: string) => l.length > 0);
+  try {
+    return execFileSync("git", ["ls-files", "*.test.ts", "*.test.tsx"], {
+      cwd: ROOT,
+    })
+      .toString()
+      .split("\n")
+      .map((l: string) => l.trim())
+      .filter((l: string) => l.length > 0);
+  } catch (err) {
+    // Under `bun test --parallel=16` a dozen census tests spawn git at once;
+    // a colliding spawn can lose the index.lock race and exit non-zero with
+    // empty stdout. An EMPTY inventory must never look like a passing scan —
+    // fail loud (with the git error) instead of silently returning [].
+    throw new Error(
+      `git ls-files failed under parallel load (index.lock contention?) — census cannot scan: ${String(err)}`,
+    );
+  }
 }
 
 test("#246: tracked test inventory is non-empty (the census scans the repo)", () => {
