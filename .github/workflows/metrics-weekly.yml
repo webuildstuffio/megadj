@@ -126,26 +126,38 @@ jobs:
           jscpd --reporters json --output "$OUT/jscpd" \
             --ignore "$ign" --threshold 100 . >/dev/null 2>&1 &
           P_JSCPD=$!
-          wait "$P_SCC"; SCC_RC=$?
+          SCC_RC=0; wait "$P_SCC" || SCC_RC=$?
           if [ -n "$P_QLTY" ]; then
-            wait "$P_QLTY"; QLTY_RC=$?
+            QLTY_RC=0; wait "$P_QLTY" || QLTY_RC=$?
           else
             QLTY_RC=0
           fi
-          wait "$P_JSCPD"; JSCPD_RC=$?
+          JSCPD_RC=0; wait "$P_JSCPD" || JSCPD_RC=$?
           echo "--- collectors done"
           echo "    (scc=$SCC_RC qlty=$QLTY_RC jscpd=$JSCPD_RC) ---"
           # --- parse ---
           # scc --by-file csv: Language,Provider(path),Filename,
           # Lines,Code,Comments,Blanks,Complexity,Bytes,ULOC
-          if [ ! -f "$OUT/scc-files.csv" ]; then
-            echo "::error::scc failed (exit $SCC_RC), no output"
+          if [ "$SCC_RC" -ne 0 ] || [ ! -s "$OUT/scc-files.csv" ]; then
+            echo "::error::scc failed (exit $SCC_RC), no usable output" >&2
             exit 1
           fi
-          eval "$(awk -F, '
+          eval "$(awk '
+            function csv(line, fields,    i, ch, quoted, n, next_ch) {
+              n=1; fields[n]=""; quoted=0
+              for (i=1; i<=length(line); i++) {
+                ch=substr(line,i,1); next_ch=substr(line,i+1,1)
+                if (ch=="\"" && quoted && next_ch=="\"") { fields[n]=fields[n] "\""; i++ }
+                else if (ch=="\"") quoted=!quoted
+                else if (ch=="," && !quoted) { n++; fields[n]="" }
+                else fields[n]=fields[n] ch
+              }
+              return n
+            }
             NR == 1 { next }
             {
-              path=$2; file=$3; code=$5+0; cc=$8+0
+              if (csv($0, field) != 10) next
+              path=field[2]; file=field[3]; code=field[5]+0; cc=field[8]+0
               loc+=code; files+=1; cct+=cc
               f=tolower(file); p=tolower(path)
               if (f ~ /\.(md|markdown|rst|adoc)$/ || \
@@ -214,40 +226,9 @@ jobs:
                 -print 2>/dev/null | wc -l) ;;
             *) TEST_COUNT=null ;;
           esac
-          # --- gitleaks audit (warn-only, never gates) ---
-          # Gives the dashboard a real "last scan" timestamp per repo.
-          # Scans the working tree only (--no-git) so it's fast;
-          # the pre-commit hook stays the primary defense.
-          # Failures here must never break the metrics ingest.
-          # NOTE (vendored): keep in sync with
-          # repo-review/.github/workflows/metrics-reusable.yml by hand.
-          GITLEAKS_STATUS="pass"; GITLEAKS_FINDINGS=0
-          if [ ! -x "$TOOLS_DIR/bin/gitleaks" ]; then
-            if api="https://api.github.com/repos/gitleaks/gitleaks" \
-              && gv="$(curl -fsSL "$api/releases/latest" \
-                | jq -r .tag_name | sed 's/^v//')" \
-              && dl="https://github.com/gitleaks/gitleaks/releases" \
-              && curl -fsSL -o /tmp/gitleaks.tar.gz \
-                "$dl/download/v${gv}/gitleaks_${gv}_linux_x64.tar.gz" \
-              && tar -xzf /tmp/gitleaks.tar.gz -C "$TOOLS_DIR/bin" gitleaks \
-              && chmod +x "$TOOLS_DIR/bin/gitleaks"; then
-              echo "installed gitleaks $gv"
-            else
-              echo "::warning::gitleaks install failed, skipping audit"
-            fi
-          fi
-          if [ -x "$TOOLS_DIR/bin/gitleaks" ]; then
-            if "$TOOLS_DIR/bin/gitleaks" detect --no-git --source . \
-                --redact > /tmp/gitleaks.log 2>&1; then
-              GITLEAKS_STATUS="pass"; GITLEAKS_FINDINGS=0
-            else
-              GITLEAKS_STATUS="fail"
-              GITLEAKS_FINDINGS=$(grep -c "Finding:" \
-                /tmp/gitleaks.log || true)
-            fi
-            echo "gitleaks audit: $GITLEAKS_STATUS" \
-              "($GITLEAKS_FINDINGS findings, warn-only)"
-          fi
+          # Vendored from repo-review/.github/workflows/metrics-reusable.yml
+          # at fd90d879795a5ccf9f5cf182625710720aed4b9a.
+          # Update this job by hand when the source workflow changes.
           jq -n \
             --arg repo "$REPO" \
             --arg sha "$COMMIT_SHA" \
@@ -262,17 +243,13 @@ jobs:
             --argjson duplication_pct "$DUPLICATION_PCT" \
             --argjson cc_per_kloc "$CC_PER_KLOC" \
             --argjson test_count "$TEST_COUNT" \
-            --arg gitleaks_status "$GITLEAKS_STATUS" \
-            --argjson gitleaks_findings "$GITLEAKS_FINDINGS" \
             '{repo:$repo, commit_sha:$sha, taken_at:$taken_at,
               loc:$loc, loc_prod:$loc_prod, loc_test:$loc_test,
               loc_docs:$loc_docs, files:$files,
               complexity_max:$complexity_max,
               complexity_p90:$complexity_p90,
               duplication_pct:$duplication_pct,
-              cc_per_kloc:$cc_per_kloc, test_count:$test_count,
-              gitleaks_status:$gitleaks_status,
-              gitleaks_findings:$gitleaks_findings}' \
+              cc_per_kloc:$cc_per_kloc, test_count:$test_count}' \
             > "$OUT/payload.json"
           echo "payload:"; cat "$OUT/payload.json"
           curl -sSL --fail-with-body -X POST "${INGEST_URL%/}/ingest" \
