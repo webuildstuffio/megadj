@@ -1,0 +1,15 @@
+# Qodo Review Context
+# This file provides repository context to Qodo AI code reviews.
+# The README below gives the model understanding of the project's purpose,
+# stack, and conventions. Edit this file to add repo-specific review rules.
+#
+# The global config (webuildstuffio/pr-agent-settings) also loads AGENTS.md,
+# README.md, and CLAUDE.md automatically via repo_context_files. This file
+# adds explicit instructions on top of that context.
+#
+# Customize below for this repository:
+
+## Review Focus
+- Follow the conventions established in this repository
+- Flag bugs, security issues, and correctness problems only
+- Skip cosmetic, formatting, and naming suggestions
