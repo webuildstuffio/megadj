@@ -169,15 +169,27 @@ export function similarityScore(prev: SetCandidate, c: SetCandidate): number {
  * candidates carry stored embeddings (capped at MEGASET_SIMILARITY_WEIGHT,
  * 0.1 — trims among compatible candidates; never rescues an incompatible
  * one because the tempo/key/anchor gates above run first). */
-export function transitionScore(
+/** Core transition components: the shared gate+score logic that both
+ *  transitionScore (hot loop) and transitionEvidence (wire) need. Returns
+ *  null when a hard gate fires (−1 equivalent). The caller decides
+ *  whether to collapse into a number or fan out into the evidence struct. */
+function transitionCore(
   prev: SetCandidate,
   c: SetCandidate,
   preset: SetPreset,
   t: number,
   anchorBpm: number,
   lastArousal: number | null,
-): number {
-  if (!mixableBpm(prev) || !mixableBpm(c)) return -1; // unmixable: no tempo
+): {
+  tempoLane: number;
+  keyVal: number;
+  fit: number;
+  anchor: number;
+  sim: number;
+  penalty: number;
+  halftime: boolean;
+} | null {
+  if (!mixableBpm(prev) || !mixableBpm(c)) return null;
   // B2 hard gate: total drift from the anchor is budgeted per candidate
   // (half-time-lane exempt — the lane runs BELOW, so the ×2/×½/×1.5/×⅔
   // pairings it admits are exactly the ones the budget spares; F3
@@ -187,17 +199,17 @@ export function transitionScore(
     !withinAnchorBudget(c.bpm, anchorBpm) &&
     !isMegasetHalfTimePair(anchorBpm, c.bpm)
   )
-    return -1;
+    return null;
   // B8 (#107): the direct window first; outside it the half-time lane
   // (×2/×½/×1.5/×⅔) lets a DnB/trap pairing compete at a flat 0.75 ×
   // MEGASET_HALFTIME_PENALTY — the discount rides the PAIR lane only
   // (F1 super-fix: the old code scaled direct matches by 0.9 too, a
   // silent ~10% tax on every ordinary hop), so half-time never beats an
   // equal-everything direct match.
-  const tempo = megasetTempoLane(prev.bpm, c.bpm);
-  if (tempo === 0) return -1;
-  const key = keyScore(prev, c);
-  if (key === 0) return -1;
+  const tempoLane = megasetTempoLane(prev.bpm, c.bpm);
+  if (tempoLane === 0) return null;
+  const keyVal = keyScore(prev, c);
+  if (keyVal === 0) return null;
   // energy fit: distance from the preset's target at this arc position
   const targetArousal = envelope(preset.arousal, t);
   const targetDance = envelope(preset.dance, t);
@@ -211,7 +223,7 @@ export function transitionScore(
   // Held thirds impose no direction; jitter ≤ ε still fits.
   const dir = segmentDirection(preset, t);
   if (dir !== 0 && lastArousal !== null && c.arousal !== null) {
-    if ((c.arousal - lastArousal) * dir < -MEGASET_AROUSAL_EPSILON) return -1;
+    if ((c.arousal - lastArousal) * dir < -MEGASET_AROUSAL_EPSILON) return null;
   }
   const fit =
     1 -
@@ -227,33 +239,54 @@ export function transitionScore(
     Math.min(
       1,
       Math.abs(c.bpm / (anchorBpm * tempoTarget(preset, t)) - 1) /
-        (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT) /
-        2,
+        ((MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT) / 2),
     );
-  // B6 (#107): same-artist back-to-back is RANKED last, never walled —
-  // the penalty (3) exceeds the weighted core's ceiling (~1.25) so a
-  // differently-named peer always wins the slot; but the score must stay
-  // > 0 so an artist-only pool can still chain (the guard is not a gate).
-  // The +1 floor keeps the penalized step's ceiling at ~1.25−3+1 < 0.3 —
-  // below every fresh-name score that shares its gates.
-  const penalty = megasetArtistRepeatPenalty(prev, c);
+  const halftime = tempoLane > 0 && bpmScore(prev.bpm!, c.bpm) === 0;
+  return {
+    tempoLane,
+    keyVal,
+    fit,
+    anchor,
+    sim: similarityScore(prev, c),
+    penalty: megasetArtistRepeatPenalty(prev, c),
+    halftime,
+  };
+}
+
+/** Apply blend weights + artist penalty to get the final transition number. */
+function blendScore(core: {
+  tempoLane: number;
+  keyVal: number;
+  fit: number;
+  anchor: number;
+  sim: number;
+  penalty: number;
+}): number {
   const raw =
-    MEGASET_TRANSITION_WEIGHTS.tempo * tempo +
-    MEGASET_TRANSITION_WEIGHTS.key * key +
-    MEGASET_TRANSITION_WEIGHTS.arcFit * fit +
-    MEGASET_ANCHOR_WEIGHT * anchor +
-    // #171 timbre prior: pure bonus over the weighted core — two key/tempo
-    // equals score identically today whether the tracks are sonically
-    // siblings or a jarring genre jump; this term breaks those ties.
-    MEGASET_SIMILARITY_WEIGHT * similarityScore(prev, c);
-  return penalty > 0 ? Math.max(0.01, raw - penalty + 1) : raw;
+    MEGASET_TRANSITION_WEIGHTS.tempo * core.tempoLane +
+    MEGASET_TRANSITION_WEIGHTS.key * core.keyVal +
+    MEGASET_TRANSITION_WEIGHTS.arcFit * core.fit +
+    MEGASET_ANCHOR_WEIGHT * core.anchor +
+    MEGASET_SIMILARITY_WEIGHT * core.sim;
+  return core.penalty > 0 ? Math.max(0.01, raw - core.penalty + 1) : raw;
+}
+
+export function transitionScore(
+  prev: SetCandidate,
+  c: SetCandidate,
+  preset: SetPreset,
+  t: number,
+  anchorBpm: number,
+  lastArousal: number | null,
+): number {
+  const core = transitionCore(prev, c, preset, t, anchorBpm, lastArousal);
+  return core === null ? -1 : blendScore(core);
 }
 
 /** #284: transitionScore plus its per-component breakdown — the ONE
- *  evaluation seam (transitionScore itself stays the hot-loop number
- *  cruncher; this wrapper recomputes the blend pieces for the wire).
- *  Returns null when the hop is gated (−1): no components to show, the
- *  honest answer is "this hop failed a hard gate", not a fake breakdown. */
+ *  evaluation seam. Returns null when the hop is gated (−1): no
+ *  components to show, the honest answer is "this hop failed a hard
+ *  gate", not a fake breakdown. */
 export function transitionEvidence(
   prev: SetCandidate,
   c: SetCandidate,
@@ -262,60 +295,21 @@ export function transitionEvidence(
   anchorBpm: number,
   lastArousal: number | null,
 ): MegasetEvidence | null {
-  const score = transitionScore(prev, c, preset, t, anchorBpm, lastArousal);
-  if (score <= 0) return null;
-  // transitionScore's gates guarantee both BPMs are mixable numbers here
-  const prevBpm = prev.bpm;
-  const cBpm = c.bpm;
-  if (
-    prevBpm === null ||
-    cBpm === null ||
-    !Number.isFinite(prevBpm) ||
-    !Number.isFinite(cBpm) ||
-    prevBpm <= 0 ||
-    cBpm <= 0
-  )
-    return null;
-  const lane = megasetTempoLane(prevBpm, cBpm);
-  const halftime = lane > 0 && bpmScore(prevBpm, cBpm) === 0;
-  const targetArousal = envelope(preset.arousal, t);
-  const targetDance = envelope(preset.dance, t);
-  const a = (c.arousal ?? 5) / 9;
-  const d = c.dance ?? 0.6;
-  const fit =
-    1 -
-    Math.min(
-      1,
-      (Math.abs(a - targetArousal / 9) + Math.abs(d - targetDance)) / 2,
-    );
-  const anchor =
-    1 -
-    Math.min(
-      1,
-      Math.abs(cBpm / (anchorBpm * tempoTarget(preset, t)) - 1) /
-        (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT) /
-        2,
-    );
-  const tempo = MEGASET_TRANSITION_WEIGHTS.tempo * lane;
-  const key = MEGASET_TRANSITION_WEIGHTS.key * keyScore(prev, c);
-  const arcFit = MEGASET_TRANSITION_WEIGHTS.arcFit * fit;
-  const anchorTerm = MEGASET_ANCHOR_WEIGHT * anchor;
-  const similarity = MEGASET_SIMILARITY_WEIGHT * similarityScore(prev, c);
-  const raw = tempo + key + arcFit + anchorTerm + similarity;
-  // the B6 repeat penalty, reconstructed the same way transitionScore
-  // applies it — the wire total must equal the wire blend EXACTLY
-  // (an evidence number that disagrees with the blend is the exact
-  // class of drift F1 caught, now structurally impossible)
-  const penalty = megasetArtistRepeatPenalty(prev, c);
-  const total = penalty > 0 ? Math.max(0.01, raw - penalty + 1) : raw;
+  const core = transitionCore(prev, c, preset, t, anchorBpm, lastArousal);
+  if (core === null) return null;
+  const tempo = MEGASET_TRANSITION_WEIGHTS.tempo * core.tempoLane;
+  const key = MEGASET_TRANSITION_WEIGHTS.key * core.keyVal;
+  const arcFit = MEGASET_TRANSITION_WEIGHTS.arcFit * core.fit;
+  const anchorTerm = MEGASET_ANCHOR_WEIGHT * core.anchor;
+  const similarity = MEGASET_SIMILARITY_WEIGHT * core.sim;
   return {
     tempo,
     key,
     arcFit,
     anchor: anchorTerm,
     similarity,
-    artistPenalty: penalty,
-    total,
-    halftime,
+    artistPenalty: core.penalty,
+    total: blendScore(core),
+    halftime: core.halftime,
   };
 }

@@ -19,9 +19,7 @@ import {
 } from "../../shared/leaf/vector-space";
 import type { ArchiveSimilar } from "../shared/archive-wire";
 import type { ArchiveQuery } from "../shared/types/archive-reader";
-
-/** Round to 4 decimals for wire payloads. Pure — module-level. */
-const r4 = (v: number): number => Math.round(v * 10000) / 10000;
+import { round4 } from "../../shared/leaf/fmt";
 
 export function similarTracks(
   reader: ArchiveQuery,
@@ -111,7 +109,7 @@ export function similarTracks(
         video_id: c.videoId,
         title: c.title,
         artist: c.artist,
-        score: r4(
+        score: round4(
           2 * cosineSimilarity(querySpaceVec, spaceVecs[i]!) -
             queryPenalty -
             penalties[i]!,
@@ -125,7 +123,7 @@ export function similarTracks(
         video_id: c.videoId,
         title: c.title,
         artist: c.artist,
-        score: r4(cosineSimilarity(queryVec!, c.vec)),
+        score: round4(cosineSimilarity(queryVec!, c.vec)),
       }))
       .toSorted((a, b) => b.score - a.score)
       .slice(0, kk);

@@ -1,4 +1,5 @@
 import type { ArchiveState } from "../../core/state";
+import { round3 } from "../../shared/leaf/fmt";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 
@@ -52,7 +53,7 @@ export function phraseCues(downbeats: number[]): Cue[] {
   for (let bar = 0; bar + step <= downbeats.length; bar += step) {
     out.push({
       index: out.length,
-      position: Math.round(downbeats[bar]! * 1000) / 1000,
+      position: round3(downbeats[bar]!),
       bar: bar + 1,
       // 32-bar memory spine: bars 1, 33, 65… (every 4th phrase boundary)
       memory: (bar + 1) % BARS_PER_MEMORY === 1,

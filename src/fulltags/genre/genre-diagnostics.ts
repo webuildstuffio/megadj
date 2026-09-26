@@ -27,6 +27,7 @@ import {
   type GenreSeed,
   type LoORowOutcome,
 } from "../../core/similar";
+import { round3 } from "../../shared/leaf/fmt";
 
 /** The four Tier-0 readouts, one JSON-serializable shape. */
 export interface GenreDiagnostics {
@@ -100,16 +101,15 @@ export function tier0Diagnostics(
     .map(([artist, count]) => ({
       artist,
       disagreements: count,
-      share: total > 0 ? Math.round((count / total) * 1000) / 1000 : 0,
+      share: total > 0 ? round3(count / total) : 0,
     }))
     .toSorted((a, b) => b.disagreements - a.disagreements);
   const top10Share =
     total > 0
-      ? Math.round(
-          (ranked.slice(0, 10).reduce((acc, r) => acc + r.disagreements, 0) /
-            total) *
-            1000,
-        ) / 1000
+      ? round3(
+          ranked.slice(0, 10).reduce((acc, r) => acc + r.disagreements, 0) /
+            total,
+        )
       : 0;
   const verdict =
     top10Share >= 0.4 ? "systematic" : top10Share >= 0.2 ? "mixed" : "random";
@@ -135,8 +135,7 @@ export function tier0Diagnostics(
     if (nn.length > 0 && same > nn.length / 2) majorityRows++;
     for (const n of nn) occurrence.set(n.id, (occurrence.get(n.id) ?? 0) + 1);
   }
-  const meanTop5 =
-    pop.length > 0 ? Math.round((sameArtistSum / pop.length) * 1000) / 1000 : 0;
+  const meanTop5 = pop.length > 0 ? round3(sameArtistSum / pop.length) : 0;
   const counts = [...occurrence.values()].toSorted((a, b) => a - b);
   const at = (p: number): number =>
     counts.length === 0
@@ -189,14 +188,8 @@ export function tier0Diagnostics(
     },
     confusion: {
       matrix,
-      triangleShare:
-        disagreeTotal > 0
-          ? Math.round((triangle / disagreeTotal) * 1000) / 1000
-          : 0,
-      top2Accuracy:
-        gated.length > 0
-          ? Math.round((top2Hit / gated.length) * 1000) / 1000
-          : 0,
+      triangleShare: disagreeTotal > 0 ? round3(triangle / disagreeTotal) : 0,
+      top2Accuracy: gated.length > 0 ? round3(top2Hit / gated.length) : 0,
     },
   };
 }

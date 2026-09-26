@@ -5,8 +5,8 @@ describe("progress formatting", () => {
   test("fmtBytes delegates to the leaf seam (decimal units, rounded at scale)", () => {
     expect(fmtBytes(512)).toBe("512 B");
     expect(fmtBytes(2048)).toBe("2 KB");
-    expect(fmtBytes(5 * 1024 * 1024)).toBe("5 MB"); // 1e3 rounds 5.24→5
-    expect(fmtBytes(3 * 1024 ** 3)).toBe("3 GB");
+    expect(fmtBytes(5 * 1024 * 1024)).toBe("5.2 MB"); // 1dp: 5242880 / 1e6 = 5.2
+    expect(fmtBytes(3 * 1024 ** 3)).toBe("3.2 GB"); // 1dp: 3221225472 / 1e9 = 3.2
     expect(fmtBytes(-2048)).toBe("-2 KB");
     expect(fmtBytes(Number.NaN)).toBe("—");
   });

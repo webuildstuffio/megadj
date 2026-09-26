@@ -14,6 +14,7 @@
 // Agent-first contract: --json (one summary object), human logs suppressed
 // in json mode, exit codes meaningful (1 = no such track / no embeddings).
 import { commandLog } from "../../shared/progress";
+import { round4 } from "../../shared/leaf/fmt";
 import { writeJson, finishCommandError } from "../../shared/cli-output";
 import {
   similarTracks,
@@ -122,7 +123,7 @@ export async function similar(opts: SimilarOptions): Promise<void> {
       video_id: h.videoId,
       title: h.title,
       artist: h.artist,
-      score: Math.round(h.score * 10000) / 10000,
+      score: round4(h.score),
     })),
   });
 }

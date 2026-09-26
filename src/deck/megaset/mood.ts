@@ -10,9 +10,7 @@
 // (no `mood` table).
 import type { ArchiveQuery } from "../shared/types/archive-reader";
 import type { ArchiveMoodProfile } from "../shared/archive-wire";
-
-/** Round to 3 decimals for wire payloads (null degrades to 0). Pure. */
-const r4 = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
+import { round3n } from "../../shared/leaf/fmt";
 
 interface MoodExtreme {
   video_id: string;
@@ -75,17 +73,17 @@ export function moodProfile(
        ORDER BY m.${col} ${dir}, m.video_id LIMIT ?`,
         n,
       )
-      .map((row) => ({ ...row, v: r4(row.v) }));
+      .map((row) => ({ ...row, v: round3n(row.v) }));
   return {
     available: true,
     analyzed: agg.n,
     avg: {
-      dance: r4(agg.dance),
-      valence: r4(agg.valence),
-      arousal: r4(agg.arousal),
-      party: r4(agg.party),
-      electronic: r4(agg.electronic),
-      aggressive: r4(agg.aggressive),
+      dance: round3n(agg.dance),
+      valence: round3n(agg.valence),
+      arousal: round3n(agg.arousal),
+      party: round3n(agg.party),
+      electronic: round3n(agg.electronic),
+      aggressive: round3n(agg.aggressive),
     },
     extremes: {
       valence: [...top("valence", "DESC"), ...top("valence", "ASC")],

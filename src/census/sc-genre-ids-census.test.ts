@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ALL_SOURCE_EXTS, walkFiles } from "../test-support/census-walk";
 
 /**
  * sc_genre_ids census (#108, verdict: DROPPED 2026-09-15). The ID→name
@@ -14,27 +15,13 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
-function walkFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) {
-      if (e.name === "node_modules" || e.name.startsWith(".")) continue;
-      out.push(...walkFiles(p));
-    } else if (/\.(ts|tsx|py|sql)$/.test(e.name)) {
-      out.push(p);
-    }
-  }
-  return out;
-}
-
 test("census: sc_genre_ids stays dropped (no reference in code)", () => {
   const offenders: string[] = [];
   // Scoped to the trees that could own the schema or a reader/writer.
   for (const dir of ["src", "fulltags", "tools"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
-    for (const p of walkFiles(abs)) {
+    for (const p of walkFiles(abs, ALL_SOURCE_EXTS)) {
       if (p === join(ROOT, "src/census/sc-genre-ids-census.test.ts")) continue; // self
       if (readFileSync(p, "utf8").includes("sc_genre_ids")) {
         offenders.push(p);

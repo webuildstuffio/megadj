@@ -25,6 +25,7 @@ import {
   type GridAuditVerdict,
 } from "../../fulltags/analysis/grid-audit";
 import { isFiniteNumberArray } from "../../shared/leaf/guards";
+import { round1 } from "../../shared/leaf/fmt";
 import type { ArchiveGridCrossCheck } from "../shared/archive-wire";
 
 interface Offender {
@@ -110,7 +111,7 @@ export function gridCrossCheck(
       title: r.title,
       rbBpm,
       // the FITTED grid tempo (bpmDelta = rb − fitted, so fitted = rb − Δ)
-      ledgerBpm: Math.round((rbBpm - v.bpmDelta) * 10) / 10,
+      ledgerBpm: round1(rbBpm - v.bpmDelta),
       driftMs: v.driftMs,
       reason: v.reason,
     };
@@ -126,7 +127,7 @@ export function gridCrossCheck(
         off.push(row);
         break;
       default:
-        result.ok++;
+        break;
     }
   }
   result.ok = result.checked - off.length - octave.length - drift.length;

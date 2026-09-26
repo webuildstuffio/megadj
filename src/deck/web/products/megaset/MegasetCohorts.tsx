@@ -101,8 +101,8 @@ export function MegasetCohorts(props: { planner: CohortsPlanner }) {
           ))}
           <p class="megaset-cohort-verdict">
             {state.data.all_complete
-              ? `All ${state.data.cohorts.length} cohort(s) complete — ${(state.data.elapsed_ms / 1000).toFixed(1)}s.`
-              : `At least one arm fell short of the budget — same answer the CLI exits 1 with. (${(state.data.elapsed_ms / 1000).toFixed(1)}s)`}
+              ? `All ${state.data.cohorts.length} cohort(s) complete — ${state.data.elapsed_ms < 100 ? "<0.1" : (state.data.elapsed_ms / 1000).toFixed(1)}s.`
+              : `At least one arm fell short of the budget — same answer the CLI exits 1 with. (${state.data.elapsed_ms < 100 ? "<0.1" : (state.data.elapsed_ms / 1000).toFixed(1)}s)`}
           </p>
           {/* rev-52: the whole session exports as ONE m3u8 (per-family
               sections, SHORT arms labeled) — same honesty as the plan */}

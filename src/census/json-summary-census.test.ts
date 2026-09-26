@@ -13,39 +13,14 @@
  * hand).
  */
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync, type Stats } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { relative } from "node:path";
+import { TS_EXTS, walkFiles } from "../test-support/census-walk";
 
 const ROOTS = ["src"] as const; // fulltags -> src/fulltags (#193); cratedeck -> src/deck
-const SKIP_DIRS = new Set(["node_modules", ".git", "test", "test-support"]);
 /** tools/ ships operator CLIs with the same --json contract; scan them too
  *  but skip the intentional string fixtures (loc-budget writes raw text). */
 const EXTRA_ROOTS = ["tools"] as const;
-const EXTRA_SKIP = new Set(["legacy", "__pycache__"]);
-
-function* tsFiles(dir: string): Generator<string> {
-  let stats: Stats;
-  try {
-    stats = statSync(dir);
-  } catch {
-    return;
-  }
-  if (!stats.isDirectory()) return;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name.startsWith(".")) continue;
-    const abs = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (SKIP_DIRS.has(entry.name)) continue;
-      yield* tsFiles(abs);
-    } else if (
-      entry.name.endsWith(".ts") &&
-      !entry.name.endsWith(".test.ts") &&
-      !entry.name.endsWith(".d.ts")
-    ) {
-      yield abs;
-    }
-  }
-}
 
 /** Matches `console.log(` followed by optional whitespace/newline and
  *  `JSON.stringify` — the raw-emit shape, across line breaks. */
@@ -55,10 +30,11 @@ describe("#159: one awaited JSON emit path (writeJson)", () => {
   test("no production file raw-prints JSON.stringify to stdout", () => {
     const offenders: string[] = [];
     const roots = [...ROOTS, ...EXTRA_ROOTS];
-    const skip = new Set([...SKIP_DIRS, ...EXTRA_SKIP]);
     for (const root of roots) {
-      for (const file of tsFiles(root)) {
-        if (file.split("/").some((segment) => skip.has(segment))) continue;
+      for (const file of walkFiles(root, TS_EXTS, { skipTests: true })) {
+        if (file.endsWith(".test.ts") || file.endsWith(".d.ts")) continue;
+        if (file.includes("/legacy/") || file.includes("/__pycache__/"))
+          continue;
         const code = readFileSync(file, "utf8");
         if (RAW_EMIT.test(code)) offenders.push(relative(".", file));
       }

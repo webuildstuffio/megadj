@@ -20,6 +20,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { TS_EXTS, walkFiles } from "../test-support/census-walk";
 import {
   forEachChild,
   isNoSubstitutionTemplateLiteral,
@@ -34,25 +35,15 @@ const TS_ROOTS = ["src", "tools"];
 // fulltags merged into src/fulltags (#193) and cratedeck folded into
 // src/deck (Sep 2026) — both already covered by "src".
 
-function isProductionTs(path: string): boolean {
-  return (
-    /\.(?:ts|tsx)$/u.test(path) &&
-    !/\.test\.tsx?$/u.test(path) &&
-    !/(^|\/)(test|tests|__tests__|fixtures|test-support)\//u.test(path)
-  );
-}
-
 function productionTsFiles(): string[] {
   const out: string[] = [];
-  const visit = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name === "node_modules" || entry.name === "dist") continue;
-      const p = join(dir, entry.name);
-      if (statSync(p).isDirectory()) visit(p);
-      else if (isProductionTs(p)) out.push(p);
+  for (const root of TS_ROOTS) {
+    for (const p of walkFiles(join(ROOT, root), TS_EXTS, {
+      skipTests: true,
+    })) {
+      if (!p.endsWith(".test.ts") && !p.endsWith(".test.tsx")) out.push(p);
     }
-  };
-  for (const root of TS_ROOTS) visit(join(ROOT, root));
+  }
   return out;
 }
 

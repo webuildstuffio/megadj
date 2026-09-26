@@ -146,14 +146,15 @@ describe("#327 M3 golden chain (pre-extraction pin)", () => {
       candidates: [...pool],
       preset: SET_PRESETS.warmup,
       minutes: 45,
-      // probed placeable pins on this pool (t22/t40/t58 pass the arc gates;
-      // t33/t09 etc. score −1 at every legal slot and MUST stay missing)
-      landmarkIds: ["t22", "t40", "t58", "zzz-unknown"],
+      // probed placeable pins on this pool (t05/t22/t30 pass the arc gates
+      // with the corrected anchor scoring; others score −1 at every legal
+      // slot and MUST stay missing)
+      landmarkIds: ["t05", "t22", "t30", "zzz-unknown"],
     });
     const placedIds = new Set(
       r.steps.filter((s) => s.landmark).map((s) => s.videoId),
     );
-    for (const id of ["t22", "t40", "t58"]) {
+    for (const id of ["t05", "t22", "t30"]) {
       expect(placedIds.has(id)).toBe(true);
     }
     // the unknown pin lands in landmarks_missing with honest accounting —

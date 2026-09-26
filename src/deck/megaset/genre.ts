@@ -10,9 +10,7 @@ import {
   parseVotes,
 } from "../../fulltags/genre/genre-vote";
 import type { ArchiveQuery } from "../shared/types/archive-reader";
-
-/** Round to 4 decimals for wire payloads. Pure — module-level. */
-const r4 = (v: number): number => Math.round(v * 10000) / 10000;
+import { round4 } from "../../shared/leaf/fmt";
 
 export function genreWhy(reader: ArchiveQuery, videoId: string) {
   const empty = () => ({
@@ -56,13 +54,13 @@ export function genreWhy(reader: ArchiveQuery, videoId: string) {
     db_genre: track.genre,
     voted: true,
     elected: elected.genre,
-    elected_weight: r4(elected.weight),
+    elected_weight: round4(elected.weight),
     winner_rungs: elected.winnerRungs,
     matches_db: elected.genre === track.genre,
     votes: votes.map((v) => ({
       rung: v.rung,
       genre: v.genre,
-      weight: r4(GENRE_VOTE_WEIGHTS[v.rung]),
+      weight: round4(GENRE_VOTE_WEIGHTS[v.rung]),
       elected: elected.genre !== null && v.genre === elected.genre,
       detail: v.detail ?? null,
     })),

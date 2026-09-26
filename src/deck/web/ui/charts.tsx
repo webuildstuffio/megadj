@@ -67,7 +67,11 @@ export function LineChart(props: {
   );
   if (all.length === 0) return null;
   const max = Math.max(...all);
-  const min = Math.min(0, Math.min(...all));
+  const rawMin = Math.min(...all);
+  const min =
+    rawMin >= 0 && max > 0
+      ? Math.max(0, rawMin - (max - rawMin) * 0.1)
+      : rawMin;
   const n = Math.max(...props.series.map((s) => s.values.length));
   const x = (i: number) =>
     PAD_L + (n <= 1 ? 0 : (i / (n - 1)) * (W - PAD_L - PAD_R));

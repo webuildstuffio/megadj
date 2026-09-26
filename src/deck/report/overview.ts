@@ -14,6 +14,7 @@ import {
   isRecord,
   isUnknownArray,
 } from "../../shared/leaf/guards";
+import { round1 } from "../../shared/leaf/fmt";
 
 interface CuePoint {
   index: number;
@@ -97,7 +98,7 @@ export function cueStats(reader: ArchiveQuery, limit = 40): ArchiveCueStats {
   return {
     available: reader.available(),
     analyzed: tracks.length,
-    avg_cues: tracks.length ? Math.round((total / tracks.length) * 10) / 10 : 0,
+    avg_cues: tracks.length ? round1(total / tracks.length) : 0,
     total_cues: total,
     tracks,
   };

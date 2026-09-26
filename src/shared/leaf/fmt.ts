@@ -16,11 +16,33 @@ export function fmtBytes(n: number): string {
   if (!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);
   if (abs >= 1e12) return `${(n / 1e12).toFixed(1)} TB`;
-  if (abs >= 1e9) return `${(n / 1e9).toFixed(0)} GB`;
-  if (abs >= 1e6) return `${(n / 1e6).toFixed(0)} MB`;
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(1)} GB`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(1)} MB`;
   if (abs >= 1e3) return `${(n / 1e3).toFixed(0)} KB`;
   return `${Math.round(n)} B`;
 }
+
+// ---- shared rounding helpers ------------------------------------------------
+// ONE set of wire-payload rounders. Every file that hand-rolled
+// `Math.round(v * 1000) / 1000` (genre-diagnostics, gold-score, grid-audit,
+// regate, verify-key, cues, ledgers, genre-run-eval) or
+// `Math.round(v * 10000) / 10000` (similar, genre, linear-probe) imports
+// from here. The names carry the decimal-place count so the intent is
+// self-documenting; `round3n` is the nullable variant (null → 0, same as
+// the old `round3` in core/ledgers.ts and `r4` in mood.ts).
+
+/** Round to 1 decimal place. */
+export const round1 = (v: number): number => Math.round(v * 10) / 10;
+
+/** Round to 3 decimal places. */
+export const round3 = (v: number): number => Math.round(v * 1000) / 1000;
+
+/** Round to 3dp, null degrades to 0 (wire payloads where null = absent). */
+export const round3n = (v: number | null): number =>
+  Math.round((v ?? 0) * 1000) / 1000;
+
+/** Round to 4 decimal places (embedding scores, vote weights). */
+export const round4 = (v: number): number => Math.round(v * 10000) / 10000;
 
 /** Relative "3m ago" style timestamps. */
 export function timeAgo(ts: number): string {

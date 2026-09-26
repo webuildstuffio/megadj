@@ -2,6 +2,7 @@
 // from gold.ts): per-track scoring against predicted phrase/BPM/cues and
 // the aggregate metrics. The annotation schema + loader stay in gold.ts.
 import type { GoldAnnotation, GoldBranch } from "./gold";
+import { round1, round3 } from "../../shared/leaf/fmt";
 
 // ---------- GA-00b metric math (pure — the scorer consumes these) ----------
 
@@ -45,14 +46,11 @@ export function scoreGoldTrack(
   const anchorDeltaMs =
     pred.firstDownbeatS === null
       ? null
-      : Math.round((pred.firstDownbeatS * 1000 - gold.firstDownbeatMs) * 10) /
-        10;
+      : round1(pred.firstDownbeatS * 1000 - gold.firstDownbeatMs);
   const bpmDelta =
     pred.bpm === null ? null : Math.round((pred.bpm - gold.bpm) * 100) / 100;
   const bpmRatio =
-    pred.bpm === null || !(gold.bpm > 0)
-      ? null
-      : Math.round((pred.bpm / gold.bpm) * 1000) / 1000;
+    pred.bpm === null || !(gold.bpm > 0) ? null : round3(pred.bpm / gold.bpm);
 
   // Phrase alignment: nearest-predicted-within-window per truth bar.
   let phraseAligned: number | null = null;
@@ -62,7 +60,7 @@ export function scoreGoldTrack(
       const win = PHRASE_WINDOW_BARS;
       if (pred.phraseBars.some((p) => Math.abs(p - bar) <= win)) hit++;
     }
-    phraseAligned = Math.round((hit / gold.phraseBars.length) * 1000) / 1000;
+    phraseAligned = round3(hit / gold.phraseBars.length);
   }
 
   // Cue acceptance: nearest-predicted-within-window per user cue.
@@ -72,7 +70,7 @@ export function scoreGoldTrack(
     for (const t of gold.hotCuesMs) {
       if (pred.cueTimesMs.some((p) => Math.abs(p - t) <= CUE_ACCEPT_MS)) hit++;
     }
-    cueAccepted = Math.round((hit / gold.hotCuesMs.length) * 1000) / 1000;
+    cueAccepted = round3(hit / gold.hotCuesMs.length);
   }
 
   return {

@@ -15,8 +15,8 @@
  *    sequential numOpt bail-outs; reads don't mutate.
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { TS_EXTS, walkFiles } from "../test-support/census-walk";
 
 const ROOTS = ["src"] as const; // fulltags merged into src (#193); deck+ops folded in
 const ALLOWED_FILES = new Set([
@@ -34,22 +34,12 @@ const ALLOWED_FILES = new Set([
   "src/ops/deck-install.ts",
 ]);
 
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...walk(p));
-    else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts"))
-      out.push(p);
-  }
-  return out;
-}
-
 describe("exit-code census: one mutation point (#160 ring 3)", () => {
   test("no production file writes process.exitCode outside the seam", () => {
     const offenders: string[] = [];
     for (const root of ROOTS) {
-      for (const file of walk(root)) {
+      for (const file of walkFiles(root, TS_EXTS)) {
+        if (file.endsWith(".test.ts")) continue;
         if (ALLOWED_FILES.has(file.replaceAll("\\", "/"))) continue;
         const text = readFileSync(file, "utf8");
         // write shape: assignment (+=, =) to process.exitCode. Reads
@@ -77,7 +67,8 @@ describe("exit-code census: one mutation point (#160 ring 3)", () => {
     // assertMac's fail-fast (cli.ts) — before any output channel opens.
     const offenders: string[] = [];
     for (const root of ROOTS) {
-      for (const file of walk(root)) {
+      for (const file of walkFiles(root, TS_EXTS)) {
+        if (file.endsWith(".test.ts")) continue;
         const norm = file.replaceAll("\\", "/");
         // src/cli.ts's assertMac fail-fast predates the drain rule and opens
         // no output channel first; the fold-sanctioned deck/ops files drain

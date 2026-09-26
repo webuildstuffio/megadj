@@ -1,3 +1,3 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`#306 scoring calibration gate GOLDEN DIGEST — a scoring change that moves any hop must re-bless consciously 1`] = `"de8f7cc34992edb2"`;
+exports[`#306 scoring calibration gate GOLDEN DIGEST — a scoring change that moves any hop must re-bless consciously 1`] = `"394dffa62ae5bf6c"`;

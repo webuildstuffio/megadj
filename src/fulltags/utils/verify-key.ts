@@ -14,7 +14,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { walkAudioDir } from "../../shared/audio-walk";
-import { errMessage } from "../../shared/leaf/fmt";
+import { errMessage, round3 } from "../../shared/leaf/fmt";
 import { analyzeKeys, type KeyResult } from "../analysis/key-analysis";
 import { groundTruth } from "../write/readers";
 
@@ -285,7 +285,7 @@ export async function runVerifyKey(opts: {
     match,
     near,
     mismatch,
-    agreement: Math.round(agreement * 1000) / 1000,
+    agreement: round3(agreement),
     gatePass: agreement >= VERIFY_KEY_GATE,
     elapsedMs: Date.now() - t0,
     rows,

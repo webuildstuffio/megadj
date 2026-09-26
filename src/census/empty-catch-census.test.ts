@@ -7,23 +7,10 @@
 // the justification because the repo's convention (mirrored in every
 // commented site) is a one-line "why swallowing is correct" — a bare
 // swallow with no words is the phantom-bug factory.
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, test } from "bun:test";
-
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) {
-      if (e.name === "node_modules" || e.name === "dist") continue;
-      out.push(...walk(p));
-    } else if (/\.(ts|tsx)$/.test(e.name)) {
-      out.push(p);
-    }
-  }
-  return out;
-}
+import { TS_EXTS, walkFiles } from "../test-support/census-walk";
 
 /** The repo root as seen from THIS file (src/census/ → repo root). */
 const ROOT = join(import.meta.dir, "../..");
@@ -34,7 +21,7 @@ const SELF = relative(ROOT, import.meta.path);
 describe("#318 empty-catch census", () => {
   test("every empty catch body carries a justifying comment", () => {
     const offenders: string[] = [];
-    for (const file of walk(ROOT)) {
+    for (const file of walkFiles(ROOT, TS_EXTS)) {
       const rel = relative(ROOT, file);
       if (rel === SELF) continue; // the census's own pattern literals
       const rawText = readFileSync(file, "utf8");

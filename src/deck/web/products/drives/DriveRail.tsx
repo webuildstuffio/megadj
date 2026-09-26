@@ -281,7 +281,7 @@ function RailCard(props: {
               <i
                 class={1 - free / totalBytes > 0.85 ? "hot" : ""}
                 style={{
-                  width: `${Math.min(100, (1 - free / totalBytes) * 100)}%`,
+                  width: `${Math.min(100, Math.max(0, (1 - free / totalBytes) * 100))}%`,
                 }}
               />
             </div>

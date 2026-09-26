@@ -9,6 +9,7 @@ import { probeLeaveOneOut, type ProbeRow } from "../analysis/linear-probe";
 import { scoringFamily } from "./genre-refold";
 import type { GenreOptions, RefoldEvalBlock } from "./genre-run-types";
 import { parseEvalPopulation } from "./genre-run-population";
+import { round3 } from "../../shared/leaf/fmt";
 
 type CommandLog = (message: string) => void;
 type EvalSummary = ReturnType<typeof evalLeaveOneOut>;
@@ -28,7 +29,6 @@ interface ProbeBlock {
 }
 
 const pct = (share: number): string => `${(share * 100).toFixed(1)}%`;
-const rounded = (value: number): number => Math.round(value * 1000) / 1000;
 
 function runRefoldReadout(
   enabled: boolean,
@@ -53,9 +53,9 @@ function runRefoldReadout(
     agree: result.agree,
     disagree: result.disagree,
     refused: result.refused,
-    agreement: rounded(result.agreement),
-    refusal: rounded(result.refusal),
-    deltaVsBaseline: rounded(result.agreement - summary.agreement),
+    agreement: round3(result.agreement),
+    refusal: round3(result.refusal),
+    deltaVsBaseline: round3(result.agreement - summary.agreement),
   };
   log(
     `  refold (umbrella arbitration): ${result.evaluated} scored (${refold.abstained} plain-umbrella rows abstain) · gated ${pct(result.agreement)} (Δ ${refold.deltaVsBaseline >= 0 ? "+" : ""}${pct(result.agreement - summary.agreement)} vs baseline) · refusal ${pct(result.refusal)}`,
@@ -122,9 +122,9 @@ function runArtistDisjointReadout(
   );
   const block = {
     evaluated: result.evaluated,
-    agreement: rounded(result.agreement),
-    refusal: rounded(result.refusal),
-    delta: rounded(result.agreement - summary.agreement),
+    agreement: round3(result.agreement),
+    refusal: round3(result.refusal),
+    delta: round3(result.agreement - summary.agreement),
   };
   log(
     `  artist-disjoint LOO: ${pct(result.agreement)} (Δ ${block.delta >= 0 ? "+" : ""}${pct(result.agreement - summary.agreement)} vs plain) — ${result.agreement >= summary.agreement * 0.95 ? "audio-driven, plain LOO stands" : "artist fingerprinting suspected: plain LOO is inflated"}`,
@@ -143,8 +143,8 @@ function runProbeReadout(
   const probe = {
     protocol: result.protocol,
     evaluated: result.evaluated,
-    accuracy: rounded(result.accuracy),
-    deltaVsKnn: rounded(result.accuracy - baselineAgreement),
+    accuracy: round3(result.accuracy),
+    deltaVsKnn: round3(result.accuracy - baselineAgreement),
   };
   log(
     `  linear probe ${result.protocol}: ${pct(result.accuracy)} (Δ ${probe.deltaVsKnn >= 0 ? "+" : ""}${pct(result.accuracy - baselineAgreement)} vs kNN gate)${probe.deltaVsKnn >= 0.03 ? " — probe beats the gate by ≥3 pts: promote to production readout" : ""}`,
@@ -227,9 +227,9 @@ export async function runGenreEval(
     agree: summary.agree,
     disagree: summary.disagree,
     refused: summary.refused,
-    agreement: rounded(summary.agreement),
-    refusal: rounded(summary.refusal),
-    ungated_agreement: rounded(summary.ungatedAgreement),
+    agreement: round3(summary.agreement),
+    refusal: round3(summary.refusal),
+    ungated_agreement: round3(summary.ungatedAgreement),
     target: 0.65,
     pass,
     ...optionalBlocks(diagnostics, artistDisjoint, probe, refold),

@@ -5,6 +5,7 @@
  * (deep import, pinned by this module being import-leaf-safe).
  */
 import type { AnlzBeat } from "./anlz";
+import { round1, round3 } from "../../shared/leaf/fmt";
 
 /**
  * Least-squares constant-tempo fit over a beat array (plan GA-01): beat
@@ -124,12 +125,12 @@ export function gridAudit(
     reason = "grid within tolerance";
   }
   return {
-    bpmDelta: Math.round((rbBpm - fit.bpmFitted) * 10) / 10,
-    bpmRatio: Math.round(bpmRatio * 1000) / 1000,
+    bpmDelta: round1(rbBpm - fit.bpmFitted),
+    bpmRatio: round3(bpmRatio),
     anchorDeltaMs: null,
-    driftMs: Math.round(driftMs * 10) / 10,
+    driftMs: round1(driftMs),
     driftMonotonic: Math.abs(driftMs) > 15 && residualMs <= 40,
-    residualMs: Math.round(residualMs * 10) / 10,
+    residualMs: round1(residualMs),
     bucket,
     reason,
   };
@@ -210,8 +211,8 @@ export function gridAuditFull(
 
   return {
     ...ledger,
-    anchorDeltaMs: Math.round(anchorDeltaMs * 10) / 10,
-    phaseMs: Math.round(phaseMs * 10) / 10,
+    anchorDeltaMs: round1(anchorDeltaMs),
+    phaseMs: round1(phaseMs),
     phaseBeats,
     bucket,
     reason,

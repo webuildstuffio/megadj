@@ -14,8 +14,9 @@
  *     reason; migrations DELETE entries, never add.
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync, statSync, type Dirent } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { TS_EXTS, walkFiles, walkTestFiles } from "../test-support/census-walk";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
@@ -49,27 +50,11 @@ const ALLOWED = new Set<string>([
 /** The seam module itself is always allowed (not counted against N). */
 const SEAM = "src/test-support/testutil.ts";
 
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  let entries: Dirent[];
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return out;
-  }
-  for (const entry of entries) {
-    const p = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...walk(p));
-    else if (entry.name.endsWith(".test.ts")) out.push(p);
-  }
-  return out;
-}
-
 describe("fixture-seam census (#248 ratchet)", () => {
   test("mkdtempSync appears ONLY in the seam + tracked stragglers", () => {
     const offenders: string[] = [];
     for (const root of ["src"]) {
-      for (const file of walk(join(ROOT, root))) {
+      for (const file of walkTestFiles(join(ROOT, root))) {
         const rel = relative(ROOT, file);
         const text = readFileSync(file, "utf8");
         if (!text.includes("mkdtempSync")) continue;
@@ -108,31 +93,16 @@ describe("fixture-seam census (#248 ratchet)", () => {
 
   test("the seam module itself is the only non-test mkdtemp in src/", () => {
     const offenders: string[] = [];
-    const scan = (dir: string): void => {
-      let entries: Dirent[];
-      try {
-        entries = readdirSync(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const entry of entries) {
-        const p = join(dir, entry.name);
-        if (entry.isDirectory()) scan(p);
-        else if (
-          entry.name.endsWith(".ts") &&
-          !entry.name.endsWith(".test.ts")
-        ) {
-          const rel = relative(ROOT, p);
-          if (rel === SEAM) continue;
-          if (
-            statSync(p).isFile() &&
-            readFileSync(p, "utf8").includes("mkdtempSync")
-          )
-            offenders.push(`  ${rel}`);
-        }
-      }
-    };
-    scan(join(ROOT, "src"));
+    for (const p of walkFiles(join(ROOT, "src"), TS_EXTS)) {
+      if (p.endsWith(".test.ts")) continue;
+      const rel = relative(ROOT, p);
+      if (rel === SEAM) continue;
+      if (
+        statSync(p).isFile() &&
+        readFileSync(p, "utf8").includes("mkdtempSync")
+      )
+        offenders.push(`  ${rel}`);
+    }
     expect(
       offenders,
       `production code must not mkdtemp (fixture dirs are a test concern):\n${offenders.join("\n")}`,
@@ -146,7 +116,7 @@ describe("fixture-seam census (#248 ratchet)", () => {
     // doc text mentions the call shape, hence the self-skip.
     const offenders: string[] = [];
     for (const root of ["src"]) {
-      for (const file of walk(join(ROOT, root))) {
+      for (const file of walkTestFiles(join(ROOT, root))) {
         const rel = relative(ROOT, file);
         if (rel === "src/census/fixture-seam-census.test.ts") continue;
         if (rel === SEAM) continue;

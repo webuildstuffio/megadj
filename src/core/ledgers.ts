@@ -3,11 +3,8 @@ import {
   isRecord,
   isUnknownArray,
 } from "../shared/leaf/guards";
+import { round3n } from "../shared/leaf/fmt";
 import { RecordLedger } from "./record-ledger";
-
-/** Round to 3 decimals for wire payloads (null degrades to 0). Pure —
- *  module-level, not re-created per call. */
-const round3 = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
 
 /** One mood-ledger row's numeric profile + provenance — the wire shape
  *  shared by Ledgers and ArchiveState (was repeated inline in both
@@ -178,11 +175,11 @@ export class Ledgers extends RecordLedger {
       available: true,
       analyzed: row.n,
       avg: {
-        dance: round3(row.dance),
-        valence: round3(row.valence),
-        arousal: round3(row.arousal),
-        party: round3(row.party),
-        electronic: round3(row.electronic),
+        dance: round3n(row.dance),
+        valence: round3n(row.valence),
+        arousal: round3n(row.arousal),
+        party: round3n(row.party),
+        electronic: round3n(row.electronic),
       },
     };
   }

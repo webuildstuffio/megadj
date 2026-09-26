@@ -29,7 +29,7 @@ export function durationDelta(
   const pct = hi > 0 ? ((hi - lo) / hi) * 100 : 0;
   if (pct < 0.5) return "same length";
   const d = Math.abs(a.durationS - b.durationS);
-  return d < 2
+  return d < 1.95
     ? `${d.toFixed(1)}s apart`
     : `${Math.floor(d / 60)}:${String(Math.round(d % 60)).padStart(2, "0")} apart`;
 }

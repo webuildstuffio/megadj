@@ -40,7 +40,7 @@ import {
 // policy, drift constants, landmark pin list, and the E7 strategy pick;
 // this module remains the measured fill (pool filter, opener pick,
 // commit loop, wire assembly).
-import { buildPlan } from "./plan";
+import { buildPlan, planCandidateDuration } from "./plan";
 // bpmScore/keyScore/withinAnchorBudget are the public scoring surface
 // (test + spoke imports). mixableBpm/transitionScore have no external
 // consumer — they stay internal to the two engine modules (knip-pinned);
@@ -164,14 +164,8 @@ export interface MegasetInput {
 // shared/types.ts — the engine imports them back so the HTTP route and
 // the UI read the same contract with no drifting duplicate.
 
-/** Candidate duration with the 5:00 assumption when unknown. Pure —
- *  module-level, not re-created per `buildMegaset` call (oxlint scoping). */
-const candidateDuration = (c: SetCandidate): number => {
-  const seconds = c.durationS;
-  return seconds !== null && Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : 300;
-};
+// candidateDuration shared with plan.ts — ONE function, both callers.
+const candidateDuration = planCandidateDuration;
 
 /** Set-runtime precision shared by step clocks and the result summary. */
 const minutesAt = (seconds: number): number =>
@@ -301,11 +295,9 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     // the diversity guard's honest report card (0 for a well-spread set).
     let sameArtistPairs = 0;
     for (let i = 1; i < steps.length; i++) {
-      if (megasetArtistKey(steps[i - 1]!.artist) !== null) {
-        const a = megasetArtistKey(steps[i - 1]!.artist);
-        const b = megasetArtistKey(steps[i]!.artist);
-        if (a !== null && a === b) sameArtistPairs += 1;
-      }
+      const a = megasetArtistKey(steps[i - 1]!.artist);
+      const b = megasetArtistKey(steps[i]!.artist);
+      if (a !== null && a === b) sameArtistPairs += 1;
     }
     // S13: pins that never landed — the repair pass filled the list;
     // steps[] is final here, so the wire truth is authoritative.

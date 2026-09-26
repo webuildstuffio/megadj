@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { TS_EXTS, walkFiles } from "../test-support/census-walk";
 
 // Audio-extension census (#200). The #69 SSOT's membership regrew private
 // twins within weeks (rb-import dropped .alac; hygiene_audio missed
@@ -23,16 +24,6 @@ const SSOT = [
   ".alac",
 ];
 
-function* repoFiles(dir: string): Generator<string> {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) {
-      if (e.name === "node_modules" || e.name.startsWith(".")) continue;
-      yield* repoFiles(p);
-    } else if (/\.(ts|tsx)$/.test(e.name)) yield p;
-  }
-}
-
 /** Max SSOT exts in any one `new Set([…])` literal (no nested brackets). */
 function maxSsotExtsPerSetLiteral(text: string): number {
   let max = 0;
@@ -48,7 +39,7 @@ test("census: no hand-rolled audio-extension Set outside the SSOT", () => {
   for (const dir of ["src"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
-    for (const p of repoFiles(abs)) {
+    for (const p of walkFiles(abs, TS_EXTS)) {
       if (
         p !== SELF &&
         !p.includes("shared/audio-exts") &&

@@ -113,7 +113,7 @@ export function GenreWhyTab() {
                           <span
                             class="votebar"
                             style={{
-                              width: `${Math.max(4, (v.weight / total) * 100).toFixed(1)}%`,
+                              width: `${Math.max(1, (v.weight / total) * 100).toFixed(1)}%`,
                             }}
                           />
                           <span

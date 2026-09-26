@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { TS_EXTS, walkFiles } from "../test-support/census-walk";
 
 // errorText census (#82, 2nd pass Sep 18). #82 closed with 1 residual;
 // 31 inline `instanceof Error ?` sites + 1 private re-roll had regrown.
@@ -8,16 +9,6 @@ import { join } from "node:path";
 // errorText). Sites outside SANCTIONED fail here — no silent regrowth.
 const ROOT = join(import.meta.dir, "..", "..");
 const SELF = "src/census/error-text-census.test.ts";
-
-function* repoFiles(dir: string): Generator<string> {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) {
-      if (e.name === "node_modules" || e.name.startsWith(".")) continue;
-      yield* repoFiles(p);
-    } else if (/\.(ts|tsx)$/.test(e.name)) yield p;
-  }
-}
 
 const SANCTIONED: Record<string, string> = {
   "src/shared/leaf/fmt.ts": "the SSOT itself",
@@ -40,7 +31,7 @@ test("census: every `instanceof Error` site is the SSOT or sanctioned", () => {
   for (const dir of ["src"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
-    for (const p of repoFiles(abs)) {
+    for (const p of walkFiles(abs, TS_EXTS)) {
       const rel = p.slice(ROOT.length + 1);
       if (rel === SELF) continue;
       const text = readFileSync(p, "utf8");
@@ -56,7 +47,7 @@ test("census: no private re-roll of the helper body", () => {
   for (const dir of ["src"]) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs)) continue;
-    for (const p of repoFiles(abs)) {
+    for (const p of walkFiles(abs, TS_EXTS)) {
       const rel = p.slice(ROOT.length + 1);
       if (rel === SELF) continue;
       if (rel === "src/shared/leaf/fmt.ts") continue; // the SSOT itself

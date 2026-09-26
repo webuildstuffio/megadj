@@ -1,4 +1,5 @@
 import type { ArchiveState } from "../../core/state";
+import { round3 } from "../../shared/leaf/fmt";
 import { goldDir, loadGoldSet, type GoldAnnotation } from "../analysis/gold";
 import {
   evalLeaveOneOut,
@@ -76,7 +77,7 @@ export function regateGenre(state: ArchiveState): GenreRegateResult {
     };
   }
   const summary = evalLeaveOneOut(seeds, 5, 0.6, durations);
-  const measured = Math.round(summary.agreement * 1000) / 1000;
+  const measured = round3(summary.agreement);
   // gate verdict shape mirrors runRegate's GateResult (passPercent vs
   // requiredPercent) so consumers never branch on dimension
   const gate: GateResult = {

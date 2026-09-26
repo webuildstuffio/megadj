@@ -9,30 +9,13 @@
 // file migrates when the `unstable/ast` subpath API (or a vendored
 // parser) becomes the target. A straying import reintroduces the whole
 // migration cost silently — this census fails it loudly instead.
-import { readFileSync, readdirSync } from "node:fs";
-import { extname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
+import { TS_ALL_EXTS, walkFiles } from "../test-support/census-walk";
 
 const REPO = join(import.meta.dir, "..", "..");
 const ROOTS = ["src", "tools"];
-const EXT = new Set([".ts", ".tsx", ".mts", ".cts"]);
-const SKIP_DIRS = new Set([
-  "node_modules",
-  "dist",
-  "test",
-  "tests",
-  "__tests__",
-  "fixtures",
-]);
-
-function* walk(dir: string): Generator<string> {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (SKIP_DIRS.has(entry.name) || entry.name.startsWith(".")) continue;
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) yield* walk(path);
-    else if (EXT.has(extname(entry.name))) yield path;
-  }
-}
 
 /** `import * as ts from "typescript"` / `from 'typescript'` — the exact
  *  shape TS7 breaks (the version stub has no compiler API). */
@@ -49,7 +32,9 @@ describe("TypeScript compiler-API seam census (#274)", () => {
   test(`"typescript" is imported only through ${SEAM}`, () => {
     const offenders: string[] = [];
     for (const root of ROOTS) {
-      for (const path of walk(join(REPO, root))) {
+      for (const path of walkFiles(join(REPO, root), TS_ALL_EXTS, {
+        skipTests: true,
+      })) {
         const rel = path.slice(REPO.length + 1);
         if (rel === SEAM) continue;
         const text = readFileSync(path, "utf8");

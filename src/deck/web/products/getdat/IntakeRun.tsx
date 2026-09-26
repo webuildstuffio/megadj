@@ -160,10 +160,8 @@ export function IntakeRun(props: {
   onDone: () => void;
 }) {
   const { job } = props;
-  const phaseIdx = Math.max(
-    0,
-    STEPS.findIndex((s) => s.id === job.phase),
-  );
+  const rawIdx = STEPS.findIndex((s) => s.id === job.phase);
+  const phaseIdx = rawIdx === -1 ? null : rawIdx;
   const parsed =
     job.status === "done"
       ? parseIntakeResult(job.result_json)
@@ -184,11 +182,11 @@ export function IntakeRun(props: {
       <div class="intake-steps">
         {STEPS.map((s, i) => {
           const state =
-            done || i < phaseIdx
+            done || (phaseIdx !== null && i < phaseIdx)
               ? "done"
-              : i === phaseIdx && job.status === "running"
+              : phaseIdx !== null && i === phaseIdx && job.status === "running"
                 ? "active"
-                : failed && i === phaseIdx
+                : failed && phaseIdx !== null && i === phaseIdx
                   ? "failed"
                   : "wait";
           return (
