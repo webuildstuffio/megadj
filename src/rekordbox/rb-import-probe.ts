@@ -5,8 +5,9 @@
 // seam — and never touches the master DB. rb-import.ts keeps the hard
 // gates + the rbImport sequencer; rb-import-verify.ts owns the write.
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
-import { extname, join, relative } from "node:path";
+import { basename, extname, join, relative } from "node:path";
 import { isRecord, isUnknownArray } from "../shared/leaf/guards";
+import { nameKey } from "../shared/name-key";
 import { probeMediaSync } from "../fulltags/utils/media-probe";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { rbPythonFile } from "./rb-python-file.js";
@@ -120,6 +121,14 @@ export interface DupeRefusal {
   rowId: string;
 }
 
+/** Strip shelf-sync's `[archive]` / `[archive N]` collision suffix from
+ *  a filename so path-key matching treats `Track [archive 2].m4a` the same
+ *  as `Track.m4a`. Without this, the dupe gate saw each [archive] variant
+ *  as a distinct file and imported all of them (Sep 26 audit: 34 groups). */
+function stripArchiveSuffix(name: string): string {
+  return name.replace(/ \[archive(?: \d+)?\]/u, "");
+}
+
 /** The F11 dupe-gate scan (read-only, ONE fresh spawn): Python emits the
  *  incoming files' path-key hits plus the duration-±2s candidate rows;
  *  TS judges fingerprint candidates through the ONE fpcalc seam — the
@@ -132,6 +141,29 @@ export function dupeGateScan(
   allowDupe: boolean | undefined,
 ): { refused: DupeRefusal[] } {
   if (allowDupe) return { refused: [] };
+
+  // ---- intra-batch dedup (Sep 26 fix) ---------------------------------
+  // When two incoming files share the same name key after stripping
+  // [archive N] suffixes, the second is refused. This closes the race
+  // window where two batch folders imported in the same session each
+  // passed the gate against an empty DB.
+  const seenStemKeys = new Map<string, string>(); // stemKey → first path
+  const intraBatchRefused = new Map<string, DupeRefusal>();
+  for (const f of payloadFiles) {
+    const path = typeof f[0] === "string" ? f[0] : null;
+    if (path === null) continue;
+    const stemKey = nameKey(stripArchiveSuffix(basename(path)));
+    const first = seenStemKeys.get(stemKey);
+    if (first !== undefined && first !== path) {
+      intraBatchRefused.set(path, {
+        file: path,
+        matchedBy: "path",
+        rowId: "intra-batch",
+      });
+    } else {
+      seenStemKeys.set(stemKey, path);
+    }
+  }
 
   // incoming fingerprints (already computed in phase 2, index 11)
   const incoming = payloadFiles.flatMap((f) => {
@@ -205,6 +237,10 @@ export function dupeGateScan(
     const hit = incomingByFp.get(fp);
     if (hit && !refused.has(hit))
       refused.set(hit, { file: hit, matchedBy: "fingerprint", rowId: c.rowId });
+  }
+  // merge intra-batch refusals (lower priority than DB-level hits)
+  for (const [path, ref] of intraBatchRefused) {
+    if (!refused.has(path)) refused.set(path, ref);
   }
   return { refused: [...refused.values()] };
 }

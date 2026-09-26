@@ -6,6 +6,7 @@ through the shared NFC+casefold path_key (the macOS NFD-trap killer).
 """
 
 import json
+import re
 import sys
 import unicodedata
 from typing import Any
@@ -23,25 +24,47 @@ def path_key(s: str) -> str:
     return normalized.casefold() if normalized else ""
 
 
+_ARCHIVE_SUFFIX = re.compile(r" \[archive(?: \d+)?]")
+
+
+def stem_key(s: str) -> str:
+    """path_key with shelf-sync's [archive N] collision suffix stripped.
+
+    Without this, an existing `Track.m4a` row and an incoming
+    `Track [archive].m4a` are invisible to each other and both
+    get imported (Sep 26 audit: 34 groups of this class).
+    """
+    return path_key(_ARCHIVE_SUFFIX.sub("", s))
+
+
 def main() -> None:
     db_path, payload = sys.argv[1], json.loads(sys.argv[2])
     incoming = {str(f[0]): float(f[1] or 0) for f in payload["files"]}
 
     db = Rekordbox6Database(db_path)
-    existing: list[tuple[str, str, float, str]] = []
+    existing: list[tuple[str, str, float, str, str]] = []
     for c in db.query(DjmdContent).all():
         if not c.FolderPath:
             continue
         dur = float(c.Length) if c.Length else 0.0
-        existing.append((str(c.ID), str(c.FolderPath), dur, path_key(c.FolderPath)))
+        existing.append(
+            (str(c.ID), str(c.FolderPath), dur, path_key(c.FolderPath), stem_key(c.FolderPath))
+        )
     db.close()
 
     candidates: list[dict[str, Any]] = []
     for full, dur in incoming.items():
         key = path_key(full)
-        for row_id, path, e_dur, e_key in existing:
+        skey = stem_key(full)
+        for row_id, path, e_dur, e_key, e_skey in existing:
             if e_key == key:
                 # (a) NFC+casefold path proof — same file row already
+                candidates.append(
+                    {"rowId": row_id, "path": path, "duration": e_dur, "targets": [full]}
+                )
+            elif e_skey == skey:
+                # (a2) [archive]-aware stem match — incoming "Track [archive].m4a"
+                # matches existing "Track.m4a" (Sep 26 fix)
                 candidates.append(
                     {"rowId": row_id, "path": path, "duration": e_dur, "targets": [full]}
                 )

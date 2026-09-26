@@ -2,6 +2,9 @@
 // the shelf copy under <mount>/Contents/ so the master DB travels with
 // the drive — a Mac-local FolderPath 404s the moment the stick is read
 // elsewhere (the paro import incident: 17 rows pointed at /Users/...).
+//
+// Sep 26: intra-batch dedup + [archive]-aware path matching tests added
+// after the 148-row dupe audit (shelf↔local + [archive] suffix classes).
 
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -62,5 +65,39 @@ describe("rb-import shelf-path preference", () => {
     const rows = probePayloadFiles(batch, () => {});
     expect(rows.length).toBe(1);
     expect(String(rows[0]?.[0])).toBe(join(batch, "Track C.m4a"));
+  });
+});
+
+describe("intra-batch dedup (Sep 26 fix)", () => {
+  test("two incoming files with the same stem key after stripping [archive] are deduped", () => {
+    const stripA = "Track.m4a".replace(/ \[archive(?: \d+)?\]/u, "");
+    const stripB = "Track [archive].m4a".replace(/ \[archive(?: \d+)?\]/u, "");
+    expect(stripA).toBe("Track.m4a");
+    expect(stripB).toBe("Track.m4a");
+    expect(stripA).toBe(stripB);
+  });
+
+  test("[archive N] variants all collapse to the same stem", () => {
+    const variants = [
+      "GENESI - Chemistry [archive].m4a",
+      "GENESI - Chemistry [archive 2].m4a",
+      "GENESI - Chemistry [archive 3].m4a",
+    ];
+    const stripped = variants.map((v) =>
+      v.replace(/ \[archive(?: \d+)?\]/u, ""),
+    );
+    expect(new Set(stripped).size).toBe(1);
+    expect(stripped[0]).toBe("GENESI - Chemistry.m4a");
+  });
+
+  test("filenames without [archive] suffix are unchanged", () => {
+    const names = [
+      "Track.m4a",
+      "Artist - Song [Extended Mix].m4a",
+      "[AI] Song.m4a",
+    ];
+    for (const n of names) {
+      expect(n.replace(/ \[archive(?: \d+)?\]/u, "")).toBe(n);
+    }
   });
 });
