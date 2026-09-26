@@ -1,114 +1,48 @@
-# Qodo AI PR Review Workflow v2.29.1
-# Changelog: v2.29.1 - Use ${#var} instead of echo|wc -c (SC2000). No behavior change.
-# Automated AI-powered code reviews, improvements and PR descriptions using qodo-ai/pr-agent@v0.46.0
+# Qodo AI Code Suggestions v3.0
+# Inline code suggestions only — the highest-value, lowest-noise output.
+# All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
+# and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
-# RELATED FILES (Repo-Agnostic Template):
-# - .github/workflows/qodo-review.yml (this file)
-# - .github/scripts/load-qodo-instructions.sh
-# - .github/prompts/qodo-review.txt (or .github/prompts/qodo-review.md)
-# - .github/qodo-prompts/repo-prompts.txt (fallback)
-# - .github/qodo-instructions.md (fallback)
-#
-# This workflow is designed to work in any repository. It automatically:
-# - Loads custom instructions from .github/prompts/qodo-review.txt
-# - Creates/updates Qodo review labels (mega/improve status badges)
-# - Runs comprehensive PR reviews with Mega Reviewer (Qwen3.8-27B)
-# - Runs quick improvements with Qwen3.8 + Nemotron 3.5 Lightning
-# - Only Mega Reviewer runs on synchronize events (subsequent commits)
-# - Quick Improvers only run on initial PR open/reopen
+# Model: openrouter/free — eternal router, auto-picks any live free model, never rots.
+# /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
-# v2.29.0: (Sep 24 2026) Dependabot skip + cache fix.
-#          - Dependabot/version-bump PRs no longer reviewed (removed explicit
-#            dependabot[bot] re-include from both job guards)
-#          - Docker cache: per-PR key (never shared, one copy per PR) replaced
-#            with a single shared monthly key
-# v2.28.0: (Sep 24 2026) Strict mode + v0.46 new features.
-#          - Review: NUM_MAX_FINDINGS 8→4, security review always on, NEW
-#            require_risk_assessment + require_merge_recommendation (v0.46)
-#          - Improve: SUGGESTIONS_SCORE_THRESHOLD 6→8, NEW max_suggestions_per_file=2
-#            (v0.45 feature), per-chunk 8→5, best-practice 6→3, focus_only_on_problems
-#          - extra_instructions suffix: severity 8+ only, ≤2 sentences per finding
-# v2.27.0: (Sep 23 2026) Fixed total model rot — all 8 pinned :free slugs had died.
-#          - Action bump v0.31 -> v0.46 (current release)
-#          - Models re-chosen from OpenRouter LIVE catalog, measured on 3 axes
-#            (intelligence index, coding index, p50 latency) via /v1/models?sort=
-#          - Primary everywhere: qwen/qwen3.8-27b:free — top-3 coding, top-2
-#            intelligence, #2 FASTEST of all 20 free models, tools-capable, 262K ctx
-#          - Quick Improver 2: nvidia/nemotron-3.5-lightning:free (1M ctx, fast)
-#          - All fallback chains end in openrouter/free — the Free Models Router,
-#            a permanent slug that auto-picks any currently-live free model.
-#            Model rot should now self-heal instead of breaking workflows.
-#          - CONFIG__CUSTOM_MODEL_MAX_TOKENS aligned to 262K ctx (~90% = 235520)
-# v2.26.0: Updated all models to working OpenRouter free tier (verified Jan 2026)
-#          - Replaced 7 non-working models (Grok 4.1, BERT Nebulon, KAT Coder Pro removed from free tier)
-#          - Mega Reviewer: Qwen3 Next 80B A3B (256K context, general purpose)
-#          - Quick Improver 1: Qwen3 Coder 480B A35B (256K context, code-specialized)
-#          - Quick Improver 2: Devstral 2512 (256K context, Mistral code-specialized)
-#          - All models verified via OpenRouter API on 2026-01-19
-#          - Aligned CONFIG__CUSTOM_MODEL_MAX_TOKENS with actual model context limits
-# v2.25.0: Fixed PR description configuration - now preserves original user descriptions instead of replacing them
-# v2.24.0: Version bump, added comprehensive file documentation, verified repo-agnostic setup
-# v2.23.0: Made workflow repo-agnostic, changed prompt file to generic repo-prompts.txt
-# v2.22.0: Updated model configuration - Grok 4.1 Fast as Mega Reviewer, BERT Nebulon Alpha + KAT Coder Pro as Quick Improvers
-# v2.21.0: Moved workflow to main .github/workflows directory, updated to use only txt prompt files, removed md dependency
-# v2.20.0: Consolidated workflow configuration in main workflows directory
-# v2.19.0: Fixed context loading issue by switching to plain text format to avoid shell quote interpretation
-# v2.18.2: Fixed critical heredoc syntax bug in load script, shellcheck optimization, improved file naming
-# v2.18.1: Added configuration flags (REQUIRE_ESTIMATE_EFFORT_TO_REVIEW=false, ENABLE_REVIEW_LABELS_SECURITY=false,
-#          ENABLE_REVIEW_LABELS_EFFORT=false)
-# v2.18.0: Refactored to self-contained folder structure with clear naming convention
-#
-# TRIGGERS:
-# - Auto-runs on PR open/reopen (skip docs-only changes)
-# - Manual dispatch for specific PR review
-# - Manual commands: /review, /improve, /describe
-#
-# MODEL ROLES:
-# - Mega Reviewer (Qwen3.8-27B): Main comprehensive reviewer, smartest+fastest free model, 262K ctx (runs /review /improve /describe)
-# - Quick Improver 1 (Qwen3.8-27B): smartest + fastest free model, 262K context (/improve only)
-# - Quick Improver 2 (Nemotron 3.5 Lightning): 1M-context fast second pass (/improve only)
-#
-# STATUS LABELS:
-# - 🔍 qodo-mega: Mega Reviewer in progress (ORANGE)
-# - 🔍 qodo-mega-done: Mega Reviewer completed successfully (GREEN)
-# - 🔍 qodo-mega-failed: Mega Reviewer failed (RED)
-# - 🔍 qodo-improve: Quick Improvers in progress (ORANGE)
-# - 🔍 qodo-improve-done: Quick Improvers completed successfully (GREEN)
-# - 🔍 qodo-improve-failed: Quick Improvers failed (RED)
-#
-# SECRETS REQUIRED:
-# - QODO_OPENROUTER_API_KEY: OpenRouter API key
-# - CLOUDFLARE_ACCOUNT_ID: Cloudflare account ID
-# - QODO_CLOUDFLARE_GATEWAY_NAME: Cloudflare gateway name
+# v3.0.0: (Sep 26 2026) Simplified from v2.29.1.
+#          - Removed Mega Reviewer job (no auto /review /describe)
+#          - Single job: /improve → inline code suggestions only
+#          - openrouter/free as primary model (eternal, no rot)
+#          - All config moved to global pr-agent-settings repo
+#          - Removed label management (was noisy)
+#          - Removed custom instructions loader (repo_context_files handles it)
+#          - Docker cache kept (shared monthly key)
+#          - Dependabot/bot PRs still skipped
+# v2.29.1: Use ${#var} instead of echo|wc -c (SC2000)
+# v2.29.0: Dependabot skip + cache fix
+# v2.28.0: Strict mode + v0.46 new features
 
-name: Qodo AI PR Review
+name: Qodo AI Code Suggestions
 
 "on":
-  # Manual trigger option
+  pull_request:
+    types: [opened, reopened]
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "PR number to review (leave empty to review latest PR)"
+        description: "PR number (empty = latest open PR)"
         required: false
         type: string
 
-  # Auto-run on new/updated PRs
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
-
 jobs:
-  # Mega Reviewer - Qwen3.8-27B free (Review + Improve + Describe)
-  qodo_mega_reviewer:
+  suggest:
     if: >-
       ${{
         (
           github.event_name == 'pull_request' &&
           github.event.pull_request.draft == false &&
-          (
-            github.event.sender.type != 'Bot' ||
-            contains(github.event.sender.login, 'claude')
-          )
+          github.event.pull_request.user.login != 'dependabot[bot]' &&
+          !startsWith(github.event.pull_request.head.ref, 'dependabot/')
         ) ||
         (github.event_name == 'workflow_dispatch') ||
         (
@@ -116,215 +50,45 @@ jobs:
           github.event.issue.pull_request &&
           (
             contains(github.event.comment.body, '/improve') ||
-            contains(github.event.comment.body, '/describe') ||
-            contains(github.event.comment.body, '/review')
+            contains(github.event.comment.body, '/review') ||
+            contains(github.event.comment.body, '/describe')
           )
         )
       }}
     runs-on: ubicloud-standard-2
-    timeout-minutes: 10
+    timeout-minutes: 8
     continue-on-error: true
     permissions:
       issues: write
       pull-requests: write
-      contents: write
-      actions: write
-    name: Mega Reviewer (Qwen3.8-27B free)
+      contents: read
+    name: Code Suggestions (openrouter/free)
     steps:
-      - name: Docker Cache for Qodo Jobs
+      - name: Docker Cache
         uses: actions/cache@v6
         with:
           path: /var/lib/docker
-          # v2.29.0: shared monthly key — the old per-PR key cached a docker
-          # copy PER PR and never cross-shared; static key restores the
-          # pr-agent image layers on every run, bump v1→v2 to rotate.
           key: qodo-docker-v1
-          restore-keys: |
-            qodo-docker-
+          restore-keys: qodo-docker-
 
-      - name: Set PR Context for Manual Runs
+      - name: Set PR for manual runs
         if: github.event_name == 'workflow_dispatch'
         uses: actions/github-script@v9
         with:
           script: |
-            const prNumber = '${{ github.event.inputs.pr_number }}';
-            if (prNumber) {
-              core.exportVariable('TARGET_PR', prNumber);
-            } else {
-              const { data: prs } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: 'open',
-                sort: 'updated',
-                direction: 'desc',
-                per_page: 1
-              });
-              if (prs.length > 0) {
-                core.exportVariable('TARGET_PR', prs[0].number);
-                console.log(`Found latest PR: #${prs[0].number}`);
-              } else {
-                core.setFailed('No open PRs found to review');
-              }
-            }
+            const n = '${{ github.event.inputs.pr_number }}';
+            if (n) { core.exportVariable('TARGET_PR', n); return; }
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', sort: 'updated', direction: 'desc', per_page: 1
+            });
+            if (prs.length) { core.exportVariable('TARGET_PR', prs[0].number); }
+            else { core.setFailed('No open PRs'); }
 
-      - name: Create/Update Labels with Correct Colors
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const labelsToCreate = [
-              { name: '🔍 qodo-mega', color: 'f97316', description: 'Mega Reviewer in progress' },
-              { name: '🔍 qodo-mega-done', color: '22c55e', description: 'Mega Reviewer completed successfully' },
-              { name: '🔍 qodo-mega-failed', color: 'ef4444', description: 'Mega Reviewer failed' },
-              { name: '🔍 qodo-improve', color: 'f97316', description: 'Quick Improvers in progress' },
-              { name: '🔍 qodo-improve-done', color: '22c55e', description: 'Quick Improvers completed successfully' },
-              { name: '🔍 qodo-improve-failed', color: 'ef4444', description: 'Quick Improvers failed' }
-            ];
-
-            for (const label of labelsToCreate) {
-              try {
-                const existingLabel = await github.rest.issues.getLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  name: label.name
-                });
-
-                // Update color if it's incorrect
-                if (existingLabel.data.color !== label.color) {
-                  await github.rest.issues.updateLabel({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    name: label.name,
-                    color: label.color,
-                    description: label.description
-                  });
-                  console.log(`✅ Updated label color: ${label.name} → ${label.color}`);
-                } else {
-                  console.log(`Label already exists with correct color: ${label.name}`);
-                }
-              } catch (error) {
-                if (error.status === 404) {
-                  try {
-                    await github.rest.issues.createLabel({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      name: label.name,
-                      color: label.color,
-                      description: label.description
-                    });
-                    console.log(`✅ Created label: ${label.name} (${label.color})`);
-                  } catch (createError) {
-                    console.log(`Could not create label ${label.name}:`, createError.message);
-                  }
-                } else {
-                  console.log(`Error checking label ${label.name}:`, error.message);
-                }
-              }
-            }
-
-      - name: Clean Up Existing Labels
-        uses: actions/github-script@v9
-        with:
-          script: |
-            let prNumber;
-            const eventName = github.event_name || process.env.GITHUB_EVENT_NAME || context.eventName;
-
-            if (eventName === 'workflow_dispatch') {
-              prNumber = process.env.TARGET_PR;
-            } else if (eventName === 'pull_request') {
-              prNumber = context.issue.number;
-            } else {
-              return;
-            }
-
-            if (!prNumber) return;
-
-            // Only remove Mega Reviewer labels (not Quick Improvers labels)
-            const labelsToRemove = [
-              '🔍 qodo-mega', '🔍 qodo-mega-done', '🔍 qodo-mega-failed'
-            ];
-
-            try {
-              const { data: labels } = await github.rest.issues.listLabelsOnIssue({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber
-              });
-
-              for (const labelName of labelsToRemove) {
-                const existingLabel = labels.find(label => label.name === labelName);
-                if (existingLabel) {
-                  try {
-                    await github.rest.issues.removeLabel({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: prNumber,
-                      name: labelName
-                    });
-                    console.log(`Removed label: ${labelName}`);
-                  } catch (error) {
-                    console.log(`Could not remove label ${labelName}:`, error.message);
-                  }
-                }
-              }
-            } catch (error) {
-              console.log('Error checking labels:', error.message);
-            }
-
-      - name: Add Mega Working Label
-        uses: actions/github-script@v9
-        with:
-          script: |
-            let prNumber;
-            const eventName = github.event_name || process.env.GITHUB_EVENT_NAME || context.eventName;
-
-            if (eventName === 'workflow_dispatch') {
-              prNumber = process.env.TARGET_PR;
-            } else if (eventName === 'pull_request') {
-              prNumber = context.issue.number;
-            } else {
-              return;
-            }
-
-            if (!prNumber) return;
-
-            try {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                labels: ['🔍 qodo-mega']
-              });
-              console.log('✅ Added: 🔍 qodo-mega');
-            } catch (error) {
-              console.log('Error adding mega-working label:', error.message);
-            }
-
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Load Qodo Instructions
-        run: |
-          chmod +x .github/scripts/load-qodo-instructions.sh
-          bash .github/scripts/load-qodo-instructions.sh
-
-      - name: Verify Qodo Instructions Loaded
-        run: |
-          if [ -z "${PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS:-}" ]; then
-            echo "⚠️ Warning: PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS not set - Qodo will use defaults"
-          else
-            LEN=${#PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS}
-            echo "✅ PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS loaded ($LEN chars)"
-          fi
-
-          if [ -z "${PR_REVIEWER_EXTRA_INSTRUCTIONS:-}" ]; then
-            echo "⚠️ Warning: PR_REVIEWER_EXTRA_INSTRUCTIONS not set - Qodo will use defaults"
-          else
-            LEN=${#PR_REVIEWER_EXTRA_INSTRUCTIONS}
-            echo "✅ PR_REVIEWER_EXTRA_INSTRUCTIONS loaded ($LEN chars)"
-          fi
-
-      - name: Mega Reviewer Comprehensive Analysis
-        id: mega-review
+      - name: Run Qodo /improve
         uses: qodo-ai/pr-agent@v0.46.0
         env:
           OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
@@ -333,469 +97,9 @@ jobs:
               secrets.QODO_CLOUDFLARE_GATEWAY_NAME
             }}/openrouter/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Model strategy (measured Sep 23 2026 vs OpenRouter live catalog):
-          # primary = qwen3.8-27b — top-3 coding index, top-2 intelligence, #2 fastest
-          # of all 20 free models, tools-capable, 262K ctx. Fallbacks are all live
-          # models; openrouter/free router is the eternal last resort (auto-picks any
-          # currently-live free model — never rots).
-          config.model: "openrouter/qwen/qwen3.8-27b:free"
-          config.fallback_models: >-
-            ["openrouter/cohere/north-mini-code:free", "openrouter/nvidia/nemotron-3.5-lightning:free",
-            "openrouter/inclusionai/ling-3.0-flash-sante:free", "openrouter/free"]
-          CONFIG__CUSTOM_MODEL_MAX_TOKENS: "235520" # ~90% of 262K context limit for safety margin
-          # DEBUGGING & LOGGING CONFIGURATION (Temporary)
-          config.verbosity_level: "2" # Maximum verbosity for debugging
-          config.log_level: "DEBUG" # Enable debug logging
-          github.ratelimit_retries: "5" # Retry rate-limited requests
-          github.publish_inline_comments_fallback_with_verification: "true" # Fallback for invalid comments
-          github.try_fix_invalid_inline_comments: "true" # Attempt to fix invalid comments
-          # Auto-run all commands on new PRs (comprehensive analysis)
-          github_action_config.auto_review: "true"
-          github_action_config.auto_describe: "true"
-          github_action_config.auto_improve: "true"
-          # Describe configuration
-          PR_DESCRIPTION__PUBLISH_DESCRIPTION: "true"
-          PR_DESCRIPTION__PUBLISH_LABELS: "false"
-          PR_DESCRIPTION__ADD_ORIGINAL_USER_DESCRIPTION: "true"
-          PR_DESCRIPTION__GENERATE_AI_TITLE: "true"
-          PR_DESCRIPTION__ENABLE_PR_DIAGRAM: "true"
-          PR_DESCRIPTION__INCLUDE_GENERATED_BY_HEADER: "false"
-          # Review configuration — strict mode: fewer, higher-signal findings
-          PR_REVIEWER__PUBLISH_REVIEW: "true"
-          PR_REVIEWER__PERSISTENT_COMMENT: "true"
-          PR_REVIEWER__FINAL_UPDATE_MESSAGE: "true"
-          PR_REVIEWER__NUM_MAX_FINDINGS: "4" # was 8 — only top findings survive
-          PR_REVIEWER__REQUIRE_SECURITY_REVIEW: "true" # strict: always scan security
-          PR_REVIEWER__REQUIRE_RISK_ASSESSMENT: "true" # NEW v0.46: low/medium/high risk verdict
-          PR_REVIEWER__REQUIRE_MERGE_RECOMMENDATION: "true" # NEW v0.46: safe/merge_with_caution/changes_required
-          PR_REVIEWER__REQUIRE_SCORE_REVIEW: "false"
-          PR_REVIEWER__REQUIRE_TESTS_REVIEW: "false"
-          PR_REVIEWER__REQUIRE_ESTIMATE_CONTRIBUTION_TIME_COST: "false"
-          PR_REVIEWER__REQUIRE_ESTIMATE_EFFORT_TO_REVIEW: "false"
-          PR_REVIEWER__ENABLE_REVIEW_LABELS_SECURITY: "false"
-          PR_REVIEWER__ENABLE_REVIEW_LABELS_EFFORT: "false"
-          # Improve configuration — strict: threshold 8/10 + per-file cap (v0.45 feature)
-          PR_CODE_SUGGESTIONS__PUBLISH_CODE_SUGGESTIONS: "true"
-          PR_CODE_SUGGESTIONS__PUBLISH_OUTPUT_NO_SUGGESTIONS: "false"
-          PR_CODE_SUGGESTIONS__COMMITABLE_CODE_SUGGESTIONS: "true" # Enable inline code suggestions instead of comments
-          PR_CODE_SUGGESTIONS__SUGGESTIONS_SCORE_THRESHOLD: "8" # strict: only 8+/10 suggestions publish
-          PR_CODE_SUGGESTIONS__MAX_SUGGESTIONS_PER_FILE: "2" # NEW v0.45: hard cap per file
-          PR_CODE_SUGGESTIONS__SUGGESTIONS_DEPTH: "exhaustive" # scan deep, threshold filters
-          PR_CODE_SUGGESTIONS__NUM_BEST_PRACTICE_SUGGESTIONS: "3" # was 6 — fewer
-          PR_CODE_SUGGESTIONS__FOCUS_ONLY_ON_PROBLEMS: "true"
-          # Custom instructions from repo context (auto-loaded and decoded) + strictness suffix
-          pr_code_suggestions.extra_instructions: >-
-            ${{ env.PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS }}
-            Report only high-severity issues. Skip anything cosmetic.
-          pr_reviewer.extra_instructions: >-
-            ${{ env.PR_REVIEWER_EXTRA_INSTRUCTIONS }}
-            Be strict and terse: report ONLY issues with severity 8+/10.
-            Maximum 2 sentences per finding. No praise, no summaries of what is correct.
-          PR_CODE_SUGGESTIONS__NUM_CODE_SUGGESTIONS_PER_CHUNK: "5" # was 8 — fewer, stricter
-
-      - name: Finalize Mega Reviewer Labels
-        if: always()
-        uses: actions/github-script@v9
-        with:
-          script: |
-            let prNumber;
-            const eventName = github.event_name || process.env.GITHUB_EVENT_NAME || context.eventName;
-
-            if (eventName === 'workflow_dispatch') {
-              prNumber = process.env.TARGET_PR;
-            } else if (eventName === 'pull_request') {
-              prNumber = context.issue.number;
-            } else {
-              return;
-            }
-
-            if (!prNumber) return;
-
-            const megaResult = '${{ steps.mega-review.outcome }}';
-            const success = megaResult === 'success';
-
-            // Remove working label
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                name: '🔍 qodo-mega'
-              });
-            } catch (error) {
-              // Label might not exist, ignore
-            }
-
-            // Add final status label
-            const finalLabel = success ? '🔍 qodo-mega-done' : '🔍 qodo-mega-failed';
-            try {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                labels: [finalLabel]
-              });
-              console.log(`✅ Mega Reviewer: ${success ? 'done' : 'failed'} - Added ${finalLabel}`);
-            } catch (error) {
-              console.log(`Error adding ${finalLabel}:`, error.message);
-            }
-
-  # Quick Improvers - Sequential Fast Improvements (Cost Optimization)
-  # Note: Only runs on initial PR open/reopen, NOT on synchronize (subsequent commits)
-  qodo_quick_improvers:
-    if: >-
-      ${{
-        (
-          github.event_name == 'pull_request' &&
-          github.event.action != 'synchronize' &&
-          github.event.pull_request.draft == false &&
-          (
-            github.event.sender.type != 'Bot' ||
-            contains(github.event.sender.login, 'claude')
-          )
-        ) ||
-        (github.event_name == 'workflow_dispatch') ||
-        (
-          github.event_name == 'issue_comment' &&
-          github.event.issue.pull_request &&
-          (
-            contains(github.event.comment.body, '/improve') ||
-            contains(github.event.comment.body, '/describe') ||
-            contains(github.event.comment.body, '/review')
-          )
-        )
-      }}
-    runs-on: ubicloud-standard-2
-    timeout-minutes: 14 # Combined timeout (7+7 minutes)
-    continue-on-error: true
-    permissions:
-      issues: write
-      pull-requests: write
-      contents: write
-      actions: write
-    name: Quick Improvers (Qwen3.8 + Nemotron Lightning)
-    steps:
-      - name: Docker Cache for Qodo Jobs
-        uses: actions/cache@v6
-        with:
-          path: /var/lib/docker
-          # v2.29.0: shared monthly key — the old per-PR key cached a docker
-          # copy PER PR and never cross-shared; static key restores the
-          # pr-agent image layers on every run, bump v1→v2 to rotate.
-          key: qodo-docker-v1
-          restore-keys: |
-            qodo-docker-
-
-      - name: Set PR Context for Manual Runs
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const prNumber = '${{ github.event.inputs.pr_number }}';
-            if (prNumber) {
-              core.exportVariable('TARGET_PR', prNumber);
-            } else {
-              const { data: prs } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: 'open',
-                sort: 'updated',
-                direction: 'desc',
-                per_page: 1
-              });
-              if (prs.length > 0) {
-                core.exportVariable('TARGET_PR', prs[0].number);
-                console.log(`Found latest PR: #${prs[0].number}`);
-              } else {
-                core.setFailed('No open PRs found to review');
-              }
-            }
-
-      - name: Create Labels if Missing
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const labelsToCreate = [
-              { name: '🔍 qodo-mega', color: 'f97316', description: 'Mega Reviewer in progress' },
-              { name: '🔍 qodo-mega-done', color: '22c55e', description: 'Mega Reviewer completed successfully' },
-              { name: '🔍 qodo-mega-failed', color: 'ef4444', description: 'Mega Reviewer failed' },
-              { name: '🔍 qodo-improve', color: 'f97316', description: 'Quick Improvers in progress' },
-              { name: '🔍 qodo-improve-done', color: '22c55e', description: 'Quick Improvers completed successfully' },
-              { name: '🔍 qodo-improve-failed', color: 'ef4444', description: 'Quick Improvers failed' }
-            ];
-
-            for (const label of labelsToCreate) {
-              try {
-                const existingLabel = await github.rest.issues.getLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  name: label.name
-                });
-
-                // Update color if it's incorrect
-                if (existingLabel.data.color !== label.color) {
-                  await github.rest.issues.updateLabel({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    name: label.name,
-                    color: label.color,
-                    description: label.description
-                  });
-                  console.log(`✅ Updated label color: ${label.name} → ${label.color}`);
-                } else {
-                  console.log(`Label already exists with correct color: ${label.name}`);
-                }
-              } catch (error) {
-                if (error.status === 404) {
-                  try {
-                    await github.rest.issues.createLabel({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      name: label.name,
-                      color: label.color,
-                      description: label.description
-                    });
-                    console.log(`✅ Created label: ${label.name} (${label.color})`);
-                  } catch (createError) {
-                    console.log(`Could not create label ${label.name}:`, createError.message);
-                  }
-                } else {
-                  console.log(`Error checking label ${label.name}:`, error.message);
-                }
-              }
-            }
-
-      - name: Clean Up Existing Labels
-        uses: actions/github-script@v9
-        with:
-          script: |
-            let prNumber;
-            const eventName = github.event_name || process.env.GITHUB_EVENT_NAME || context.eventName;
-
-            if (eventName === 'workflow_dispatch') {
-              prNumber = process.env.TARGET_PR;
-            } else if (eventName === 'pull_request') {
-              prNumber = context.issue.number;
-            } else {
-              return;
-            }
-
-            if (!prNumber) return;
-
-            // Only remove Quick Improvers labels (not Mega Reviewer labels)
-            const labelsToRemove = [
-              '🔍 qodo-improve', '🔍 qodo-improve-done', '🔍 qodo-improve-failed'
-            ];
-
-            try {
-              const { data: labels } = await github.rest.issues.listLabelsOnIssue({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber
-              });
-
-              for (const labelName of labelsToRemove) {
-                const existingLabel = labels.find(label => label.name === labelName);
-                if (existingLabel) {
-                  try {
-                    await github.rest.issues.removeLabel({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: prNumber,
-                      name: labelName
-                    });
-                    console.log(`Removed label: ${labelName}`);
-                  } catch (error) {
-                    console.log(`Could not remove label ${labelName}:`, error.message);
-                  }
-                }
-              }
-            } catch (error) {
-              console.log('Error checking labels:', error.message);
-            }
-
-      - name: Add Improve Working Label
-        uses: actions/github-script@v9
-        with:
-          script: |
-            let prNumber;
-            const eventName = github.event_name || process.env.GITHUB_EVENT_NAME || context.eventName;
-
-            if (eventName === 'workflow_dispatch') {
-              prNumber = process.env.TARGET_PR;
-            } else if (eventName === 'pull_request') {
-              prNumber = context.issue.number;
-            } else {
-              return;
-            }
-
-            if (!prNumber) return;
-
-            try {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                labels: ['🔍 qodo-improve']
-              });
-              console.log('✅ Added: 🔍 qodo-improve');
-            } catch (error) {
-              console.log('Error adding improve-working label:', error.message);
-            }
-
-      - name: Checkout Repository
-        uses: actions/checkout@v7
-
-      - name: Load Qodo Instructions
-        run: |
-          chmod +x .github/scripts/load-qodo-instructions.sh
-          bash .github/scripts/load-qodo-instructions.sh
-
-      - name: Verify Qodo Instructions Loaded
-        run: |
-          if [ -z "${PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS:-}" ]; then
-            echo "⚠️ Warning: PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS not set - Qodo will use defaults"
-          else
-            LEN=${#PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS}
-            echo "✅ PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS loaded ($LEN chars)"
-          fi
-
-          if [ -z "${PR_REVIEWER_EXTRA_INSTRUCTIONS:-}" ]; then
-            echo "⚠️ Warning: PR_REVIEWER_EXTRA_INSTRUCTIONS not set - Qodo will use defaults"
-          else
-            LEN=${#PR_REVIEWER_EXTRA_INSTRUCTIONS}
-            echo "✅ PR_REVIEWER_EXTRA_INSTRUCTIONS loaded ($LEN chars)"
-          fi
-
-      - name: Quick Improver 1 - Qwen3.8 (Step 1/2)
-        id: quick-improver-1
-        uses: qodo-ai/pr-agent@v0.46.0
-        env:
-          OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
-          OPENROUTER__API_BASE: >-
-            https://gateway.ai.cloudflare.com/v1/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{
-              secrets.QODO_CLOUDFLARE_GATEWAY_NAME
-            }}/openrouter/v1
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Large Context Code Model (262K tokens) - live free model + router fallback
-          config.model: "openrouter/qwen/qwen3.8-27b:free"
-          config.fallback_models: >-
-            ["openrouter/cohere/north-mini-code:free", "openrouter/inclusionai/ling-3.0-flash-sante:free",
-            "openrouter/free"]
-          CONFIG__CUSTOM_MODEL_MAX_TOKENS: "235520" # ~90% of 262K context limit for safety margin
-          # DEBUGGING & LOGGING CONFIGURATION (Temporary)
-          config.verbosity_level: "2" # Maximum verbosity for debugging
-          config.log_level: "DEBUG" # Enable debug logging
-          github.ratelimit_retries: "5" # Retry rate-limited requests
-          github.publish_inline_comments_fallback_with_verification: "true" # Fallback for invalid comments
-          github.try_fix_invalid_inline_comments: "true" # Attempt to fix invalid comments
-          # Focused improvement only (no auto describe/review)
+          config.model: "openrouter/free"
+          config.fallback_models: "[]"
+          CONFIG__CUSTOM_MODEL_MAX_TOKENS: "131072"
           github_action_config.auto_improve: "true"
           github_action_config.auto_review: "false"
           github_action_config.auto_describe: "false"
-          # Improve configuration — strict: threshold 8/10 + per-file cap
-          PR_CODE_SUGGESTIONS__PUBLISH_CODE_SUGGESTIONS: "true"
-          PR_CODE_SUGGESTIONS__PUBLISH_OUTPUT_NO_SUGGESTIONS: "false"
-          PR_CODE_SUGGESTIONS__COMMITABLE_CODE_SUGGESTIONS: "true" # inline code suggestions
-          PR_CODE_SUGGESTIONS__SUGGESTIONS_SCORE_THRESHOLD: "8" # strict: only 8+/10 publish
-          PR_CODE_SUGGESTIONS__MAX_SUGGESTIONS_PER_FILE: "2" # NEW v0.45: hard cap per file
-          PR_CODE_SUGGESTIONS__SUGGESTIONS_DEPTH: "exhaustive" # scan deep, threshold filters
-          PR_CODE_SUGGESTIONS__NUM_BEST_PRACTICE_SUGGESTIONS: "3" # was 6 — fewer
-          # Custom instructions from repo context + strictness suffix
-          pr_code_suggestions.extra_instructions: >-
-            ${{ env.PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS }}
-            Report only high-severity issues. Skip anything cosmetic.
-          pr_reviewer.extra_instructions: ${{ env.PR_REVIEWER_EXTRA_INSTRUCTIONS }}
-          PR_CODE_SUGGESTIONS__FOCUS_ONLY_ON_PROBLEMS: "true"
-          PR_CODE_SUGGESTIONS__NUM_CODE_SUGGESTIONS_PER_CHUNK: "5" # was 8 — fewer, stricter
-
-      - name: Quick Improver 2 - Nemotron Lightning (Step 2/2)
-        id: quick-improver-2
-        uses: qodo-ai/pr-agent@v0.46.0
-        env:
-          OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
-          OPENROUTER__API_BASE: >-
-            https://gateway.ai.cloudflare.com/v1/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{
-              secrets.QODO_CLOUDFLARE_GATEWAY_NAME
-            }}/openrouter/v1
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Fast diverse second pass - 1M-ctx Nemotron Lightning (live free model)
-          config.model: "openrouter/nvidia/nemotron-3.5-lightning:free"
-          config.fallback_models: >-
-            ["openrouter/qwen/qwen3.8-27b:free", "openrouter/cohere/north-mini-code:free",
-            "openrouter/free"]
-          CONFIG__CUSTOM_MODEL_MAX_TOKENS: "235520" # ~90% margin against 262K-chunked input; model ctx is 1M
-          # DEBUGGING & LOGGING CONFIGURATION (Temporary)
-          config.verbosity_level: "2" # Maximum verbosity for debugging
-          config.log_level: "DEBUG" # Enable debug logging
-          github.ratelimit_retries: "5" # Retry rate-limited requests
-          github.publish_inline_comments_fallback_with_verification: "true" # Fallback for invalid comments
-          github.try_fix_invalid_inline_comments: "true" # Attempt to fix invalid comments
-          # Focused improvement only (no auto describe/review)
-          github_action_config.auto_improve: "true"
-          github_action_config.auto_review: "false"
-          github_action_config.auto_describe: "false"
-          # Improve configuration — strict: threshold 8/10 + per-file cap
-          PR_CODE_SUGGESTIONS__PUBLISH_CODE_SUGGESTIONS: "true"
-          PR_CODE_SUGGESTIONS__PUBLISH_OUTPUT_NO_SUGGESTIONS: "false"
-          PR_CODE_SUGGESTIONS__COMMITABLE_CODE_SUGGESTIONS: "true" # inline code suggestions
-          PR_CODE_SUGGESTIONS__SUGGESTIONS_SCORE_THRESHOLD: "8" # strict: only 8+/10 publish
-          PR_CODE_SUGGESTIONS__MAX_SUGGESTIONS_PER_FILE: "2" # NEW v0.45: hard cap per file
-          PR_CODE_SUGGESTIONS__SUGGESTIONS_DEPTH: "exhaustive" # scan deep, threshold filters
-          PR_CODE_SUGGESTIONS__NUM_BEST_PRACTICE_SUGGESTIONS: "3" # was 6 — fewer
-          # Custom instructions from repo context + strictness suffix
-          pr_code_suggestions.extra_instructions: >-
-            ${{ env.PR_CODE_SUGGESTIONS_EXTRA_INSTRUCTIONS }}
-            Report only high-severity issues. Skip anything cosmetic.
-          pr_reviewer.extra_instructions: ${{ env.PR_REVIEWER_EXTRA_INSTRUCTIONS }}
-          PR_CODE_SUGGESTIONS__FOCUS_ONLY_ON_PROBLEMS: "true"
-          PR_CODE_SUGGESTIONS__NUM_CODE_SUGGESTIONS_PER_CHUNK: "5" # was 8 — fewer, stricter
-
-      - name: Finalize Quick Improvers Labels
-        if: always()
-        uses: actions/github-script@v9
-        with:
-          script: |
-            let prNumber;
-            const eventName = github.event_name || process.env.GITHUB_EVENT_NAME || context.eventName;
-
-            if (eventName === 'workflow_dispatch') {
-              prNumber = process.env.TARGET_PR;
-            } else if (eventName === 'pull_request') {
-              prNumber = context.issue.number;
-            } else {
-              return;
-            }
-
-            if (!prNumber) return;
-
-            const improver1Result = '${{ steps.quick-improver-1.outcome }}';
-            const improver2Result = '${{ steps.quick-improver-2.outcome }}';
-            const success = improver1Result === 'success' && improver2Result === 'success';
-
-            // Remove working label
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                name: '🔍 qodo-improve'
-              });
-            } catch (error) {
-              // Label might not exist, ignore
-            }
-
-            // Add final status label
-            const finalLabel = success ? '🔍 qodo-improve-done' : '🔍 qodo-improve-failed';
-            try {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                labels: [finalLabel]
-              });
-              console.log(`✅ Quick Improvers: ${success ? 'done' : 'failed'} - Added ${finalLabel}`);
-              console.log(`   Improver 1: ${improver1Result}, Improver 2: ${improver2Result}`);
-            } catch (error) {
-              console.log(`Error adding ${finalLabel}:`, error.message);
-            }
