@@ -3,8 +3,8 @@
 // the drive — a Mac-local FolderPath 404s the moment the stick is read
 // elsewhere (the paro import incident: 17 rows pointed at /Users/...).
 //
-// Sep 26: intra-batch dedup + [archive]-aware path matching tests added
-// after the 148-row dupe audit (shelf↔local + [archive] suffix classes).
+// Sep 26: intra-batch dedup + dupe-suffix-aware path matching tests added
+// after the 148-row dupe audit (shelf↔local + [archive] + [BACKUP2] classes).
 
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -68,36 +68,38 @@ describe("rb-import shelf-path preference", () => {
   });
 });
 
+/** Mirror of the production stripDupeSuffix for test assertions. */
+function stripDupeSuffix(name: string): string {
+  return name
+    .replace(/ \[archive(?: \d+)?\]/u, "")
+    .replace(/ \[BACKUP2\]/u, "");
+}
+
 describe("intra-batch dedup (Sep 26 fix)", () => {
-  test("two incoming files with the same stem key after stripping [archive] are deduped", () => {
-    const stripA = "Track.m4a".replace(/ \[archive(?: \d+)?\]/u, "");
-    const stripB = "Track [archive].m4a".replace(/ \[archive(?: \d+)?\]/u, "");
-    expect(stripA).toBe("Track.m4a");
-    expect(stripB).toBe("Track.m4a");
-    expect(stripA).toBe(stripB);
+  test("[archive] variants collapse to the same stem", () => {
+    expect(stripDupeSuffix("Track.m4a")).toBe("Track.m4a");
+    expect(stripDupeSuffix("Track [archive].m4a")).toBe("Track.m4a");
+    expect(stripDupeSuffix("Track [archive 2].m4a")).toBe("Track.m4a");
+    expect(stripDupeSuffix("Track [archive 3].m4a")).toBe("Track.m4a");
   });
 
-  test("[archive N] variants all collapse to the same stem", () => {
-    const variants = [
-      "GENESI - Chemistry [archive].m4a",
-      "GENESI - Chemistry [archive 2].m4a",
-      "GENESI - Chemistry [archive 3].m4a",
-    ];
-    const stripped = variants.map((v) =>
-      v.replace(/ \[archive(?: \d+)?\]/u, ""),
+  test("[BACKUP2] variants collapse to the same stem", () => {
+    expect(stripDupeSuffix("milkshake (davis edit) [BACKUP2].mp3")).toBe(
+      "milkshake (davis edit).mp3",
     );
-    expect(new Set(stripped).size).toBe(1);
-    expect(stripped[0]).toBe("GENESI - Chemistry.m4a");
+    expect(
+      stripDupeSuffix("slashy disco - the bomb (edit) [BACKUP2].mp3"),
+    ).toBe("slashy disco - the bomb (edit).mp3");
   });
 
-  test("filenames without [archive] suffix are unchanged", () => {
+  test("filenames without dupe suffixes are unchanged", () => {
     const names = [
       "Track.m4a",
       "Artist - Song [Extended Mix].m4a",
       "[AI] Song.m4a",
     ];
     for (const n of names) {
-      expect(n.replace(/ \[archive(?: \d+)?\]/u, "")).toBe(n);
+      expect(stripDupeSuffix(n)).toBe(n);
     }
   });
 });

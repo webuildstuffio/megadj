@@ -121,12 +121,15 @@ export interface DupeRefusal {
   rowId: string;
 }
 
-/** Strip shelf-sync's `[archive]` / `[archive N]` collision suffix from
- *  a filename so path-key matching treats `Track [archive 2].m4a` the same
- *  as `Track.m4a`. Without this, the dupe gate saw each [archive] variant
- *  as a distinct file and imported all of them (Sep 26 audit: 34 groups). */
-function stripArchiveSuffix(name: string): string {
-  return name.replace(/ \[archive(?: \d+)?\]/u, "");
+/** Strip shelf-sync's `[archive]` / `[archive N]` collision suffix AND
+ *  legacy `[BACKUP2]` tags from a filename so path-key matching treats
+ *  `Track [archive 2].m4a` / `Track [BACKUP2].m4a` the same as `Track.m4a`.
+ *  Without this, the dupe gate saw each variant as a distinct file and
+ *  imported all of them (Sep 26 audit: 34 archive + 60 BACKUP2 groups). */
+function stripDupeSuffix(name: string): string {
+  return name
+    .replace(/ \[archive(?: \d+)?\]/u, "")
+    .replace(/ \[BACKUP2\]/u, "");
 }
 
 /** The F11 dupe-gate scan (read-only, ONE fresh spawn): Python emits the
@@ -152,7 +155,7 @@ export function dupeGateScan(
   for (const f of payloadFiles) {
     const path = typeof f[0] === "string" ? f[0] : null;
     if (path === null) continue;
-    const stemKey = nameKey(stripArchiveSuffix(basename(path)));
+    const stemKey = nameKey(stripDupeSuffix(basename(path)));
     const first = seenStemKeys.get(stemKey);
     if (first !== undefined && first !== path) {
       intraBatchRefused.set(path, {

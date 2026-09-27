@@ -24,17 +24,18 @@ def path_key(s: str) -> str:
     return normalized.casefold() if normalized else ""
 
 
-_ARCHIVE_SUFFIX = re.compile(r" \[archive(?: \d+)?]")
+_DUPE_SUFFIX = re.compile(r" \[(?:archive(?: \d+)?|BACKUP2)]")
 
 
 def stem_key(s: str) -> str:
-    """path_key with shelf-sync's [archive N] collision suffix stripped.
+    """path_key with [archive N] and [BACKUP2] suffixes stripped.
 
     Without this, an existing `Track.m4a` row and an incoming
-    `Track [archive].m4a` are invisible to each other and both
-    get imported (Sep 26 audit: 34 groups of this class).
+    `Track [archive].m4a` or `Track [BACKUP2].m4a` are invisible
+    to each other and both get imported (Sep 26 audit: 34 archive
+    + 60 BACKUP2 groups of this class).
     """
-    return path_key(_ARCHIVE_SUFFIX.sub("", s))
+    return path_key(_DUPE_SUFFIX.sub("", s))
 
 
 def main() -> None:
