@@ -19,18 +19,21 @@ from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist  # type: ignore
 
 DB_PATH = "/Volumes/SHELF1/PIONEER/Master/master.db"
 
-# 31 confirmed duplicate IDs from the audit
+# 37 confirmed duplicate IDs from the audit (title + acoustic fingerprint)
 REMOVE_IDS: set[str] = {
     # 19 [archive] suffix dupes
     "1811926201", "889947516", "1291639823", "2070316469", "1700787146",
     "362310610", "1081327234", "1670484089", "607034171", "812963383",
     "1920895078", "1119241949", "1254093320", "944421341", "2124450523",
     "928337375", "1070118494", "1425668844", "1109589045",
-    # 9 BACKUP2 with non-BACKUP2 original
+    # 9 BACKUP2 with non-BACKUP2 original (title match)
     "741092521", "926298826", "2002635222", "110190060", "906656068",
     "2053180543", "219325262", "2000992003", "176247033",
-    # 3 BACKUP2 internal dupes (UnknownArtist variant removed)
+    # 3 BACKUP2 internal dupes — title match (UnknownArtist variant removed)
     "667957919", "188951293", "856097969",
+    # 6 BACKUP2 internal dupes — ACOUSTIC FINGERPRINT match (title missed)
+    "792298668", "423241712", "1696166222", "2097560261", "1623082955",
+    "138608890",
 }
 
 
