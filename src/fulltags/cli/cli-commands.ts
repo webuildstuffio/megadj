@@ -242,9 +242,9 @@ function parseAnalysisFlags(
 ): {
   flags: ReturnType<typeof parseFlags>;
   json: boolean;
-  limit: number;
-  maxSeconds: number;
-  jobs: number;
+  limit: number | undefined;
+  maxSeconds: number | undefined;
+  jobs: number | undefined;
 } | null {
   const flags = parseFlags(
     rest,
@@ -258,13 +258,7 @@ function parseAnalysisFlags(
   const maxSeconds = nonNegOpt(flags, "max-seconds", cmd, json);
   if (nonNegOptInvalid(flags, "jobs", cmd, json)) return null;
   const jobs = nonNegOpt(flags, "jobs", cmd, json);
-  return { flags, json, limit, maxSeconds, jobs } as {
-    flags: ReturnType<typeof parseFlags>;
-    json: boolean;
-    limit: number;
-    maxSeconds: number;
-    jobs: number;
-  };
+  return { flags, json, limit, maxSeconds, jobs };
 }
 
 /** The shared analysis-pass options object for beats / catch-up (#316:
@@ -278,12 +272,12 @@ function analysisPassOptions(
   return {
     state,
     musicDir,
-    jobs: parsed.jobs ?? 0,
-    limit: parsed.limit ?? 0,
+    jobs: parsed.jobs,
+    limit: parsed.limit,
     force: flags.bools.has("force"),
     dryRun: flags.bools.has("dry-run"),
     json,
-    maxSeconds: parsed.maxSeconds ?? 0,
+    maxSeconds: parsed.maxSeconds,
   };
 }
 
