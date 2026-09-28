@@ -199,7 +199,8 @@ def main() -> None:
                 gid = str(int(gid) + 1)
             existing_ids.add(gid)
             new_g = DjmdGenre(ID=gid, Name=archive_genre, UUID=str(uuid.uuid4()))
-            db.session.add(new_g)
+            if apply:
+                db.session.add(new_g)
             genre_cache[gkey] = new_g
         genre_row = genre_cache[gkey]
         if apply and genre_row.Name != archive_genre:

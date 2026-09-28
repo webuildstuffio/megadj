@@ -98,6 +98,44 @@ describe("rb-comment-sync", () => {
     ).toThrow(/wrote 1\/2 eligible rows/u);
   });
 
+  test("parses genre_written/genre_skipped from sync output", () => {
+    const out = __test.parseSyncOutput(
+      JSON.stringify({
+        scanned: 3,
+        eligible: 0,
+        written: 0,
+        alreadyHad: 3,
+        skipped: [],
+        samples: [],
+        writes: [],
+        errors: [],
+        genre_written: 42,
+        genre_skipped: 7,
+      }),
+      false,
+    );
+    expect(out.genreWritten).toBe(42);
+    expect(out.genreSkipped).toBe(7);
+  });
+
+  test("defaults genre fields to 0 when absent (backward compat)", () => {
+    const out = __test.parseSyncOutput(
+      JSON.stringify({
+        scanned: 1,
+        eligible: 0,
+        written: 0,
+        alreadyHad: 1,
+        skipped: [],
+        samples: [],
+        writes: [],
+        errors: [],
+      }),
+      false,
+    );
+    expect(out.genreWritten).toBe(0);
+    expect(out.genreSkipped).toBe(0);
+  });
+
   test("exact verification rejects missing or mismatched intended comments", () => {
     const expected = [["42", "11A · E8.8 · Dance"]] as const;
     expect(() =>

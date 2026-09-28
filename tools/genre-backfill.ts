@@ -350,9 +350,10 @@ async function runEmbeddingInference(): Promise<{
       continue;
     }
 
+    const rawBest = best;
     best = canonGenre(best);
     const avgSim = (
-      knn.filter((n) => n.genre === best).reduce((s, n) => s + n.sim, 0) /
+      knn.filter((n) => n.genre === rawBest).reduce((s, n) => s + n.sim, 0) /
       bestCount
     ).toFixed(3);
 
