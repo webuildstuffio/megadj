@@ -16,7 +16,7 @@ import sys
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
-from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]
+from pyrekordbox.db6.tables import DjmdContent, DjmdKey  # type: ignore[import-not-found]
 
 # Sentinel: the file exists but its tag block is corrupt/unparseable.
 # Distinct from None ("readable, no usable frames") so the skip list can
@@ -64,6 +64,11 @@ def main() -> None:
     batch = sys.argv[4]
     db = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))
 
+    # RB key map: KeyID → key name (e.g. 3912826874 → "Am")
+    rb_key_map: dict[str, str] = {}
+    for k in db.query(DjmdKey).all():
+        rb_key_map[str(k.ID)] = k.ScaleName
+
     rows = []
     for c in db.query(DjmdContent).all():
         p = c.FolderPath or ""
@@ -73,7 +78,8 @@ def main() -> None:
 
     # ledger fallback data (video_id keyed)
     led = {}
-    moods_by_path = {}
+    moods_by_path: dict[str, dict] = {}
+    energy_from_mood: dict[str, str] = {}
     if os.path.exists(ledger_path):
         con = sqlite3.connect(ledger_path)
         con.row_factory = sqlite3.Row
@@ -84,9 +90,18 @@ def main() -> None:
             led.setdefault("id:" + t["video_id"], dict(t))
         for m in con.execute(
             "select m.video_id, m.dance, m.aggressive, m.happy, m.electronic, m.party,"
-            " t.file_path from mood m join tracks t on t.video_id = m.video_id"
+            " m.arousal, t.file_path from mood m join tracks t on t.video_id = m.video_id"
         ):
-            moods_by_path[(m["file_path"] or "").casefold()] = dict(m)
+            fp_key = (m["file_path"] or "").casefold()
+            moods_by_path[fp_key] = dict(m)
+            # Derive energy from arousal (1–9 scale → 1–10 DJ energy)
+            try:
+                ar = float(m["arousal"] or 0)
+                if ar > 0:
+                    e_val = round(1 + (ar - 1) * (9 / 8), 1)
+                    energy_from_mood[fp_key] = str(e_val)
+            except (TypeError, ValueError):
+                pass
 
     out = {
         "scanned": len(rows),
@@ -100,18 +115,28 @@ def main() -> None:
         "errors": [],
     }
 
-    def resolve_data(p: str, tags: dict | None) -> tuple[str, str, str]:
-        """Resolve key/energy/mood from TXXX tags + ledger fallback."""
+    def resolve_data(
+        p: str, tags: dict | None, rb_key_id: str | None = None
+    ) -> tuple[str, str, str]:
+        """Resolve key/energy/mood from TXXX tags + RB KeyID + ledger fallback."""
         key = (tags or {}).get("key", "")
         energy = (tags or {}).get("energy", "")
         mood = (tags or {}).get("mood", "")
         # Old-format raw-score tags (dance=0.999;...) and URL junk are useless
         if mood and ("=" in mood or ".com" in mood.lower() or "http" in mood.lower()):
             mood = ""
+        # RB key analysis fallback (djmdKey table — 99.7% coverage)
+        if not key and rb_key_id:
+            key = rb_key_map.get(rb_key_id, "")
         if not energy:
             led_row = led.get("path:" + p.casefold())
             if led_row and led_row.get("energy"):
                 energy = str(led_row["energy"])
+        # Energy from mood arousal fallback
+        if not energy:
+            e_mood = energy_from_mood.get(p.casefold())
+            if e_mood:
+                energy = e_mood
         if not mood:
             m = moods_by_path.get(p.casefold())
             if m:
@@ -173,7 +198,8 @@ def main() -> None:
             out["skipped"].append([p[-70:], "unreadable"])
             continue
 
-        key, energy, mood = resolve_data(p, tags)
+        rb_kid = str(c.KeyID) if c.KeyID else None
+        key, energy, mood = resolve_data(p, tags, rb_kid)
 
         if existing:
             ex_key, ex_energy, ex_mood = parse_existing(existing)
