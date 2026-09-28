@@ -63,6 +63,8 @@ export interface SyncOutput {
   scanned: number;
   eligible: number;
   written: number;
+  /** existing comments enriched with missing key/energy/mood components */
+  enriched: number;
   alreadyHad: number;
   skipped: [string, string][];
   samples: [string, string][];
@@ -101,26 +103,21 @@ function requireSyncShape(value: Record<string, unknown>): SyncOutput {
   ) {
     throw new Error("rb-comment-sync returned an invalid result payload");
   }
-  // genre_written/genre_skipped are optional (absent in older scripts)
-  const gw =
-    "genre_written" in value && nonNegativeInteger(value.genre_written)
-      ? value.genre_written
-      : 0;
-  const gs =
-    "genre_skipped" in value && nonNegativeInteger(value.genre_skipped)
-      ? value.genre_skipped
-      : 0;
+  // Optional counters (absent in older script versions → default 0)
+  const optInt = (key: string): number =>
+    key in value && nonNegativeInteger(value[key]) ? value[key] : 0;
   return {
     scanned: value.scanned,
     eligible: value.eligible,
     written: value.written,
+    enriched: optInt("enriched"),
     alreadyHad: value.alreadyHad,
     skipped: value.skipped,
     samples: value.samples,
     writes: value.writes,
     errors: value.errors,
-    genreWritten: gw,
-    genreSkipped: gs,
+    genreWritten: optInt("genre_written"),
+    genreSkipped: optInt("genre_skipped"),
   };
 }
 

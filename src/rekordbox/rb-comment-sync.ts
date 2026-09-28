@@ -58,9 +58,11 @@ export interface RbCommentSyncResult {
   eligible: number;
   /** comments written (0 in dry-run) */
   written: number;
+  /** existing comments enriched with missing key/energy/mood */
+  enriched: number;
   /** rows skipped: file missing or no tag data found */
   skipped: { path: string; reason: string }[];
-  /** rows that already had a non-empty comment (never clobbered) */
+  /** rows that already had a complete comment (nothing to add) */
   alreadyHad: number;
   /** Ledger freshness (#174): the archive-ledger stamps this run's
    *  fallback data rides on (MAX(analyzed_at) per ledger, null = empty
@@ -116,6 +118,7 @@ async function rbCommentSyncWithRuntime(
     scanned: 0,
     eligible: 0,
     written: 0,
+    enriched: 0,
     skipped: [],
     alreadyHad: 0,
     freshness: deps.exists(ledger)
@@ -144,6 +147,7 @@ async function rbCommentSyncWithRuntime(
     scanned: out.scanned,
     eligible: out.eligible,
     written: out.written,
+    enriched: out.enriched,
     skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
     alreadyHad: out.alreadyHad,
     freshness: deps.exists(ledger)
@@ -285,7 +289,7 @@ export function printRbCommentSyncReport(
 ): void {
   printResult(log, r, (body) => {
     log(
-      `${body.scanned} rows scanned · ${body.eligible} eligible (file carries tag data) · ${body.alreadyHad} already had comments (kept) · ${body.skipped.length} skipped`,
+      `${body.scanned} rows scanned · ${body.eligible} eligible · ${body.enriched} enriched (partial → full) · ${body.alreadyHad} complete · ${body.skipped.length} skipped`,
     );
     // #174: the ledger fallback data ages — say how old it is
     const bands = [

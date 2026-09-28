@@ -92,28 +92,22 @@ def main() -> None:
         "scanned": len(rows),
         "eligible": 0,
         "written": 0,
+        "enriched": 0,
         "alreadyHad": 0,
         "skipped": [],
         "samples": [],
         "writes": [],
         "errors": [],
     }
-    pending = []
-    for c in rows:
-        p = c.FolderPath or ""
-        if (c.Commnt or "").strip():
-            out["alreadyHad"] += 1
-            continue
-        if not os.path.exists(p):
-            out["skipped"].append([p[-70:], "file missing"])
-            continue
-        tags = read_txxx(p)
-        if tags is UNREADABLE:
-            out["skipped"].append([p[-70:], "unreadable"])
-            continue
+
+    def resolve_data(p: str, tags: dict | None) -> tuple[str, str, str]:
+        """Resolve key/energy/mood from TXXX tags + ledger fallback."""
         key = (tags or {}).get("key", "")
         energy = (tags or {}).get("energy", "")
         mood = (tags or {}).get("mood", "")
+        # Old-format raw-score tags (dance=0.999;...) are useless — skip to ledger
+        if mood and "=" in mood:
+            mood = ""
         if not energy:
             led_row = led.get("path:" + p.casefold())
             if led_row and led_row.get("energy"):
@@ -133,21 +127,72 @@ def main() -> None:
                         if float(m.get(head) or 0) >= 0.5:
                             tops.append(label)
                     except (TypeError, ValueError):
-                        # malformed score drops that one mood head (#229);
-                        # a non-numeric ledger cell must not crash the batch
                         pass
                 mood = "+".join(tops[:3])
-        if not (energy or mood or key):
-            out["skipped"].append([p[-70:], "no tag data"])
-            continue
+        return key, energy, mood
+
+    def build_comment(key: str, energy: str, mood: str) -> str:
         epart = f"E{energy}" if energy else ""
         parts = [x for x in (key, epart, mood) if x]
-        comment = " · ".join(parts)
-        out["eligible"] += 1
-        if len(out["samples"]) < 5:
-            out["samples"].append([p[-60:], comment])
-        if apply:
-            pending.append((c, str(c.ID), comment))
+        return " · ".join(parts)
+
+    import re
+    MOOD_HEADS = {"Party", "Dance", "Aggro", "Happy", "Electronic"}
+
+    def parse_existing(comment: str) -> tuple[str, str, str]:
+        """Extract key/energy/mood already present in a comment."""
+        parts = [p.strip() for p in comment.split("·")]
+        ex_key = ex_energy = ex_mood = ""
+        for part in parts:
+            if re.match(r"^[A-Ga-g][#b]?m?$", part):
+                ex_key = part
+            elif re.match(r"^E\d", part):
+                ex_energy = part[1:]
+            elif any(h in part for h in MOOD_HEADS):
+                ex_mood = part
+            elif re.match(r"^\d+[A-B]$", part):
+                ex_key = part
+        return ex_key, ex_energy, ex_mood
+
+    pending = []
+    for c in rows:
+        p = c.FolderPath or ""
+        existing = (c.Commnt or "").strip()
+        if not os.path.exists(p):
+            out["skipped"].append([p[-70:], "file missing"])
+            continue
+        tags = read_txxx(p)
+        if tags is UNREADABLE:
+            out["skipped"].append([p[-70:], "unreadable"])
+            continue
+
+        key, energy, mood = resolve_data(p, tags)
+
+        if existing:
+            ex_key, ex_energy, ex_mood = parse_existing(existing)
+            new_key = ex_key or key
+            new_energy = ex_energy or energy
+            new_mood = ex_mood or mood
+            new_comment = build_comment(new_key, new_energy, new_mood)
+            if new_comment != existing and (new_key != ex_key or new_energy != ex_energy or new_mood != ex_mood):
+                out["enriched"] += 1
+                out["eligible"] += 1
+                if len(out["samples"]) < 5:
+                    out["samples"].append([p[-60:], f"{existing} → {new_comment}"])
+                if apply:
+                    pending.append((c, str(c.ID), new_comment))
+            else:
+                out["alreadyHad"] += 1
+        else:
+            if not (energy or mood or key):
+                out["skipped"].append([p[-70:], "no tag data"])
+                continue
+            comment = build_comment(key, energy, mood)
+            out["eligible"] += 1
+            if len(out["samples"]) < 5:
+                out["samples"].append([p[-60:], comment])
+            if apply:
+                pending.append((c, str(c.ID), comment))
 
     if apply:
         try:
