@@ -170,8 +170,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // finite-gated parsedLimit instead of a second raw Number() —
     // audited 44→46 (new file + route's reuse collapsed to a single
     // site), guarded 29→30, sanctioned 15→16 — digest shifted: 5265bbe4.
-    audited: 46,
-    guarded: 30,
+    // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
+    // GUARDED Number() call (--limit arg, Number.isFinite gate);
+    // audited 46→47, guarded 30→31, sanctioned 16 unchanged.
+    audited: 47,
+    guarded: 31,
     sanctioned: 16,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -188,7 +191,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // new paths in digest input.
     // Sep 22 (#319): root tidy — bench→tools/; same calls, same guards,
     // counts unchanged, new paths in digest input.
-    digest: "5265bbe4e9da13a8604f5f23db7fa08227323306ea02249d20342d15b166e128",
+    // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
+    // GUARDED Number() call (--limit arg parsed + Number.isFinite gate);
+    // audited +1, guarded +1, sanctions unchanged.
+    digest: "60a81274a67e49a8d4fe6ef2158ef12455a7d5cffeb3968d20d6ed2d27c91eff",
   });
 });
 

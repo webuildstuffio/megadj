@@ -170,8 +170,11 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // read adds one GUARDED parse (source_links JSON, console.error
     // catch — corrupt link data is visible, never a silent empty list);
     // audited 68→69 / guarded 52→53, sanctioned 16 unchanged.
-    audited: 69,
-    guarded: 53,
+    // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
+    // GUARDED JSON.parse (embedding parser, console.error catch);
+    // audited 69→70, guarded 53→54, sanctioned 16 unchanged.
+    audited: 70,
+    guarded: 54,
     sanctioned: 16,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes —
     // cratedeck/src/{verify,hygiene,report}-* moved into verify/ hygiene/
@@ -191,7 +194,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // leaf (parseJsonOrNull in src/shared/leaf/guards.ts) so the #46 web
     // boundary shares it; parse-json.ts now delegates. Counts unchanged
     // (sanction re-pathed), new paths in digest input.
-    digest: "0ace1d394ba3fcebfc4e89ad0329e52225635ff02c8c7e1e1149e8b18b4dfe40",
+    // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
+    // GUARDED JSON.parse (embedding parser in try-catch with console.error);
+    // audited +1, guarded +1, sanctions unchanged.
+    digest: "1e5d1564b57ca272e9ef89cf7f181b07a7205f912193a00dfb35776a5c303c24",
   });
 });
 

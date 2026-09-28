@@ -17,7 +17,8 @@
         "src/ops/**/*.{ts,tsx}",
         "tools/ast-ccn.ts",
         "tools/loc-budget.ts",
-        "tools/prof-sweep.ts"
+        "tools/prof-sweep.ts",
+        "tools/genre-backfill.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [

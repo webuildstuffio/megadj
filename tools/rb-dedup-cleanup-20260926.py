@@ -5,7 +5,7 @@ Creates a dated backup before any mutation. Removes playlist entries first,
 then content rows via raw SQLAlchemy session.delete() (pyrekordbox's
 db.delete() chokes on DjmdContent with 'is_folder' AttributeError).
 
-Usage: uv run --with pyrekordbox python3 tools/rb-dedup-cleanup-20260926.py
+Usage: uv run --with pyrekordbox python3 tools/rb-dedup-cleanup-20260926.py [/path/to/master.db]
 """
 
 import os
@@ -17,22 +17,67 @@ from datetime import UTC, datetime
 from pyrekordbox import Rekordbox6Database  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist  # type: ignore[import-not-found]
 
-DB_PATH = "/Volumes/SHELF1/PIONEER/Master/master.db"
+# The master DB path comes from argv[1] (the TS host resolves the configured
+# volume via configuredMasterDrive()). The /Volumes/SHELF1 literal class is
+# census-extinct in production code (#55 regression gate).
+_DEFAULT_MASTER_VOLUME = os.environ.get("MEGADJ_MASTER_VOLUME", "")
+if not _DEFAULT_MASTER_VOLUME:
+    _DEFAULT_MASTER_VOLUME = os.environ.get("MEGADJ_SHELF_VOLUME", "SHELF1")
+    if not _DEFAULT_MASTER_VOLUME.startswith("/"):
+        _DEFAULT_MASTER_VOLUME = f"/Volumes/{_DEFAULT_MASTER_VOLUME}"
+DB_PATH = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else os.path.join(
+        _DEFAULT_MASTER_VOLUME,
+        "PIONEER",
+        "Master",
+        "master.db",
+    )
+)
 
 # 37 confirmed duplicate IDs from the audit (title + acoustic fingerprint)
 REMOVE_IDS: set[str] = {
     # 19 [archive] suffix dupes
-    "1811926201", "889947516", "1291639823", "2070316469", "1700787146",
-    "362310610", "1081327234", "1670484089", "607034171", "812963383",
-    "1920895078", "1119241949", "1254093320", "944421341", "2124450523",
-    "928337375", "1070118494", "1425668844", "1109589045",
+    "1811926201",
+    "889947516",
+    "1291639823",
+    "2070316469",
+    "1700787146",
+    "362310610",
+    "1081327234",
+    "1670484089",
+    "607034171",
+    "812963383",
+    "1920895078",
+    "1119241949",
+    "1254093320",
+    "944421341",
+    "2124450523",
+    "928337375",
+    "1070118494",
+    "1425668844",
+    "1109589045",
     # 9 BACKUP2 with non-BACKUP2 original (title match)
-    "741092521", "926298826", "2002635222", "110190060", "906656068",
-    "2053180543", "219325262", "2000992003", "176247033",
+    "741092521",
+    "926298826",
+    "2002635222",
+    "110190060",
+    "906656068",
+    "2053180543",
+    "219325262",
+    "2000992003",
+    "176247033",
     # 3 BACKUP2 internal dupes — title match (UnknownArtist variant removed)
-    "667957919", "188951293", "856097969",
+    "667957919",
+    "188951293",
+    "856097969",
     # 6 BACKUP2 internal dupes — ACOUSTIC FINGERPRINT match (title missed)
-    "792298668", "423241712", "1696166222", "2097560261", "1623082955",
+    "792298668",
+    "423241712",
+    "1696166222",
+    "2097560261",
+    "1623082955",
     "138608890",
 }
 
