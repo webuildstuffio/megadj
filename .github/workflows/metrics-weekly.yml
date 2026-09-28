@@ -147,7 +147,8 @@ jobs:
               n=1; fields[n]=""; quoted=0
               for (i=1; i<=length(line); i++) {
                 ch=substr(line,i,1); next_ch=substr(line,i+1,1)
-                if (ch=="\"" && quoted && next_ch=="\"") { fields[n]=fields[n] "\""; i++ }
+                if (ch=="\"" && quoted && next_ch=="\"")
+                  { fields[n]=fields[n] "\""; i++ }
                 else if (ch=="\"") quoted=!quoted
                 else if (ch=="," && !quoted) { n++; fields[n]="" }
                 else fields[n]=fields[n] ch
@@ -231,6 +232,47 @@ jobs:
           # Vendored from repo-review/.github/workflows/metrics-reusable.yml
           # at 8e5c8d19dda977b3a1b2be82e4b2262aba90f1f7.
           # Update this job by hand when the source workflow changes.
+          # --- cross-repo duplication fingerprints (#47) ---
+          # Mirrors repo-review worker/scripts/build-payload.sh (the source
+          # of truth): sha256 of a normalized form per source file, stored
+          # server-side in file_fingerprints; /api/duplication clusters
+          # identical fingerprints across repos. Ported by hand 2026-09-27
+          # (repo-review#77) because this workflow is vendored — keep in sync
+          # with metrics-reusable.yml when editing.
+          FP_MIN_LINES=30
+          FP_MAX_FILES=500
+          : > "$OUT/fp-candidates.tsv"
+          if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          git ls-files -z 2>/dev/null | tr '\0' '\n' | while IFS= read -r f; do
+            case "$f" in
+              *.min.js|*.min.css|*.bundle.js|*.chunk.js|\
+              package-lock.json|yarn.lock|pnpm-lock.yaml|bun.lock|\
+              bun.lockb|cargo.lock|go.sum|mix.lock|Gemfile.lock|\
+              poetry.lock|Pipfile.lock|composer.lock) continue ;;
+            esac
+            case "$f" in
+              dist/*|build/*|out/*|target/*|node_modules/*|vendor/*|\
+              third_party/*|coverage/*|.next/*|.nuxt/*) continue ;;
+              *.md|*.markdown|*.rst|*.adoc|docs/*) continue ;;
+              tests/*|test/*|__tests__/*|spec/*|specs/*|*.bats|\
+              *_test.sh|test_*.sh|*.test.sh|*.test.*|*.spec.*) continue ;;
+            esac
+            lines=$(wc -l < "$f" 2>/dev/null || echo 0)
+            if [ "$lines" -ge "$FP_MIN_LINES" ]; then
+              printf '%s\t%s\n' "$lines" "$f" >> "$OUT/fp-candidates.tsv"
+            fi
+          done
+          fi
+          FP_JSON=$(sort -rn "$OUT/fp-candidates.tsv" \
+            | head -n "$FP_MAX_FILES" | cut -f2- | while IFS= read -r f; do
+            fp=$(sed -e 's/[[:space:]]*$//' -e '/^[[:space:]]*$/d' \
+              "$f" 2>/dev/null | sha256sum | cut -d' ' -f1)
+            lines=$(wc -l < "$f" 2>/dev/null || echo 0)
+            jq -cn --arg path "$f" --arg fp "$fp" --argjson lines "$lines" \
+              '{path:$path, fingerprint:$fp, lines:$lines}'
+          done | jq -cs '.')
+          [ -z "$FP_JSON" ] && FP_JSON='[]'
+          echo "fingerprints: $(printf '%s' "$FP_JSON" | jq 'length') files"
           jq -n \
             --arg repo "$REPO" \
             --arg sha "$COMMIT_SHA" \
@@ -245,13 +287,15 @@ jobs:
             --argjson duplication_pct "$DUPLICATION_PCT" \
             --argjson cc_per_kloc "$CC_PER_KLOC" \
             --argjson test_count "$TEST_COUNT" \
+            --argjson fingerprints "$FP_JSON" \
             '{repo:$repo, commit_sha:$sha, taken_at:$taken_at,
               loc:$loc, loc_prod:$loc_prod, loc_test:$loc_test,
               loc_docs:$loc_docs, files:$files,
               complexity_max:$complexity_max,
               complexity_p90:$complexity_p90,
               duplication_pct:$duplication_pct,
-              cc_per_kloc:$cc_per_kloc, test_count:$test_count}' \
+              cc_per_kloc:$cc_per_kloc, test_count:$test_count,
+              fingerprints:$fingerprints}' \
             > "$OUT/payload.json"
           echo "payload:"; cat "$OUT/payload.json"
           curl -sSL --fail-with-body -X POST "${INGEST_URL%/}/ingest" \
