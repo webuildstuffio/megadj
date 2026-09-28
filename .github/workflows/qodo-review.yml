@@ -1,35 +1,24 @@
-# Qodo AI Code Suggestions v3.0
+# Qodo AI Code Suggestions v3.1
 # Inline code suggestions only — the highest-value, lowest-noise output.
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
 # and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
-# Model: pinned free models (primary qwen3.8-27b:free, then fallbacks).
-# openrouter/free router removed as primary: it routes to models that emit
-# malformed pr-agent YAML (all suggestions silently discarded, "No code
-# suggestions found" on every PR since v3.0). Verified 2026-09-28: qwen3.8-27b
-# + public pr-agent-settings (temperature 0.2) publishes real suggestions.
+# Model: openrouter/free — the Free Models Router auto-selects from all
+# available free models on OpenRouter. Zero maintenance, no model pinning,
+# no API key rot. The router filters for capability support (tool calling,
+# structured outputs) before random selection.
 # NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
 # GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
 # all global tuning (temperature, score threshold, focus instructions).
 # /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
-# v3.0.1: (Sep 28 2026) Fix silent no-op: openrouter/free as primary routed to
-#          a model emitting malformed YAML — pr-agent discarded 100% of
-#          suggestions and published nothing on any PR fleet-wide. Pinned
-#          qwen3.8-27b:free as primary with nemotron-ultra/north-mini-code/
-#          nemotron-lightning/ling-flash fallbacks. ALSO: made
-#          webuildstuffio/pr-agent-settings public — as a private repo the
-#          workflow's GITHUB_TOKEN got 404 and all global tuning was lost.
-# v3.0.0: (Sep 26 2026) Simplified from v2.29.1.
-#          - Removed Mega Reviewer job (no auto /review /describe)
-#          - Single job: /improve → inline code suggestions only
-#          - openrouter/free as primary model (eternal, no rot)
-#          - All config moved to global pr-agent-settings repo
-#          - Removed label management (was noisy)
-#          - Removed custom instructions loader (repo_context_files handles it)
-#          - Docker cache kept (shared monthly key)
-#          - Dependabot/bot PRs still skipped
+# v3.1.0: (Sep 28 2026) Switch to openrouter/free router as primary model.
+#          No specific model pinning — the router auto-rotates through all
+#          available free models. Zero maintenance, immune to model retirement.
+#          Removed per-model fallback chain (the router IS the fallback).
+# v3.0.1: (Sep 28 2026) Pinned qwen3.8-27b:free + fallback chain.
+# v3.0.0: (Sep 26 2026) Simplified to single /improve job.
 # v2.29.1: Use ${#var} instead of echo|wc -c (SC2000)
 # v2.29.0: Dependabot skip + cache fix
 # v2.28.0: Strict mode + v0.46 new features
@@ -76,10 +65,10 @@ jobs:
       issues: write
       pull-requests: write
       contents: read
-    name: Code Suggestions (qwen3.8-27b:free)
+    name: Code Suggestions (openrouter/free)
     steps:
       - name: Docker Cache
-        uses: actions/cache@v6
+        uses: actions/cache@v4
         with:
           path: /var/lib/docker
           key: qodo-docker-v1
@@ -87,7 +76,7 @@ jobs:
 
       - name: Set PR for manual runs
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/github-script@v9
+        uses: actions/github-script@v7
         with:
           script: |
             const n = '${{ github.event.inputs.pr_number }}';
@@ -100,7 +89,7 @@ jobs:
             else { core.setFailed('No open PRs'); }
 
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Run Qodo /improve
         uses: qodo-ai/pr-agent@v0.46.0
@@ -111,11 +100,7 @@ jobs:
               secrets.QODO_CLOUDFLARE_GATEWAY_NAME
             }}/openrouter/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          config.model: "openrouter/qwen/qwen3.8-27b:free"
-          config.fallback_models: >-
-            ["openrouter/nvidia/nemotron-3-ultra-550b-a55b:free", "openrouter/cohere/north-mini-code:free",
-            "openrouter/nvidia/nemotron-3.5-lightning:free", "openrouter/inclusionai/ling-3.0-flash-sante:free",
-            "openrouter/free"]
+          config.model: "openrouter/free"
           CONFIG__CUSTOM_MODEL_MAX_TOKENS: "131072"
           github_action_config.auto_improve: "true"
           github_action_config.auto_review: "false"
