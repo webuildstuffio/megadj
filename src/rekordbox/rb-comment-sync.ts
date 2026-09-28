@@ -67,6 +67,10 @@ export interface RbCommentSyncResult {
    *  ledger). Surfaced so a comparison/sync against week-old analysis
    *  reads as stale, not current — the AGENTS freshness rule. */
   freshness: { beatsAt: string | null; moodAt: string | null };
+  /** genres synced from archive.db to master.db GenreID */
+  genreWritten: number;
+  /** tracks without a matching archive.db genre (skipped) */
+  genreSkipped: number;
   appliedMode: boolean;
   backedUpTo: string | null;
   verify: { ok: boolean; detail: string };
@@ -117,6 +121,8 @@ async function rbCommentSyncWithRuntime(
     freshness: deps.exists(ledger)
       ? ledgerFreshnessOf(ledger)
       : { beatsAt: null, moodAt: null },
+    genreWritten: 0,
+    genreSkipped: 0,
     appliedMode: apply,
     backedUpTo: null,
     verify: { ok: false, detail: "not run" },
@@ -143,6 +149,8 @@ async function rbCommentSyncWithRuntime(
     freshness: deps.exists(ledger)
       ? ledgerFreshnessOf(ledger)
       : { beatsAt: null, moodAt: null },
+    genreWritten: out.genreWritten,
+    genreSkipped: out.genreSkipped,
     ...over,
     ok: true,
   });
@@ -292,6 +300,11 @@ export function printRbCommentSyncReport(
         )
         .join(" · ")}`,
     );
+    if (body.genreWritten > 0 || body.genreSkipped > 0) {
+      log(
+        `genre sync: ${body.genreWritten} genres written to master.db · ${body.genreSkipped} skipped (no archive match)`,
+      );
+    }
     if (body.appliedMode) {
       log(
         `wrote ${body.written} comments · backup: ${body.backedUpTo ?? "none"} · ${body.verify.detail}`,

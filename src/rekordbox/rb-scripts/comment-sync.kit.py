@@ -162,6 +162,64 @@ def main() -> None:
             db.session.rollback()
             out["errors"].append(["transaction", repr(e)[:200]])
 
+    # ---- Genre sync: push archive.db vote-winner genres to master.db ----
+    genres_by_path: dict[str, str] = {}
+    if os.path.exists(ledger_path):
+        con2 = sqlite3.connect(ledger_path)
+        for row2 in con2.execute(
+            "SELECT file_path, genre FROM tracks WHERE genre IS NOT NULL AND genre != '' AND file_path IS NOT NULL"
+        ):
+            genres_by_path[row2[0].casefold()] = row2[1]
+        con2.close()
+
+    from pyrekordbox.db6.tables import DjmdGenre  # type: ignore[import-not-found]
+
+    genre_cache: dict[str, object] = {}
+    for g in db.query(DjmdGenre).all():
+        genre_cache[g.Name.casefold()] = g
+
+    genre_written = 0
+    genre_skipped = 0
+    genre_names_dirty = False
+    for c in db.query(DjmdContent).all():
+        p = (c.FolderPath or "").casefold()
+        if not p:
+            continue
+        archive_genre = genres_by_path.get(p)
+        if not archive_genre:
+            genre_skipped += 1
+            continue
+        # Find or create genre row
+        gkey = archive_genre.casefold()
+        if gkey not in genre_cache:
+            import uuid
+
+            new_g = DjmdGenre(
+                ID=str(abs(hash(archive_genre)) % (2**31)),
+                Name=archive_genre,
+                UUID=str(uuid.uuid4()),
+            )
+            db.session.add(new_g)
+            genre_cache[gkey] = new_g
+        genre_row = genre_cache[gkey]
+        # Fix casing on existing genre rows to match canonical form
+        if genre_row.Name != archive_genre:
+            genre_row.Name = archive_genre
+            genre_names_dirty = True
+        if str(c.GenreID) != str(genre_row.ID):
+            c.GenreID = genre_row.ID
+            genre_written += 1
+
+    if apply and (genre_written > 0 or genre_names_dirty):
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            out["errors"].append(["genre-sync", repr(e)[:200]])
+
+    out["genre_written"] = genre_written
+    out["genre_skipped"] = genre_skipped
+
     print(json.dumps(out))
     db.close()
 

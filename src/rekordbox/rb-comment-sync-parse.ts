@@ -68,6 +68,8 @@ export interface SyncOutput {
   samples: [string, string][];
   writes: [string, string][];
   errors: [string, string][];
+  genreWritten: number;
+  genreSkipped: number;
 }
 
 export interface CommentVerifyOutput {
@@ -99,6 +101,15 @@ function requireSyncShape(value: Record<string, unknown>): SyncOutput {
   ) {
     throw new Error("rb-comment-sync returned an invalid result payload");
   }
+  // genre_written/genre_skipped are optional (absent in older scripts)
+  const gw =
+    "genre_written" in value && nonNegativeInteger(value.genre_written)
+      ? value.genre_written
+      : 0;
+  const gs =
+    "genre_skipped" in value && nonNegativeInteger(value.genre_skipped)
+      ? value.genre_skipped
+      : 0;
   return {
     scanned: value.scanned,
     eligible: value.eligible,
@@ -108,6 +119,8 @@ function requireSyncShape(value: Record<string, unknown>): SyncOutput {
     samples: value.samples,
     writes: value.writes,
     errors: value.errors,
+    genreWritten: gw,
+    genreSkipped: gs,
   };
 }
 
