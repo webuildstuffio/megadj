@@ -291,8 +291,8 @@ async function runEmbeddingInference(): Promise<{
   let resolved = 0;
   let missed = 0;
   const K = 7; // KNN neighbors
-  const MIN_SIM = 0.75; // minimum cosine similarity
-  const MIN_AGREEMENT = 0.6; // 60% of K must agree
+  const MIN_SIM = 0.7; // minimum cosine similarity
+  const MIN_AGREEMENT = 0.5; // 50% of K must agree (4/7 = 57% passes)
 
   for (let i = 0; i < needGenre.length; i++) {
     const track = needGenre[i]!;
