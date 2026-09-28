@@ -115,6 +115,7 @@ export async function beats(opts: BeatsOptions): Promise<void> {
     // raced the 5s default test timeout and failed both the beats and
     // the drop (beats-stage) suites.
     let session: Awaited<ReturnType<typeof openBeatSession>> | null = null;
+    let consecutiveNulls = 0;
     while (true) {
       const my = idx++;
       if (my >= present.length) break;
@@ -133,8 +134,21 @@ export async function beats(opts: BeatsOptions): Promise<void> {
           log(
             `  [${my + 1}/${present.length}] ✗ no beats (env missing or silence) — ${basename(path)}`,
           );
+          // A dead session returns null for every track — reopen after
+          // consecutive nulls so one timeout doesn't kill the whole queue.
+          if (!r) {
+            consecutiveNulls++;
+            if (consecutiveNulls >= 3) {
+              session?.close();
+              session = null;
+              consecutiveNulls = 0;
+            }
+          } else {
+            consecutiveNulls = 0;
+          }
           continue;
         }
+        consecutiveNulls = 0;
         opts.state.setBeatRecord({
           videoId: t.video_id,
           bpmRaw: r.bpm,
