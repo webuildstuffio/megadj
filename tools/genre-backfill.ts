@@ -18,7 +18,11 @@ import {
 } from "../src/fulltags/sources/bandcamp";
 import { mbGenreForArtist } from "../src/fulltags/sources/mb-lookup";
 import { scSearch } from "../src/fulltags/sources/sc-search";
-import { canonicalizeClaim as canonGenre } from "../src/fulltags/genre/genre-vocab";
+import {
+  canonicalizeClaim as canonGenre,
+  guessFromFreeText,
+  SC_GENRE_CANON,
+} from "../src/fulltags/genre/genre-vocab";
 import {
   GENRE_VOTE_WEIGHTS,
   electGenre,
@@ -346,6 +350,7 @@ async function runEmbeddingInference(): Promise<{
       continue;
     }
 
+    best = canonGenre(best);
     const avgSim = (
       knn.filter((n) => n.genre === best).reduce((s, n) => s + n.sim, 0) /
       bestCount
@@ -367,7 +372,7 @@ async function runEmbeddingInference(): Promise<{
           secondScore = score;
         }
       }
-      if (secondBest) knnSecondary = secondBest;
+      if (secondBest) knnSecondary = canonGenre(secondBest);
     }
 
     if (!dryRun) {
@@ -427,6 +432,43 @@ if (!dryRun) {
     )
     .run();
   log(`\n--- Phase 3: Propagation — ${propResult.changes} copies filled ---`);
+}
+
+// ---- Phase 4: Canonicalize secondary genres ----
+if (!dryRun) {
+  const badSecondary = db
+    .query(
+      `SELECT DISTINCT genre_secondary FROM tracks
+       WHERE status='downloaded'
+         AND genre_secondary IS NOT NULL AND genre_secondary != ''`,
+    )
+    .all() as { genre_secondary: string }[];
+  let canonFixed = 0;
+  const knownCanon = new Set(Object.values(SC_GENRE_CANON));
+  for (const { genre_secondary: raw } of badSecondary) {
+    let canon = canonGenre(raw);
+    // If the canon result isn't in the known vocabulary, try regex guessing
+    if (!knownCanon.has(canon)) {
+      const guessed = guessFromFreeText([raw]);
+      if (guessed) canon = guessed;
+    }
+    if (canon !== raw) {
+      db.query(
+        `UPDATE tracks SET genre_secondary = ? WHERE genre_secondary = ?`,
+      ).run(canon, raw);
+      canonFixed++;
+    }
+  }
+  // Null out secondary that equals primary (redundant)
+  const redResult = db
+    .query(
+      `UPDATE tracks SET genre_secondary = NULL
+       WHERE genre_secondary IS NOT NULL AND genre_secondary = genre`,
+    )
+    .run();
+  log(
+    `\n--- Phase 4: Canonicalized ${canonFixed} secondary genre variants, cleared ${redResult.changes} redundant (same as primary) ---`,
+  );
 }
 
 const finalCount = db
