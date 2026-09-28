@@ -14,8 +14,8 @@ import sys
 import zipfile
 from datetime import UTC, datetime
 
-from pyrekordbox import Rekordbox6Database  # type: ignore[import-untyped]
-from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist  # type: ignore[import-untyped]
+from pyrekordbox import Rekordbox6Database  # type: ignore[import-not-found]
+from pyrekordbox.db6.tables import DjmdContent, DjmdSongPlaylist  # type: ignore[import-not-found]
 
 DB_PATH = "/Volumes/SHELF1/PIONEER/Master/master.db"
 
