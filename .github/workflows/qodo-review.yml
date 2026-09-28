@@ -3,10 +3,24 @@
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
 # and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
-# Model: openrouter/free — eternal router, auto-picks any live free model, never rots.
+# Model: pinned free models (primary qwen3.8-27b:free, then fallbacks).
+# openrouter/free router removed as primary: it routes to models that emit
+# malformed pr-agent YAML (all suggestions silently discarded, "No code
+# suggestions found" on every PR since v3.0). Verified 2026-09-28: qwen3.8-27b
+# + public pr-agent-settings (temperature 0.2) publishes real suggestions.
+# NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
+# GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
+# all global tuning (temperature, score threshold, focus instructions).
 # /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
+# v3.0.1: (Sep 28 2026) Fix silent no-op: openrouter/free as primary routed to
+#          a model emitting malformed YAML — pr-agent discarded 100% of
+#          suggestions and published nothing on any PR fleet-wide. Pinned
+#          qwen3.8-27b:free as primary with nemotron-ultra/north-mini-code/
+#          nemotron-lightning/ling-flash fallbacks. ALSO: made
+#          webuildstuffio/pr-agent-settings public — as a private repo the
+#          workflow's GITHUB_TOKEN got 404 and all global tuning was lost.
 # v3.0.0: (Sep 26 2026) Simplified from v2.29.1.
 #          - Removed Mega Reviewer job (no auto /review /describe)
 #          - Single job: /improve → inline code suggestions only
@@ -62,7 +76,7 @@ jobs:
       issues: write
       pull-requests: write
       contents: read
-    name: Code Suggestions (openrouter/free)
+    name: Code Suggestions (qwen3.8-27b:free)
     steps:
       - name: Docker Cache
         uses: actions/cache@v6
@@ -97,8 +111,11 @@ jobs:
               secrets.QODO_CLOUDFLARE_GATEWAY_NAME
             }}/openrouter/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          config.model: "openrouter/free"
-          config.fallback_models: "[]"
+          config.model: "openrouter/qwen/qwen3.8-27b:free"
+          config.fallback_models: >-
+            ["openrouter/nvidia/nemotron-3-ultra-550b-a55b:free", "openrouter/cohere/north-mini-code:free",
+            "openrouter/nvidia/nemotron-3.5-lightning:free", "openrouter/inclusionai/ling-3.0-flash-sante:free",
+            "openrouter/free"]
           CONFIG__CUSTOM_MODEL_MAX_TOKENS: "131072"
           github_action_config.auto_improve: "true"
           github_action_config.auto_review: "false"
