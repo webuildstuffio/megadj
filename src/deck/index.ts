@@ -11,9 +11,8 @@ import { watchVolumes } from "./detect/detect";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs/engine";
 import { ImageService } from "./image/store";
-import { ShelfSweepReader } from "./tools/shelf-sweep-reader";
+import { ShelfSweepReader, DumpReader } from "./db/ledger-reader";
 import { HygieneReader } from "./hygiene/reader";
-import { DumpReader } from "./tools/dump-reader";
 import { makeHygieneRoutes } from "./hygiene/routes";
 import { makeFixesRoutes } from "./fixes/routes";
 import { makeGridHealthRoutes } from "./grid/routes";
@@ -30,6 +29,7 @@ import { makeFleetRoutes } from "./fleet/routes";
 import { makeDriveRoutes } from "./drive/routes";
 import { makeApiRouter } from "./api/routes";
 import { photoUpload, makeEnqueueDriveJob } from "./drive/job-routes";
+import { sweepStaleFixtures } from "../shelf/tmp-purge";
 
 // import.meta.dir of src/deck/index.ts IS the deck root (the config.toml
 // home). Fossil guard: this used to be cratedeck/src/ (one level deeper)
@@ -37,6 +37,11 @@ import { photoUpload, makeEnqueueDriveJob } from "./drive/job-routes";
 // strip lands on <repo>/src where no config.toml exists — the server then
 // boots on defaults, silently ignoring the user's real config.
 const here = import.meta.dir;
+// #335 startup self-heal: sweep stale test fixture dirs (cratedeck-hashcancel-*
+// et al) older than 2h — bounds the leak to at most one boot's worth of
+// leftovers regardless of how the last process died.
+const swept = sweepStaleFixtures();
+if (swept > 0) console.log(`startup: swept ${swept} stale fixture dir(s)`);
 const cfg = loadConfig(here);
 const db = new DB(cfg.dbPath);
 // role inference must compare against the CONFIGURED volume names, not the

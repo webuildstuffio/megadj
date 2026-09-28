@@ -90,6 +90,49 @@ export function tmpPurge(opts: TmpPurgeOptions): TmpPurgeResult {
   return opts.state ? statePurge(opts) : tmpPurgeSweep(opts);
 }
 
+/** #335 startup self-heal: sweep fixture dirs older than `maxAgeMs` from
+ *  the OS tmpdir. Fire-and-forget at boot (the deck server + CLI entry
+ *  call this) so stale `cratedeck-hashcancel-*` et al from crashed test
+ *  runs never accumulate to the 12.5 GB observed pre-#236. Lightweight:
+ *  one readdir + stat per candidate, no lsof, no db — safe to call on
+ *  every startup with negligible overhead. */
+export function sweepStaleFixtures(maxAgeMs = 2 * 60 * 60 * 1000): number {
+  const roots = new Set<string>();
+  try {
+    roots.add(realpathSync(tmpdir()));
+  } catch {
+    return 0;
+  }
+  try {
+    const real = realpathSync("/tmp");
+    if (!roots.has(real)) roots.add(real);
+  } catch {
+    // /tmp unresolvable — skip the fallback root
+  }
+  let removed = 0;
+  const cutoff = Date.now() - maxAgeMs;
+  for (const root of roots) {
+    let entries: string[];
+    try {
+      entries = readdirSync(root);
+    } catch {
+      continue;
+    }
+    for (const name of entries) {
+      if (!FIXTURE_PREFIXES.some((p) => name.startsWith(p))) continue;
+      const full = join(root, name);
+      try {
+        if (statSync(full).mtimeMs > cutoff) continue;
+        rmSync(full, { recursive: true, force: true });
+        removed++;
+      } catch {
+        // best-effort: a held or vanished dir is not worth aborting over
+      }
+    }
+  }
+  return removed;
+}
+
 /** The --orphan-runs tier (Sep 20): close run rows that will never
  *  finish. A crashed/killed `sync` used to leak an open row forever (302
  *  found — oldest Aug 22), and status/recent_runs then lie about a run

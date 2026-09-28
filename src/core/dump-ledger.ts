@@ -32,8 +32,8 @@ interface DumpRow {
 }
 
 /** The ONE intake_dumps row → DumpRecord mapping (#316: dump-ledger and
- *  deck/tools/dump-reader both read this table — one hydration, never a
- *  drifting pair). */
+ *  deck/db/ledger-reader (DumpReader) both read this table — one hydration,
+ *  never a drifting pair). */
 export function hydrateDumpRow(r: DumpRow): DumpRecord {
   return {
     folder: r.folder,

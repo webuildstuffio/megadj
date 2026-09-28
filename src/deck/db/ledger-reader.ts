@@ -1,5 +1,8 @@
 // db/ledger-reader.ts — the shared base for read-only windows into
-// the megadj archive DB's ledgers (shelf_sweeps, hygiene_findings, …).
+// the megadj archive DB's ledgers (shelf_sweeps, hygiene_findings, …),
+// plus the two single-query concrete readers (DumpReader, ShelfSweepReader)
+// that were previously separate files (#320 fold — 3 files → 1).
+//
 // A dedicated readonly Database per ledger (not ATTACH — SQLCipher-free
 // plain sqlite attach in bun is per-connection) is simpler and can never
 // write the archive. Guarded once, here: a missing/corrupt/old-schema
@@ -7,6 +10,8 @@
 // API route the subclass feeds (regression-covered by each subclass).
 import { Database } from "bun:sqlite";
 import { errMessage } from "../../shared/leaf/fmt";
+import type { DumpRecord, DumpCensus } from "../shared/dump";
+import { hydrateDumpRow } from "../../core/dump-ledger";
 
 export abstract class ArchiveLedgerReader {
   private db: Database | null = null;
@@ -55,5 +60,77 @@ export abstract class ArchiveLedgerReader {
     this.db?.close();
     this.db = null;
     this.tried = false;
+  }
+}
+
+// ---------- DumpReader (was tools/dump-reader.ts) ----------------------------
+
+interface DumpRow {
+  folder: string;
+  source_folder: string;
+  status: string;
+  ingested: number;
+  duplicates: number;
+  pending: number;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export class DumpReader extends ArchiveLedgerReader {
+  protected readonly label = "intake-dumps";
+
+  census(limit = 50): DumpCensus {
+    const rows = this.query<DumpRow>(
+      "SELECT * FROM intake_dumps ORDER BY updated_at DESC LIMIT ?",
+      String(limit),
+    );
+    const dumps: DumpRecord[] = rows.map(hydrateDumpRow);
+    const counts = { total: dumps.length, partial: 0, done: 0, pending: 0 };
+    for (const d of dumps) {
+      if (d.status === "partial") counts.partial++;
+      else counts.done++;
+      counts.pending += d.pending;
+    }
+    return { dumps, counts };
+  }
+}
+
+// ---------- ShelfSweepReader (was tools/shelf-sweep-reader.ts) ---------------
+
+export interface ShelfSweepSummary {
+  drive: string;
+  verdict: string;
+  files_seen: number;
+  copied: number;
+  preserved: number;
+  started_at: string;
+  finished_at: string | null;
+  /** days since finish — drives the UI ambers on */
+  ageDays: number | null;
+}
+
+export class ShelfSweepReader extends ArchiveLedgerReader {
+  protected readonly label = "shelf-sweeps";
+
+  /** Latest sweep per drive name. Empty map when the ledger is unavailable. */
+  latestPerDrive(): Map<string, ShelfSweepSummary> {
+    const out = new Map<string, ShelfSweepSummary>();
+    const rows = this.query<Omit<ShelfSweepSummary, "ageDays">>(
+      `SELECT s.drive, s.verdict, s.files_seen, s.copied, s.preserved,
+              s.started_at, s.finished_at
+       FROM shelf_sweeps s
+       JOIN (SELECT drive, MAX(id) AS id FROM shelf_sweeps GROUP BY drive) m
+         ON s.drive = m.drive AND s.id = m.id`,
+    );
+    for (const r of rows) {
+      out.set(r.drive.toUpperCase(), {
+        ...r,
+        ageDays: r.finished_at
+          ? (Date.now() - Date.parse(r.finished_at)) / 86_400_000
+          : null,
+      });
+    }
+    return out;
   }
 }

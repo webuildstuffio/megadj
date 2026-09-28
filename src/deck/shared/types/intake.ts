@@ -63,7 +63,7 @@ export interface IntakeFoldersResponse {
 // The dump wire shapes are DERIVED from the owning leaf (#262): the one
 // declaration of DumpRecord + the dump census shape lives in
 // src/deck/shared/dump.ts (the contract src/core/dump-ledger.ts
-// writes and src/deck/dump-reader.ts reads). This module re-exports
+// writes and src/deck/db/ledger-reader.ts (DumpReader) reads). This module re-exports
 // them for the barrel/web — a second hand-copied interface here would
 // compile fine and drift silently the day the ledger adds a field; the
 // colocated intake.test.ts census fails the build on any redeclaration.

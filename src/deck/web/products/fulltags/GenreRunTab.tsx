@@ -48,11 +48,18 @@ export function GenreRunTab() {
   const [opts, setOpts] = useState<FetchJobOptions>({});
   const cursor = useRef(0);
   const feedBottom = useRef<HTMLDivElement | null>(null);
+  // #334: consecutive-failure counter for the poll loops — a permanently-
+  // failing poll surfaces after N consecutive swallows instead of hiding
+  // forever behind "quiet: self-heals". The counter resets on any success.
+  const attachFails = useRef(0);
+  const feedFails = useRef(0);
+  const QUIET_FAIL_LIMIT = 10;
 
   // ---- job discovery: attach to the live fetch job if one exists ----
   const attach = (): void => {
     api<Job[]>("/api/jobs?active=1", { quiet: true })
       .then((rows) => {
+        attachFails.current = 0;
         const mine = rows.find((r) => r.kind === "fetch") ?? null;
         setJob(mine);
         if (!mine) {
@@ -60,7 +67,18 @@ export function GenreRunTab() {
           setFeed({ entries: [], next: 0 });
         }
       })
-      .catch(() => {}); // quiet: the tab self-heals on the next poll
+      .catch((e: unknown) => {
+        // quiet: the tab self-heals on the next poll — but surface after
+        // QUIET_FAIL_LIMIT consecutive failures (#334 backstop)
+        attachFails.current++;
+        if (attachFails.current === QUIET_FAIL_LIMIT) {
+          console.error(
+            `genre-run: job attach poll failed ${QUIET_FAIL_LIMIT}× consecutively`,
+            errMessage(e),
+          );
+          toast("genre run: server connection lost — retrying", "err");
+        }
+      });
   };
   useEffect(() => {
     attach();
@@ -78,6 +96,7 @@ export function GenreRunTab() {
       })
         .then((s) => {
           if (!alive) return;
+          feedFails.current = 0;
           cursor.current = s.next;
           if (s.entries.length > 0)
             setFeed((prev) => ({
@@ -85,7 +104,17 @@ export function GenreRunTab() {
               next: s.next,
             }));
         })
-        .catch(() => {}); // quiet: the tab self-heals on the next poll
+        .catch((e: unknown) => {
+          // quiet: the tab self-heals on the next poll — but surface after
+          // QUIET_FAIL_LIMIT consecutive failures (#334 backstop)
+          feedFails.current++;
+          if (feedFails.current === QUIET_FAIL_LIMIT) {
+            console.error(
+              `genre-run: feed poll failed ${QUIET_FAIL_LIMIT}× consecutively`,
+              errMessage(e),
+            );
+          }
+        });
     };
     poll();
     const t = setInterval(poll, 1_000);

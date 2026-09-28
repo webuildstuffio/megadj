@@ -12,6 +12,10 @@
 #   4. cues (derive phrase cues from the beats ledger)
 #   5. genre --eval (LOO harness) — gate-conditional apply at ≥65%
 # YouTube sync (--with-sync) runs LAST by owner policy, never mid-chain.
+#
+# #341: every stage captures its exit code and aborts loudly on failure.
+# A crashed stage used to say "done" unconditionally — the exact silent-
+# success pattern 36bf059 fixed one layer up, replicated one layer down.
 set -u
 # Repo root = two levels up from this script (src/ops → src → repo root).
 # Do NOT use import.meta.dir-style single ".." here: from src/ops that lands
@@ -29,6 +33,22 @@ SHELF="${MEGADJ_SHELF:-/Volumes/SHELF1/Contents}"
 GENRE_GATE=65
 say() { echo "=== [$(date +%H:%M:%S)] $*" | tee -a "$MAIN_LOG"; }
 
+# run_stage N LABEL cmd...  — runs a stage, captures exit code, aborts on
+# failure instead of printing "done". The log carries both the stage output
+# AND the verdict so a crashed run is diagnosable from the log alone.
+run_stage() {
+  local num="$1" label="$2"; shift 2
+  say "stage ${num}: ${label}"
+  local rc=0
+  "$@" >> "$MAIN_LOG" 2>&1 || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    say "STAGE ${num} FAILED (exit ${rc}) — aborting pipeline"
+    say "see log for details: $MAIN_LOG"
+    exit "$rc"
+  fi
+  say "stage ${num} done (exit 0)"
+}
+
 say "full-pipeline start (shelf: $SHELF)"
 
 if [ ! -d "$SHELF" ]; then
@@ -36,38 +56,35 @@ if [ ! -d "$SHELF" ]; then
   exit 1
 fi
 
-say "stage 1/5: shelf revote"
-MEGADJ_MUSIC_DIR="$SHELF" bun src/cli.ts fetch --genres --revote --json >> "$MAIN_LOG" 2>&1
-say "stage 1 done"
-
-say "stage 2/5: local revote"
-bun src/cli.ts fetch --genres --revote --json >> "$MAIN_LOG" 2>&1
-say "stage 2 done"
-
-say "stage 3/5: mood --embeddings backfill"
-bun src/cli.ts mood --embeddings --json >> "$MAIN_LOG" 2>&1
-say "stage 3 done"
-
-say "stage 4/5: cues"
-bun src/cli.ts cues --json >> "$MAIN_LOG" 2>&1
-say "stage 4 done"
+run_stage "1/5" "shelf revote" env MEGADJ_MUSIC_DIR="$SHELF" bun src/cli.ts fetch --genres --revote --json
+run_stage "2/5" "local revote" bun src/cli.ts fetch --genres --revote --json
+run_stage "3/5" "mood --embeddings backfill" bun src/cli.ts mood --embeddings --json
+run_stage "4/5" "cues" bun src/cli.ts cues --json
 
 say "stage 5/5: genre --eval (gate ${GENRE_GATE}%)"
 bun src/cli.ts genre --eval --json > /tmp/genre-eval-latest.json 2>&1
+EVAL_RC=$?
+if [ "$EVAL_RC" -ne 0 ]; then
+  say "STAGE 5/5 genre --eval FAILED (exit ${EVAL_RC}) — aborting pipeline"
+  say "see log for details: $MAIN_LOG"
+  exit "$EVAL_RC"
+fi
+# Parse agreement — the bun -e extractor reads the eval JSON; on parse
+# failure the agreement reads as 0 (gate refuses, honest gap stands).
 AGREE=$(bun -e 'try{const r=await Bun.file("/tmp/genre-eval-latest.json").json();console.log(String(r.agreement ?? r.measured ?? 0))}catch{console.log("0")}' 2>/dev/null || echo 0)
-say "eval agreement: $AGREE"
-# bun -e argv: [bun, arg1, arg2] — arg1 = agreement, arg2 = gate (argv[1]/argv[2]).
+if [ -z "$AGREE" ]; then
+  say "genre --eval produced no agreement value — treating as 0"
+  AGREE=0
+fi
+say "eval agreement: ${AGREE} (gate: ${GENRE_GATE}%)"
 if bun -e "process.exit(Number(process.argv[1]??0)*100>=Number(process.argv[2]??65)?0:1)" "$AGREE" "$GENRE_GATE"; then
-  bun src/cli.ts genre --apply --json >> "$MAIN_LOG" 2>&1
-  say "genre --apply done (gate passed)"
+  run_stage "5/5 apply" "genre --apply" bun src/cli.ts genre --apply --json
 else
   say "genre --apply SKIPPED (below gate — honest gap stands)"
 fi
 
 if [ "${1:-}" = "--with-sync" ]; then
-  say "stage 6 (owner-approved): YouTube sync"
-  bun src/cli.ts sync --sources LL --music-only --json >> "$MAIN_LOG" 2>&1
-  say "sync done — then rerun this script WITHOUT --with-sync to analyze the new rows"
+  run_stage "6" "YouTube sync" bun src/cli.ts sync --sources LL --music-only --json
 fi
 
 say "full-pipeline ALL DONE — log: $MAIN_LOG"
