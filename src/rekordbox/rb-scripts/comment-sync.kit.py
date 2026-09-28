@@ -135,10 +135,13 @@ def main() -> None:
         epart = f"E{energy}" if energy else ""
         parts = [x for x in (key, epart, mood) if x]
         # Final guard: strip any URL junk or raw data that slipped through
-        parts = [p for p in parts if ".com" not in p.lower() and "http" not in p.lower() and "=" not in p]
+        parts = [
+            p for p in parts if ".com" not in p.lower() and "http" not in p.lower() and "=" not in p
+        ]
         return " · ".join(parts)
 
     import re
+
     MOOD_HEADS = {"Party", "Dance", "Aggro", "Happy", "Electronic"}
 
     def parse_existing(comment: str) -> tuple[str, str, str]:
@@ -178,7 +181,9 @@ def main() -> None:
             new_energy = ex_energy or energy
             new_mood = ex_mood or mood
             new_comment = build_comment(new_key, new_energy, new_mood)
-            if new_comment != existing and (new_key != ex_key or new_energy != ex_energy or new_mood != ex_mood):
+            if new_comment != existing and (
+                new_key != ex_key or new_energy != ex_energy or new_mood != ex_mood
+            ):
                 out["enriched"] += 1
                 out["eligible"] += 1
                 if len(out["samples"]) < 5:
