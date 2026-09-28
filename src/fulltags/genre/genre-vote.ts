@@ -68,6 +68,9 @@ export interface GenreVoteResult {
   /** true when the election was the imprint prior's family (a scene
    *  label, not a catalog genre) */
   familyOnly: boolean;
+  /** runner-up genre (second-highest total weight, different from winner).
+   *  RB only stores one genre field, so secondary lives in archive.db only. */
+  secondaryGenre: string | null;
 }
 
 /** Elect the winning genre from collected votes. Highest total weight
@@ -82,6 +85,7 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
       weight: 0,
       votes: [],
       familyOnly: false,
+      secondaryGenre: null,
     };
   const tally = new Map<
     string,
@@ -135,12 +139,28 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
       best = { genre, ...t };
     }
   }
+  // Runner-up: second-highest total weight, must be a different genre
+  let runnerUp: string | null = null;
+  if (best !== null && tally.size >= 2) {
+    let secondBest: { genre: string; totalBasisPoints: number } | null = null;
+    for (const [genre, t] of tally) {
+      if (genre === best.genre) continue;
+      if (
+        secondBest === null ||
+        t.totalBasisPoints > secondBest.totalBasisPoints
+      ) {
+        secondBest = { genre, totalBasisPoints: t.totalBasisPoints };
+      }
+    }
+    runnerUp = secondBest?.genre ?? null;
+  }
   return {
     genre: best?.genre ?? null,
     winnerRungs: best?.rungs ?? [],
     weight: best?.total ?? 0,
     votes: [...votes],
     familyOnly: best?.familyOnly ?? false,
+    secondaryGenre: runnerUp,
   };
 }
 

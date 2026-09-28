@@ -222,8 +222,15 @@ async function runLookups(): Promise<{
 
     if (!dryRun) {
       db.query(
-        "UPDATE tracks SET genre = COALESCE(?, genre), genre_votes = ? WHERE video_id = ?",
-      ).run(result.genre, serializeVotes(votes), row.video_id);
+        `UPDATE tracks SET genre = COALESCE(?, genre),
+         genre_secondary = COALESCE(?, genre_secondary),
+         genre_votes = ? WHERE video_id = ?`,
+      ).run(
+        result.genre,
+        result.secondaryGenre,
+        serializeVotes(votes),
+        row.video_id,
+      );
     }
     resolved++;
 
@@ -348,6 +355,21 @@ async function runEmbeddingInference(): Promise<{
       `  [${i + 1}/${needGenre.length}] ✓ ${best} (${bestCount}/${knn.length} agree, avg sim ${avgSim}) — ${track.artist ?? ""} - ${track.title.slice(0, 40)}`,
     );
 
+    // Runner-up genre from KNN (second-most-voted, if different)
+    let knnSecondary: string | null = null;
+    if (genreScore.size >= 2) {
+      let secondBest = "";
+      let secondScore = 0;
+      for (const [genre, score] of genreScore) {
+        if (genre === best) continue;
+        if (score > secondScore) {
+          secondBest = genre;
+          secondScore = score;
+        }
+      }
+      if (secondBest) knnSecondary = secondBest;
+    }
+
     if (!dryRun) {
       const votes: GenreVote[] = [
         {
@@ -358,8 +380,10 @@ async function runEmbeddingInference(): Promise<{
         },
       ];
       db.query(
-        "UPDATE tracks SET genre = COALESCE(?, genre), genre_votes = ? WHERE video_id = ?",
-      ).run(best, serializeVotes(votes), track.video_id);
+        `UPDATE tracks SET genre = COALESCE(?, genre),
+         genre_secondary = COALESCE(?, genre_secondary),
+         genre_votes = ? WHERE video_id = ?`,
+      ).run(best, knnSecondary, serializeVotes(votes), track.video_id);
     }
     resolved++;
   }
@@ -376,16 +400,50 @@ const embResult = lookupsOnly
   ? { resolved: 0, missed: 0 }
   : await runEmbeddingInference();
 
+// ---- Phase 3: Propagation pass (archive copies inherit from base) ----
+if (!dryRun) {
+  const propResult = db
+    .query(
+      `
+    UPDATE tracks SET
+      genre = (SELECT t2.genre FROM tracks t2
+               WHERE t2.artist = tracks.artist
+                 AND replace(replace(replace(t2.title, ' [archive]',''), ' [archive 2]',''), ' [BACKUP2]','') =
+                     replace(replace(replace(tracks.title, ' [archive]',''), ' [archive 2]',''), ' [BACKUP2]','')
+                 AND t2.genre IS NOT NULL AND t2.genre != ''
+                 AND t2.video_id != tracks.video_id
+               LIMIT 1),
+      genre_secondary = COALESCE(genre_secondary,
+        (SELECT t2.genre_secondary FROM tracks t2
+         WHERE t2.artist = tracks.artist
+           AND replace(replace(replace(t2.title, ' [archive]',''), ' [archive 2]',''), ' [BACKUP2]','') =
+               replace(replace(replace(tracks.title, ' [archive]',''), ' [archive 2]',''), ' [BACKUP2]','')
+           AND t2.genre_secondary IS NOT NULL AND t2.genre_secondary != ''
+           AND t2.video_id != tracks.video_id
+         LIMIT 1))
+    WHERE (genre IS NULL OR genre = '')
+      AND artist IS NOT NULL AND artist != ''
+  `,
+    )
+    .run();
+  log(`\n--- Phase 3: Propagation — ${propResult.changes} copies filled ---`);
+}
+
 const finalCount = db
   .query(
     `SELECT
          COUNT(*) AS total,
-         SUM(CASE WHEN genre_votes IS NOT NULL AND genre_votes != '' AND genre_votes != '[]' THEN 1 ELSE 0 END) AS has_votes
+         SUM(CASE WHEN genre_votes IS NOT NULL AND genre_votes != '' AND genre_votes != '[]' THEN 1 ELSE 0 END) AS has_votes,
+         SUM(CASE WHEN genre_secondary IS NOT NULL AND genre_secondary != '' THEN 1 ELSE 0 END) AS has_secondary
        FROM tracks WHERE status='downloaded' AND file_path IS NOT NULL`,
   )
-  .get() as { total: number; has_votes: number };
+  .get() as { total: number; has_votes: number; has_secondary: number };
 
 const coverage = ((finalCount.has_votes / finalCount.total) * 100).toFixed(1);
+const secCoverage = (
+  (finalCount.has_secondary / finalCount.total) *
+  100
+).toFixed(1);
 
 const summary = {
   command: "genre-backfill",
@@ -395,6 +453,8 @@ const summary = {
     total: finalCount.total,
     withVotes: finalCount.has_votes,
     coverage: `${coverage}%`,
+    withSecondary: finalCount.has_secondary,
+    secondaryCoverage: `${secCoverage}%`,
   },
   dryRun,
 };
@@ -404,6 +464,9 @@ if (jsonOut) {
 } else {
   log(
     `\n=== FINAL: ${finalCount.has_votes}/${finalCount.total} tracks with genre votes (${coverage}%) ===`,
+  );
+  log(
+    `=== SECONDARY: ${finalCount.has_secondary}/${finalCount.total} tracks with secondary genre (${secCoverage}%) ===`,
   );
 }
 

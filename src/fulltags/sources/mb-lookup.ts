@@ -19,6 +19,12 @@
  * 1 rps politeness (RATE_MS); per-arm in-process caches; never throws.
  */
 import { canonGenre } from "../write/schema";
+import { guessFromFreeText, SC_GENRE_CANON } from "../genre/genre-vocab";
+
+/** Lowercase keys from the SC canon map for quick membership test. */
+const SC_GENRE_CANON_KEYS = new Set(
+  Object.keys(SC_GENRE_CANON).map((k) => k.toLowerCase()),
+);
 
 /** The one-row truth shape an MB hit fills. */
 export interface MbTruth {
@@ -218,12 +224,36 @@ export async function mbGenreForArtist(artist: string): Promise<string | null> {
       artistCache.set(key, null);
       return null;
     }
-    // Folksonomy: highest-count tag wins through the canonical map.
+    // Folksonomy: try each tag individually (highest-count first) through
+    // the canonical map. The old code joined ALL tags into one string and
+    // tried to canonicalize the blob, producing tag-soup genres like
+    // "Hip hop r&b pop rap contemporary r&b..." (#351).
     const tags = [...(a.tags ?? [])].toSorted((x, y) => y.count - x.count);
-    const raw = tags.map((t) => t.name).join(" ");
-    const genre = canonGenre(raw) ?? null;
-    artistCache.set(key, genre);
-    return genre;
+    // Pass 1: exact canon match (tag is a known key in SC_GENRE_CANON)
+    for (const t of tags) {
+      const lower = t.name.toLowerCase().trim();
+      if (SC_GENRE_CANON_KEYS.has(lower)) {
+        const mapped = canonGenre(lower);
+        artistCache.set(key, mapped);
+        return mapped;
+      }
+    }
+    // Pass 2: regex-based free-text guess on each tag individually
+    for (const t of tags) {
+      const g = guessFromFreeText([t.name]);
+      if (g) {
+        artistCache.set(key, g);
+        return g;
+      }
+    }
+    // Pass 3: join top 3 tags and try free-text (catches compound signals)
+    const raw = tags
+      .slice(0, 3)
+      .map((t) => t.name)
+      .join(" ");
+    const guessed = guessFromFreeText([raw]);
+    artistCache.set(key, guessed);
+    return guessed;
   } catch {
     return null;
   }
