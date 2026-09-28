@@ -116,6 +116,30 @@ describe("rb-dedup fingerprint judgment", () => {
     ).toEqual([]);
   });
 
+  test("stem-twin basis requires fingerprint match like candidate", () => {
+    const stemPair = scanPair("a", {
+      path: "/music/track.aiff",
+      basis: "stem-twin" as const,
+      other: scanRow("b", {
+        path: "/music/track (1).aiff",
+        len: 181,
+        size: 900,
+      }),
+    });
+    // Distinct fingerprints → no pair
+    const distinctFp = new Map([
+      [stemPair.path, "fp-A"],
+      [stemPair.other.path, "fp-B"],
+    ]);
+    expect(
+      buildDupePairs([stemPair], (p) => distinctFp.get(p) ?? null),
+    ).toEqual([]);
+    // Same fingerprint → pair accepted
+    const result = buildDupePairs([stemPair], () => "fp-same");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.basis).toBe("fingerprint");
+  });
+
   test("full base64url fingerprint equality is retained and is the honest basis", () => {
     const pair = candidate("a", "/music/a.aiff");
     const full = "AQID-_-full-base64url-tail";
@@ -195,6 +219,31 @@ describe("rb-dedup subprocess boundaries", () => {
     expect(() => parseScanResult('{"scanned":1,"pairs":[{}]}')).toThrow(
       "rb-dedup scan returned invalid JSON",
     );
+  });
+
+  test("accepts stem-twin basis from dedup-scan.py (#stem-twin)", () => {
+    const pair = {
+      id: "1",
+      path: "/a.mp3",
+      title: "Track",
+      len: 180,
+      size: 900,
+      bitrate: 320,
+      basis: "stem-twin",
+      other: {
+        id: "2",
+        path: "/b.mp3",
+        title: "Track",
+        len: 180,
+        size: 900,
+        bitrate: 320,
+      },
+    };
+    const result = parseScanResult(
+      JSON.stringify({ scanned: 2, pairs: [pair] }),
+    );
+    expect(result.pairs).toHaveLength(1);
+    expect(result.pairs[0]?.basis).toBe("stem-twin");
   });
 
   test("rejects malformed and structurally invalid delete payloads", () => {

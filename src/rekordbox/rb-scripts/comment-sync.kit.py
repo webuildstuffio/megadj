@@ -180,7 +180,7 @@ def main() -> None:
 
     genre_written = 0
     genre_skipped = 0
-    genre_names_dirty = False
+    existing_ids = {str(g.ID) for g in genre_cache.values()}
     for c in db.query(DjmdContent).all():
         p = (c.FolderPath or "").casefold()
         if not p:
@@ -189,28 +189,27 @@ def main() -> None:
         if not archive_genre:
             genre_skipped += 1
             continue
-        # Find or create genre row
         gkey = archive_genre.casefold()
         if gkey not in genre_cache:
             import uuid
 
-            new_g = DjmdGenre(
-                ID=str(abs(hash(archive_genre)) % (2**31)),
-                Name=archive_genre,
-                UUID=str(uuid.uuid4()),
-            )
+            # Collision-safe ID generation
+            gid = str(abs(hash(archive_genre)) % (2**31))
+            while gid in existing_ids:
+                gid = str(int(gid) + 1)
+            existing_ids.add(gid)
+            new_g = DjmdGenre(ID=gid, Name=archive_genre, UUID=str(uuid.uuid4()))
             db.session.add(new_g)
             genre_cache[gkey] = new_g
         genre_row = genre_cache[gkey]
-        # Fix casing on existing genre rows to match canonical form
-        if genre_row.Name != archive_genre:
+        if apply and genre_row.Name != archive_genre:
             genre_row.Name = archive_genre
-            genre_names_dirty = True
         if str(c.GenreID) != str(genre_row.ID):
-            c.GenreID = genre_row.ID
             genre_written += 1
+            if apply:
+                c.GenreID = genre_row.ID
 
-    if apply and (genre_written > 0 or genre_names_dirty):
+    if apply and genre_written > 0:
         try:
             db.session.commit()
         except Exception as e:
