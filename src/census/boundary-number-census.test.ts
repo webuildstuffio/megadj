@@ -173,8 +173,8 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
     // GUARDED Number() call (--limit arg, Number.isFinite gate);
     // audited 46→47, guarded 30→31, sanctioned 16 unchanged.
-    audited: 47,
-    guarded: 31,
+    audited: 49,
+    guarded: 33,
     sanctioned: 16,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -194,7 +194,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
     // GUARDED Number() call (--limit arg parsed + Number.isFinite gate);
     // audited +1, guarded +1, sanctions unchanged.
-    digest: "60a81274a67e49a8d4fe6ef2158ef12455a7d5cffeb3968d20d6ed2d27c91eff",
+    // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
+    // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
+    // sanctioned unchanged, digest shifted.
+    digest: "f93452127fbf52c08a08a8e7c25fb48f2f7ee6dd8de89192a0e2b852d04182ee",
   });
 });
 
