@@ -105,8 +105,8 @@ def main() -> None:
         key = (tags or {}).get("key", "")
         energy = (tags or {}).get("energy", "")
         mood = (tags or {}).get("mood", "")
-        # Old-format raw-score tags (dance=0.999;...) are useless — skip to ledger
-        if mood and "=" in mood:
+        # Old-format raw-score tags (dance=0.999;...) and URL junk are useless
+        if mood and ("=" in mood or ".com" in mood.lower() or "http" in mood.lower()):
             mood = ""
         if not energy:
             led_row = led.get("path:" + p.casefold())
@@ -134,6 +134,8 @@ def main() -> None:
     def build_comment(key: str, energy: str, mood: str) -> str:
         epart = f"E{energy}" if energy else ""
         parts = [x for x in (key, epart, mood) if x]
+        # Final guard: strip any URL junk or raw data that slipped through
+        parts = [p for p in parts if ".com" not in p.lower() and "http" not in p.lower() and "=" not in p]
         return " · ".join(parts)
 
     import re
@@ -144,14 +146,16 @@ def main() -> None:
         parts = [p.strip() for p in comment.split("·")]
         ex_key = ex_energy = ex_mood = ""
         for part in parts:
-            if re.match(r"^[A-Ga-g][#b]?m?$", part):
+            # Standard key notation (Am, F#m, Dbm, C) + long-form (Cmin, Amin)
+            if re.match(r"^[A-Ga-g][#b]?m(in)?$", part) or re.match(r"^[A-Ga-g][#b]?$", part):
+                ex_key = part
+            # Camelot notation (6A, 11B, 9m, 10m — both upper and lower)
+            elif re.match(r"^\d+[A-Ba-b]$", part):
                 ex_key = part
             elif re.match(r"^E\d", part):
                 ex_energy = part[1:]
             elif any(h in part for h in MOOD_HEADS):
                 ex_mood = part
-            elif re.match(r"^\d+[A-B]$", part):
-                ex_key = part
         return ex_key, ex_energy, ex_mood
 
     pending = []
