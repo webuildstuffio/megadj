@@ -94,7 +94,7 @@ def main() -> None:
         ):
             fp_key = (m["file_path"] or "").casefold()
             moods_by_path[fp_key] = dict(m)
-            # Derive energy from arousal (1–9 scale → 1–10 DJ energy)
+            # Derive energy from arousal (1-9 scale -> 1-10 DJ energy)
             try:
                 ar = float(m["arousal"] or 0)
                 if ar > 0:
