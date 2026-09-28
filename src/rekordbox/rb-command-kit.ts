@@ -52,9 +52,8 @@ export const rbCommandRuntime: RbCommandRuntime = {
   restore: restoreMasterBackup,
   sleep: sleepSync,
   spawn(command, timeoutMs, input) {
-    const executable = command[0];
-    if (executable === undefined) throw new Error("empty subprocess command");
-    const result = spawnSync(executable, command.slice(1), {
+    if (command.length === 0) throw new Error("empty subprocess command");
+    const result = spawnSync("uv", command, {
       encoding: "utf8",
       timeout: timeoutMs,
       input,

@@ -11,6 +11,7 @@ One spawn writes the batch behind the RB-closed guard (kit fragment).
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 
 from pyrekordbox import db6  # type: ignore[import-not-found]

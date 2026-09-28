@@ -10,6 +10,7 @@ pre-commit RB-closed guard shrinks the check-to-write window to ~nothing.
 import datetime
 import json
 import os
+import subprocess
 import sys
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
