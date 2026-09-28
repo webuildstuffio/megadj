@@ -66,7 +66,7 @@ export function buildDupePairs(
   const pathGraph = new Map<string, Set<string>>();
 
   for (const candidate of candidates) {
-    if (candidate.basis === "candidate") {
+    if (candidate.basis === "candidate" || candidate.basis === "stem-twin") {
       const first = getFingerprint(candidate.path);
       if (first === null) continue;
       const second = getFingerprint(candidate.other.path);
@@ -78,7 +78,7 @@ export function buildDupePairs(
       rows.get(candidate.other.id) ?? candidate.other,
     );
     connectGraph(graph, candidate.id, candidate.other.id);
-    if (candidate.basis !== "candidate")
+    if (candidate.basis !== "candidate" && candidate.basis !== "stem-twin")
       connectGraph(pathGraph, candidate.id, candidate.other.id);
   }
 

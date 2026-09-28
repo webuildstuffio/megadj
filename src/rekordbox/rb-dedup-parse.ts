@@ -22,7 +22,7 @@ export interface ScanRow {
 
 export interface ScanPair extends ScanRow {
   other: ScanRow;
-  basis: "same-path" | "path-twin" | "candidate";
+  basis: "same-path" | "path-twin" | "candidate" | "stem-twin";
 }
 
 export interface ScanResult {
@@ -116,7 +116,8 @@ function isScanPair(value: unknown): value is ScanPair {
     "basis" in value &&
     (value.basis === "same-path" ||
       value.basis === "path-twin" ||
-      value.basis === "candidate")
+      value.basis === "candidate" ||
+      value.basis === "stem-twin")
   );
 }
 
