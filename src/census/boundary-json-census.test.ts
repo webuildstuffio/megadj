@@ -60,6 +60,23 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
   ]),
+  ...reviewed(
+    "Bench store reads JSON columns it itself wrote (insertBenchRun JSON.stringify); corrupt DB rows are a data-loss class, not a runtime class.",
+    [
+      "src/fulltags/bench/store.ts::loadBenchRun::JSON.parse(row.metrics)",
+      "src/fulltags/bench/store.ts::loadBenchRun::JSON.parse(row.ci)",
+    ],
+  ),
+  ...reviewed(
+    "Bench store listBenchRuns reads same self-written JSON columns.",
+    [
+      "src/fulltags/bench/store.ts::listBenchRuns::JSON.parse(r.metrics)",
+      "src/fulltags/bench/store.ts::listBenchRuns::JSON.parse(r.ci)",
+    ],
+  ),
+  ...reviewed(EXPLICIT_NULL_REASON, [
+    "src/fulltags/bench/stages/genre-l2.ts::electedFamily::JSON.parse(row.genre_votes)",
+  ]),
 };
 
 test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => {
@@ -173,9 +190,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
     // GUARDED JSON.parse (embedding parser, console.error catch);
     // audited 69→70, guarded 53→54, sanctioned 16 unchanged.
-    audited: 70,
+    // Sep 29 (v3 bench harness): bench store adds 4 sanctioned
+    // JSON.parse sites (2× loadBenchRun metrics/ci + 2× listBenchRuns
+    // metrics/ci) + 1 EXPLICIT_NULL genre-l2 electedFamily;
+    // audited 70→75, guarded 54 unchanged, sanctioned 16→21.
+    audited: 75,
     guarded: 54,
-    sanctioned: 16,
+    sanctioned: 21,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes —
     // cratedeck/src/{verify,hygiene,report}-* moved into verify/ hygiene/
     // report/ subdirs (tests co-located); same calls, same guards, same
@@ -197,7 +218,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
     // GUARDED JSON.parse (embedding parser in try-catch with console.error);
     // audited +1, guarded +1, sanctions unchanged.
-    digest: "1e5d1564b57ca272e9ef89cf7f181b07a7205f912193a00dfb35776a5c303c24",
+    digest: "3c6391f316575ec6c898de7cbea6a2356fabef5943e62f7bc4e2739c5a3c8507",
   });
 });
 

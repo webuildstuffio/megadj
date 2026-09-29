@@ -178,8 +178,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // archive-ledger.ts, regate.ts, mcp.ts, doctor-checks.ts,
     // cli-commands.ts — same Number() calls, same guards; only the
     // enclosing nonEmptyEnv context shifts the digest.
-    audited: 49,
-    guarded: 33,
+    // Sep 29 (v3 bench harness): bpm stage's truthMap construction
+    // adds a Number.isFinite-gated Number(r.value) parse — audited
+    // 49→50, guarded 33→34, sanctioned unchanged; digest shifted.
+    audited: 50,
+    guarded: 34,
     sanctioned: 16,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -202,7 +205,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
     // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
     // sanctioned unchanged, digest shifted.
-    digest: "cbb942c40b3c29cec1d47e40b73350168adaaf1b7e5a4ecd4da83523360e48f0",
+    digest: "f639cc5ced9d0ca1885a2c437cb9e5ab558f50d939e9342770b4db9e8c2511a6",
   });
 });
 

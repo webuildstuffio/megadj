@@ -679,6 +679,113 @@ const regate: CliCommandHandler = async (rest, { state }) => {
   if (!report.ok) setExit(1);
 };
 
+const bench: CliCommandHandler = async (rest, { state }) => {
+  const sub = rest[0];
+  const flags = parseFlags(rest.slice(1), ["key", "split", "since"], ["json"]);
+  const json = flags.bools.has("json");
+  if (sub === "run") {
+    const stage = rest[1];
+    if (!stage) {
+      await finishCommandError({
+        command: "bench",
+        json,
+        error:
+          "usage: megadj bench run <stage|all> [--key AK1..AK5|all] [--split eval|calib] [--json]",
+        exitCode: 2,
+      });
+      return;
+    }
+    await import("../bench/stages/mood");
+    await import("../bench/stages/bpm");
+    await import("../bench/stages/key");
+    await import("../bench/stages/genre-l2");
+    const { benchRun, benchRunAll, registeredStages } =
+      await import("../bench/runner");
+    const { migrateBenchTables } = await import("../bench/store");
+    migrateBenchTables(state.db);
+    const answerKey = flags.strings.get("key") ?? "all";
+    const split = (flags.strings.get("split") ?? "eval") as "eval" | "calib";
+    if (stage === "all") {
+      const runs = benchRunAll(state.db, answerKey, split);
+      if (json) await writeJson({ command: "bench", mode: "run-all", runs });
+      else {
+        for (const run of runs) {
+          console.log(
+            `${run.stage}: n=${run.n} accuracy=${run.metrics.accuracy ?? "—"} [${run.runId}]`,
+          );
+        }
+      }
+    } else {
+      const available = registeredStages();
+      if (!available.includes(stage as never)) {
+        await finishCommandError({
+          command: "bench",
+          json,
+          error: `unknown stage "${stage}" — available: ${available.join(", ")}`,
+          exitCode: 2,
+        });
+        return;
+      }
+      const run = benchRun({
+        db: state.db,
+        stage: stage as never,
+        answerKey,
+        split,
+      });
+      if (json) await writeJson({ command: "bench", mode: "run", run });
+      else {
+        console.log(
+          `${run.stage}: n=${run.n} accuracy=${run.metrics.accuracy ?? "—"} [${run.runId}]`,
+        );
+        for (const [k, v] of Object.entries(run.metrics)) {
+          if (k !== "accuracy") console.log(`  ${k}: ${v}`);
+        }
+      }
+    }
+  } else if (sub === "compare") {
+    const runA = rest[1];
+    const runB = rest[2];
+    if (!runA || !runB) {
+      await finishCommandError({
+        command: "bench",
+        json,
+        error: "usage: megadj bench compare <runA> <runB> [--json]",
+        exitCode: 2,
+      });
+      return;
+    }
+    const { benchCompare } = await import("../bench/runner");
+    const { migrateBenchTables } = await import("../bench/store");
+    migrateBenchTables(state.db);
+    const result = benchCompare(state.db, runA, runB);
+    if (json) await writeJson({ command: "bench", mode: "compare", result });
+    else {
+      console.log(
+        `compare: Δaccuracy=${result.accuracyDelta.toFixed(4)} McNemar p=${result.mcnemar.p}${result.mcnemar.significant ? " ★" : ""}`,
+      );
+    }
+  } else if (sub === "report") {
+    const { generateReport } = await import("../bench/report");
+    const { migrateBenchTables } = await import("../bench/store");
+    migrateBenchTables(state.db);
+    const md = generateReport({
+      db: state.db,
+      outDir: flags.strings.get("since") ? undefined : "docs/fulltags/bench",
+    });
+    if (json)
+      await writeJson({ command: "bench", mode: "report", markdown: md });
+    else console.log(md);
+  } else {
+    await finishCommandError({
+      command: "bench",
+      json,
+      error:
+        "usage: megadj bench <run|compare|report> — see docs/fulltags/fulltags-v3-rebench-and-build-plan-2026-09-29.md §3",
+      exitCode: 2,
+    });
+  }
+};
+
 export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "booth-fix": boothFix,
   drop,
@@ -699,4 +806,5 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   cues,
   "gold-report": goldReport,
   regate,
+  bench,
 };
