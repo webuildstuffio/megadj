@@ -35,9 +35,44 @@ export interface BeatResult {
   residualStd: number | null;
 }
 
+/** Genre-aware BPM ranges for octave fold (B1.3). When a genre family
+ *  is known, use a tighter window to avoid octave errors. Falls back to
+ *  the default 70–180 DJ window when the family is unknown. */
+const GENRE_BPM_RANGES: Readonly<Record<string, [number, number]>> = {
+  house: [115, 135],
+  "tech house": [120, 135],
+  techno: [120, 155],
+  trance: [125, 150],
+  "drum and bass": [160, 190],
+  dubstep: [130, 155],
+  garage: [125, 145],
+  breakbeat: [110, 150],
+  "hip hop": [70, 115],
+  downtempo: [70, 120],
+  disco: [100, 135],
+  hardstyle: [140, 170],
+  hardcore: [160, 200],
+};
+
 /** Longest common tempo-support helper: beat_this sometimes reports the
- * double/half tempo. Fold into a 70–180 DJ window by doubling/halving. */
-export function foldTempo(bpm: number, lo = 70, hi = 180): number {
+ *  double/half tempo. Fold into the target window by doubling/halving.
+ *  When `genre` is provided, uses a tighter genre-aware range (B1.3). */
+export function foldTempo(
+  bpm: number,
+  lo = 70,
+  hi = 180,
+  genre?: string | null | undefined,
+): number {
+  if (genre) {
+    const range = GENRE_BPM_RANGES[genre.toLowerCase()];
+    if (range) {
+      const [gLo, gHi] = range;
+      let b = bpm;
+      while (b < gLo && b * 2 <= gHi * 1.1) b *= 2;
+      while (b > gHi && b / 2 >= gLo * 0.9) b /= 2;
+      if (b >= gLo * 0.9 && b <= gHi * 1.1) return b;
+    }
+  }
   let b = bpm;
   while (b < lo) b *= 2;
   while (b > hi) b /= 2;

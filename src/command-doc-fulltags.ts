@@ -239,6 +239,8 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
       "  megadj bench run <stage|all> [--key AK1..AK5|all] [--split eval|calib] [--json]",
       "  megadj bench compare <runA> <runB> [--json]   bootstrap CIs + McNemar on paired rows",
       "  megadj bench report [--since <tag>]            write docs/fulltags/bench/<date>.md",
+      "  megadj bench extract-ak2 [--json]              populate AK2 from rekordbox mirror",
+      "  megadj bench backfill-evidence [--json]        backfill genre_evidence from genre_votes",
       "                                               v3 bench harness: measure every FullTags stage",
       "                                               against independent answer keys (§3 of the rebench plan)",
     ],

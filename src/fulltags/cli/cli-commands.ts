@@ -780,12 +780,34 @@ const bench: CliCommandHandler = async (rest, { state }) => {
     if (json)
       await writeJson({ command: "bench", mode: "report", markdown: md });
     else console.log(md);
+  } else if (sub === "extract-ak2") {
+    const { extractAK2 } = await import("../bench/ak2-extractor");
+    const result = extractAK2(state.db);
+    if (json)
+      await writeJson({ command: "bench", mode: "extract-ak2", ...result });
+    else
+      console.log(
+        `AK2: ${result.bpmCount} bpm + ${result.keyCount} key rows from ${result.total} mirrors`,
+      );
+  } else if (sub === "backfill-evidence") {
+    const { backfillFromVotes } = await import("../evidence/backfill-votes");
+    const result = backfillFromVotes(state.db);
+    if (json)
+      await writeJson({
+        command: "bench",
+        mode: "backfill-evidence",
+        ...result,
+      });
+    else
+      console.log(
+        `evidence backfill: ${result.evidenceWritten} rows from ${result.tracksRead} tracks (${result.errors} errors)`,
+      );
   } else {
     await finishCommandError({
       command: "bench",
       json,
       error:
-        "usage: megadj bench <run|compare|report> — see docs/fulltags/fulltags-v3-rebench-and-build-plan-2026-09-29.md §3",
+        "usage: megadj bench <run|compare|report|extract-ak2|backfill-evidence> — see docs/fulltags/fulltags-v3-rebench-and-build-plan-2026-09-29.md §3",
       exitCode: 2,
     });
   }

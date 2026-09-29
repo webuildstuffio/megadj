@@ -1,0 +1,230 @@
+/**
+ * taxonomy-v3.ts — Genre taxonomy v3 (B5.1).
+ *
+ * Replaces the informal genre vocabulary with a structured taxonomy:
+ * - L2 families: acoustically defined, umbrella strings abstain
+ * - L3 subgenres: Discogs styles ∪ store subgenres
+ * - style_map: maps raw source strings to canonical L2/L3
+ *
+ * Rules:
+ * - Umbrella strings (EDM, Dance, Electronic) are NOT families — they abstain
+ * - "edm" family is acoustically defined (4-on-the-floor + synth)
+ * - L3 vocabulary is Discogs Electronic styles ∪ Beatport subgenres
+ */
+
+/** L2 genre families — acoustically distinct categories. */
+export const GENRE_FAMILIES = [
+  "house",
+  "techno",
+  "tech house",
+  "trance",
+  "drum and bass",
+  "dubstep",
+  "garage",
+  "breakbeat",
+  "electro",
+  "ambient",
+  "downtempo",
+  "hip hop",
+  "pop",
+  "r&b",
+  "funk",
+  "soul",
+  "disco",
+  "reggae",
+  "dancehall",
+  "latin",
+  "afrobeats",
+  "experimental",
+  "industrial",
+  "bass",
+  "uk bass",
+  "hardstyle",
+  "hardcore",
+  "minimal",
+  "progressive",
+] as const;
+
+export type GenreFamily = (typeof GENRE_FAMILIES)[number];
+
+/** Umbrella strings that should ABSTAIN, never be a family assignment. */
+export const UMBRELLA_STRINGS = new Set([
+  "edm",
+  "electronic",
+  "dance",
+  "electronic/dance",
+  "dance/electronic",
+  "electronica",
+  "club",
+  "music",
+  "other",
+  "unknown",
+  "various",
+]);
+
+/** L3 subgenres within each family (Discogs Electronic styles + Beatport). */
+export const FAMILY_SUBGENRES: Readonly<Record<string, readonly string[]>> = {
+  house: [
+    "deep house",
+    "funky house",
+    "afro house",
+    "soulful house",
+    "acid house",
+    "jackin house",
+    "progressive house",
+    "tribal house",
+    "chicago house",
+    "organic house",
+    "melodic house",
+    "vocal house",
+    "latin house",
+    "bass house",
+    "electro house",
+  ],
+  techno: [
+    "minimal techno",
+    "detroit techno",
+    "acid techno",
+    "hard techno",
+    "dub techno",
+    "industrial techno",
+    "peak time techno",
+    "melodic techno",
+    "raw techno",
+  ],
+  "tech house": ["tech house", "minimal tech house", "groovy tech house"],
+  trance: [
+    "progressive trance",
+    "uplifting trance",
+    "psytrance",
+    "vocal trance",
+    "tech trance",
+    "goa trance",
+    "hard trance",
+  ],
+  "drum and bass": [
+    "liquid dnb",
+    "neurofunk",
+    "jump up",
+    "jungle",
+    "darkstep",
+    "halftime",
+    "rollers",
+  ],
+  dubstep: ["dubstep", "riddim", "melodic dubstep", "deep dubstep", "brostep"],
+  garage: ["uk garage", "2-step", "speed garage", "bassline"],
+  breakbeat: [
+    "breaks",
+    "nu-breaks",
+    "big beat",
+    "broken beat",
+    "electro breaks",
+  ],
+  electro: ["electro", "electroclash", "synth-pop"],
+  ambient: ["ambient", "dark ambient", "drone", "new age", "space music"],
+  downtempo: ["downtempo", "chillout", "trip hop", "lo-fi", "balearic"],
+  "hip hop": [
+    "hip hop",
+    "trap",
+    "boom bap",
+    "lo-fi hip hop",
+    "conscious",
+    "grime",
+  ],
+  disco: ["nu-disco", "italo disco", "space disco", "boogie", "cosmic disco"],
+  hardstyle: ["hardstyle", "rawstyle", "euphoric hardstyle"],
+  hardcore: ["gabber", "happy hardcore", "frenchcore", "speedcore"],
+  minimal: ["minimal", "microhouse", "glitch"],
+  progressive: [
+    "progressive house",
+    "progressive techno",
+    "progressive breaks",
+  ],
+};
+
+/**
+ * Map raw source genre strings to canonical L2 family.
+ * Returns null if the string is an umbrella or unknown.
+ */
+export function mapToFamily(raw: string): GenreFamily | null {
+  const lower = raw.toLowerCase().trim();
+  if (UMBRELLA_STRINGS.has(lower)) return null;
+
+  for (const [family, subgenres] of Object.entries(FAMILY_SUBGENRES)) {
+    if (lower === family) return family as GenreFamily;
+    if (subgenres.includes(lower)) return family as GenreFamily;
+  }
+
+  const directMap = STYLE_MAP.get(lower);
+  if (directMap) return directMap;
+
+  return null;
+}
+
+/** Direct string → family mapping for common source variations. */
+const STYLE_MAP = new Map<string, GenreFamily>([
+  ["deep", "house"],
+  ["deep house", "house"],
+  ["tech-house", "tech house"],
+  ["techhouse", "tech house"],
+  ["dnb", "drum and bass"],
+  ["d&b", "drum and bass"],
+  ["drum & bass", "drum and bass"],
+  ["drum n bass", "drum and bass"],
+  ["jungle", "drum and bass"],
+  ["liquid", "drum and bass"],
+  ["neuro", "drum and bass"],
+  ["neurofunk", "drum and bass"],
+  ["uk garage", "garage"],
+  ["ukg", "garage"],
+  ["2-step", "garage"],
+  ["bassline", "garage"],
+  ["breaks", "breakbeat"],
+  ["big beat", "breakbeat"],
+  ["nu-disco", "disco"],
+  ["italo", "disco"],
+  ["psy-trance", "trance"],
+  ["psytrance", "trance"],
+  ["goa", "trance"],
+  ["uplifting", "trance"],
+  ["hard dance", "hardstyle"],
+  ["gabber", "hardcore"],
+  ["happy hardcore", "hardcore"],
+  ["synthwave", "electro"],
+  ["synth-pop", "electro"],
+  ["trap", "hip hop"],
+  ["grime", "hip hop"],
+  ["lo-fi", "downtempo"],
+  ["lofi", "downtempo"],
+  ["chillout", "downtempo"],
+  ["chill", "downtempo"],
+  ["trip-hop", "downtempo"],
+  ["trip hop", "downtempo"],
+  ["dub", "reggae"],
+  ["reggaeton", "latin"],
+  ["afro", "afrobeats"],
+  ["amapiano", "afrobeats"],
+  ["bass music", "bass"],
+  ["future bass", "bass"],
+  ["wave", "bass"],
+  ["riddim", "dubstep"],
+  ["brostep", "dubstep"],
+  ["glitch", "minimal"],
+  ["microhouse", "minimal"],
+  ["noise", "experimental"],
+  ["idm", "experimental"],
+  ["industrial", "industrial"],
+  ["ebm", "industrial"],
+  ["r&b", "r&b"],
+  ["rnb", "r&b"],
+  ["soul", "soul"],
+  ["funk", "funk"],
+  ["boogie", "disco"],
+  ["pop", "pop"],
+  ["indie dance", "disco"],
+]);
+
+/** Check if a raw string is a known umbrella that should abstain. */
+export function isUmbrella(raw: string): boolean {
+  return UMBRELLA_STRINGS.has(raw.toLowerCase().trim());
+}

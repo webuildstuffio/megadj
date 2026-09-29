@@ -12,6 +12,7 @@
  */
 import type { Database } from "bun:sqlite";
 import { round4 } from "../../../shared/leaf/fmt";
+import { isUmbrella } from "../../genre/taxonomy-v3";
 import { registerStage } from "../runner";
 import type { BenchRow, BenchSplit, StageResult } from "../types";
 
@@ -81,6 +82,7 @@ function runGenreL2Stage(
       if (!truthRow) continue;
       matched++;
       const pred = electedFamily(t);
+      if (pred !== null && isUmbrella(pred)) continue;
       const truth = truthRow.value;
       const isCorrect =
         pred !== null && pred.toLowerCase() === truth.toLowerCase();
