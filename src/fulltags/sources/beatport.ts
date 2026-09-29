@@ -26,6 +26,7 @@
  * swappable so offline tests pin the scoring/gating logic; the seam
  * resets to the real impls.
  */
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { canonGenre, SC_GENRE_CANON } from "../write/schema";
 import {
   ARTIST_MIN_LEN,
@@ -42,9 +43,10 @@ import {
  * and no user interaction). Overridable via MEGADJ_BP_CLIENT_ID / _SECRET
  * so a Beatport-side rotation is a config change, never a code change. */
 const BP_CLIENT_ID =
-  process.env.MEGADJ_BP_CLIENT_ID ?? "2tiTbKxmQFwnbFjMONU4k7njMRZmV3ZMwRBndiZs";
+  nonEmptyEnv("MEGADJ_BP_CLIENT_ID") ??
+  "2tiTbKxmQFwnbFjMONU4k7njMRZmV3ZMwRBndiZs";
 const BP_CLIENT_SECRET =
-  process.env.MEGADJ_BP_CLIENT_SECRET ??
+  nonEmptyEnv("MEGADJ_BP_CLIENT_SECRET") ??
   "RDUJyAk4zFEGtQ8rsTmylDSfxmALRNBn3D1BsRr7MKi3oa1TL9Mq9QxqUPK7loiumXolEWbJcWa4IGAhtwnTz1cSXClGJ1tkkNCNWwRwjxIKTZJKOJxbwaNt0Rm3WG0v";
 const TOKEN_URL = "https://account.beatport.com/o/token/";
 const SEARCH_URL = "https://api.beatport.com/v4/catalog/search/";

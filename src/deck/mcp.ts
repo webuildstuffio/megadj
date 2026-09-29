@@ -56,6 +56,7 @@
  *   getdat_intake {action?,folder?,dry_run?}  dump census (#20) / process a dump
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
+import { nonEmptyEnv } from "../shared/leaf/guards";
 import { archiveTools } from "./report/tools";
 import { deriveDeckTools, type DeckMcpVerb } from "./mcp/surfaces";
 import { ensureServer } from "./deckapi";
@@ -87,7 +88,7 @@ const TOOLS: Record<string, ToolDef> = {
   ...getdatTools({
     dumpCensus: () =>
       new DumpReader(
-        process.env.MEGADJ_DB ??
+        nonEmptyEnv("MEGADJ_DB") ??
           `${process.env.HOME}/.local/state/megadj/archive.db`,
       ).census(),
   }),

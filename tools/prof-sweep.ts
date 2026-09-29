@@ -13,10 +13,11 @@
 import { readdir, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { createHash } from "node:crypto";
+import { nonEmptyEnv } from "../src/shared/leaf/guards";
 
 const DIR =
   process.argv[2] ??
-  process.env.MEGADJ_MUSIC_DIR ??
+  nonEmptyEnv("MEGADJ_MUSIC_DIR") ??
   `${process.env.HOME}/Music/DJ-Imports`;
 
 async function walkCollect(dir: string, out: string[] = []): Promise<string[]> {

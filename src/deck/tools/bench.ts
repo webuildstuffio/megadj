@@ -12,6 +12,7 @@ import type { DB } from "../db";
 import { walkTree, extOf } from "./walk";
 import { AUDIO_EXT } from "./scan";
 import { stat } from "node:fs/promises";
+import { round1 } from "../../shared/leaf/fmt";
 
 export interface BenchResult {
   seq_mbps: number;
@@ -81,7 +82,7 @@ export async function speedProbe(
   const t0 = performance.now();
   const bytes = await pumpStream(target, cap, 0, signal);
   const sec = (performance.now() - t0) / 1000;
-  return { mbps: round(bytes / 1024 / 1024 / sec), bytes_read: bytes };
+  return { mbps: round1(bytes / 1024 / 1024 / sec), bytes_read: bytes };
 }
 
 export async function benchmarkDrive(
@@ -123,8 +124,8 @@ export async function benchmarkDrive(
   const randSec = (performance.now() - t1) / 1000;
 
   return {
-    seq_mbps: round(seqBytes / 1024 / 1024 / seqSec),
-    rand4k_mbps: round(randBytes / 1024 / 1024 / randSec),
+    seq_mbps: round1(seqBytes / 1024 / 1024 / seqSec),
+    rand4k_mbps: round1(randBytes / 1024 / 1024 / randSec),
     bytes_read: seqBytes + randBytes,
   };
 }
@@ -224,8 +225,4 @@ async function biggestFiles(
     .toSorted((a, b) => b.size - a.size)
     .slice(0, limit === Infinity ? out.length : limit)
     .map((x) => x.p);
-}
-
-function round(n: number): number {
-  return Math.round(n * 10) / 10;
 }

@@ -102,6 +102,7 @@ def main() -> None:
                     energy_from_mood[fp_key] = str(e_val)
             except (TypeError, ValueError):
                 pass
+        con.close()
 
     out = {
         "scanned": len(rows),
@@ -301,6 +302,14 @@ def main() -> None:
     out["genre_skipped"] = genre_skipped
 
     print(json.dumps(out))
+    # Checkpoint WAL before closing — a leftover WAL file crashes rekordbox
+    try:
+        from sqlalchemy import text
+
+        with db.engine.connect() as conn:
+            conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+    except Exception:
+        pass
     db.close()
 
 

@@ -1,5 +1,6 @@
 import type { ArchiveState } from "../../core/state";
 import { round3 } from "../../shared/leaf/fmt";
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { goldDir, loadGoldSet, type GoldAnnotation } from "../analysis/gold";
 import {
   evalLeaveOneOut,
@@ -281,7 +282,7 @@ export function regate(
   }
   return regateBpm(
     state,
-    dir ?? goldDir(process.env.MEGADJ_MUSIC_DIR ?? ""),
+    dir ?? goldDir(nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? ""),
     detector,
   );
 }

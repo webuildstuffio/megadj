@@ -242,7 +242,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   const model = opts.model ?? DEFAULT_MODEL;
   // env parse at the boundary: MEGADJ_ART_MAX="" parses to NaN and
   // slice(0, NaN) would process NOTHING while reporting success.
-  const envMax = Number(process.env.MEGADJ_ART_MAX ?? "");
+  const envMax = Number(nonEmptyEnv("MEGADJ_ART_MAX") ?? "");
   const max =
     opts.maxImages ??
     (Number.isFinite(envMax) && envMax > 0 ? Math.floor(envMax) : 20);
@@ -268,7 +268,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   );
 
   const { ImageClient } = (await import(
-    process.env.IMAGE_MAKER_CLIENT ??
+    nonEmptyEnv("IMAGE_MAKER_CLIENT") ??
       `${process.env.HOME}/github/image-maker-cli/dist/client.js`
   )) as {
     ImageClient: new (apiKey: string) => {

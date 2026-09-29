@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { DB_PATH } from "../../cli-env";
 import { commandLog } from "../../shared/progress";
+import { round3 } from "../../shared/leaf/fmt";
 import { loadConfig } from "../../deck/config";
 import { crateDeckRoot } from "../../shared/volume";
 import {
@@ -49,7 +50,7 @@ export interface MegasetCalibrateOptions {
 
 /** Per-hop score at 3dp — the same rounding the wire uses. */
 const t3 = (n: number | null): string =>
-  n === null ? "-" : (Math.round(n * 1000) / 1000).toFixed(3);
+  n === null ? "-" : round3(n).toFixed(3);
 
 /** One scenario's build → the digest lines. Mirrors the census test's
  *  fingerprint: chain ids + scores + arc clock + honest counters. */

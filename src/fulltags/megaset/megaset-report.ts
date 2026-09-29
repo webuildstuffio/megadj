@@ -6,6 +6,7 @@
 // pin; nothing here makes decisions.
 
 import { formatAge, ledgerFreshness } from "../../deck/shared/ledger-freshness";
+import { round1 } from "../../shared/leaf/fmt";
 import {
   groupMegasetExcluded,
   isShelfOffline,
@@ -93,7 +94,7 @@ export function logSteps(
         ? ""
         : `  [t ${s.evidence.tempo.toFixed(2)}${s.evidence.halftime ? "½" : ""} · k ${s.evidence.key.toFixed(2)} · arc ${s.evidence.arcFit.toFixed(2)} · anch ${s.evidence.anchor.toFixed(2)}${s.evidence.similarity > 0 ? ` · sim ${s.evidence.similarity.toFixed(2)}` : ""}${s.evidence.artistPenalty > 0 ? ` · B6 −${s.evidence.artistPenalty}+1` : ""}]`;
     log(
-      `  ${String(s.atMin).padStart(5)}m  ${s.bpm === null ? "  —  " : String(Math.round(s.bpm * 10) / 10).padStart(5)} bpm  ${(s.key ?? "—").padEnd(4)}  ${s.transition === null ? "open " : s.transition.toFixed(3)}${evidence}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}${windows}`,
+      `  ${String(s.atMin).padStart(5)}m  ${s.bpm === null ? "  —  " : String(round1(s.bpm)).padStart(5)} bpm  ${(s.key ?? "—").padEnd(4)}  ${s.transition === null ? "open " : s.transition.toFixed(3)}${evidence}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}${windows}`,
     );
   }
   return at;

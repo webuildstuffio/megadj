@@ -34,6 +34,9 @@ export function fmtBytes(n: number): string {
 /** Round to 1 decimal place. */
 export const round1 = (v: number): number => Math.round(v * 10) / 10;
 
+/** Round to 2 decimal places (agreement scores). */
+export const round2 = (v: number): number => Math.round(v * 100) / 100;
+
 /** Round to 3 decimal places. */
 export const round3 = (v: number): number => Math.round(v * 1000) / 1000;
 

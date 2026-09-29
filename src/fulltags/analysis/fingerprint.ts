@@ -7,6 +7,7 @@
  * before spending compute.
  */
 import { existsSync } from "node:fs";
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { parseJsonObject } from "../utils/parse-json";
 
 /** Parse fpcalc's JSON boundary. Null is an explicit malformed/schema-failed
@@ -36,7 +37,7 @@ export function parseFpcalcJson(raw: string): {
  * (key-analysis.ts imports it from here — one env resolution, not two). */
 export function keyscanDir(): string {
   return (
-    process.env.FULLTAGS_KEYSCAN_DIR ??
+    nonEmptyEnv("FULLTAGS_KEYSCAN_DIR") ??
     `${process.env.HOME}/.local/share/openkeyscan-analyzer`
   );
 }

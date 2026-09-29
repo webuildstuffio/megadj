@@ -173,6 +173,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
     // GUARDED Number() call (--limit arg, Number.isFinite gate);
     // audited 46→47, guarded 30→31, sanctioned 16 unchanged.
+    // Sep 29 (#335 env-guard sweep): nonEmptyEnv wrappers added to
+    // artwork.ts, beatport.ts, fingerprint.ts, gold.ts, pipeline-art.ts,
+    // archive-ledger.ts, regate.ts, mcp.ts, doctor-checks.ts,
+    // cli-commands.ts — same Number() calls, same guards; only the
+    // enclosing nonEmptyEnv context shifts the digest.
     audited: 49,
     guarded: 33,
     sanctioned: 16,
@@ -197,7 +202,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
     // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
     // sanctioned unchanged, digest shifted.
-    digest: "f93452127fbf52c08a08a8e7c25fb48f2f7ee6dd8de89192a0e2b852d04182ee",
+    digest: "cbb942c40b3c29cec1d47e40b73350168adaaf1b7e5a4ecd4da83523360e48f0",
   });
 });
 

@@ -4,6 +4,7 @@
 // (#235: the shelf-hygiene/restore, intake-status and tmp-purge arms
 // joined from the dissolved maintenance-cmds grab-bag — shelf verbs
 // live in the shelf domain, whatever their registry group label.)
+import { nonEmptyEnv } from "../shared/leaf/guards";
 import type { CliCommandHandler } from "../cli-dispatch";
 import { manyOf, parseFlags, positionalArgs } from "../cli-flags";
 import {
@@ -33,8 +34,8 @@ export async function runShelfSync(rest: string[]): Promise<void> {
   const dryRun = rest.includes("--dry-run");
   const shelfVolume = resolveShelfVolume();
   const stickVolumes = [
-    process.env.USB_SYNC_MASTER ?? "DJMASTER",
-    process.env.USB_SYNC_MIRROR ?? "DJMIRROR",
+    nonEmptyEnv("USB_SYNC_MASTER") ?? "DJMASTER",
+    nonEmptyEnv("USB_SYNC_MIRROR") ?? "DJMIRROR",
   ];
   const { shelfSync } = await import("./sync");
   await shelfSync({
@@ -60,8 +61,8 @@ export async function runShelfArchive(rest: string[]): Promise<void> {
   const suffix = suffixEq ? suffixEq.slice(9) : undefined;
   // positional volumes; default to the configured master+mirror when none
   // are named (the "did both sticks fully land?" check)
-  const master = process.env.USB_SYNC_MASTER ?? "DJMASTER";
-  const mirror = process.env.USB_SYNC_MIRROR ?? "DJMIRROR";
+  const master = nonEmptyEnv("USB_SYNC_MASTER") ?? "DJMASTER";
+  const mirror = nonEmptyEnv("USB_SYNC_MIRROR") ?? "DJMIRROR";
   const positionals = rest.filter(
     (a) => !a.startsWith("--") && a !== "archive",
   );

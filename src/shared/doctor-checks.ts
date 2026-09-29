@@ -254,7 +254,7 @@ export function checkCookies(): CheckResult {
       fix: ok ? undefined : "check the path, or run tools/export-cookies.sh",
     };
   }
-  const browser = process.env.MEGADJ_COOKIES ?? "chrome";
+  const browser = nonEmptyEnv("MEGADJ_COOKIES") ?? "chrome";
   if (!browser) {
     return {
       id: "cookies",

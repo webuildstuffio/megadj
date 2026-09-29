@@ -28,6 +28,7 @@ import { analyzeKey } from "../analysis/key-analysis";
 import { fingerprintWithDuration } from "../analysis/fingerprint";
 import { analyzeMoods, moodStamp } from "../analysis/models";
 import { mbLookupCached } from "../sources/mb-lookup";
+import { round1 } from "../../shared/leaf/fmt";
 import { embedArt } from "../write/writer";
 import { type Truth } from "../write/readers";
 import { basename } from "node:path";
@@ -282,7 +283,7 @@ export async function stageEnergy(ctx: TrackCtx): Promise<void> {
     if (m) {
       const arousalNorm = Math.min(1, Math.max(0, (m.arousal - 1) / 8));
       const e2 = 0.5 * e + 0.3 * m.danceability * 10 + 0.2 * arousalNorm * 10;
-      e = Math.round(e2 * 10) / 10;
+      e = round1(e2);
     }
   }
   if (e !== null) {

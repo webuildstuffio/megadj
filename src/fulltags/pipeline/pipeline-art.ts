@@ -7,6 +7,7 @@
  * AI generations).
  */
 import { existsSync, readFileSync } from "node:fs";
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { appendFile } from "node:fs/promises";
 import {
   deezerArt,
@@ -23,7 +24,7 @@ export type { ArtRow } from "../sources/art-sources";
 
 /** Where AI-cover misses are queued when no explicit queue path is passed. */
 export const DEFAULT_QUEUE =
-  process.env.FULLTAGS_ARTWORK_QUEUE ??
+  nonEmptyEnv("FULLTAGS_ARTWORK_QUEUE") ??
   `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
 
 /** The SC rung: page og:image at original resolution when offered, else

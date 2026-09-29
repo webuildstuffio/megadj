@@ -14,6 +14,7 @@
 // item 2); this module owns the query parse, the candidate model, and
 // the chain/search family (greedy vs beam + the commit loop).
 export { camelotOf } from "../shared/camelot";
+import { round3 } from "../../shared/leaf/fmt";
 export type { MegasetPresetDef, MegasetPresetId } from "../shared/types";
 import {
   DEFAULT_MEGASET_PRESET,
@@ -254,8 +255,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       key: c.key,
       arousal: c.arousal,
       atMin: minutesAt(elapsed),
-      transition:
-        transition === null ? null : Math.round(transition * 1000) / 1000,
+      transition: transition === null ? null : round3(transition),
       // #284: per-component scoring evidence (null on the opener — no
       // transition — and on any gated hop). Recomputed HERE at commit
       // time from the same inputs the selection functions used, so the

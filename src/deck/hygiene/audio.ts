@@ -17,7 +17,7 @@ import { extname, resolve, sep } from "node:path";
 // AUDIO_EXTS: the #69 SSOT — the private set here diverged BOTH ways
 // (had .alac, missed .ogg/.opus), the twin-proof of issue #200.
 import { AUDIO_EXTS } from "../../shared/audio-exts";
-import { fmtDur, errMessage } from "../../shared/leaf/fmt";
+import { fmtDur, errMessage, round1 } from "../../shared/leaf/fmt";
 
 export interface AudioStats {
   path: string;
@@ -111,7 +111,7 @@ export function audioStats(path: string): AudioStats {
         path,
         exists: true,
         bytes,
-        durationS: duration === null ? null : Math.round(duration * 10) / 10,
+        durationS: duration === null ? null : round1(duration),
         bitrateKbps: bitrate === null ? null : Math.round(bitrate / 1000),
         codec: s?.codec_name ?? null,
         sampleRate: finiteNumber(s?.sample_rate),

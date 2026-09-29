@@ -18,6 +18,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { errMessage as errorText } from "../../shared/leaf/fmt";
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 
 /** Current annotation schema version. Bump on breaking shape changes. */
 export const GOLD_SCHEMA_VERSION = 1;
@@ -69,7 +70,7 @@ export interface GoldSet {
  * out of every artist-folder scan). Override with MEGADJ_GOLD_DIR.
  */
 export function goldDir(musicDir: string): string {
-  return process.env.MEGADJ_GOLD_DIR ?? join(musicDir, "_gold");
+  return nonEmptyEnv("MEGADJ_GOLD_DIR") ?? join(musicDir, "_gold");
 }
 
 const BRANCHES: ReadonlySet<string> = new Set(["house", "trap", "unknown"]);

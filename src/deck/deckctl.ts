@@ -138,7 +138,7 @@ async function main(): Promise<void> {
   const arg = (index: number): string => args[index] ?? usage();
   const cmd = args[0];
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
-    await Bun.write(Bun.stdout, `${usageText()}\n`);
+    process.stdout.write(`${usageText()}\n`);
     await flushStdout();
     process.exit(0);
   }

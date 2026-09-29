@@ -37,7 +37,10 @@ export function createDeckctlOutput(
 ): DeckctlOutput {
   const write =
     options.write ??
-    ((text: string): Promise<unknown> => Bun.write(Bun.stdout, text));
+    ((text: string): Promise<void> =>
+      new Promise((resolve) => {
+        process.stdout.write(text, () => resolve());
+      }));
   const logLine = options.logLine ?? console.log;
   const errorLine = options.errorLine ?? console.error;
   const emitJson = async (payload: unknown): Promise<void> => {

@@ -1,4 +1,5 @@
 import { cosineSimilarity } from "../shared/leaf/vector-space";
+import { round2 } from "../shared/leaf/fmt";
 import { familyOf as defaultFamilyOf } from "../fulltags/genre/genre-vocab";
 import {
   closeEvalSummary,
@@ -95,7 +96,7 @@ export function inferGenre(
   return {
     genre: best![0],
     inferred: agreement >= minAgreement ? best![0] : null,
-    agreement: Math.round(agreement * 100) / 100,
+    agreement: round2(agreement),
   };
 }
 
@@ -185,7 +186,7 @@ function scoreDisjointVote(
   const agreement = usable.length > 0 && best ? best[1] / usable.length : 0;
   return {
     predicted: best !== undefined && agreement >= minAgreement ? best[0] : null,
-    agreement: Math.round(agreement * 100) / 100,
+    agreement: round2(agreement),
     ungatedFamily: best?.[0] ?? null,
     top2: sorted.slice(0, 2).map(([label]) => label),
   };
