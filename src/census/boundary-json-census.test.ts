@@ -80,6 +80,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "src/fulltags/bench/stages/similarity.ts::parseVec::JSON.parse(json)",
     "src/fulltags/bench/ak2-extractor.ts::extractAK2::JSON.parse(row.metadata_json)",
     "src/fulltags/bench/stages/version-match.ts::runVersionMatchStage::JSON.parse(t.genre_votes)",
+    "src/fulltags/identity/version-llm.ts::validateLlmResponse::JSON.parse(json)",
   ]),
 };
 
@@ -198,11 +199,11 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // JSON.parse sites (2× loadBenchRun metrics/ci + 2× listBenchRuns
     // metrics/ci) + 4 EXPLICIT_NULL (genre-l2 electedFamily, grid
     // parseBeats, similarity parseVec, ak2-extractor metadata_json);
-    // audited 70→81, guarded 55→56 (backfill-votes try/catch),
-    // sanctioned 16→25 (version-match, ak2-extractor, genre-loo vec_json).
-    audited: 81,
+    // audited 70→82, guarded 55→56 (backfill-votes try/catch),
+    // sanctioned 16→26 (version-match, ak2-extractor, genre-loo, version-llm).
+    audited: 82,
     guarded: 56,
-    sanctioned: 25,
+    sanctioned: 26,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes —
     // cratedeck/src/{verify,hygiene,report}-* moved into verify/ hygiene/
     // report/ subdirs (tests co-located); same calls, same guards, same
@@ -224,7 +225,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
     // GUARDED JSON.parse (embedding parser in try-catch with console.error);
     // audited +1, guarded +1, sanctions unchanged.
-    digest: "17a196ff7450e035f727145de20430460b2451c56659c262f82ca7ead6148a3f",
+    digest: "cb481acc28a9f3f3db33e9019a81bee2bfa1c94bba3f42a8384980ee6e69793f",
   });
 });
 

@@ -19,7 +19,9 @@
         "tools/loc-budget.ts",
         "tools/prof-sweep.ts",
         "tools/genre-backfill.ts",
-        "tools/metadata-backfill.ts"
+        "tools/metadata-backfill.ts",
+        "src/fulltags/evidence/playlist-evidence.ts",
+        "src/fulltags/identity/version-llm.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
