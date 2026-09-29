@@ -27,10 +27,11 @@ function parseVec(json: string): number[] | null {
   try {
     const arr: unknown = JSON.parse(json);
     if (!Array.isArray(arr)) return null;
-    if (arr.length === 0) return null;
-    if (arr.some((x) => typeof x !== "number" || !Number.isFinite(x)))
+    const typed = arr as unknown[];
+    if (typed.length === 0) return null;
+    if (typed.some((x) => typeof x !== "number" || !Number.isFinite(x)))
       return null;
-    return arr as number[];
+    return typed as number[];
   } catch {
     return null;
   }

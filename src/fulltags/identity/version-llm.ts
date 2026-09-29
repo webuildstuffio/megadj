@@ -146,12 +146,14 @@ export function validateLlmResponse(json: string): VersionIdentity | null {
 
   return {
     baseTitle: obj.baseTitle,
-    originalArtists: obj.originalArtists.filter(
+    originalArtists: (obj.originalArtists as unknown[]).filter(
       (a): a is string => typeof a === "string",
     ),
-    featured: obj.featured.filter((a): a is string => typeof a === "string"),
+    featured: (obj.featured as unknown[]).filter(
+      (a): a is string => typeof a === "string",
+    ),
     versionType: obj.versionType as VersionType,
-    versionArtists: obj.versionArtists.filter(
+    versionArtists: (obj.versionArtists as unknown[]).filter(
       (a): a is string => typeof a === "string",
     ),
     rawVersion: typeof obj.rawVersion === "string" ? obj.rawVersion : null,

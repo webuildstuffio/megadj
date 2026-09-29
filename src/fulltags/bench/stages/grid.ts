@@ -30,7 +30,7 @@ function parseBeats(json: string | null): number[] | null {
   try {
     const arr: unknown = JSON.parse(json);
     if (!Array.isArray(arr)) return null;
-    const nums = arr.filter(
+    const nums = (arr as unknown[]).filter(
       (x): x is number => typeof x === "number" && Number.isFinite(x),
     );
     return nums.length >= 8 ? nums : null;
