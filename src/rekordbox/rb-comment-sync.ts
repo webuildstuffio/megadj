@@ -18,6 +18,7 @@
  * contract, and ledger-freshness read live in rb-comment-sync-parse.ts.
  */
 import { existsSync } from "node:fs";
+import { DB_PATH } from "../cli-env";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
@@ -108,7 +109,7 @@ async function rbCommentSyncWithRuntime(
 ): Promise<RbCommentSyncResult> {
   const dbPath = masterDbPath(opts.mount);
   const apply = applyConfirmed(opts);
-  const ledger = `${process.env.HOME}/.local/state/megadj/archive.db`;
+  const ledger = DB_PATH;
   const mk = (
     msg: string,
     details: Partial<RbCommentSyncResult> = {},

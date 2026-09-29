@@ -98,7 +98,7 @@ def main() -> None:
             try:
                 ar = float(m["arousal"] or 0)
                 if ar > 0:
-                    e_val = round(1 + (ar - 1) * (9 / 8), 1)
+                    e_val = max(1.0, min(10.0, round(1 + (ar - 1) * (9 / 8), 1)))
                     energy_from_mood[fp_key] = str(e_val)
             except (TypeError, ValueError):
                 pass
@@ -244,6 +244,9 @@ def main() -> None:
             out["errors"].append(["transaction", repr(e)[:200]])
 
     # ---- Genre sync: push archive.db vote-winner genres to master.db ----
+    # Bug fix: scope to the same batch-filtered `rows` as the comment sync
+    # — the old `db.query(DjmdContent).all()` ignored --batch and synced
+    # genres for ALL tracks when comments were batch-scoped.
     genres_by_path: dict[str, str] = {}
     if os.path.exists(ledger_path):
         con2 = sqlite3.connect(ledger_path)
@@ -262,7 +265,7 @@ def main() -> None:
     genre_written = 0
     genre_skipped = 0
     existing_ids = {str(g.ID) for g in genre_cache.values()}
-    for c in db.query(DjmdContent).all():
+    for c in rows:
         p = (c.FolderPath or "").casefold()
         if not p:
             continue
@@ -284,8 +287,13 @@ def main() -> None:
                 db.session.add(new_g)
             genre_cache[gkey] = new_g
         genre_row = genre_cache[gkey]
-        if apply and genre_row.Name != archive_genre:
-            genre_row.Name = archive_genre
+        # Bug fix: case-insensitive compare — the cache lookup is casefold'd,
+        # so the DB genre "House" and archive "house" are the SAME genre; only
+        # rename when the canonical casing genuinely differs beyond casefold.
+        if apply and genre_row.Name.casefold() == archive_genre.casefold() and genre_row.Name != archive_genre:
+            pass  # same genre, different case — keep the RB original
+        elif apply and genre_row.Name.casefold() != archive_genre.casefold():
+            genre_row.Name = archive_genre  # genuinely different genre name
         if str(c.GenreID) != str(genre_row.ID):
             genre_written += 1
             if apply:
