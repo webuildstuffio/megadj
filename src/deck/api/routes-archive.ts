@@ -371,7 +371,8 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
 
       // S14 (#288): ?candidates=N — return N seeded variants
       const rawCandidates = url.searchParams.get("candidates");
-      const parsedCandidates = rawCandidates !== null ? Number(rawCandidates) : 1;
+      const parsedCandidates =
+        rawCandidates !== null ? Number(rawCandidates) : 1;
       const candidateCount = Number.isFinite(parsedCandidates)
         ? Math.max(1, Math.round(parsedCandidates))
         : 1;

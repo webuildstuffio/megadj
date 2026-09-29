@@ -240,6 +240,9 @@ export function archiveTools(): Record<string, ToolDef> {
         genre: s(
           "#283 genre pool filter — narrows candidates by case-folded substring family ('house' matches House/Tech House/Deep-house, 'tropical' → tropical house). Omitted = whole downloaded library",
         ),
+        candidates: n(
+          "#288 N-candidates compare: build N seeded variants sorted by quality (1–8; default 1 = single build). Same seed reproduces the same chain.",
+        ),
       }),
       run: async (args: Record<string, unknown>) => {
         // same validation as the HTTP route (parseMegasetQuery): unknown
@@ -289,6 +292,10 @@ export function archiveTools(): Record<string, ToolDef> {
           }
         }
         setLimitParam(args, q, num);
+        // S14 (#288): N-candidates mode — pass through to the route
+        const candidateCount = num(args, "candidates");
+        if (candidateCount !== undefined)
+          q.set("candidates", String(candidateCount));
         const res = await apiGet(`/api/archive/megaset?${q.toString()}`);
         return res.json();
       },
