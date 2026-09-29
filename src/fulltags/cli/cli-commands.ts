@@ -458,7 +458,16 @@ const megasetCalibrate: CliCommandHandler = async (rest) => {
 const megaset: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
-    ["preset", "minutes", "opener", "limit", "search", "genre", "landmark"],
+    [
+      "preset",
+      "minutes",
+      "opener",
+      "limit",
+      "search",
+      "genre",
+      "landmark",
+      "candidates",
+    ],
     ["json"],
   );
   if (nonNegOptInvalid(flags, "minutes", "megaset", flags.bools.has("json")))
@@ -472,6 +481,14 @@ const megaset: CliCommandHandler = async (rest) => {
   if (nonNegOptInvalid(flags, "limit", "megaset", flags.bools.has("json")))
     return;
   const limit = nonNegOpt(flags, "limit", "megaset", flags.bools.has("json"));
+  if (nonNegOptInvalid(flags, "candidates", "megaset", flags.bools.has("json")))
+    return;
+  const candidateCount = nonNegOpt(
+    flags,
+    "candidates",
+    "megaset",
+    flags.bools.has("json"),
+  );
   // the A/B hook (E7): same contract as the HTTP ?search= / MCP search
   // param — but a CLI typo must fail loudly (exit 2, zero work), not
   // silently compare the automatic pick against itself
@@ -500,6 +517,7 @@ const megaset: CliCommandHandler = async (rest) => {
     // inline); the extra manyOf pass double-collected `--landmark=X`
     // (benign only because the engine dedupes — a latent twin).
     landmarkIds: repeatedOf(rest, "landmark"),
+    candidates: candidateCount,
     json: flags.bools.has("json"),
   });
 };

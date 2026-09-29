@@ -23,10 +23,15 @@ import {
   SET_PRESETS,
 } from "../../deck/megaset/engine";
 import {
+  buildMegasetCandidates,
+  type MegasetVariant,
+} from "../../deck/megaset/candidates";
+import {
   buildMegasetPayload,
   clampMegasetPool,
   MEGASET_GENRE_FAMILIES,
   megasetNearestGenreFamily,
+  type MegasetPayload,
   type SetSearchOverride,
 } from "../../deck/shared/types";
 import { setQuality } from "../../deck/megaset/set-quality";
@@ -51,6 +56,8 @@ export interface MegasetOptions {
   genre?: string | undefined;
   /** S13 (#107): landmark must-plays (video_ids) — repeatable. */
   landmarkIds?: readonly string[] | undefined;
+  /** S14 (#288): number of seeded variants to build (1 = default). */
+  candidates?: number | undefined;
   json?: boolean | undefined;
   /** Log sink override (tests); default = commandLog routing. */
   onProgress?: ((msg: string) => void) | undefined;
@@ -112,16 +119,6 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
     );
     // #286: the engine stage is timed by the caller and merged into the
     // census's measured stage split before it hits the wire.
-    const engineT0 = Date.now();
-    const built = buildMegaset({
-      candidates,
-      preset: SET_PRESETS[parsed.preset],
-      minutes: parsed.minutes,
-      openerId: opts.opener,
-      landmarkIds: opts.landmarkIds,
-      searchOverride: opts.search,
-    });
-    const stagesMs = { ...censusStagesMs, engine: Date.now() - engineT0 };
     // #290: unknown-genre guard. A filter that matched ZERO rows builds
     // an honest empty pool — but "gqom" vs "afro" should not both end
     // there: when the value matched nothing, suggest the nearest family
@@ -145,99 +142,178 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
         );
       }
     }
-    const classifications = classifyChain(built.steps);
-    const classifiedSteps = built.steps.map((s, i) => ({
-      ...s,
-      transitionType: classifications[i]?.type,
-    }));
-    const payload = buildMegasetPayload({
-      built,
-      quality: setQuality(built),
-      classifiedSteps,
-      available: true,
-      census: {
-        sourceTotal,
-        total,
-        missingFiles,
-        metadataOnly,
-        duplicateFiles,
-        relocatedFiles,
-        rekordboxKeyHits,
-        rekordboxBpmHits,
-        keyReads,
-        keyReadFailures,
-        genreFiltered,
-        freshness,
-        stagesMs,
-      },
-      ...(genreSuggestion !== undefined ? { genreSuggestion } : {}),
-    });
-    if (built.steps.length === 0) {
-      // empty proposal = a real finding (nothing analyzed / nothing
-      // mixable), not a crash — same honesty as the web Verdict row.
-      // The all-missing signature gets its own diagnosis: the shelf
-      // volume is away (paths cannot exist), not the library.
-      log(
-        emptyPoolDiagnosis(
+
+    const buildInput = {
+      candidates,
+      preset: SET_PRESETS[parsed.preset],
+      minutes: parsed.minutes,
+      openerId: opts.opener,
+      landmarkIds: opts.landmarkIds,
+      searchOverride: opts.search,
+    };
+    const censusData = {
+      sourceTotal,
+      total,
+      missingFiles,
+      metadataOnly,
+      duplicateFiles,
+      relocatedFiles,
+      rekordboxKeyHits,
+      rekordboxBpmHits,
+      keyReads,
+      keyReadFailures,
+      genreFiltered,
+      freshness,
+    };
+    const variantPayload = (
+      variant: MegasetVariant,
+      stagesMs: MegasetPayload["stages_ms"],
+    ): MegasetPayload => {
+      const classifications = classifyChain(variant.result.steps);
+      const classifiedSteps = variant.result.steps.map((s, i) => ({
+        ...s,
+        transitionType: classifications[i]?.type,
+      }));
+      return buildMegasetPayload({
+        built: variant.result,
+        quality: variant.quality,
+        classifiedSteps,
+        available: true,
+        census: { ...censusData, stagesMs },
+        ...(genreSuggestion !== undefined ? { genreSuggestion } : {}),
+      });
+    };
+
+    // S14 (#288): N-candidates mode — run N seeded builds, log the best
+    const candidateCount = opts.candidates ?? 1;
+    const engineT0 = Date.now();
+    if (candidateCount > 1) {
+      const variants = buildMegasetCandidates(buildInput, candidateCount);
+      const stagesMs = { ...censusStagesMs, engine: Date.now() - engineT0 };
+      const payloads = variants.map((v) => variantPayload(v, stagesMs));
+      if (variants.length === 0 || variants[0]!.result.steps.length === 0) {
+        log(
+          emptyPoolDiagnosis(
+            { sourceTotal, total, missingFiles, metadataOnly, relocatedFiles },
+            [],
+          ),
+        );
+        setExit(1);
+      } else {
+        log(`  ${variants.length} variants built (best first):`);
+        for (const v of variants) {
+          log(
+            `    ${v.label} (seed ${v.seed}): ${v.result.steps.length} tracks, ` +
+              `quality ${v.quality.total}, search ${v.result.search}`,
+          );
+        }
+        const best = variants[0]!;
+        logProposalHeader(
+          best.result,
+          freshness,
           {
             sourceTotal,
             total,
             missingFiles,
             metadataOnly,
+            duplicateFiles,
             relocatedFiles,
+            rekordboxKeyHits,
+            rekordboxBpmHits,
+            keyReads,
+            genreFiltered,
           },
-          built.steps,
-        ),
-      );
-      // #160 ring 3: setExit is the one mutation point.
-      setExit(1);
-    } else {
-      // staleness UX: the pool is only as fresh as its newest analysis —
-      // surface the ledger ages so "why isn't my new track in here" is
-      // answerable without opening a DB shell. B1: metadata-only rows
-      // are named so a shelf-offline proposal is visibly mirror-built.
-      logProposalHeader(
-        built,
-        freshness,
-        {
-          sourceTotal,
-          total,
-          missingFiles,
-          metadataOnly,
-          duplicateFiles,
-          relocatedFiles,
-          rekordboxKeyHits,
-          rekordboxBpmHits,
-          keyReads,
-          genreFiltered,
-        },
-        payload.excluded_total,
-        log,
-      );
-      const at = logSteps(built.steps, log);
-      // exclusion SHAPE (Sep 21): the full engine list grouped by reason
-      // class — the wire preview caps at 40 rows, the terminal now shows
-      // the real shape of all of them
-      logExclusionShape(built.excluded, payload.excluded_total, total, log);
-      // B6/S13 report cards: variety counter + unplaced pins, only when
-      // they have something to say (quiet on healthy builds)
-      if (built.same_artist_pairs > 0) {
-        log(
-          `  variety: ${built.same_artist_pairs} same-artist back-to-back pair${built.same_artist_pairs === 1 ? "" : "s"} in this chain`,
+          payloads[0]!.excluded_total,
+          log,
         );
+        const at = logSteps(best.result.steps, log);
+        logExclusionShape(
+          best.result.excluded,
+          payloads[0]!.excluded_total,
+          total,
+          log,
+        );
+        if (best.result.same_artist_pairs > 0) {
+          log(
+            `  variety: ${best.result.same_artist_pairs} same-artist back-to-back pair${best.result.same_artist_pairs === 1 ? "" : "s"} in this chain`,
+          );
+        }
+        if (best.result.landmarks_missing.length > 0) {
+          log(
+            `  landmarks not placed: ${best.result.landmarks_missing.join(", ")}`,
+          );
+        }
+        const sm = stagesMs;
+        log(
+          `  stages: sql ${sm.sql}ms · files ${sm.fileCheck}ms · key fills ${sm.keyFills}ms · engine ${sm.engine}ms`,
+        );
+        log(`  total ${at} min — propose-only, nothing written`);
+        if (!best.result.complete) setExit(1);
       }
-      if (built.landmarks_missing.length > 0) {
-        log(`  landmarks not placed: ${built.landmarks_missing.join(", ")}`);
+      await writeJson(payloads);
+    } else {
+      const built = buildMegaset(buildInput);
+      const stagesMs = { ...censusStagesMs, engine: Date.now() - engineT0 };
+      const quality = setQuality(built);
+      const classifications = classifyChain(built.steps);
+      const classifiedSteps = built.steps.map((s, i) => ({
+        ...s,
+        transitionType: classifications[i]?.type,
+      }));
+      const payload = buildMegasetPayload({
+        built,
+        quality,
+        classifiedSteps,
+        available: true,
+        census: { ...censusData, stagesMs },
+        ...(genreSuggestion !== undefined ? { genreSuggestion } : {}),
+      });
+      if (built.steps.length === 0) {
+        log(
+          emptyPoolDiagnosis(
+            { sourceTotal, total, missingFiles, metadataOnly, relocatedFiles },
+            built.steps,
+          ),
+        );
+        setExit(1);
+      } else {
+        logProposalHeader(
+          built,
+          freshness,
+          {
+            sourceTotal,
+            total,
+            missingFiles,
+            metadataOnly,
+            duplicateFiles,
+            relocatedFiles,
+            rekordboxKeyHits,
+            rekordboxBpmHits,
+            keyReads,
+            genreFiltered,
+          },
+          payload.excluded_total,
+          log,
+        );
+        const at = logSteps(built.steps, log);
+        logExclusionShape(built.excluded, payload.excluded_total, total, log);
+        if (built.same_artist_pairs > 0) {
+          log(
+            `  variety: ${built.same_artist_pairs} same-artist back-to-back pair${built.same_artist_pairs === 1 ? "" : "s"} in this chain`,
+          );
+        }
+        if (built.landmarks_missing.length > 0) {
+          log(`  landmarks not placed: ${built.landmarks_missing.join(", ")}`);
+        }
+        const sm = payload.stages_ms;
+        log(
+          `  stages: sql ${sm.sql}ms · files ${sm.fileCheck}ms · key fills ${sm.keyFills}ms · engine ${sm.engine}ms`,
+        );
+        log(`  total ${at} min — propose-only, nothing written`);
+        if (!built.complete) setExit(1);
       }
-      // #286: the measured stage split — same numbers the wire carries
-      const sm = payload.stages_ms;
-      log(
-        `  stages: sql ${sm.sql}ms · files ${sm.fileCheck}ms · key fills ${sm.keyFills}ms · engine ${sm.engine}ms`,
-      );
-      log(`  total ${at} min — propose-only, nothing written`);
-      if (!built.complete) setExit(1);
+      await writeJson(payload);
     }
-    await writeJson(payload);
   } finally {
     reader.close();
   }

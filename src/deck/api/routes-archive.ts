@@ -26,9 +26,15 @@ import {
   clampMegasetPool,
   isMegasetSearchOverride,
   megasetNearestGenreFamily,
+  type MegasetPresetId,
+  type SetSearchOverride,
 } from "../shared/megaset";
 import { setQuality } from "../megaset/set-quality";
 import { classifyChain } from "../megaset/transition-types";
+import {
+  buildMegasetCandidates,
+  type MegasetVariant,
+} from "../megaset/candidates";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 import { intakeCandidateDirs } from "../jobs/intake-run";
 import { cliOk } from "../hygiene/routes";
@@ -86,6 +92,8 @@ function resolveSetBuild(
   | { error: string }
   | {
       built: ReturnType<typeof buildMegaset>;
+      parsed: { preset: MegasetPresetId; minutes: number };
+      searchOverride: SetSearchOverride | undefined;
       census: Omit<ReturnType<ArchiveReader["setCandidates"]>, "stagesMs"> & {
         /** engine is ALWAYS set here — resolveSetBuild times the build
          *  and sums it in before returning (non-optional on the wire). */
@@ -124,30 +132,28 @@ function resolveSetBuild(
   );
   // #286: the engine stage is timed here (the caller's job) and summed
   // into the census's stagesMs on the wire.
+  // A/B hook (E7): ?search=greedy|beam forces one strategy so the UI
+  // compare mode can diff them on the same pool; absent = pool-size
+  // rule decides. An unknown value falls back to the automatic pick
+  // rather than erroring — the knob is an explore control, not a
+  // contract param (unlike preset, which IS a contract and 400s).
+  const searchRaw = url.searchParams.get("search");
+  const searchOvr = isMegasetSearchOverride(searchRaw) ? searchRaw : undefined;
   const engineT0 = Date.now();
   const built = buildMegaset({
     candidates: census.candidates,
     preset: SET_PRESETS[parsed.preset],
     minutes: parsed.minutes,
     openerId: url.searchParams.get("opener") ?? undefined,
-    // S13 (#107): repeatable ?landmark=<video_id> pins — must-plays the
-    // engine slots at arc-legal positions; unplaceable pins are
-    // excluded + counted in landmarks_missing, never silent.
     landmarkIds: url.searchParams.getAll("landmark"),
-    // A/B hook (E7): ?search=greedy|beam forces one strategy so the UI
-    // compare mode can diff them on the same pool; absent = pool-size
-    // rule decides. An unknown value falls back to the automatic pick
-    // rather than erroring — the knob is an explore control, not a
-    // contract param (unlike preset, which IS a contract and 400s).
-    searchOverride: (() => {
-      const raw = url.searchParams.get("search");
-      return isMegasetSearchOverride(raw) ? raw : undefined;
-    })(),
+    searchOverride: searchOvr,
   });
   const engineMs = Date.now() - engineT0;
   return {
     census: { ...census, stagesMs: { ...census.stagesMs, engine: engineMs } },
     built,
+    parsed,
+    searchOverride: searchOvr,
   };
 }
 
@@ -322,58 +328,82 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
           `set-${resolved.built.preset}-${actual}m.m3u8`,
         );
       }
-      const {
-        sourceTotal,
-        total,
-        missingFiles,
-        metadataOnly,
-        duplicateFiles,
-        relocatedFiles,
-        rekordboxKeyHits,
-        rekordboxBpmHits,
-        keyReads,
-        keyReadFailures,
-        genreFiltered,
-        freshness,
-        stagesMs,
-      } = resolved.census;
-      const { built } = resolved;
-      const classifications = classifyChain(built.steps);
-      const classifiedSteps = built.steps.map((s, i) => ({
-        ...s,
-        transitionType: classifications[i]?.type,
-      }));
-      return json(
-        buildMegasetPayload({
-          built,
-          quality: setQuality(built),
+      const { census } = resolved;
+      const genreSuggestionExtra =
+        census.genreFiltered === 0 &&
+        (url.searchParams.get("genre") ?? "").trim() !== ""
+          ? {
+              genreSuggestion:
+                megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
+                  ?.family ?? undefined,
+            }
+          : {};
+
+      const toPayload = (variant: MegasetVariant) => {
+        const classifications = classifyChain(variant.result.steps);
+        const classifiedSteps = variant.result.steps.map((s, i) => ({
+          ...s,
+          transitionType: classifications[i]?.type,
+        }));
+        return buildMegasetPayload({
+          built: variant.result,
+          quality: variant.quality,
           classifiedSteps,
           available: archive.available(),
           census: {
-            sourceTotal,
-            total,
-            missingFiles,
-            metadataOnly,
-            duplicateFiles,
-            relocatedFiles,
-            rekordboxKeyHits,
-            rekordboxBpmHits,
-            keyReads,
-            keyReadFailures,
-            genreFiltered,
-            freshness,
-            stagesMs,
+            sourceTotal: census.sourceTotal,
+            total: census.total,
+            missingFiles: census.missingFiles,
+            metadataOnly: census.metadataOnly,
+            duplicateFiles: census.duplicateFiles,
+            relocatedFiles: census.relocatedFiles,
+            rekordboxKeyHits: census.rekordboxKeyHits,
+            rekordboxBpmHits: census.rekordboxBpmHits,
+            keyReads: census.keyReads,
+            keyReadFailures: census.keyReadFailures,
+            genreFiltered: census.genreFiltered,
+            freshness: census.freshness,
+            stagesMs: census.stagesMs,
           },
-          ...(genreFiltered === 0 &&
-          (url.searchParams.get("genre") ?? "").trim() !== ""
-            ? {
-                genreSuggestion:
-                  megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
-                    ?.family ?? undefined,
-              }
-            : {}),
-        }),
-      );
+          ...genreSuggestionExtra,
+        });
+      };
+
+      // S14 (#288): ?candidates=N — return N seeded variants
+      const rawCandidates = url.searchParams.get("candidates");
+      const parsedCandidates = rawCandidates !== null ? Number(rawCandidates) : 1;
+      const candidateCount = Number.isFinite(parsedCandidates)
+        ? Math.max(1, Math.round(parsedCandidates))
+        : 1;
+      if (candidateCount > 1) {
+        const variants = buildMegasetCandidates(
+          {
+            candidates: census.candidates,
+            preset: SET_PRESETS[resolved.parsed.preset],
+            minutes: resolved.parsed.minutes,
+            openerId: url.searchParams.get("opener") ?? undefined,
+            landmarkIds: url.searchParams.getAll("landmark"),
+            searchOverride: resolved.searchOverride,
+          },
+          candidateCount,
+        );
+        return json({
+          variants: variants.map((v) => ({
+            seed: v.seed,
+            label: v.label,
+            payload: toPayload(v),
+          })),
+          best: 0,
+        });
+      }
+      // Single build (default) — wrap in a MegasetVariant for toPayload
+      const singleVariant: MegasetVariant = {
+        seed: 0,
+        label: "A",
+        result: resolved.built,
+        quality: setQuality(resolved.built),
+      };
+      return json(toPayload(singleVariant));
     },
     // FullTags read side (the enrichment engine's mirror columns):
     // genre/year/artwork/energy/codec profile of the playable archive.

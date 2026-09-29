@@ -195,8 +195,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // followed by Number.isFinite guards — audited 53→55, guarded 35→37.
     // Sep 29 (B4.2 discogs): parseDiscogsYear has 1 Number() call with
     // isFinite guard — audited 55→56, guarded 37→38.
-    audited: 56,
-    guarded: 38,
+    // Sep 29 (S14 #288 wiring): routes-archive ?candidates=N adds 1
+    // Number() call with isFinite guard — audited 56→57, guarded 38→39.
+    audited: 57,
+    guarded: 39,
     sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -219,7 +221,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
     // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
     // sanctioned unchanged, digest shifted.
-    digest: "402dbd0c2730d96ea3ede00770c3204a4826cdf40caf0e32fde0ba60ac40328f",
+    digest: "84e03e454b7a9a33b410a2cf37bfd2cd3a38cc88e6fba5c3766b7d5d6029b3e5",
   });
 });
 
