@@ -193,8 +193,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // audited 52→53, sanctioned 17→18.
     // Sep 29 (B2.4 pca-version): parsePcaVersion has 2 Number() calls both
     // followed by Number.isFinite guards — audited 53→55, guarded 35→37.
-    audited: 55,
-    guarded: 37,
+    // Sep 29 (B4.2 discogs): parseDiscogsYear has 1 Number() call with
+    // isFinite guard — audited 55→56, guarded 37→38.
+    audited: 56,
+    guarded: 38,
     sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -217,7 +219,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
     // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
     // sanctioned unchanged, digest shifted.
-    digest: "8010f8101cfa9ebed45d4305d86a450731927e1b89e2872d3c25b2a30d6cdafa",
+    digest: "402dbd0c2730d96ea3ede00770c3204a4826cdf40caf0e32fde0ba60ac40328f",
   });
 });
 
