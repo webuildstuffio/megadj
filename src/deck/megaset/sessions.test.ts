@@ -58,6 +58,7 @@ const result = (): MegasetResult => ({
   same_artist_pairs: 0,
   landmarks_missing: [],
   search: "greedy",
+  seed: 0,
 });
 
 describe("createSession (M6 #330)", () => {

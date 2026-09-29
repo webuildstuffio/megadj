@@ -130,6 +130,10 @@ export interface MegasetResult {
    * sparse-pool failure zone); surfaced so the deep search is visible,
    * never a silent algorithm switch. */
   search: "greedy" | "beam";
+  /** S14 (#288): variant seed — 0 is the default, higher seeds rotate
+   *  the opener pick and alternate the search strategy. Same seed
+   *  reproduces the same chain. */
+  seed: number;
 }
 
 /** M4 (#328): per-component quality breakdown — every field 0–100,
@@ -317,6 +321,8 @@ export function buildMegasetPayload(args: {
     // which sequencer ran (beam = deep search on small pools) — the
     // UI and CLI quote this, never re-derive the threshold themselves
     search: built.search,
+    // S14 (#288): variant seed — same seed reproduces the same chain
+    seed: built.seed,
     // M4 (#328): quality score — pure function of the built payload
     quality: args.quality,
   };

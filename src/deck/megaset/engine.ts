@@ -159,6 +159,11 @@ export interface MegasetInput {
    *  same pool under both searches to diff them honestly. Production
    *  surfaces never set it — the pool-size rule decides. */
   searchOverride?: SetSearchOverride | undefined;
+  /** S14 (#288): variant seed — deterministic jitter for N-candidates.
+   *  Seed 0 = the default (opener = top arousal-distance pick, plan
+   *  strategy). Seed i picks the i-th best qualifying opener and
+   *  alternates strategy on odd seeds. Default: 0. */
+  seed?: number | undefined;
 }
 
 // MegasetStep + MegasetResult (the wire shapes) are DEFINED in
@@ -329,6 +334,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       // S13 (#107): pins that could not be placed, by id — honest cost
       landmarks_missing: landmarksMissingFinal,
       search,
+      seed,
     };
   };
 
@@ -385,21 +391,30 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   const tempoNeighbors = (bpm: number): number =>
     boundIndex(sortedBpms, bpm / windowFactor, "lower") -
     boundIndex(sortedBpms, bpm * windowFactor, "upper");
-  const anchored =
+  // S14 (#288): seed-based opener selection — seed 0 is the default
+  // (best arousal distance), seed i picks the i-th ranked candidate.
+  // The ranked list wraps: seed 7 in a 3-opener pool picks index 1.
+  const seed = input.seed ?? 0;
+  const arousalSort = (a: SetCandidate, b: SetCandidate): number => {
+    const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
+    const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
+    return fa - fb || a.videoId.localeCompare(b.videoId);
+  };
+  const rankedOpeners =
     opener && mixableBpm(opener)
-      ? opener
-      : (mixable
-          .filter((c) => tempoNeighbors(c.bpm) >= OPENER_MIN_NEIGHBORS)
-          .toSorted((a, b) => {
-            const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
-            const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
-            return fa - fb || a.videoId.localeCompare(b.videoId);
-          })[0] ??
-        mixable.toSorted((a, b) => {
-          const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
-          const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
-          return fa - fb || a.videoId.localeCompare(b.videoId);
-        })[0]);
+      ? [opener]
+      : (() => {
+          const qualified = mixable
+            .filter((c) => tempoNeighbors(c.bpm) >= OPENER_MIN_NEIGHBORS)
+            .toSorted(arousalSort);
+          return qualified.length > 0
+            ? qualified
+            : mixable.toSorted(arousalSort);
+        })();
+  const anchored =
+    rankedOpeners.length > 0
+      ? rankedOpeners[seed % rankedOpeners.length]
+      : undefined;
   const first = anchored;
   if (!first) {
     excluded.push(
@@ -427,7 +442,13 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   // algorithm switch. M3 (#327): the pick is the PLAN's strategy row —
   // same rule, now computed in buildPlan (poolSize = rest + opener).
   const rest = pool;
-  const useBeam = plan.strategy === "beam";
+  // S14 (#288): odd seeds flip the strategy (when no explicit override).
+  // This gives N-candidates variety beyond just the opener rotation.
+  const seedFlip =
+    seed > 0 && seed % 2 === 1 && input.searchOverride === undefined;
+  const useBeam = seedFlip
+    ? plan.strategy !== "beam"
+    : plan.strategy === "beam";
   search = useBeam ? "beam" : "greedy";
   const picked = useBeam
     ? beamChain(first, rest, preset, budget, anchorBpm)

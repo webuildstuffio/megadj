@@ -605,6 +605,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     landmarks_missing: [],
     freshness: { beatsAt: null, moodAt: null },
     search: "greedy",
+    seed: 0,
     quality: {
       transition: 100,
       floor: 100,

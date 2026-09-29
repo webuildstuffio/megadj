@@ -40,6 +40,7 @@ const result = (over: Partial<MegasetResult> = {}): MegasetResult => ({
   same_artist_pairs: 0,
   landmarks_missing: [],
   search: "greedy",
+  seed: 0,
   ...over,
 });
 
