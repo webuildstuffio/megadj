@@ -24,9 +24,17 @@
         "src/fulltags/identity/version-llm.ts",
         "src/fulltags/sources/itunes.ts",
         "src/fulltags/analysis/drop-energy.ts",
+        "src/fulltags/analysis/energy-model.ts",
         "src/fulltags/booth/comment-v2.ts",
+        "src/fulltags/booth/colour-energy.ts",
         "src/fulltags/genre/l3-rank.ts",
-        "src/fulltags/genre/dawid-skene.ts"
+        "src/fulltags/genre/dawid-skene.ts",
+        "src/fulltags/genre/estimator.ts",
+        "src/fulltags/genre/genre-why-v2.ts",
+        "src/fulltags/genre/review-queue.ts",
+        "src/fulltags/bench/ak3-silver.ts",
+        "src/fulltags/bench/fast-gate.ts",
+        "src/fulltags/bench/data-contracts.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
