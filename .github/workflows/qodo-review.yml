@@ -1,26 +1,23 @@
-# Qodo AI Code Suggestions v3.2
+# Qodo AI Code Suggestions v3.2.1
 # Inline code suggestions only — the highest-value, lowest-noise output.
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
 # and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
-# Model: google/gemma-4-31b-it:free primary — high structured-output quality.
-# Long `:free` fallback chain for zero-maintenance resilience: when any model
-# retires, pr-agent auto-falls to the next. openrouter/free as last resort
-# (random routing; may produce malformed YAML that pr-agent silently discards).
-# DO NOT revert to openrouter/free as primary — proven broken with pr-agent
-# (silent 100% no-review rate, confirmed Sep 29 2026 on shell-config #492,
-# folio-app #2585). DO NOT pin a single model without fallbacks — that rots.
+# Model: google/gemma-4-31b-it:free primary, 8-model :free fallback chain.
+# API: direct OpenRouter (no AI Gateway proxy — CF gateway may alter streaming
+# responses in ways pr-agent cannot parse).
+# DO NOT use openrouter/free as primary — proven broken (silent no-reviews).
 # NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
 # GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
 # all global tuning (temperature, score threshold, focus instructions).
 # /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
-# v3.2.0: (Sep 29 2026) Fix openrouter/free silent failure — gemma-4-31b
-#          primary + 7-model :free fallback chain. openrouter/free demoted to
-#          last-resort (proven broken: silent no-review on every PR).
-# v3.1.0: (Sep 28 2026) REVERTED — openrouter/free as sole primary silently
-#          failed to generate suggestions on any PR.
+# v3.2.1: (Sep 29 2026) Bypass CF AI Gateway — route directly to OpenRouter.
+#          Gateway may have been corrupting streaming responses, causing
+#          100% "Failed to generate code suggestions" on every PR.
+# v3.2.0: (Sep 29 2026) gemma-4-31b primary + 8-model :free fallback chain.
+# v3.1.0: (Sep 28 2026) REVERTED — openrouter/free silent failure.
 # v3.0.1: (Sep 28 2026) Pinned qwen3.8-27b:free + fallback chain.
 # v3.0.0: (Sep 26 2026) Simplified to single /improve job.
 
@@ -96,10 +93,6 @@ jobs:
         uses: qodo-ai/pr-agent@v0.46.0
         env:
           OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
-          OPENROUTER__API_BASE: >-
-            https://gateway.ai.cloudflare.com/v1/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{
-              secrets.QODO_CLOUDFLARE_GATEWAY_NAME
-            }}/openrouter/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           config.model: "openrouter/google/gemma-4-31b-it:free"
           config.fallback_models: >-
