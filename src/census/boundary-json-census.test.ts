@@ -82,6 +82,8 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "src/fulltags/bench/stages/version-match.ts::runVersionMatchStage::JSON.parse(t.genre_votes)",
     "src/fulltags/identity/version-llm.ts::validateLlmResponse::JSON.parse(json)",
   ]),
+  "src/deck/megaset/sessions.ts::sessionResultStable::JSON.parse(session.result_json)":
+    "Determinism check on validated persisted session; catch returns false on corrupt JSON — not a silent parse but an explicit integrity verdict.",
 };
 
 test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => {
@@ -201,9 +203,6 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // parseBeats, similarity parseVec, ak2-extractor metadata_json);
     // audited 70→82, guarded 55→56 (backfill-votes try/catch),
     // sanctioned 16→26 (version-match, ak2-extractor, genre-loo, version-llm).
-    audited: 82,
-    guarded: 56,
-    sanctioned: 26,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes —
     // cratedeck/src/{verify,hygiene,report}-* moved into verify/ hygiene/
     // report/ subdirs (tests co-located); same calls, same guards, same
@@ -225,7 +224,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 28 (#335 super-sure pass): tools/genre-backfill.ts adds one
     // GUARDED JSON.parse (embedding parser in try-catch with console.error);
     // audited +1, guarded +1, sanctions unchanged.
-    digest: "cb481acc28a9f3f3db33e9019a81bee2bfa1c94bba3f42a8384980ee6e69793f",
+    // Sep 29 (M6 #330): sessions.ts sessionResultStable adds one
+    // sanctioned JSON.parse (determinism check — catch returns false,
+    // not a recognized visible failure shape); audited +1, sanctioned +1.
+    audited: 83,
+    guarded: 56,
+    sanctioned: 27,
+    digest: "bf0f6a995d2b15fa44580f479ea70255d4fcdae917556ff95a8270d740cf4125",
   });
 });
 

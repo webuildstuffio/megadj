@@ -28,6 +28,7 @@ import {
   megasetNearestGenreFamily,
 } from "../shared/megaset";
 import { setQuality } from "../megaset/set-quality";
+import { classifyChain } from "../megaset/transition-types";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 import { intakeCandidateDirs } from "../jobs/intake-run";
 import { cliOk } from "../hygiene/routes";
@@ -337,10 +338,16 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
         stagesMs,
       } = resolved.census;
       const { built } = resolved;
+      const classifications = classifyChain(built.steps);
+      const classifiedSteps = built.steps.map((s, i) => ({
+        ...s,
+        transitionType: classifications[i]?.type,
+      }));
       return json(
         buildMegasetPayload({
           built,
           quality: setQuality(built),
+          classifiedSteps,
           available: archive.available(),
           census: {
             sourceTotal,

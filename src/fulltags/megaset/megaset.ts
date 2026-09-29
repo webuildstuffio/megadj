@@ -30,6 +30,7 @@ import {
   type SetSearchOverride,
 } from "../../deck/shared/types";
 import { setQuality } from "../../deck/megaset/set-quality";
+import { classifyChain } from "../../deck/megaset/transition-types";
 
 import {
   emptyPoolDiagnosis,
@@ -144,9 +145,15 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
         );
       }
     }
+    const classifications = classifyChain(built.steps);
+    const classifiedSteps = built.steps.map((s, i) => ({
+      ...s,
+      transitionType: classifications[i]?.type,
+    }));
     const payload = buildMegasetPayload({
       built,
       quality: setQuality(built),
+      classifiedSteps,
       available: true,
       census: {
         sourceTotal,

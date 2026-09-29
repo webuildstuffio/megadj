@@ -42,6 +42,11 @@ export interface MegasetStep {
   /** #106: 8-bar boundary nearest the handoff overlap window — where
    *  THIS track can take over (intro side, a few phrases in). */
   mixInCue: MegasetCuePoint | null;
+  /** M5 (#329): classified transition type for this step — the DJ mixing
+   *  technique derived from cues + evidence. `hold` is the honest fallback
+   *  when no cues exist or no legal type matches. Null on legacy payloads
+   *  before M5 shipped. */
+  transitionType?: string | undefined;
 }
 
 /** #284: one step's scoring evidence — the per-component contributions
@@ -238,6 +243,9 @@ export interface MegasetPayload extends MegasetResult {
 export function buildMegasetPayload(args: {
   built: MegasetResult;
   quality: MegasetQuality;
+  /** M5 (#329): steps with transitionType annotations already applied.
+   *  When provided, these replace built.steps in the payload. */
+  classifiedSteps?: MegasetStep[] | undefined;
   available: boolean;
   census: {
     sourceTotal: number;
@@ -276,7 +284,7 @@ export function buildMegasetPayload(args: {
     actualMinutes: built.actualMinutes,
     shortfallMinutes: built.shortfallMinutes,
     complete: built.complete,
-    steps: built.steps,
+    steps: args.classifiedSteps ?? built.steps,
     // the excluded preview shares one cap with the CLI/panel
     // (MEGASET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
     excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
