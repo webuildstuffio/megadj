@@ -72,7 +72,7 @@ export interface ArtworkOptions {
 const DEFAULT_MODEL = "nano-banana-2-lite"; // $0.034/img — "a few cents max"
 const QUEUE_PATH = () =>
   nonEmptyEnv("MEGADJ_ART_QUEUE") ??
-  `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
+  `${nonEmptyEnv("HOME") ?? "/tmp"}/.local/state/megadj/artwork-queue.jsonl`;
 const DONE_PATH = () => `${QUEUE_PATH()}.done`;
 
 /**

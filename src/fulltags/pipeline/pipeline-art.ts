@@ -25,7 +25,7 @@ export type { ArtRow } from "../sources/art-sources";
 /** Where AI-cover misses are queued when no explicit queue path is passed. */
 export const DEFAULT_QUEUE =
   nonEmptyEnv("FULLTAGS_ARTWORK_QUEUE") ??
-  `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
+  `${nonEmptyEnv("HOME") ?? "/tmp"}/.local/state/megadj/artwork-queue.jsonl`;
 
 /** The SC rung: page og:image at original resolution when offered, else
  * the search thumbnail. Null bytes = the hit produced nothing usable. */

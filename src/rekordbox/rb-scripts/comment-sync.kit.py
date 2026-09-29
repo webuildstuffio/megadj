@@ -13,6 +13,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+import unicodedata
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
@@ -23,6 +24,16 @@ from pyrekordbox.db6.tables import DjmdContent, DjmdKey  # type: ignore[import-n
 # report "unreadable" — a data-integrity signal — instead of "no tag data"
 # (issue #229: corrupt indistinguishable from untagged).
 UNREADABLE = object()
+
+
+def nfc_casefold(s: str) -> str:
+    """NFC-normalize then casefold — matches pathKey in TS.
+
+    APFS stores NFD, archive.db stores NFC; casefold() alone does NOT
+    normalize Unicode decomposition, so accented paths (Beyoncé, naïve,
+    café) MISS on ledger lookup without this.
+    """
+    return unicodedata.normalize("NFC", s).casefold()
 
 
 def read_txxx(path):
@@ -86,13 +97,13 @@ def main() -> None:
         for t in con.execute(
             "select video_id, energy, genre, year, album, title, artist, file_path from tracks"
         ):
-            led.setdefault("path:" + (t["file_path"] or "").casefold(), dict(t))
+            led.setdefault("path:" + nfc_casefold(t["file_path"] or ""), dict(t))
             led.setdefault("id:" + t["video_id"], dict(t))
         for m in con.execute(
             "select m.video_id, m.dance, m.aggressive, m.happy, m.electronic, m.party,"
             " m.arousal, t.file_path from mood m join tracks t on t.video_id = m.video_id"
         ):
-            fp_key = (m["file_path"] or "").casefold()
+            fp_key = nfc_casefold(m["file_path"] or "")
             moods_by_path[fp_key] = dict(m)
             # Derive energy from arousal (1-9 scale -> 1-10 DJ energy)
             try:
@@ -130,16 +141,16 @@ def main() -> None:
         if not key and rb_key_id:
             key = rb_key_map.get(rb_key_id, "")
         if not energy:
-            led_row = led.get("path:" + p.casefold())
+            led_row = led.get("path:" + nfc_casefold(p))
             if led_row and led_row.get("energy"):
                 energy = str(led_row["energy"])
         # Energy from mood arousal fallback
         if not energy:
-            e_mood = energy_from_mood.get(p.casefold())
+            e_mood = energy_from_mood.get(nfc_casefold(p))
             if e_mood:
                 energy = e_mood
         if not mood:
-            m = moods_by_path.get(p.casefold())
+            m = moods_by_path.get(nfc_casefold(p))
             if m:
                 tops = []
                 for head, label in (
@@ -253,27 +264,27 @@ def main() -> None:
         for row2 in con2.execute(
             "SELECT file_path, genre FROM tracks WHERE genre IS NOT NULL AND genre != '' AND file_path IS NOT NULL"
         ):
-            genres_by_path[row2[0].casefold()] = row2[1]
+            genres_by_path[nfc_casefold(row2[0])] = row2[1]
         con2.close()
 
     from pyrekordbox.db6.tables import DjmdGenre  # type: ignore[import-not-found]
 
     genre_cache: dict[str, object] = {}
     for g in db.query(DjmdGenre).all():
-        genre_cache[g.Name.casefold()] = g
+        genre_cache[nfc_casefold(g.Name)] = g
 
     genre_written = 0
     genre_skipped = 0
     existing_ids = {str(g.ID) for g in genre_cache.values()}
     for c in rows:
-        p = (c.FolderPath or "").casefold()
+        p = nfc_casefold(c.FolderPath or "")
         if not p:
             continue
         archive_genre = genres_by_path.get(p)
         if not archive_genre:
             genre_skipped += 1
             continue
-        gkey = archive_genre.casefold()
+        gkey = nfc_casefold(archive_genre)
         if gkey not in genre_cache:
             import uuid
 
@@ -290,9 +301,13 @@ def main() -> None:
         # Bug fix: case-insensitive compare — the cache lookup is casefold'd,
         # so the DB genre "House" and archive "house" are the SAME genre; only
         # rename when the canonical casing genuinely differs beyond casefold.
-        if apply and genre_row.Name.casefold() == archive_genre.casefold() and genre_row.Name != archive_genre:
+        if (
+            apply
+            and nfc_casefold(genre_row.Name) == nfc_casefold(archive_genre)
+            and genre_row.Name != archive_genre
+        ):
             pass  # same genre, different case — keep the RB original
-        elif apply and genre_row.Name.casefold() != archive_genre.casefold():
+        elif apply and nfc_casefold(genre_row.Name) != nfc_casefold(archive_genre):
             genre_row.Name = archive_genre  # genuinely different genre name
         if str(c.GenreID) != str(genre_row.ID):
             genre_written += 1
@@ -310,7 +325,9 @@ def main() -> None:
     out["genre_skipped"] = genre_skipped
 
     print(json.dumps(out))
-    # Checkpoint WAL before closing — a leftover WAL file crashes rekordbox
+    # Checkpoint WAL before closing — a leftover WAL file crashes rekordbox.
+    # In a finally: block so a crash in genre sync (or any late code) cannot
+    # skip the checkpoint and leave a WAL behind (5.7 MB WAL incident Sep 28).
     try:
         from sqlalchemy import text
 
@@ -318,7 +335,8 @@ def main() -> None:
             conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
     except Exception:
         pass
-    db.close()
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":

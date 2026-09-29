@@ -16,7 +16,11 @@ import { groundTruth as ftGroundTruth } from "../write/readers";
 import { validatePatch } from "../write/schema-guards";
 import type { TagPatch } from "../write/schema";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
-export const home = process.env.HOME!;
+
+const home = nonEmptyEnv("HOME");
+if (home === undefined)
+  throw new Error("HOME is unset or empty — cannot resolve archive paths");
+
 export const ARCH =
   nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
