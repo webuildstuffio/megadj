@@ -65,7 +65,9 @@ function radarColumns(): DataTableColumn<RadarRow>[] {
 const radarCopy = (rows: RadarRow[]): string[] =>
   rows.map((t) => `${t.artist ? `${t.artist} — ` : ""}${t.title ?? t.path}`);
 
-/** Sync-button disable reason, or null when the action is available. */
+/** Sync-button disable reason, or null when the action is available.
+ *  Only mirror-role drives can be synced — the mirror job copies
+ *  MASTER→MIRROR, not an arbitrary per-drive copy (#411). */
 function syncDisableReason(
   r: RadarResult,
   locked: boolean,
@@ -74,9 +76,13 @@ function syncDisableReason(
   if (syncing) return "sync already queued";
   if (locked) return "rekordbox is running — close it first";
   if (!r.mounted) return "drive not mounted";
-  if (r.role === "master") return "master is the source — sync targets mirrors";
-  if (r.role === "shelf") return "shelf is the archive tier, not a gig stick";
+  if (r.role !== "mirror") return null; // hide the button entirely below
   return null;
+}
+
+/** Whether this drive can EVER show the sync button (role-gate). */
+function isSyncEligible(r: RadarResult): boolean {
+  return r.role === "mirror";
 }
 
 /** One drive's radar card: verdict header + missing list + sync action. */
@@ -150,7 +156,7 @@ function RadarDriveCard(props: {
           </>
         }
       />
-      {r.missingCount > 0 && (
+      {r.missingCount > 0 && isSyncEligible(r) && (
         <div class="arch-fix">
           {(() => {
             const reason = syncDisableReason(r, locked, syncing);
@@ -162,12 +168,12 @@ function RadarDriveCard(props: {
                   disabled={reason !== null}
                   title={
                     reason ??
-                    `Sync ${r.missingCount} missing track(s) to ${r.driveName} — queues a mirror job`
+                    `Mirror master → ${r.driveName} — copies ${r.missingCount} missing track(s)`
                   }
                   onClick={() => onSync(r.driveId)}
                 >
                   <Icon name="copy" size={13} />{" "}
-                  {syncing ? "Queued…" : "Sync drive"}
+                  {syncing ? "Queued…" : "Mirror from master"}
                 </button>
                 {reason !== null && (
                   <span class="arch-fix-reason">{reason}</span>
@@ -178,6 +184,13 @@ function RadarDriveCard(props: {
               </>
             );
           })()}
+        </div>
+      )}
+      {r.missingCount > 0 && !isSyncEligible(r) && (
+        <div class="arch-fix">
+          <span class="arch-fix-alt">
+            CLI: <code>{radarSyncCommand()}</code>
+          </span>
         </div>
       )}
     </div>
@@ -204,6 +217,20 @@ export function RadarTab(props: { interlock: InterlockState }) {
   }, [page, onlyMissing]);
 
   const handleSync = async (driveId: string) => {
+    const drive =
+      page.status === "ok"
+        ? page.data.drives.find((d) => d.driveId === driveId)
+        : null;
+    const label = drive?.driveName ?? driveId;
+    const n = drive?.missingCount ?? 0;
+    if (
+      !confirm(
+        `Mirror master → ${label}?\n\n` +
+          `This copies ${n} missing track${n === 1 ? "" : "s"} ` +
+          `from the master drive (additive, MD5-verified).\n\nContinue?`,
+      )
+    )
+      return;
     setSyncingDrive(driveId);
     try {
       await apiPost(`/api/drives/${encodeURIComponent(driveId)}/jobs`, {
@@ -227,7 +254,7 @@ export function RadarTab(props: { interlock: InterlockState }) {
       <TabIntro
         what="The new-music radar: archived tracks that aren't on each drive yet."
         how="The delta compares megadj's archive ledger against each drive's latest scan snapshot — folded-path matching with an artist-title fallback, so a regrouped track still counts as present. Per-drive counts come from the full comparison; the tables below are capped previews."
-        next="Hit Sync to queue a mirror job — it copies the master to this drive (additive, MD5-verified). The drag step stays manual: you stage USB content. A drive that was never scanned shows no rows — that's 'unknown', not 'current'."
+        next="Mirror-role drives get a sync button — it copies master → mirror (additive, MD5-verified). Other drives show a CLI hint. The drag step stays manual: you stage USB content. A drive that was never scanned shows no rows — that's 'unknown', not 'current'."
       />
       <Verdict
         cls={

@@ -155,6 +155,11 @@ export function makeEnqueueDriveJob(deps: {
     }
     const drive = getDrive(id);
     if (!drive?.mounted) return json({ error: "drive not mounted" }, 409);
+    // #411: mirror jobs target MASTER→MIRROR — only mirror-role drives
+    // can be the target. This is the server-side gate that backs the UI.
+    if (body.kind === "mirror" && drive.role !== "mirror") {
+      return json({ error: "mirror jobs target mirror-role drives only" }, 409);
+    }
     const mountPoint = resolveMountPoint(cfg, drive.name);
     // O87: callers may attribute the job ("mcp:xxxx", "deckctl").
     // Sanitized to a short flat tag — it lands in JSON + UI labels.

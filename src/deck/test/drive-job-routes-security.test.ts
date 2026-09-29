@@ -8,7 +8,7 @@ import {
   photoUpload,
   resolveMountPoint,
 } from "../drive/job-routes";
-import { DRIVE_JOB_KINDS, type Drive } from "../shared/types";
+import { DRIVE_JOB_KINDS, type Drive, type DriveRole } from "../shared/types";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("cratedeck-volumes-").rippable();
@@ -132,6 +132,8 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
   const root = t5.dir();
   mkdirSync(join(root, "SHELF1")); // resolveMountPoint requires a real dir
   const enqueuedKinds: string[] = [];
+  // #411: mirror requires role=mirror — use a mirror-role drive for that kind
+  let currentRole: DriveRole = "unknown";
   const enqueue = makeEnqueueDriveJob({
     cfg: config(root),
     images: {
@@ -146,7 +148,7 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
         return { id: "job-1" };
       },
     },
-    getDrive: () => mountedDrive("SHELF1"),
+    getDrive: () => ({ ...mountedDrive("SHELF1"), role: currentRole }),
     json: (data, status = 200) => Response.json(data, { status }),
   });
   const post = (kind: string) =>
@@ -160,6 +162,7 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
   // The regression: grid-health used to 400 here while the card, KIND_DOCS,
   // and the parity doc advertised `deckctl run SHELF1 grid-health`.
   for (const kind of DRIVE_JOB_KINDS) {
+    currentRole = kind === "mirror" ? "mirror" : "unknown";
     const r = await post(kind);
     expect(r.status).toBe(200);
   }
@@ -169,6 +172,40 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
   expect(((await bad.json()) as { error: string }).error).toContain(
     "grid-health",
   );
+});
+
+test("enqueue rejects mirror kind on non-mirror-role drives (#411)", async () => {
+  const root = t5.dir();
+  const nonMirrorRoles: DriveRole[] = ["unknown", "master", "shelf", "library"];
+  for (const testRole of nonMirrorRoles) {
+    const drive = { ...mountedDrive("SHELF1"), role: testRole };
+    const enqueueWithRole = makeEnqueueDriveJob({
+      cfg: config(root),
+      images: {
+        async choose() {
+          return "unused";
+        },
+        clear() {},
+      },
+      jobs: {
+        enqueue() {
+          return { id: "job-1" };
+        },
+      },
+      getDrive: () => drive,
+      json: (data, status = 200) => Response.json(data, { status }),
+    });
+    const r = await enqueueWithRole(
+      new Request("http://127.0.0.1:7742/api/drives/drive-1/jobs", {
+        method: "POST",
+        body: JSON.stringify({ kind: "mirror" }),
+      }),
+      "drive-1",
+    );
+    expect(r.status).toBe(409);
+    const body = (await r.json()) as { error: string };
+    expect(body.error).toContain("mirror-role");
+  }
 });
 
 // Issue #226: malformed JSON bodies are a CLIENT mistake — the route
