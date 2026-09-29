@@ -95,6 +95,7 @@ describe("#295 megaset-cohorts", () => {
               dance: 0.5,
               cues: [],
               embedding: null,
+              genreFamily: genre ?? null,
               // rev-52: the M3U8-export fields the arm now carries
               filePath: "/Volumes/SHELF1/Contents/T.aiff",
               metadataOnly: false,

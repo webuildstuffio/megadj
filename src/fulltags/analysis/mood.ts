@@ -7,6 +7,12 @@ import type { ArchiveState, TrackRow } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 
+/** M1 (#325): the model identifier written to `embeddings.model`. This is
+ * the Essentia effnet tower producing 1280-d mean embeddings. Changing
+ * the model or its version MUST bump this string — `similarTracks` refuses
+ * to score across distinct model values. */
+export const EMBEDDING_MODEL = "effnet-discogs-1280";
+
 /**
  * megadj mood — ONNX mood/dance/valence into the archive DB ledger.
  *
@@ -83,6 +89,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
         videoId: t.video_id,
         vec: m.embedding,
         sourcePath: t.file_path!,
+        model: EMBEDDING_MODEL,
       });
   };
 

@@ -42,6 +42,7 @@ const base = (over: Partial<SetCandidate>): SetCandidate => ({
   dance: 0.7,
   cues: [],
   embedding: null,
+  genreFamily: "house",
   ...over,
 });
 
@@ -234,7 +235,13 @@ describe("buildMegaset improvement pass (#107)", () => {
     expect(isMegasetHalfTimePair(87, 174)).toBe(true);
     expect(isMegasetHalfTimePair(174, 87)).toBe(true);
     // F1 pin: the lane value is 0.75 × penalty — computed by the lane fn
-    expect(megasetTempoLane(87, 174)).toBeCloseTo(0.75 * 0.9, 10);
+    // M2: genre families required for the half-time lane to open
+    expect(megasetTempoLane(87, 174, "drum and bass", "house")).toBeCloseTo(
+      0.75 * 0.9,
+      10,
+    );
+    // M2: null genre = gate closed
+    expect(megasetTempoLane(87, 174, null, "house")).toBe(0);
     // and transitionScore composes it — strictly positive where it used
     // to be −1
     const s = transitionScore(
@@ -491,7 +498,7 @@ describe("buildMegaset improvement pass (#107)", () => {
     // 0.75 × MEGASET_HALFTIME_PENALTY — and the evidence says so. Arousal
     // climbs WITH the peak arc (a downward move is a B3 wall, correctly
     // gated → null evidence, pinned below).
-    const lane = megasetTempoLane(126, 63);
+    const lane = megasetTempoLane(126, 63, "house", "house");
     expect(lane).toBeGreaterThan(0);
     const ev = transitionEvidence(
       cand({ videoId: "a", bpm: 126, key: "8A", arousal: 5.2 }),

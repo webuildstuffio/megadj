@@ -339,6 +339,7 @@ describe("ArchiveState", () => {
         videoId: id,
         vec: [1, 0, 0],
         sourcePath: `/tmp/${id}.m4a`,
+        model: "effnet-test",
       });
       if (genre !== null) state.updateGenre(id, genre);
     };

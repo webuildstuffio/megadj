@@ -366,9 +366,11 @@ export function setCandidates(
     arousal: number | null;
     dance: number | null;
     cues_json: string | null;
+    genre: string | null;
     vec_json: string | null;
   }>(
     `SELECT t.video_id, t.title, t.artist, t.duration_s, t.file_path,
+            t.genre,
             b.bpm_folded, ${rekordboxColumns},
             m.valence, m.arousal, m.dance,
             ${cuesColumn} AS cues_json,
@@ -514,6 +516,7 @@ export function setCandidates(
       // degrade to null (no bonus) like every other poison-row ledger
       // read, never throw into the pool build.
       embedding: parsePoolEmbedding(r.vec_json),
+      genreFamily: r.genre?.toLowerCase() ?? null,
       filePath: r.file_path,
       metadataOnly: r.metadataOnly,
     };

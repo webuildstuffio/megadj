@@ -73,6 +73,7 @@ export class ArchiveState extends ArchiveBeats {
     videoId: string;
     vec: number[];
     sourcePath: string;
+    model: string;
   }): void {
     this.embeddingsLedger.setEmbeddingRecord(record);
   }
@@ -81,8 +82,8 @@ export class ArchiveState extends ArchiveBeats {
     return this.embeddingsLedger.embeddingRecord(videoId);
   }
 
-  embeddingCorpus() {
-    return this.embeddingsLedger.embeddingCorpus();
+  embeddingCorpus(modelFilter?: string) {
+    return this.embeddingsLedger.embeddingCorpus(modelFilter);
   }
 
   setKeyRecord(record: {

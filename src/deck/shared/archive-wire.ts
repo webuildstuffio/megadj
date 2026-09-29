@@ -258,6 +258,9 @@ export interface ArchiveSetCandidate {
    *  no bonus, never a penalty). Server-internal like filePath: stripped
    *  before serialization (fat payload, not client-relevant). */
   embedding: number[] | null;
+  /** M2 (#326): genre family for half-time BPM gating — null when
+   *  the track has no genre in the ledger (gate closed, safe default). */
+  genreFamily: string | null;
   /** B1 (#104): true when the file is absent (shelf asleep) but the
    *  row carries measured tempo (beats ledger or rekordbox mirror) —
    *  admitted so an offline shelf cannot zero the pool. Never carries a

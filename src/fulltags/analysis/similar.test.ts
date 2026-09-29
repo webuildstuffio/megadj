@@ -79,20 +79,24 @@ describe("embeddings ledger round-trip", () => {
       videoId: "t1",
       vec: [1, 0, 0],
       sourcePath: "/tmp/one.mp3",
+      model: "effnet-test",
     });
     state.setEmbeddingRecord({
       videoId: "t2",
       vec: [0.99, 0.1, 0],
       sourcePath: "/tmp/two.mp3",
+      model: "effnet-test",
     });
     // idempotent re-run: replaces, not duplicates
     state.setEmbeddingRecord({
       videoId: "t1",
       vec: [1, 0, 0],
       sourcePath: "/tmp/one.mp3",
+      model: "effnet-test",
     });
     const rec = state.embeddingRecord("t1");
     expect(rec?.vec).toEqual([1, 0, 0]);
+    expect(rec?.model).toBe("effnet-test");
     const corpus = state.embeddingCorpus();
     expect(corpus.length).toBe(2);
     const hits = similarTracks(corpus, "t1", [1, 0, 0], 5);
@@ -145,6 +149,7 @@ describe("embeddings ledger round-trip", () => {
       videoId: "gone",
       vec: [1, 1, 1],
       sourcePath: "/tmp/gone.mp3",
+      model: "effnet-test",
     });
     expect(state.embeddingCorpus().some((c) => c.videoId === "gone")).toBe(
       false,

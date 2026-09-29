@@ -383,7 +383,7 @@ describe("setCandidates pool contract", () => {
     db.exec(`
       CREATE TABLE tracks (
         video_id TEXT PRIMARY KEY, title TEXT, artist TEXT, duration_s REAL,
-        file_path TEXT, status TEXT NOT NULL, updated_at TEXT NOT NULL
+        file_path TEXT, genre TEXT, status TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE beats (
         video_id TEXT PRIMARY KEY, bpm_folded REAL, analyzed_at TEXT NOT NULL
@@ -398,14 +398,9 @@ describe("setCandidates pool contract", () => {
         updated_at TEXT NOT NULL
       );
     `);
-    db.query(`INSERT INTO tracks VALUES (?, ?, ?, ?, ?, 'downloaded', ?)`).run(
-      "track",
-      "Track",
-      "DJ",
-      300,
-      stalePath,
-      "2026-09-11",
-    );
+    db.query(
+      `INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, 'downloaded', ?)`,
+    ).run("track", "Track", "DJ", 300, stalePath, "house", "2026-09-11");
     db.query(`INSERT INTO beats VALUES (?, ?, ?)`).run(
       "track",
       128,
@@ -454,7 +449,7 @@ describe("setCandidates pool contract", () => {
     db.exec(`
       CREATE TABLE tracks (
         video_id TEXT PRIMARY KEY, title TEXT, artist TEXT, duration_s REAL,
-        file_path TEXT, status TEXT NOT NULL, updated_at TEXT NOT NULL
+        file_path TEXT, genre TEXT, status TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE beats (
         video_id TEXT PRIMARY KEY, bpm_folded REAL, analyzed_at TEXT NOT NULL
@@ -464,17 +459,12 @@ describe("setCandidates pool contract", () => {
         analyzed_at TEXT NOT NULL
       );
     `);
-    db.query(`INSERT INTO tracks VALUES (?, ?, ?, ?, ?, 'downloaded', ?)`).run(
-      "track",
-      "Track",
-      "DJ",
-      300,
-      audioPath,
-      "2026-09-11",
-    );
     db.query(
-      `INSERT INTO tracks VALUES (?, ?, ?, ?, NULL, 'downloaded', ?)`,
-    ).run("no-path", "No path", "DJ", 300, "2026-09-11");
+      `INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, 'downloaded', ?)`,
+    ).run("track", "Track", "DJ", 300, audioPath, "house", "2026-09-11");
+    db.query(
+      `INSERT INTO tracks VALUES (?, ?, ?, ?, NULL, ?, 'downloaded', ?)`,
+    ).run("no-path", "No path", "DJ", 300, null, "2026-09-11");
     db.query(`INSERT INTO beats VALUES (?, ?, ?)`).run(
       "track",
       128,

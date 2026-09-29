@@ -31,17 +31,26 @@ export function parseEmbeddingVector(
 
 export class EmbeddingsLedger extends RecordLedger {
   /** Upsert one embedding. Idempotent by video_id: a re-run replaces the
-   * row (fresh timestamps) — the SQL plumbing is RecordLedger's. */
+   * row (fresh timestamps) — the SQL plumbing is RecordLedger's.
+   * M1 (#325): `model` is required on new writes (nullable in the DDL for
+   * backfill, but the write seam refuses to omit it). */
   setEmbeddingRecord(rec: {
     videoId: string;
     vec: number[];
     sourcePath: string;
+    model: string;
   }): void {
     this.upsert(
       "embeddings",
       rec.videoId,
-      ["dim", "vec_json", "source_path", "analyzed_at"],
-      [rec.vec.length, JSON.stringify(rec.vec), rec.sourcePath, this.now()],
+      ["dim", "vec_json", "source_path", "analyzed_at", "model"],
+      [
+        rec.vec.length,
+        JSON.stringify(rec.vec),
+        rec.sourcePath,
+        this.now(),
+        rec.model,
+      ],
     );
   }
 
@@ -52,10 +61,11 @@ export class EmbeddingsLedger extends RecordLedger {
     vec: number[];
     sourcePath: string;
     analyzedAt: string;
+    model: string | null;
   } | null {
     const row = this.db
       .query(
-        `SELECT video_id, vec_json, source_path, analyzed_at
+        `SELECT video_id, vec_json, source_path, analyzed_at, model
          FROM embeddings WHERE video_id = ?`,
       )
       .get(videoId) as {
@@ -63,6 +73,7 @@ export class EmbeddingsLedger extends RecordLedger {
       vec_json: string;
       source_path: string;
       analyzed_at: string;
+      model: string | null;
     } | null;
     if (!row) return null;
     try {
@@ -75,6 +86,7 @@ export class EmbeddingsLedger extends RecordLedger {
         vec,
         sourcePath: row.source_path,
         analyzedAt: row.analyzed_at,
+        model: row.model,
       };
     } catch (error) {
       // THE poison-row guard (#74): one home for the whole ledger family.
@@ -87,24 +99,33 @@ export class EmbeddingsLedger extends RecordLedger {
   }
 
   /** All embeddings joined to their track rows (downloaded only) — the
-   * query-side corpus for cosine kNN. Corrupt rows are skipped. */
-  embeddingCorpus(): {
+   * query-side corpus for cosine kNN. Corrupt rows are skipped.
+   * M1 (#325): when `modelFilter` is provided, only rows with that model
+   * are returned — cross-model blending is an honest gap. */
+  embeddingCorpus(modelFilter?: string): {
     videoId: string;
     title: string | null;
     artist: string | null;
     vec: number[];
+    model: string | null;
   }[] {
+    const whereClause =
+      modelFilter !== undefined
+        ? `WHERE t.status = 'downloaded' AND e.model = ?`
+        : `WHERE t.status = 'downloaded'`;
+    const params = modelFilter !== undefined ? [modelFilter] : [];
     const rows = this.db
       .query(
-        `SELECT e.video_id, t.title, t.artist, e.vec_json
+        `SELECT e.video_id, t.title, t.artist, e.vec_json, e.model
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
-         WHERE t.status = 'downloaded'`,
+         ${whereClause}`,
       )
-      .all() as {
+      .all(...params) as {
       video_id: string;
       title: string | null;
       artist: string | null;
       vec_json: string;
+      model: string | null;
     }[];
     return rows.flatMap((r) => {
       try {
@@ -115,6 +136,7 @@ export class EmbeddingsLedger extends RecordLedger {
             title: r.title,
             artist: r.artist,
             vec,
+            model: r.model,
           },
         ];
       } catch (error) {

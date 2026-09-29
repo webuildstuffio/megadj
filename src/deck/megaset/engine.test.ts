@@ -35,6 +35,7 @@ const cand = (over: Partial<SetCandidate>): SetCandidate => ({
   dance: 0.7,
   cues: [],
   embedding: null,
+  genreFamily: "house",
   ...over,
 });
 

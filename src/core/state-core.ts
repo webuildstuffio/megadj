@@ -93,7 +93,9 @@ export class ArchiveCore {
         video_id TEXT PRIMARY KEY, dim INTEGER NOT NULL,
         vec_json TEXT NOT NULL, source_path TEXT NOT NULL,
         analyzed_at TEXT NOT NULL
-      );
+      );`);
+    this.addColumnIfMissing("embeddings", "model", "TEXT");
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS track_keys (
         video_id TEXT PRIMARY KEY, key TEXT NOT NULL,
         source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL

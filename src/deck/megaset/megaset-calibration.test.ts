@@ -63,6 +63,7 @@ function corpus(): SetCandidate[] {
           : [],
       embedding:
         i % 3 === 0 ? [Math.sin(i) * 0.5, Math.cos(i) * 0.5, 0.1] : null,
+      genreFamily: i % 5 === 0 ? null : "house",
     });
   }
   return pool;

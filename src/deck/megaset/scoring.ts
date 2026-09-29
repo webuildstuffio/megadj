@@ -47,6 +47,9 @@ export interface SetCandidate {
    *  producer loaded). Null = no embedding: the candidate builds with
    *  NO similarity bonus, never a penalty (honest gap rule). */
   embedding: number[] | null;
+  /** M2 (#326): the genre family from the ledger (case-folded). Null =
+   *  no genre: half-time lane CLOSED (honest default). */
+  genreFamily: string | null;
 }
 
 /** The preset type the scorer scores against (alias of the shared def —
@@ -73,6 +76,36 @@ export function bpmScore(a: number, b: number): number {
   );
 }
 
+/** M2 (#326): genre families where the half-time lane is plausible.
+ *  Keyed by family; value = true means the family's tracks commonly
+ *  ride at ×2/×½/×1.5 of a neighbouring family's BPM. Derives from
+ *  MEGASET_GENRE_FAMILIES (the SSOT) — never a hand-rolled mapping. */
+export const HALFTIME_GENRE_FAMILIES = new Set([
+  "drum and bass",
+  "dubstep",
+  "hip-hop",
+  "trap",
+  "house",
+  "tech house",
+  "techno",
+  "trance",
+  "breakbeat",
+  "garage",
+  "edm",
+]);
+
+/** M2: true when BOTH tracks' genre families permit half-time pairing.
+ *  Null genre = gate CLOSED (honest default — never assume half-time). */
+export function halftimeGateOpen(
+  familyA: string | null,
+  familyB: string | null,
+): boolean {
+  if (familyA === null || familyB === null) return false;
+  return (
+    HALFTIME_GENRE_FAMILIES.has(familyA) && HALFTIME_GENRE_FAMILIES.has(familyB)
+  );
+}
+
 /** B8 (#107): the tempo lane for one hop — the direct window first
  *  (bpmScore's slope, untouched: a direct match pays NO discount);
  *  outside it, a candidate near 2×, ½×, 1.5× or ⅔× of `a` pairs at the
@@ -80,11 +113,22 @@ export function bpmScore(a: number, b: number): number {
  *  over an 87 anchor — or an 87 trap cut under a 130 house set (the
  *  1.5× feel lane) — now competes instead of scoring 0 by geometry,
  *  while never beating an equal-everything direct match. Exported for
- *  the contract pins; transitionScore is the other production consumer. */
-export function megasetTempoLane(a: number, b: number): number {
+ *  the contract pins; transitionScore is the other production consumer.
+ *
+ *  M2 (#326): the half-time branch is now GATED by genre family — both
+ *  tracks must be in known half-time families. Null genre = gate closed. */
+export function megasetTempoLane(
+  a: number,
+  b: number,
+  familyA?: string | null,
+  familyB?: string | null,
+): number {
   const direct = bpmScore(a, b);
   if (direct > 0) return direct;
-  return isMegasetHalfTimePair(a, b) ? 0.75 * MEGASET_HALFTIME_PENALTY : 0;
+  if (!isMegasetHalfTimePair(a, b)) return 0;
+  // M2: genre gate — only open the half-time lane when both families allow it
+  if (!halftimeGateOpen(familyA ?? null, familyB ?? null)) return 0;
+  return 0.75 * MEGASET_HALFTIME_PENALTY;
 }
 
 /** A BPM the engine can actually mix with: present, finite and positive.
@@ -206,7 +250,12 @@ function transitionCore(
   // (F1 super-fix: the old code scaled direct matches by 0.9 too, a
   // silent ~10% tax on every ordinary hop), so half-time never beats an
   // equal-everything direct match.
-  const tempoLane = megasetTempoLane(prev.bpm, c.bpm);
+  const tempoLane = megasetTempoLane(
+    prev.bpm,
+    c.bpm,
+    prev.genreFamily,
+    c.genreFamily,
+  );
   if (tempoLane === 0) return null;
   const keyVal = keyScore(prev, c);
   if (keyVal === 0) return null;
