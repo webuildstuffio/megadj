@@ -265,6 +265,9 @@ a.prop !== null`), one strict check does NOT imply the other.
   SSOT for the collection, never archive bytes: unreferenced files get
   fingerprint-proven + quarantined, not deleted. Energy is engine-computed;
   only Comment carries derived energy, never BPM.
+- `import-write.kit.py` maps extensions to pyrekordbox `FileType` (M4A=4,
+  FLAC=5, …) — a past M4A/FLAC swap wrote wrong codec metadata on every new
+  import (Sep 29); keep aligned with the enum in the rb-adopt codec bullet.
 - Cue conventions are OPPOSITE: XML `POSITION_MARK Num="0..7"` = hot,
   `-1` = memory; DB `djmdCue.Kind` is `1` = hot, `0` = memory. Verify against a
   hand-authored reference before any cue write ships
@@ -364,6 +367,14 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - Analysis lives in DB ledgers until its write gate passes. Positive ONNX
   labels come first except `mood_party`; saturated heads fail loudly. Audit
   requires mood + energy; reruns are idempotent.
+- FullTags v3 (Sep 29): plan of record is
+  `docs/fulltags/fulltags-v3-rebench-and-build-plan-2026-09-29.md`; every
+  stage is re-measured through `megadj bench` and `src/fulltags/bench/`
+  (answer keys, baseline freeze, compare runs) before production thresholds
+  move.
+- `megadj mood` pass 2 (ONNX) shards the queue across `--jobs` parallel
+  workers (default 2) — one uv/model bootstrap per worker, not per chunk
+  (Sep 29; use `--jobs 4` on long fleet runs).
 - Booth compatibility is data-driven (`[booth].fleet` / `MEGADJ_FLEET`);
   `player-compat.ts` + `booth-text.ts` enforce it. `megadj booth-fix` proposes
   by default.
@@ -409,6 +420,8 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - Expects a locally running dev server to hand-test UI changes ("dev up please and let me test it out").
 - Wants findings surfaced before fixes on audits and risky ops: report first (canvas or grouped GitHub issues), then an explicit go-ahead to act (Sep 19: "instead of you fixing please make a detailed canvas of all bugs"; "lets turn that off right now" on a suspected backup).
 - Wants long-running multi-stage work encoded as one reusable command, never a hand-run step list: "keep didve / make sure automatic next time" produced `ops/full-pipeline.sh` + `docs/runbooks/0e-full-pipeline.md`; when a manual step bites a second time, script it, runbook it, and cite both (Sep 20).
+- SHELF1/drive-day pipelines: prep offline (fixes, baselines, dry checks), report ready, then wait for explicit mount confirmation before shelf-sync/RB writes ("plugged in, do it") (Sep 29).
+- After material mood/analysis pipeline changes, pilot a bounded cohort and compare to the prior baseline before fleet-wide `--force` re-analysis (Sep 29).
 - Iterates by re-sending and deepening ("status now?", "full canvas update fully") — each pass must re-measure live and land visible artifacts (canvas version bump, doc status header, pushed commit), not re-assert old numbers.
 - Quota-style quality passes (N calculation fixes, N visual bugs, hundreds of LOC dedup) require manual per-file review and judgment — grep/lint/check alone does not satisfy the ask (Sep 26 build-fixing session).
 
@@ -436,7 +449,8 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - Stash discipline on a shared worktree: `git stash push <paths>` + `git stash pop` can LOSE the pop silently when a foreign agent's index sweep intervenes (`No stash entries found` after a successful push = the pop must be retried from the stash reflog, not assumed). After any stash round-trip, `git status` your exact file set before continuing — two of this session's staged files were reverted by an interleaved `checkout HEAD` and had to be redone (Sep 22, #274 pass).
 - Wire-payload rounding SSOT is `src/shared/leaf/fmt.ts` (`round1`, `round2`, `round3`, `round3n`, `round4`) — ban hand-rolled `Math.round(v * 1000)/1000` / local misnamed `r4` helpers (Sep 26: `mood.ts` exported 3dp under a 4dp name; ~15 files consolidated; `round2` added Sep 28).
 - Rekordbox duplicate storms trace to import path + suffix classes, not missing fingerprint tooling: `rb-import-probe` prefers shelf paths under `<mount>/Contents/` over Mac-local archive paths (paro incident: 17 `/Users/...` rows), strips `[archive …]` / `[BACKUP2]` stems for matching, and dedupes intra-batch imports (148-row audit, Sep 26); `rb-dedup` scan adds suffix-aware title+stem grouping for acoustic pairs (Sep 27); Python scanner emits `"stem-twin"` for filename-stem matches — TS parser/graph treat it like `"candidate"` (fingerprint-gated, not pathGraph) (Sep 28). Collection cleanup stays `shelf-dupescan` + `rb-dedup` + hygiene — not hand-editing master.db or guessing from filenames alone.
-- After pyrekordbox master.db write sessions: `PRAGMA wal_checkpoint(TRUNCATE)` before `db.close()` — leftover WAL crashes RB on open (5.7 MB WAL, Sep 28); `comment-sync.kit.py` checkpoints automatically.
+- After pyrekordbox master.db write sessions: `PRAGMA wal_checkpoint(TRUNCATE)` before `db.close()` in every RB `*.kit.py` that commits — leftover WAL crashes RB on open (5.7 MB WAL, Sep 28); all six write kits checkpoint (Sep 29 expanded beyond comment-sync only).
+- `src/cli-env.ts` is the SSOT for `DB_PATH`, `MUSIC_DIR`, and cookie defaults (`nonEmptyEnv` on `MEGADJ_*` + `HOME`); throws if `HOME` is unset/empty — never hardcode `~/.local/state/megadj/archive.db` in TS/tools (Sep 29 consolidated eight dupes).
 - `rb-comment-sync` runs three phases: (1) Comment write (Key·Energy·Mood), (2) comment enrichment (partial→full — key from RB `djmdKey.ScaleName`, mood-arousal-derived energy as fallback; ~3807/3819 tracks have KeyID vs sparse TXXX tags), (3) genre sync (archive.db vote-winner → RB `GenreID`); primary genre lands in RB, secondary stays archive-only.
 - `tracks.genre_secondary` in archive.db holds vote runner-ups + embedding KNN (~60–64% coverage); only the vote winner writes to RB genre.
 - Every `djmdGenre` row MUST have a non-null UUID — NULL UUID crashes RB on open (342 bad rows Sep 28); delete orphan genre rows with no content references; post-cleanup target is a small clean set (44 rows, all valid UUIDs, Sep 28).
