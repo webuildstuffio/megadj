@@ -1,6 +1,24 @@
-# FullTags — Prioritized Roadmap (rev 7.14)
+# FullTags — Prioritized Roadmap (rev 8.0)
 
-**Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+**Status:** 🧭 ACTIVE — **v3 plan of record proposed Sep 29.**
+
+_Rev 8.0, 2026-09-29: **FullTags v3 — rebench & build plan proposed.**
+The v2 pipeline is SHIPPED and running (rev 7.14 state below). The v3
+plan replaces the remaining queue with a measured rebench across every
+stage, independent answer keys, and a Dawid–Skene genre estimator that
+supersedes the W-table vote ladder. See:
+[fulltags-v3-landscape-and-redesign-2026-09-28.md](fulltags-v3-landscape-and-redesign-2026-09-28.md)
+(the "why") and
+[fulltags-v3-rebench-and-build-plan-2026-09-29.md](fulltags-v3-rebench-and-build-plan-2026-09-29.md)
+(the "how": 12 workstreams, 55 tickets, gates, agent prompts). Tracked
+as GitHub issues with the `fulltags-v3` label; epic
+[#346](https://github.com/webuildstuffio/megadj/issues/346). Key
+findings that motivate v3: (1) the BPM 20 ms quantization bug explains
+the failed gate and the 1,406-track "Uptempo 130–139" bucket; (2) every
+prior genre comparison was graded against labels under test, not
+independent gold; (3) energy avg 8.5 on 1–10 is a loudness meter, not
+a "how hard does it hit" signal; (4) the remix-identity gap lets
+original-recording evidence vote on remixes._
 
 _Rev 7.14, 2026-09-20: **the ladder met library scale — `--revote` shipped and
 ran.** #260 closed: `fetch --revote` re-runs the #173 vote ladder over exactly

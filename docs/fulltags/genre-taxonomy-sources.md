@@ -2,6 +2,15 @@
 
 **Status:** 📚 REFERENCE — current taxonomy authorities, family map, and validation.
 
+> **v3 source expansion (Sep 29):** the v3 plan adds Discogs monthly dumps
+> (CC0, offline, 400 styles matching effnet's training taxonomy),
+> Traxsource / Juno / Beatsource store clients (studied from OneTagger),
+> iTunes + Deezer (coarse L2 + preview URLs for audio verification), and
+> Last.fm track tags. All new sources write to `genre_evidence` rows, not
+> directly to `tracks.genre`. See
+> [fulltags-v3-rebench-and-build-plan-2026-09-29.md](fulltags-v3-rebench-and-build-plan-2026-09-29.md)
+> WS4 and the landscape doc §2.6.
+
 **Audit** → [genre-audit](genre-audit.md) · [embedding-models](embedding-models.md) · [MegaSet PRD](../megaset/01-prd.md)
 
 > Glossary (Discogs-400 head, Tier 1/2/3, kNN, tower):

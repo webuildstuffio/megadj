@@ -2,6 +2,14 @@
 
 > Measured snapshot: **Sep 29, 2026 00:35 UTC**
 > Status: **shipped** — all pipeline stages complete, `check:full` green
+>
+> **v3 plan proposed Sep 29:** this doc captures the v2 pipeline's live
+> state. The v3 plan re-measures every stage against independent answer
+> keys and rebuilds where accuracy falls short. Key root causes
+> identified: BPM 20 ms quantization bug, genre labels graded against
+> themselves, energy saturation (avg 8.5), remix-identity gap. See
+> [fulltags-v3-rebench-and-build-plan-2026-09-29.md](fulltags-v3-rebench-and-build-plan-2026-09-29.md)
+> and [fulltags-v3-landscape-and-redesign-2026-09-28.md](fulltags-v3-landscape-and-redesign-2026-09-28.md).
 
 ## Overview
 

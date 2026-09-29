@@ -2,6 +2,17 @@
 
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
+
+> **v3 supersession notice (Sep 29):** the W-table vote ladder described
+> here is being replaced by a Dawid–Skene label model over a
+> `genre_evidence` table with per-source × per-family learned reliability.
+> The election seam (`stageGenreElection`), `GENRE_VOTE_WEIGHTS`, and the
+> dispute-flag special cases are all scheduled for deletion. See
+> [fulltags-v3-landscape-and-redesign-2026-09-28.md](fulltags-v3-landscape-and-redesign-2026-09-28.md)
+> §4 for root causes and
+> [fulltags-v3-rebench-and-build-plan-2026-09-29.md](fulltags-v3-rebench-and-build-plan-2026-09-29.md)
+> WS4–WS5 for the migration plan. This doc remains the accurate
+> description of the **current** (v2) system until the estimator ships.
 **Rev 6 (Sep 17): the breakdown's explainability read is wired through
 every surface (#215) — `megadj genre-why <id>` (CLI; exit 1 on a DRIFTED
 row), `archive_genre_why` (MCP), `/api/archive/genre-why` (HTTP), and

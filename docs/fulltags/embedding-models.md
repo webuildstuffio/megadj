@@ -4,6 +4,14 @@
 (six towers incl. MERT); fusion/variant sweep settled below, follow-up
 implementation gated by the larger post-refold evaluation.
 
+> **v3 challenger (Sep 29):** OMAR-RQ (MTG/UPF, 2025, CC BY-NC-SA 4.0)
+> earns one benchmark slot for **per-bar tasks** (structure on EDM-98,
+> transitions) — not genre. The v3 bench harness (`megadj bench run`)
+> measures challengers against independent answer keys instead of ladder
+> labels. Prior tower verdicts (MERT −19 pts, probe lost) may flip on
+> gold. See [fulltags-v3-landscape-and-redesign-2026-09-28.md](fulltags-v3-landscape-and-redesign-2026-09-28.md) §2.1
+> and the rebench plan WS9.
+
 > Glossary (tower, LOO, coherence, effnet/musicnn/MERT, ONNX, 5k proj):
 > [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 

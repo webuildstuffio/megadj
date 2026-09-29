@@ -1,6 +1,15 @@
 # FullTags — Genre Audit & Inclusion Policy (Set §genre consumer)
 
 **Status:** 📚 REFERENCE — current genre inclusion and source-precedence policy.
+
+> **v3 answer-key notice (Sep 29):** the "audio-consistency" metric used
+> throughout this audit grades labels against kNN agreement — which is
+> agreement with the system's own labels, not independent truth. The v3
+> plan replaces this with verified-store silver (AK3), agent silver (AK4),
+> and binary ear-checks (AK5). Prior verdicts (probe vs kNN, Discogs-400
+> head rank, source ranking) may flip on independent gold. See
+> [fulltags-v3-rebench-and-build-plan-2026-09-29.md](fulltags-v3-rebench-and-build-plan-2026-09-29.md) §2.
+
 **Sep 15 pipeline walkthrough:** [genre-pipeline.md](genre-pipeline.md) —
 how a track's genre actually flows (write points → hygiene → inference →
 scoring → gate), with invariants and live state.

@@ -2,6 +2,14 @@
 
 **Status:** 🧭 ACTIVE — implementation and hardware validation remain.
 
+> **v3 supersession (Sep 29):** BPM and grid work is now tracked under
+> FullTags v3 WS1 ([B1.1](https://github.com/webuildstuffio/megadj/issues/351)–[B1.5](https://github.com/webuildstuffio/megadj/issues/355)).
+> The key finding: the BPM gate failure (12/24 @2%) is almost certainly a
+> 20 ms frame-quantization readout bug, not a model limit — `fit_constant_grid`
+> (least-squares over all beats) replaces the median. Cue work is WS8
+> ([B8.1](https://github.com/webuildstuffio/megadj/issues/388)–[B8.4](https://github.com/webuildstuffio/megadj/issues/391)).
+> See the [rebench plan](fulltags-v3-rebench-and-build-plan-2026-09-29.md).
+
 _2026-09-10. Supersedes the chat-plan v2. This file is the project SSOT for
 grid audit + auto-cue; the archived ideas catalog (I46/#47, now
 [docs/archive/ideas-2026-09-15.md](../archive/ideas-2026-09-15.md)) and

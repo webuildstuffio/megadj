@@ -153,7 +153,15 @@ interface AllowEntry {
   reason: string;
 }
 
-const ALLOWED: Readonly<Record<string, readonly AllowEntry[]>> = {};
+const ALLOWED: Readonly<Record<string, readonly AllowEntry[]>> = {
+  "docs/fulltags/fulltags-v3-rebench-and-build-plan-2026-09-29.md": [
+    { name: "bench", reason: "v3 planned verb — WS0 B0.1 #347" },
+    { name: "analyze", reason: "v3 planned verb — WS2 B2.3 #358" },
+  ],
+  "docs/fulltags/embedding-models.md": [
+    { name: "bench", reason: "v3 planned verb — forward pointer to rebench plan" },
+  ],
+};
 
 /* ---------- scanning ---------- */
 
