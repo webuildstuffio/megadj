@@ -49,6 +49,59 @@ function driveBadgesView(
 /** The player-catalog provider shape (index.ts passes its players.ts binding). */
 type ExtraPlayers = () => Parameters<typeof driveCompatibility>[1];
 
+/** POST /api/drives/:id/notes — create an agent note (#343: extracted from
+ *  driveSubroute to reduce CCN). */
+async function postNote(
+  req: Request,
+  id: string,
+  db: DB,
+  driveOr404: (id: string) => Drive | null,
+  json: (data: unknown, status?: number) => Response,
+): Promise<Response> {
+  if (!driveOr404(id)) return json({ error: "unknown drive" }, 404);
+  let body: { note?: string; origin?: string; severity?: NoteSeverity };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    return json({ error: "invalid JSON body" }, 400);
+  }
+  let v: ReturnType<typeof normalizeNote>;
+  try {
+    v = normalizeNote({
+      drive_id: id,
+      note: body.note ?? "",
+      origin: body.origin,
+      severity: body.severity,
+    });
+  } catch (e) {
+    return json({ error: (e as Error).message }, 400);
+  }
+  const noteId = addAgentNote(db, v);
+  return json({ ok: true, id: noteId });
+}
+
+/** GET /api/drives/:id/players — N78 player compatibility (#343). */
+function playersRoute(
+  id: string,
+  driveOr404: (id: string) => Drive | null,
+  extraPlayers: ExtraPlayers,
+  json: (data: unknown, status?: number) => Response,
+): Response {
+  const drive = driveOr404(id);
+  if (!drive) return json({ error: "unknown drive" }, 404);
+  const { snap, corrupt } = parseSnapshotJson(drive.last_snapshot_json);
+  if (corrupt) return json({ error: "snapshot corrupt — run a scan" }, 409);
+  const compat = driveCompatibility(snap, extraPlayers());
+  return json({
+    drive: { id: drive.id, name: drive.name, nickname: drive.nickname },
+    measured: {
+      pdb_live_rows: snap?.pdb_live_rows ?? null,
+      onelibrary_rows: snap?.onelibrary_rows ?? null,
+    },
+    ...compat,
+  });
+}
+
 export function makeDriveRoutes(deps: {
   db: DB;
   cfg: CrateConfig;
@@ -180,35 +233,7 @@ export function makeDriveRoutes(deps: {
     if (sub === "/notes" && req.method === "GET")
       return json(agentNotes(db, id));
     if (sub === "/notes" && req.method === "POST") {
-      if (!driveOr404(id)) return json({ error: "unknown drive" }, 404);
-      // malformed JSON → 400 (client error), not the outer 500 catch
-      let body: {
-        note?: string;
-        origin?: string;
-        severity?: NoteSeverity;
-      };
-      try {
-        body = (await req.json()) as typeof body;
-      } catch {
-        return json({ error: "invalid JSON body" }, 400);
-      }
-      // normalizeNote throws a clean message on empty/oversized input;
-      // map validation errors to 400 explicitly here
-      let v: ReturnType<typeof normalizeNote>;
-      try {
-        v = normalizeNote({
-          drive_id: id,
-          note: body.note ?? "",
-          origin: body.origin,
-          severity: body.severity,
-        });
-      } catch (e) {
-        return json({ error: (e as Error).message }, 400);
-      }
-      const noteId = addAgentNote(db, v);
-      // O88: return the event id — deck_note / deckctl note --json
-      // promise {id} so callers can cite or dismiss the note later
-      return json({ ok: true, id: noteId });
+      return postNote(req, id, db, driveOr404, json);
     }
     const noteMatch = sub.match(/^\/notes\/([^/]+)\/dismiss$/u);
     if (noteMatch?.[1] && req.method === "POST") {
@@ -267,28 +292,8 @@ export function makeDriveRoutes(deps: {
     if (sub === "/drive-image") {
       return deps.serveDriveImage(url);
     }
-    // N78: "which players will this stick actually work on?" —
-    // measured dual-DB rows mapped onto the vendor player matrix
     if (sub === "/players") {
-      const drive = driveOr404(id);
-      if (!drive) return json({ error: "unknown drive" }, 404);
-      // parseSnapshotJson: a corrupt blob must surface in the response, not
-      // 500 the route (same crash class driveBadges had).
-      const { snap, corrupt } = parseSnapshotJson(drive.last_snapshot_json);
-      if (corrupt) return json({ error: "snapshot corrupt — run a scan" }, 409);
-      const compat = driveCompatibility(snap, deps.extraPlayers());
-      return json({
-        drive: {
-          id: drive.id,
-          name: drive.name,
-          nickname: drive.nickname,
-        },
-        measured: {
-          pdb_live_rows: snap?.pdb_live_rows ?? null,
-          onelibrary_rows: snap?.onelibrary_rows ?? null,
-        },
-        ...compat,
-      });
+      return playersRoute(id, driveOr404, deps.extraPlayers, json);
     }
     return null;
   }
