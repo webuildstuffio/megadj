@@ -14,13 +14,15 @@
  * #55) — never a hardcoded /Volumes/SHELF1 literal.
  */
 import { resolveShelfVolume } from "../shared/volume.js";
+import { nonEmptyEnv } from "../shared/leaf/guards.js";
 
 export function normalizeMount(mount: string): string {
   return mount.replace(/\/+$/u, "");
 }
 
 export function masterDbPath(mount?: string): string {
-  if (process.env.MEGADJ_RB_MASTER) return process.env.MEGADJ_RB_MASTER;
+  const envMaster = nonEmptyEnv("MEGADJ_RB_MASTER");
+  if (envMaster) return envMaster;
   if (mount && mount.endsWith(".db")) return mount;
   let base = mount
     ? mount.startsWith("/")

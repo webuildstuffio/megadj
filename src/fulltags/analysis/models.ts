@@ -22,16 +22,17 @@
  * Idempotency: TXXX:MOOD / TXXX:DANCE stamps (same pattern as ENERGY).
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { isFiniteNumberArray } from "../../shared/leaf/guards";
+import { isFiniteNumberArray, nonEmptyEnv } from "../../shared/leaf/guards";
 import { errMessage as errorText } from "../../shared/leaf/fmt";
 import { lineReader } from "../utils/stdio";
 
-// Fail fast on a missing HOME: `)?? ""` produced "/.local/share/…" which
-// failed much later with a confusing EACCES/ENOENT far from the cause.
-const HOME = process.env.HOME ?? process.env.HOMEDIR;
-if (!HOME)
+// Fail fast on a missing/empty HOME: `?? ""` (or `HOME=""`) produced
+// "/.local/share/…" which failed much later with a confusing EACCES/ENOENT
+// far from the cause. nonEmptyEnv treats present-but-empty as absent (#281).
+const HOME = nonEmptyEnv("HOME");
+if (HOME === undefined)
   throw new Error(
-    "fulltags mood: HOME is not set — cannot resolve the model directory (~/.local/share/fulltags-models). Export HOME and retry.",
+    "fulltags mood: HOME is unset or empty — cannot resolve the model directory (~/.local/share/fulltags-models). Export HOME and retry.",
   );
 const MODEL_DIR = `${HOME}/.local/share/fulltags-models`;
 const MODEL_BASE = "https://essentia.upf.edu/models";

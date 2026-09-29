@@ -28,6 +28,7 @@
  */
 import { join } from "node:path";
 import { mkdirSync, readdirSync } from "node:fs";
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 import type { IntakeCandidate } from "../shared/types";
 
 export interface IntakePhase {
@@ -160,8 +161,8 @@ export function megadjCliPath(root: string): string {
  *  ~/Downloads (the natural dump landing zone). Config comes in as a plain
  *  record — CrateConfig doesn't carry an intake section. */
 export function intakeWatchDir(cfg: { musicDir: string }): string {
-  const configured = process.env.MEGADJ_INTAKE_WATCH;
-  return configured || join(cfg.musicDir, "..", "Downloads");
+  const configured = nonEmptyEnv("MEGADJ_INTAKE_WATCH");
+  return configured ?? join(cfg.musicDir, "..", "Downloads");
 }
 
 /** The watch folder is the drop point ("there should be a watching

@@ -240,7 +240,7 @@ export function checkOpenrouter(): CheckResult {
 }
 
 export function checkCookies(): CheckResult {
-  const file = process.env.MEGADJ_COOKIES_FILE;
+  const file = nonEmptyEnv("MEGADJ_COOKIES_FILE");
   if (file) {
     const ok = existsSync(file);
     return {

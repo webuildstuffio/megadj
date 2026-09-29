@@ -214,8 +214,8 @@ export function loadConfig(root: string): CrateConfig {
     // dev shells and hermetic test envs keep working.
     uvPath: (() => {
       const candidates = [
-        process.env.MEGADJ_UV_BIN,
-        process.env.UV_BIN,
+        nonEmptyEnv("MEGADJ_UV_BIN"),
+        nonEmptyEnv("UV_BIN"),
         `${nonEmptyEnv("HOME") ?? "/usr/local"}/.local/bin/uv`,
       ].filter((p): p is string => typeof p === "string" && p.length > 0);
       for (const candidate of candidates) {

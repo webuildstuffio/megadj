@@ -22,6 +22,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { nonEmptyEnv } from "../shared/leaf/guards";
 import {
   DECK_SERVICE_LABEL,
   classifyDeckService,
@@ -56,7 +57,7 @@ function sh(cmd: string[], quiet = true): { code: number; out: string } {
  *  shell, so it needs the real executable). */
 function resolveBunPath(): string {
   const candidates = [
-    process.env.MEGADJ_DECK_BUN,
+    nonEmptyEnv("MEGADJ_DECK_BUN"),
     join(homedir(), ".bun", "bin", "bun"),
   ].filter((p): p is string => Boolean(p) && existsSync(p as string));
   const bun = candidates[0];
