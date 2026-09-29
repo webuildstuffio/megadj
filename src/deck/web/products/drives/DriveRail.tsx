@@ -144,6 +144,47 @@ export function DriveRail(props: {
   );
 }
 
+/** USB link speed label + class for the rail card. */
+function usbLinkInfo(bps: number): { label: string; cls: string; tip: string } {
+  if (bps >= 10_000_000_000)
+    return {
+      label: "USB 10G link",
+      cls: "",
+      tip: `Negotiated USB link: ${(bps / 1_000_000_000).toFixed(0)} Gbps — fast link, no bottleneck.`,
+    };
+  if (bps >= 5_000_000_000)
+    return {
+      label: "USB 3.0 link",
+      cls: "",
+      tip: "Negotiated USB link: 5 Gbps (USB 3.0). Good enough for playback and copies.",
+    };
+  const mbps =
+    bps >= 480_000_000 ? "480 Mbps" : `${(bps / 1_000_000).toFixed(0)} Mbps`;
+  return {
+    label: "USB 2.0 link — slow",
+    cls: " slow",
+    tip: `Negotiated USB link: ${mbps} — USB 2.0-class. Copies and playback cap around 35 MB/s; move to a USB 3.0 port or hub.`,
+  };
+}
+
+/** Plain-language second line for the rail card. */
+function railSub(d: DriveCardData): {
+  text: string;
+  free: number | null | undefined;
+  totalBytes: number;
+} {
+  const snap = d.snapshot_summary;
+  const totalBytes = snap?.capacity_bytes || d.capacity_bytes;
+  const free = snap?.live_free_bytes ?? snap?.free_bytes;
+  const cap = d.capacity_bytes ? fmtBytes(d.capacity_bytes) : null;
+  const text = d.mounted
+    ? free !== null && free !== undefined && totalBytes
+      ? `${fmtBytes(free)} free of ${fmtBytes(totalBytes)}`
+      : (cap ?? "—")
+    : `ghost · seen ${timeAgo(d.last_seen_at)}`;
+  return { text, free, totalBytes };
+}
+
 function RailCard(props: {
   drive: DriveCardData;
   report?: ReportSummary | undefined;
@@ -153,24 +194,10 @@ function RailCard(props: {
   const d = props.drive;
   const name = d.nickname ?? d.name;
   const snap = d.snapshot_summary;
-  const cap = d.capacity_bytes ? fmtBytes(d.capacity_bytes) : null;
   const { report } = props;
   const verdict = report?.overall ?? "unknown";
   const badges = rankBadges(d.badges, 3);
-
-  // plain-language second line. Mounted drives show free of total when both
-  // sides are known ("142.8 GB free of 1.9 TB") — LIVE free space first
-  // (server measures at payload build), snapshot truth as fallback. Total
-  // comes from the snapshot when it has one, else the Drive row's diskutil
-  // capacity (legacy snapshots often lack it). The track count keeps its
-  // own line so neither gets truncated into meaninglessness.
-  const totalBytes = snap?.capacity_bytes || d.capacity_bytes;
-  const free = snap?.live_free_bytes ?? snap?.free_bytes;
-  const sub = d.mounted
-    ? free !== null && free !== undefined && totalBytes
-      ? `${fmtBytes(free)} free of ${fmtBytes(totalBytes)}`
-      : (cap ?? "—")
-    : `ghost · seen ${timeAgo(d.last_seen_at)}`;
+  const { text: sub, free, totalBytes } = railSub(d);
 
   return (
     <button
@@ -251,22 +278,10 @@ function RailCard(props: {
           )}
           {d.mounted && d.link_bps !== null && d.link_bps !== undefined && (
             <div
-              class={`sub usblink${d.link_bps < 5_000_000_000 ? " slow" : ""}`}
-              title={
-                d.link_bps >= 10_000_000_000
-                  ? `Negotiated USB link: ${(d.link_bps / 1_000_000_000).toFixed(0)} Gbps — fast link, no bottleneck.`
-                  : d.link_bps >= 5_000_000_000
-                    ? "Negotiated USB link: 5 Gbps (USB 3.0). Good enough for playback and copies."
-                    : `Negotiated USB link: ${d.link_bps >= 480_000_000 ? "480 Mbps" : `${(d.link_bps / 1_000_000).toFixed(0)} Mbps`} — USB 2.0-class. Copies and playback cap around 35 MB/s; move to a USB 3.0 port or hub.`
-              }
+              class={`sub usblink${usbLinkInfo(d.link_bps).cls}`}
+              title={usbLinkInfo(d.link_bps).tip}
             >
-              {d.link_bps >= 10_000_000_000
-                ? "USB 10G"
-                : d.link_bps >= 5_000_000_000
-                  ? "USB 3.0"
-                  : "USB 2.0"}{" "}
-              link
-              {d.link_bps < 5_000_000_000 ? " — slow" : ""}
+              {usbLinkInfo(d.link_bps).label}
             </div>
           )}
         </div>
