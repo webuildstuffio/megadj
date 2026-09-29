@@ -130,14 +130,14 @@ one election seam (`stageGenreElection`) picks the winner:
 
 **Current state:**
 
-| Metric | Value |
-|---|---|
-| Tracks with genre | **4,674** / 6,682 (69.9%) |
-| Distinct genres | **106** |
-| Top 5 | EDM (864), House (838), Techno (589), Hip-Hop (483), Tech House (369) |
-| Genre refold | 28 aliases canonicalized (`EDM / Bass` → `Bass`, `Hip hop/rap` → `Hip-Hop`) |
-| MusicBrainz fill | 26 weak genres upgraded |
-| RB genre sync | 3,819/3,819 (**100%** of collection) |
+| Metric            | Value                                                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tracks with genre | **4,674** / 6,682 (69.9%)                                                                                                                                                         |
+| Distinct genres   | **106**                                                                                                                                                                           |
+| Top 5             | EDM (864), House (838), Techno (589), Hip-Hop (483), Tech House (369)                                                                                                             |
+| Genre refold      | 28 aliases canonicalized (`EDM / Bass` → `Bass`, `Hip hop/rap` → `Hip-Hop`)                                                                                                       |
+| MusicBrainz fill  | 26 weak genres upgraded                                                                                                                                                           |
+| RB genre sync     | 3,819/3,819 (**100%** of collection have a genre string — note: ~400 came from file tags or unknown provenance, not the vote ladder; v3 genre_evidence tracks provenance per row) |
 
 **Commands:** `megadj fetch --genres`, `megadj enrich`, `megadj genre --refold`
 
@@ -165,11 +165,11 @@ Runs via 4 parallel Python workers with PyAV audio decoding (no temp files).
 
 **Current state:**
 
-| Metric | Value |
-|---|---|
-| Tracks analyzed | **4,528** |
-| Failed (too short/corrupt) | 46 |
-| BPM distribution | Slow <100: 448 · Mid 100–119: 172 · Standard 120–129: **2,121** · Uptempo 130–139: **1,406** · Fast 140+: 381 |
+| Metric                     | Value                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Tracks analyzed            | **4,528**                                                                                                     |
+| Failed (too short/corrupt) | 46                                                                                                            |
+| BPM distribution           | Slow <100: 448 · Mid 100–119: 172 · Standard 120–129: **2,121** · Uptempo 130–139: **1,406** · Fast 140+: 381 |
 
 **Command:** `megadj beats --jobs 4 --max-seconds 0`
 
@@ -197,37 +197,36 @@ a 1280-dimensional effnet embedding vector for similarity matching:
 **Mood head thresholds:** A head fires when its score ≥ 0.5. The five heads
 are `Party`, `Dance`, `Electronic`, `Aggro`, `Happy`.
 
-**Arousal → Energy derivation:**
+**Energy 2.0 formula** (code: `pipeline-stages.ts`):
 
 ```
-  energy = round(1 + (arousal - 1) × (9 / 8), 1)
-  
-  arousal (1–9 ONNX)  →  energy (1–10 DJ scale)
-  ────────────────────────────────────────────────
-  arousal = 1.0       →  energy = 1.0  (chill)
-  arousal = 5.0       →  energy = 5.5  (medium)
-  arousal = 9.0       →  energy = 10.0 (peak)
+  rms       = energyFromLufs(measureRms(file))           # RMS → 1–10
+  arousal   = clamp((mood.arousal - 1) / 8, 0, 1)        # 1–9 → 0–1
+  energy    = round(0.5·rms + 0.3·dance·10 + 0.2·arousal·10, 1)
 ```
 
-**LUFS Energy (fallback):** When mood arousal is unavailable, energy is
-computed from ffmpeg RMS loudness:
+When the mood stamp is absent (no danceability/arousal), RMS-only:
 
 ```
-  rmsDb = ffmpeg astats RMS_level (dB)
-  clamped = clamp(rmsDb, -25, -8)
-  energy = round((1 + ((clamped + 25) / 17) × 9) × 10) / 10
+  rmsDb     = ffmpeg astats RMS_level (dB)
+  clamped   = clamp(rmsDb, -25, -8)
+  energy    = round((1 + ((clamped + 25) / 17) × 9) × 10) / 10
 ```
+
+Note: the earlier doc "arousal → energy linear mapping" was the pre-2.0
+formula. Energy 2.0 blends RMS loudness, model danceability, and model
+arousal — perceptual energy, not just loudness.
 
 **Current state:**
 
-| Metric | Value |
-|---|---|
-| Mood analyzed | **4,526** |
-| Energy computed | **4,645** (incl. 3,595 via LUFS) |
-| Embeddings | **3,819** (1280-d effnet vectors) |
-| Avg arousal | 4.92 |
-| Avg energy | 8.5 (range 1–10) |
-| Mood failures | 43 (short sampler presets) |
+| Metric          | Value                             |
+| --------------- | --------------------------------- |
+| Mood analyzed   | **4,526**                         |
+| Energy computed | **4,645** (incl. 3,595 via LUFS)  |
+| Embeddings      | **3,819** (1280-d effnet vectors) |
+| Avg arousal     | 4.92                              |
+| Avg energy      | 8.5 (range 1–10)                  |
+| Mood failures   | 43 (short sampler presets)        |
 
 **Command:** `megadj mood --jobs 4 --max-seconds 0 --embeddings`
 
@@ -260,11 +259,11 @@ Every 32-bar boundary also gets a `memory: true` flag for CDJ memory markers.
 
 **Current state:**
 
-| Metric | Value |
-|---|---|
-| Tracks with cues | **4,523** |
-| Avg cues/track | **30.0** |
-| Tracks with ≥8 cues | 4,292 (95%) |
+| Metric                | Value          |
+| --------------------- | -------------- |
+| Tracks with cues      | **4,523**      |
+| Avg cues/track        | **30.0**       |
+| Tracks with ≥8 cues   | 4,292 (95%)    |
 | Max cues in one track | 779 (long mix) |
 
 **Command:** `megadj cues`
@@ -289,12 +288,15 @@ to accept the prediction.
   │  Ship gate: gated agreement ≥ 65%                │
   │                                                  │
   │  ┌────────────────────────────────────┐          │
-  │  │ Current measurement:               │          │
-  │  │   Evaluated:   3,352               │          │
-  │  │   Agreement:   57.4%  (▼ gate)     │          │
-  │  │   Refusal:     28.3%               │          │
-  │  │   Ungated:     51.0%               │          │
-  │  │   Status:      BELOW GATE          │          │
+  │  │ Current measurement (2026-09-20): │          │
+  │  │   Evaluated:   3,192               │          │
+  │  │   Baseline:    57.0%  (▼ gate)     │          │
+  │  │   Arbitration: 66.6%  (✓ gate)     │          │
+  │  │   Refusal:     27.9%               │          │
+  │  │   Arbitration Δ: +9.7 pts          │          │
+  │  │   Ship gate:   ≥65% on arbitration │          │
+  │  │   Status:      PASS (arbitration)  │          │
+  │  │                FAIL (baseline)     │          │
   │  └────────────────────────────────────┘          │
   │                                                  │
   │  Bottleneck: label ceiling (~60–76%              │
@@ -449,12 +451,12 @@ cannot extract a single value:
 
 ## Source Provenance
 
-| Source | Tracks | Genre | Energy | Notes |
-|---|---|---|---|---|
-| Rekordbox Adopt | 3,607 | 3,406 (94%) | 3,512 (97%) | SHELF1 mirror, primary collection |
-| YouTube Liked | 2,026 | 402 (20%) | 266 (13%) | Mostly metadata-only (not downloaded) |
-| External Ingest | 825 | 759 (92%) | 780 (95%) | Local drops, SC downloads |
-| SoundCloud | 204 | 99 (49%) | 87 (43%) | Link-first acquisition |
+| Source          | Tracks | Genre       | Energy      | Notes                                 |
+| --------------- | ------ | ----------- | ----------- | ------------------------------------- |
+| Rekordbox Adopt | 3,607  | 3,406 (94%) | 3,512 (97%) | SHELF1 mirror, primary collection     |
+| YouTube Liked   | 2,026  | 402 (20%)   | 266 (13%)   | Mostly metadata-only (not downloaded) |
+| External Ingest | 825    | 759 (92%)   | 780 (95%)   | Local drops, SC downloads             |
+| SoundCloud      | 204    | 99 (49%)    | 87 (43%)    | Link-first acquisition                |
 
 ---
 
@@ -540,14 +542,14 @@ bun run check:full                   # code quality gate (tsc + oxlint + ruff + 
 
 ### Quality Gates
 
-| Gate | Command | Status |
-|---|---|---|
-| TypeScript | `tsc --noEmit` | ✅ Green |
-| Lint | `oxlint` + `ruff` + `mypy` | ✅ Green |
-| Tests | `bun test` (2,169 pass) | ✅ Green |
-| Format | `prettier --check` | ✅ Green |
-| Type coverage | `typecov` (100%) | ✅ Green |
-| Genre kNN | `regate genre` (≥65%) | ❌ 57.4% (below gate) |
+| Gate          | Command                           | Status                                             |
+| ------------- | --------------------------------- | -------------------------------------------------- |
+| TypeScript    | `tsc --noEmit`                    | ✅ Green                                           |
+| Lint          | `oxlint` + `ruff` + `mypy`        | ✅ Green                                           |
+| Tests         | `bun test` (2,169 pass)           | ✅ Green                                           |
+| Format        | `prettier --check`                | ✅ Green                                           |
+| Type coverage | `typecov` (100%)                  | ✅ Green                                           |
+| Genre kNN     | `regate genre` (≥65% arbitration) | ✅ 66.6% arbitration (baseline 57.0%) — 2026-09-20 |
 
 ---
 
@@ -584,16 +586,20 @@ computing effnet embeddings per 8-bar cue segment instead of per full track:
   └───────────────────────────────────────────┘
 ```
 
-**Prerequisites (all ✅):**
-- Phrase cues in DB (4,523 tracks, avg 30 cues/track)
-- Effnet model running (mood pipeline)
-- Audio slicing capability (PyAV decoder exists)
+**Prerequisites:**
 
-**What would need building:**
-1. Audio slicer using cue positions
-2. Per-segment effnet inference
-3. Segment embedding storage (new DB table)
-4. Segment-level genre voting + aggregation
+- ✅ Phrase cues in DB (4,523 tracks, avg ~22 phrase cues/track)
+- ✅ Effnet model running (mood pipeline)
+- ✅ Audio slicing capability (PyAV decoder exists)
+- ❌ Ledger stores whole-track time-mean vectors only (#113 — REJECTED
+  the "no re-analysis" claim; per-bar store WS2 is the fix, ~45 min rerun)
+
+**What would need building (→ WS2 in v3 plan):**
+
+1. `bar_features` table + per-bar writer (B2.1)
+2. Per-patch Essentia heads → per-bar curves (B2.2)
+3. Library rerun: megadj analyze --bars (B2.3, planned)
+4. PCA basis versioning (B2.4)
 5. Section-aware similarity search
 
 This is documented in the [master architecture v2](../megaset/11-master-architecture-v2.md)
@@ -604,15 +610,15 @@ label ceiling.
 
 ## Session Work Log (Sep 28–29, 2026)
 
-| Step | Result |
-|---|---|
-| Energy via LUFS (ffmpeg) | 3,595 tracks computed |
-| Beats via beat_this | 90 newly analyzed (4,528 total) |
-| Phrase cues | 91 new (4,523 total) |
-| MusicBrainz enrich | 26 genres upgraded |
-| Genre refold | 28 aliases canonicalized |
-| Embeddings sync | 3,819 confirmed |
-| Comment-sync | 33 partials → full, 11 genres synced |
-| RB cues | All current |
-| Ruff fix | `cb618aa9` pushed |
-| `check:full` | ✅ 2,169 pass, 0 fail |
+| Step                     | Result                               |
+| ------------------------ | ------------------------------------ |
+| Energy via LUFS (ffmpeg) | 3,595 tracks computed                |
+| Beats via beat_this      | 90 newly analyzed (4,528 total)      |
+| Phrase cues              | 91 new (4,523 total)                 |
+| MusicBrainz enrich       | 26 genres upgraded                   |
+| Genre refold             | 28 aliases canonicalized             |
+| Embeddings sync          | 3,819 confirmed                      |
+| Comment-sync             | 33 partials → full, 11 genres synced |
+| RB cues                  | All current                          |
+| Ruff fix                 | `cb618aa9` pushed                    |
+| `check:full`             | ✅ 2,169 pass, 0 fail                |

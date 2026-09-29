@@ -518,9 +518,10 @@ idempotent, ledgered via `megadj mood`. **Load-bearing findings kept:**
 (1) the heads' positive class is FIRST in softmax for every head except
 `mood_party` — the first pass shipped INVERTED and was caught only
 because saturated-constant output is never believable (regression test
-pins the order); (2) the effnet GENRE head has no ONNX export and was
-saturated on this library anyway — genre writes stay BLOCKED, deferred
-indefinitely (rev 6.2 addendum); (3) CrateDeck's readonly mood surface
+pins the order); (2) the effnet Discogs-400 genre head runs on cached
+embeddings (46.1% top-1, ~77% top-5 on library, ~1 ms/track — measured
+2026-09-14 in taxonomy doc §2) — the earlier "no ONNX export" claim was
+stale; genre writes stay BLOCKED pending the v3 estimator (B5.2); (3) CrateDeck's readonly mood surface
 (`archive_mood_profile` + `/api/archive/mood`) shipped 6.2. Full probe
 log: Git history (rev 6.1–6.2).
 
@@ -841,7 +842,7 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 | Adopt (#3)  | OpenKeyScan analyzer (repo mode)                         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
 | Fallback    | essentia `Key` / keyfinder-cli                           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
 | Adopt (#4)  | Essentia ONNX heads + onnxruntime                        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/sources/mb-lookup.ts + enrich fold (rev 6.1)                                                                               |
+| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/sources/mb-lookup.ts + enrich fold (rev 6.1)                                                                        |
 | Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `src/fulltags/sources/beatport.ts` (rev 6.4)                   |
 | Verified    | Dubspot 200-track test                                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
 | Verified    | rekordbox tag matrix                                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
