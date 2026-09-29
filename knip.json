@@ -41,7 +41,9 @@
         "src/fulltags/analysis/set-arc.ts",
         "src/fulltags/analysis/pca-version.ts",
         "src/fulltags/booth/write-plan.ts",
-        "src/fulltags/sources/lastfm.ts"
+        "src/fulltags/sources/lastfm.ts",
+        "src/fulltags/analysis/phrase-search.ts",
+        "src/fulltags/booth/cue-writer-v2.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
