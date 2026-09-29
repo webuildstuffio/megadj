@@ -52,7 +52,13 @@
         "src/fulltags/analysis/bpm-regate.ts",
         "src/fulltags/bench/bpm-source-audit.ts",
         "src/fulltags/bench/baseline-freeze.ts",
-        "src/fulltags/analysis/bar-curves.ts"
+        "src/fulltags/analysis/bar-curves.ts",
+        "src/fulltags/bench/omar-rq.ts",
+        "src/fulltags/bench/maest-genre.ts",
+        "src/fulltags/bench/discogs-400.ts",
+        "src/fulltags/bench/edmformer.ts",
+        "src/fulltags/bench/ak4-silver.ts",
+        "src/fulltags/analysis/bar-rerun.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
