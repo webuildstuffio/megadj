@@ -1,27 +1,28 @@
-# Qodo AI Code Suggestions v3.1.1
+# Qodo AI Code Suggestions v3.2
 # Inline code suggestions only — the highest-value, lowest-noise output.
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
-# and per-repo .pr_agent.toml (overrides). This workflow is
-# intentionally minimal.
+# and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
-# Model: qwen/qwen3-235b-a22b:free — proven to produce valid pr-agent YAML.
-# openrouter/free as primary is BROKEN: it routes to models that emit
-# malformed YAML which pr-agent discards silently (100% no-review rate,
-# proven on folio-app PR #2579). Fallback chain provides resilience.
+# Model: google/gemma-4-31b-it:free primary — high structured-output quality.
+# Long `:free` fallback chain for zero-maintenance resilience: when any model
+# retires, pr-agent auto-falls to the next. openrouter/free as last resort
+# (random routing; may produce malformed YAML that pr-agent silently discards).
+# DO NOT revert to openrouter/free as primary — proven broken with pr-agent
+# (silent 100% no-review rate, confirmed Sep 29 2026 on shell-config #492,
+# folio-app #2585). DO NOT pin a single model without fallbacks — that rots.
 # NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
 # GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
 # all global tuning (temperature, score threshold, focus instructions).
 # /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
-# v3.1.1: (Sep 29 2026) Re-pin qwen3-235b + fallback chain (#345).
-#          openrouter/free proven broken — silent no-reviews fleet-wide.
-# v3.1.0: (Sep 28 2026) REVERTED — openrouter/free silent no-op.
+# v3.2.0: (Sep 29 2026) Fix openrouter/free silent failure — gemma-4-31b
+#          primary + 7-model :free fallback chain. openrouter/free demoted to
+#          last-resort (proven broken: silent no-review on every PR).
+# v3.1.0: (Sep 28 2026) REVERTED — openrouter/free as sole primary silently
+#          failed to generate suggestions on any PR.
 # v3.0.1: (Sep 28 2026) Pinned qwen3.8-27b:free + fallback chain.
 # v3.0.0: (Sep 26 2026) Simplified to single /improve job.
-# v2.29.1: Use ${#var} instead of echo|wc -c (SC2000)
-# v2.29.0: Dependabot skip + cache fix
-# v2.28.0: Strict mode + v0.46 new features
 
 name: Qodo AI Code Suggestions
 
@@ -65,7 +66,7 @@ jobs:
       issues: write
       pull-requests: write
       contents: read
-    name: Code Suggestions (qwen3-235b)
+    name: Code Suggestions (free models)
     steps:
       - name: Docker Cache
         uses: actions/cache@v4
@@ -96,17 +97,20 @@ jobs:
         env:
           OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
           OPENROUTER__API_BASE: >-
-            https://gateway.ai.cloudflare.com/v1/${{
-              secrets.CLOUDFLARE_ACCOUNT_ID
-            }}/${{
+            https://gateway.ai.cloudflare.com/v1/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{
               secrets.QODO_CLOUDFLARE_GATEWAY_NAME
             }}/openrouter/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          config.model: "openrouter/qwen/qwen3-235b-a22b:free"
+          config.model: "openrouter/google/gemma-4-31b-it:free"
           config.fallback_models: >-
-            ["openrouter/qwen/qwen3-30b-a3b:free",
-             "openrouter/google/gemma-3-27b-it:free",
-             "openrouter/mistralai/mistral-small-3.2-24b-instruct:free"]
+            ["openrouter/qwen/qwen3.8-27b:free",
+            "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+            "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+            "openrouter/cohere/north-mini-code:free",
+            "openrouter/inclusionai/ling-3.0-flash-sante:free",
+            "openrouter/nvidia/nemotron-3.5-lightning:free",
+            "openrouter/poolside/laguna-s-2.1:free",
+            "openrouter/free"]
           CONFIG__CUSTOM_MODEL_MAX_TOKENS: "131072"
           github_action_config.auto_improve: "true"
           github_action_config.auto_review: "false"
