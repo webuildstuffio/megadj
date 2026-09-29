@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { FLEET_PROFILES, DEFAULT_FLEET } from "../fulltags/booth/fleet";
 import { isUnknownArray, nonEmptyEnv } from "../shared/leaf/guards";
 import { resolveServerPort } from "./server/server-port";
+import { DB_PATH as CLI_DB_PATH, MUSIC_DIR as CLI_MUSIC_DIR } from "../cli-env";
 
 export type ImageProvider = "brave" | "exa";
 
@@ -203,11 +204,8 @@ export function loadConfig(root: string): CrateConfig {
       typeof automation.verify_interval_days === "number"
         ? automation.verify_interval_days
         : 7,
-    archiveDbPath:
-      nonEmptyEnv("MEGADJ_DB") ??
-      `${process.env.HOME}/.local/state/megadj/archive.db`,
-    musicDir:
-      nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${process.env.HOME}/Music/DJ-Imports`,
+    archiveDbPath: nonEmptyEnv("MEGADJ_DB") ?? CLI_DB_PATH,
+    musicDir: nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? CLI_MUSIC_DIR,
     // The uv binary for every pyrekordbox spawn (rb.ts, spawnVerify,
     // spawnMirror). The launchd deck server's PATH lacks ~/.local/bin, so
     // a bare "uv" 404s unattended (live: auto-verify job 6b37500c failed
@@ -218,7 +216,7 @@ export function loadConfig(root: string): CrateConfig {
       const candidates = [
         process.env.MEGADJ_UV_BIN,
         process.env.UV_BIN,
-        `${process.env.HOME}/.local/bin/uv`,
+        `${nonEmptyEnv("HOME") ?? "/usr/local"}/.local/bin/uv`,
       ].filter((p): p is string => typeof p === "string" && p.length > 0);
       for (const candidate of candidates) {
         if (existsSync(candidate)) return candidate;

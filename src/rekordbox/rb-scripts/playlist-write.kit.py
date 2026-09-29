@@ -70,4 +70,13 @@ for cid in content_ids:
         out["errors"].append(f"link {cid}: {repr(e)[:120]}")
 
 print(json.dumps(out))
-db.close()
+# Checkpoint WAL before closing — leftover WAL crashes RB on open.
+try:
+    from sqlalchemy import text
+
+    with db.engine.connect() as conn:
+        conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+except Exception:
+    pass
+finally:
+    db.close()

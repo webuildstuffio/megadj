@@ -269,7 +269,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
 
   const { ImageClient } = (await import(
     nonEmptyEnv("IMAGE_MAKER_CLIENT") ??
-      `${process.env.HOME}/github/image-maker-cli/dist/client.js`
+      `${nonEmptyEnv("HOME") ?? "/tmp"}/github/image-maker-cli/dist/client.js`
   )) as {
     ImageClient: new (apiKey: string) => {
       generate: (req: {

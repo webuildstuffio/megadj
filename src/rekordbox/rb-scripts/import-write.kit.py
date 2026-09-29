@@ -85,9 +85,9 @@ for f in files:
                 ".wav": 11,
                 ".aiff": 12,
                 ".aif": 12,
-                ".flac": 14,
-                ".m4a": 5,
-                ".aac": 5,
+                ".flac": 5,
+                ".m4a": 4,
+                ".aac": 4,
             }.get(ext, 0)
             clip = fname if len(fname) <= 60 else fname[:57] + "..."
             art_id = None
@@ -172,4 +172,13 @@ for f in files:
         out["errors"].append([os.path.basename(full)[:60], repr(e)[:140]])
 
 print(json.dumps(out))
-db.close()
+# Checkpoint WAL before closing — leftover WAL crashes RB on open.
+try:
+    from sqlalchemy import text
+
+    with db.engine.connect() as conn:
+        conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+except Exception:
+    pass
+finally:
+    db.close()

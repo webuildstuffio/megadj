@@ -33,6 +33,7 @@ import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
 import { nonEmptyEnv } from "../shared/leaf/guards";
 import { writeJson, setExit } from "../shared/cli-output";
+import { DB_PATH } from "../cli-env";
 import { walkAudioDir } from "../shared/audio-walk";
 
 /** Parse fpcalc stdout into a fingerprint — re-exported from the FullTags
@@ -78,8 +79,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     jobs = 8,
     json = false,
     log = (s) => console.log(s),
-    dbPath = nonEmptyEnv("MEGADJ_DB") ??
-      `${process.env.HOME}/.local/state/megadj/archive.db`,
+    dbPath = nonEmptyEnv("MEGADJ_DB") ?? DB_PATH,
     quarantine = false,
     yes = false,
     onlyIdentical = false,

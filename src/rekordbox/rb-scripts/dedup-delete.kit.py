@@ -82,7 +82,16 @@ def main() -> None:
         except Exception as error:
             db.session.rollback()
             out["errors"].append([str(cid), repr(error)[:120]])
-    db.close()
+    # Checkpoint WAL before closing — leftover WAL crashes RB on open.
+    try:
+        from sqlalchemy import text
+
+        with db.engine.connect() as conn:
+            conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+    except Exception:
+        pass
+    finally:
+        db.close()
     print(json.dumps(out))
 
 

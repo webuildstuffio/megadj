@@ -16,6 +16,7 @@ import type { Finding } from "../core/hygiene/types";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
 import { md5Cli } from "./md5-cli";
+import { DB_PATH } from "../cli-env";
 
 export interface ShelfRestoreOptions {
   input: string;
@@ -182,8 +183,7 @@ export async function shelfRestoreAll(
 }> {
   const restored: ShelfRestoreResult[] = [];
   const failed: { findingId: string | null; error: string }[] = [];
-  const dbPath =
-    opts.dbPath ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
+  const dbPath = opts.dbPath ?? DB_PATH;
   const store = new HygieneStore(openLedger(dbPath));
   for (const f of store.list({ status: "applied" })) {
     const r = await restoreOne({ ...opts, input: f.id }, true);
@@ -207,8 +207,7 @@ async function restoreOne(
   quiet: boolean,
 ): Promise<ShelfRestoreResult> {
   const shelfVolume = resolveShelfVolume(opts.shelfVolume);
-  const dbPath =
-    opts.dbPath ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
+  const dbPath = opts.dbPath ?? DB_PATH;
   const log = opts.log ?? ((message: string) => console.error(message));
   const result = async (
     value: ShelfRestoreResult,

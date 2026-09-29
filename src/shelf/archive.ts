@@ -43,16 +43,9 @@ import type { ShelfSweeps } from "../core/sweeps";
 import { ShelfIndex } from "./index-files";
 import { sweepVolume, type DriveResult } from "./archive-file";
 import { resolveShelfVolume } from "../shared/volume";
-import { nonEmptyEnv } from "../shared/leaf/guards";
 import { writeJson, setExit } from "../shared/cli-output";
 import { errMessage as errorText } from "../shared/leaf/fmt";
-
-/** The archive DB (sweep ledger host). Env-overridable like cli.ts — via
- * nonEmptyEnv so `MEGADJ_DB=""` falls back to default instead of resolving
- * relative (#281 class). */
-const DB_PATH =
-  nonEmptyEnv("MEGADJ_DB") ??
-  `${process.env.HOME}/.local/state/megadj/archive.db`;
+import { DB_PATH } from "../cli-env";
 
 export interface ShelfArchiveOptions {
   /** Drive mount roots to archive FROM, e.g. /Volumes/BANGERS. */

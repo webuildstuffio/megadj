@@ -9,11 +9,7 @@ import { Database } from "bun:sqlite";
 import { mbRecording } from "../src/fulltags/sources/mb-lookup";
 import { beatportLookup } from "../src/fulltags/sources/beatport";
 
-import { nonEmptyEnv } from "../src/shared/leaf/guards";
-
-const DB_PATH =
-  nonEmptyEnv("MEGADJ_DB") ??
-  `${process.env.HOME}/.local/state/megadj/archive.db`;
+import { DB_PATH } from "../src/cli-env";
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");

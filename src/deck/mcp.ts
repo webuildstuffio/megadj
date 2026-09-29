@@ -57,6 +57,7 @@
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
 import { nonEmptyEnv } from "../shared/leaf/guards";
+import { DB_PATH } from "../cli-env";
 import { archiveTools } from "./report/tools";
 import { deriveDeckTools, type DeckMcpVerb } from "./mcp/surfaces";
 import { ensureServer } from "./deckapi";
@@ -87,10 +88,7 @@ const TOOLS: Record<string, ToolDef> = {
   // server's readers use — MEGADJ_DB / the state default).
   ...getdatTools({
     dumpCensus: () =>
-      new DumpReader(
-        nonEmptyEnv("MEGADJ_DB") ??
-          `${process.env.HOME}/.local/state/megadj/archive.db`,
-      ).census(),
+      new DumpReader(nonEmptyEnv("MEGADJ_DB") ?? DB_PATH).census(),
   }),
 
   // ---- O82b: the archive half (megadj's own DB, readonly) -------------------

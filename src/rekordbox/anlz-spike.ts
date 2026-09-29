@@ -127,7 +127,7 @@ function baselinePath(mount: string, tag: string, spikeDir?: string): string {
   const root =
     spikeDir ??
     nonEmptyEnv("MEGADJ_SPIKE_DIR") ??
-    join(process.env.HOME ?? "/tmp", ".local", "state", "megadj", "spike");
+    join(nonEmptyEnv("HOME") ?? "/tmp", ".local", "state", "megadj", "spike");
   mkdirSync(root, { recursive: true });
   return join(
     root,

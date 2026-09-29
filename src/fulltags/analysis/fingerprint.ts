@@ -38,7 +38,7 @@ export function parseFpcalcJson(raw: string): {
 export function keyscanDir(): string {
   return (
     nonEmptyEnv("FULLTAGS_KEYSCAN_DIR") ??
-    `${process.env.HOME}/.local/share/openkeyscan-analyzer`
+    `${nonEmptyEnv("HOME") ?? "/tmp"}/.local/share/openkeyscan-analyzer`
   );
 }
 

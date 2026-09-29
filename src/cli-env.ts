@@ -9,10 +9,13 @@
 // an override.
 import { nonEmptyEnv } from "./shared/leaf/guards";
 
+const home = nonEmptyEnv("HOME");
+if (home === undefined)
+  throw new Error("HOME is unset or empty — cannot resolve default paths");
+
 export const MUSIC_DIR =
-  nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${process.env.HOME}/Music/DJ-Imports`;
+  nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${home}/Music/DJ-Imports`;
 export const DB_PATH =
-  nonEmptyEnv("MEGADJ_DB") ??
-  `${process.env.HOME}/.local/state/megadj/archive.db`;
+  nonEmptyEnv("MEGADJ_DB") ?? `${home}/.local/state/megadj/archive.db`;
 export const COOKIES = nonEmptyEnv("MEGADJ_COOKIES") ?? "chrome";
 export const COOKIES_FILE = nonEmptyEnv("MEGADJ_COOKIES_FILE") ?? null;

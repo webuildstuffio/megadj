@@ -18,7 +18,7 @@ import { nonEmptyEnv } from "../src/shared/leaf/guards";
 const DIR =
   process.argv[2] ??
   nonEmptyEnv("MEGADJ_MUSIC_DIR") ??
-  `${process.env.HOME}/Music/DJ-Imports`;
+  `${nonEmptyEnv("HOME") ?? "/tmp"}/Music/DJ-Imports`;
 
 async function walkCollect(dir: string, out: string[] = []): Promise<string[]> {
   let entries: Dirent[];

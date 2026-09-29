@@ -30,11 +30,7 @@ import {
   type GenreVote,
 } from "../src/fulltags/genre/genre-vote";
 import { splitArtistFromTitle } from "../src/fulltags/write/metadata-build";
-import { nonEmptyEnv } from "../src/shared/leaf/guards";
-
-const DB_PATH =
-  nonEmptyEnv("MEGADJ_DB") ??
-  `${process.env.HOME}/.local/state/megadj/archive.db`;
+import { DB_PATH } from "../src/cli-env";
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
