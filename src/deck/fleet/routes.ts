@@ -73,6 +73,8 @@ export function makeFleetRoutes(deps: {
           snapshotAt,
           archiveAvailable: false,
           inventoryAvailable,
+          mounted: Boolean(d.mounted),
+          role: d.role ?? null,
         });
         continue;
       }
@@ -104,6 +106,8 @@ export function makeFleetRoutes(deps: {
           snapshotAt,
           archiveAvailable: true,
           inventoryAvailable: false,
+          mounted: Boolean(d.mounted),
+          role: d.role ?? null,
         });
         continue;
       }
@@ -112,6 +116,8 @@ export function makeFleetRoutes(deps: {
         snapshotAt,
         archiveAvailable: true,
         inventoryAvailable: true,
+        mounted: Boolean(d.mounted),
+        role: d.role ?? null,
       });
     }
     const archiveTracks = rows?.length ?? 0;

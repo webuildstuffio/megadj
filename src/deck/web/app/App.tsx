@@ -251,7 +251,7 @@ export function App() {
           style={{ flex: 1, minWidth: 0, display: "flex" }}
         >
           {route.product === "fleet" ? (
-            <FleetPage key="fleet" tab={route.tab} />
+            <FleetPage key="fleet" tab={route.tab} interlock={interlock} />
           ) : route.product === "getdat" ? (
             <GetDatPage key="getdat" tab={route.tab} />
           ) : route.product === "megaset" ? (

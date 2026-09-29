@@ -38,6 +38,11 @@ export interface RadarResult {
    *  inventory — the delta reads "unknown", never a fake full-missing
    *  count). true = the delta was computed over a real inventory. */
   inventoryAvailable: boolean;
+  /** Drive is physically plugged in right now (#300: gate the sync button). */
+  mounted: boolean;
+  /** Drive role: "master" | "mirror" | "shelf" | null — only mirrors can
+   *  be synced from the radar (the master IS the source). */
+  role: string | null;
 }
 
 /** Fleet-wide radar: one row per known drive + the overall census. */

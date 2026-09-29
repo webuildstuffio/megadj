@@ -70,6 +70,8 @@ function driveResult(
       snapshotAt,
       archiveAvailable: false,
       inventoryAvailable: true,
+      mounted: true,
+      role: null,
     };
   }
   const archive: (RadarSource & {
@@ -92,6 +94,8 @@ function driveResult(
     snapshotAt,
     archiveAvailable: true,
     inventoryAvailable: true,
+    mounted: true,
+    role: null,
   };
 }
 

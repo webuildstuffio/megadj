@@ -6,6 +6,7 @@
 // fleet-tabs.tsx; this file is the routing shell — tab nav switches on
 // the SAME PRODUCT_TABS rows the header nav renders, so a tab can't
 // exist on one surface only.
+import type { InterlockState } from "../../../shared/types";
 import { PreflightTab } from "./PreflightTab";
 import { BoothSettings } from "./BoothSettings";
 import { PrepTab } from "./PrepTab";
@@ -20,7 +21,7 @@ import { PRODUCT_TABS, ProductIntro } from "../shared";
 // rows, so a tab can't exist on one surface only.
 const TABS = PRODUCT_TABS.fleet;
 
-export function FleetPage(props: { tab: string }) {
+export function FleetPage(props: { tab: string; interlock: InterlockState }) {
   const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0]!.id;
 
   return (
@@ -31,7 +32,7 @@ export function FleetPage(props: { tab: string }) {
       />
       {tab === "coverage" && <CoverageTab />}
       {tab === "redundancy" && <RedundancyTab />}
-      {tab === "radar" && <RadarTab />}
+      {tab === "radar" && <RadarTab interlock={props.interlock} />}
       {tab === "diff" && <DiffTab />}
       {tab === "preflight" && <PreflightTab />}
       {tab === "booth" && <BoothSettings />}

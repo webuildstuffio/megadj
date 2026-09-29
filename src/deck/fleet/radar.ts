@@ -39,12 +39,12 @@ export function archivePathKey(file_path: string | null): string | null {
   return folded === "" ? null : folded;
 }
 
-/** The radar engine's answer — freshness fields (snapshotAt /
- *  archiveAvailable / inventoryAvailable) attach at the route layer, so
- *  the pure core returns the shared RadarResult minus those three. */
+/** The radar engine's answer — presentation/state fields attach at the
+ *  route layer, so the pure core returns the shared RadarResult minus
+ *  those. */
 export type RadarCore = Omit<
   RadarResult,
-  "snapshotAt" | "archiveAvailable" | "inventoryAvailable"
+  "snapshotAt" | "archiveAvailable" | "inventoryAvailable" | "mounted" | "role"
 >;
 
 /**
