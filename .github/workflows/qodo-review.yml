@@ -1,22 +1,22 @@
-# Qodo AI Code Suggestions v3.1
+# Qodo AI Code Suggestions v3.1.1
 # Inline code suggestions only — the highest-value, lowest-noise output.
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
-# and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
+# and per-repo .pr_agent.toml (overrides). This workflow is
+# intentionally minimal.
 #
-# Model: openrouter/free — the Free Models Router auto-selects from all
-# available free models on OpenRouter. Zero maintenance, no model pinning,
-# no API key rot. The router filters for capability support (tool calling,
-# structured outputs) before random selection.
+# Model: qwen/qwen3-235b-a22b:free — proven to produce valid pr-agent YAML.
+# openrouter/free as primary is BROKEN: it routes to models that emit
+# malformed YAML which pr-agent discards silently (100% no-review rate,
+# proven on folio-app PR #2579). Fallback chain provides resilience.
 # NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
 # GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
 # all global tuning (temperature, score threshold, focus instructions).
 # /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
-# v3.1.0: (Sep 28 2026) Switch to openrouter/free router as primary model.
-#          No specific model pinning — the router auto-rotates through all
-#          available free models. Zero maintenance, immune to model retirement.
-#          Removed per-model fallback chain (the router IS the fallback).
+# v3.1.1: (Sep 29 2026) Re-pin qwen3-235b + fallback chain (#345).
+#          openrouter/free proven broken — silent no-reviews fleet-wide.
+# v3.1.0: (Sep 28 2026) REVERTED — openrouter/free silent no-op.
 # v3.0.1: (Sep 28 2026) Pinned qwen3.8-27b:free + fallback chain.
 # v3.0.0: (Sep 26 2026) Simplified to single /improve job.
 # v2.29.1: Use ${#var} instead of echo|wc -c (SC2000)
@@ -65,7 +65,7 @@ jobs:
       issues: write
       pull-requests: write
       contents: read
-    name: Code Suggestions (openrouter/free)
+    name: Code Suggestions (qwen3-235b)
     steps:
       - name: Docker Cache
         uses: actions/cache@v4
@@ -96,11 +96,17 @@ jobs:
         env:
           OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
           OPENROUTER__API_BASE: >-
-            https://gateway.ai.cloudflare.com/v1/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{
+            https://gateway.ai.cloudflare.com/v1/${{
+              secrets.CLOUDFLARE_ACCOUNT_ID
+            }}/${{
               secrets.QODO_CLOUDFLARE_GATEWAY_NAME
             }}/openrouter/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          config.model: "openrouter/free"
+          config.model: "openrouter/qwen/qwen3-235b-a22b:free"
+          config.fallback_models: >-
+            ["openrouter/qwen/qwen3-30b-a3b:free",
+             "openrouter/google/gemma-3-27b-it:free",
+             "openrouter/mistralai/mistral-small-3.2-24b-instruct:free"]
           CONFIG__CUSTOM_MODEL_MAX_TOKENS: "131072"
           github_action_config.auto_improve: "true"
           github_action_config.auto_review: "false"
