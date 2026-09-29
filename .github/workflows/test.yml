@@ -1,0 +1,38 @@
+# CI test gate — runs bun check on every push to main.
+# Solo-dev-friendly: fails loudly after the fact (post-push),
+# same pattern as metrics-gate. No PR blocking.
+#
+# The pre-push hook runs the full test suite locally; this is
+# the server-side verification that nothing slipped through.
+name: test
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubicloud-standard-2
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type-check + lint + format + build
+        run: bun run check
+
+      - name: Tests
+        run: bun test
