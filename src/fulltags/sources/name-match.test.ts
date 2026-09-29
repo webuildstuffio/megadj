@@ -9,6 +9,7 @@ import {
   ARTIST_MIN_LEN,
   artistGate,
   artistGateFails,
+  classifyEvidenceScope,
   hasTitleTokenOverlap,
   nameTokens,
   primaryArtist,
@@ -97,5 +98,64 @@ describe("name-match: hasTitleTokenOverlap", () => {
     expect(hasTitleTokenOverlap("Astral Projection", "Neon Heights")).toBe(
       false,
     );
+  });
+});
+
+describe("name-match: classifyEvidenceScope (B3.3)", () => {
+  test("exact_recording for same title+version+artist", () => {
+    const result = classifyEvidenceScope(
+      "Track One (Original Mix)",
+      "Artist A",
+      "Track One (Original Mix)",
+      ["Artist A"],
+    );
+    expect(result).not.toBeNull();
+    expect(result!.scope).toBe("exact_recording");
+    expect(result!.versionMatch).toBe("exact");
+  });
+
+  test("same_song_other_version for remix of same song", () => {
+    const result = classifyEvidenceScope(
+      "Track One (DJ X Remix)",
+      "Artist A",
+      "Track One (Original Mix)",
+      ["Artist A"],
+    );
+    expect(result).not.toBeNull();
+    expect(result!.scope).toBe("same_song_other_version");
+    expect(result!.versionMatch).toBe("sibling");
+  });
+
+  test("null for different artist failing the gate", () => {
+    const result = classifyEvidenceScope("Track One", "Artist A", "Track One", [
+      "Completely Different",
+    ]);
+    expect(result).toBeNull();
+  });
+
+  test("null for completely different title", () => {
+    const result = classifyEvidenceScope(
+      "Song Alpha",
+      "Artist A",
+      "Song Beta",
+      ["Artist A"],
+    );
+    expect(result).toBeNull();
+  });
+
+  test("exact for plain titles with matching artist", () => {
+    const result = classifyEvidenceScope("Midnight", "Sasha", "Midnight", [
+      "Sasha",
+    ]);
+    expect(result).not.toBeNull();
+    expect(result!.scope).toBe("exact_recording");
+  });
+
+  test("works when query artist is short (< ARTIST_MIN_LEN)", () => {
+    const result = classifyEvidenceScope("Track One", "DJ", "Track One", [
+      "DJ Something",
+    ]);
+    expect(result).not.toBeNull();
+    expect(result!.scope).toBe("exact_recording");
   });
 });

@@ -99,6 +99,46 @@ export function artistGateFails(
   return a.length >= ARTIST_MIN_LEN && artistGate(a, candidates) === 0;
 }
 
+// ---- Version-aware evidence scope (B3.3, §4.2) ----
+
+import type { EvidenceScope } from "../evidence/evidence-store";
+import {
+  parseVersion,
+  versionCompatible,
+  type VersionMatch,
+} from "../identity/version";
+
+/**
+ * Classify the evidence scope between a query (library track) and a
+ * candidate (store/catalog hit). Combines the artist gate with the
+ * version identity parser.
+ *
+ * Returns null when the candidate should be rejected entirely.
+ * Otherwise returns the evidence scope and version match detail.
+ */
+export function classifyEvidenceScope(
+  queryTitle: string,
+  queryArtist: string | null | undefined,
+  candidateTitle: string,
+  candidateArtists: string[],
+): {
+  scope: EvidenceScope;
+  versionMatch: VersionMatch;
+} | null {
+  const gate = artistGate(queryArtist, candidateArtists);
+  if (gate === 0 && primaryArtist(queryArtist).length >= ARTIST_MIN_LEN)
+    return null;
+
+  const qv = parseVersion(queryTitle, queryArtist ?? "");
+  const cv = parseVersion(candidateTitle, candidateArtists.join(", "));
+  const match = versionCompatible(qv, cv);
+
+  if (match === "reject") return null;
+  if (match === "exact")
+    return { scope: "exact_recording", versionMatch: match };
+  return { scope: "same_song_other_version", versionMatch: match };
+}
+
 // ---- Query construction (folded from search-query.ts, #322 merge 4) ----
 
 /** The artist/title pair every external catalog search starts from. */

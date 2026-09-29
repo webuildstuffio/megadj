@@ -699,6 +699,11 @@ const bench: CliCommandHandler = async (rest, { state }) => {
     await import("../bench/stages/bpm");
     await import("../bench/stages/key");
     await import("../bench/stages/genre-l2");
+    await import("../bench/stages/grid");
+    await import("../bench/stages/energy");
+    await import("../bench/stages/similarity");
+    await import("../bench/stages/sync");
+    await import("../bench/stages/perf");
     const { benchRun, benchRunAll, registeredStages } =
       await import("../bench/runner");
     const { migrateBenchTables } = await import("../bench/store");
