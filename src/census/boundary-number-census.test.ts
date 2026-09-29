@@ -52,6 +52,8 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "datePublished is DB JSON produced by the fetch pipeline's four-digit year regex; the slice is exactly four chars.",
   "src/fulltags/bench/stages/bpm-gold.ts::runBpmGoldStage::Number(g.value)":
     "immediately followed by Number.isFinite(expected) guard on the next line.",
+  "src/fulltags/booth/comment-v2.ts::parseCommentV2::Number(part.slice(1))":
+    "regex pre-validates /^E\\d{1,2}$/ — only 1-2 digit strings reach Number(); result is always finite.",
 };
 
 test("boundary Number() calls are finite-gated or explicitly sanctioned", () => {
@@ -187,9 +189,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Number(r.value) parse — audited 50→51, guarded 34→35.
     // Sep 29 (B0.2 bpm-gold): Number(g.value) with isFinite on next line —
     // audited 51→52, sanctioned 16→17.
-    audited: 52,
+    // Sep 29 (B10.1 comment-v2): parseCommentV2 regex-guarded Number(part.slice(1)) —
+    // audited 52→53, sanctioned 17→18.
+    audited: 53,
     guarded: 35,
-    sanctioned: 17,
+    sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
     // Sep 21 (cratedeck→src/deck fold): the whole tree re-rooted —
@@ -211,7 +215,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
     // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
     // sanctioned unchanged, digest shifted.
-    digest: "3c428c8c3837a924206707cc75a3472ba9b5e9bf1ec3c26572a05859b5fa3a2b",
+    digest: "95fc10c0f03ebb77a6d97730da38301b31ae6a702d10e92d98964783b0bcedc0",
   });
 });
 

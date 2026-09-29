@@ -21,7 +21,12 @@
         "tools/genre-backfill.ts",
         "tools/metadata-backfill.ts",
         "src/fulltags/evidence/playlist-evidence.ts",
-        "src/fulltags/identity/version-llm.ts"
+        "src/fulltags/identity/version-llm.ts",
+        "src/fulltags/sources/itunes.ts",
+        "src/fulltags/analysis/drop-energy.ts",
+        "src/fulltags/booth/comment-v2.ts",
+        "src/fulltags/genre/l3-rank.ts",
+        "src/fulltags/genre/dawid-skene.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
