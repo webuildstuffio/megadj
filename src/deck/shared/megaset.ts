@@ -127,6 +127,20 @@ export interface MegasetResult {
   search: "greedy" | "beam";
 }
 
+/** M4 (#328): per-component quality breakdown — every field 0–100,
+ *  the weighted blend is `total`. Deterministic: same payload → same
+ *  breakdown. The type lives HERE (shared wire layer) so the import
+ *  leaf is clean; the implementation lives in megaset/set-quality.ts. */
+export interface MegasetQuality {
+  transition: number;
+  floor: number;
+  arc: number;
+  diversity: number;
+  budget: number;
+  landmark: number;
+  total: number;
+}
+
 /** The all-missing signature: every DB row's file path failed the
  *  existence check while rows exist at all. In practice this means the
  *  shelf volume is NOT mounted (paths like /Volumes/SHELF1/... cannot
@@ -209,6 +223,10 @@ export interface MegasetPayload extends MegasetResult {
    *  VISIBLE ("proposed from analysis older than your latest drops"),
    *  never silent. Null when that ledger is empty. */
   freshness: { beatsAt: string | null; moodAt: string | null };
+  /** M4 (#328): deterministic 0–100 quality verdict — pure function of
+   *  the steps/evidence, no ledger reads. Components: transition mean,
+   *  floor, arc adherence, diversity, budget fit, landmark honor. */
+  quality: MegasetQuality;
 }
 
 /** The ONE MegasetPayload builder (#316: the CLI arm in
@@ -219,6 +237,7 @@ export interface MegasetPayload extends MegasetResult {
  * from the built result + census. */
 export function buildMegasetPayload(args: {
   built: MegasetResult;
+  quality: MegasetQuality;
   available: boolean;
   census: {
     sourceTotal: number;
@@ -290,6 +309,8 @@ export function buildMegasetPayload(args: {
     // which sequencer ran (beam = deep search on small pools) — the
     // UI and CLI quote this, never re-derive the threshold themselves
     search: built.search,
+    // M4 (#328): quality score — pure function of the built payload
+    quality: args.quality,
   };
 }
 

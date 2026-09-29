@@ -29,6 +29,7 @@ import {
   megasetNearestGenreFamily,
   type SetSearchOverride,
 } from "../../deck/shared/types";
+import { setQuality } from "../../deck/megaset/set-quality";
 
 import {
   emptyPoolDiagnosis,
@@ -145,6 +146,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
     }
     const payload = buildMegasetPayload({
       built,
+      quality: setQuality(built),
       available: true,
       census: {
         sourceTotal,

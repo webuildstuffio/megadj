@@ -27,6 +27,7 @@ import {
   isMegasetSearchOverride,
   megasetNearestGenreFamily,
 } from "../shared/megaset";
+import { setQuality } from "../megaset/set-quality";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 import { intakeCandidateDirs } from "../jobs/intake-run";
 import { cliOk } from "../hygiene/routes";
@@ -339,6 +340,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
       return json(
         buildMegasetPayload({
           built,
+          quality: setQuality(built),
           available: archive.available(),
           census: {
             sourceTotal,

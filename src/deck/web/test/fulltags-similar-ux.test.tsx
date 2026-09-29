@@ -605,6 +605,15 @@ describe("FullTags Similar and Set Builder UX", () => {
     landmarks_missing: [],
     freshness: { beatsAt: null, moodAt: null },
     search: "greedy",
+    quality: {
+      transition: 100,
+      floor: 100,
+      arc: 50,
+      diversity: 100,
+      budget: 100,
+      landmark: 100,
+      total: 88,
+    },
   };
 
   test("the result separates the human verdict from source evidence", () => {
