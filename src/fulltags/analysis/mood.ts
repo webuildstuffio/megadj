@@ -143,28 +143,56 @@ export async function mood(opts: MoodOptions): Promise<void> {
     return;
   }
 
-  // Pass 2 — analyze tracks with no (or malformed) file stamps, in
-  // chunks: analyzeMoods streams ONE python worker over its whole input,
-  // so results only land per completed file — chunking bounds the blast
-  // radius of a wedged decode and makes progress visible per chunk.
-  // #308: the FIRST chunk line now prints BEFORE the uv/model bootstrap
-  // (it always did) but the queue header above it names the full shape —
-  // the wedge report was "no output at all", so every pre-chunk stage
-  // has announced itself by now.
+  // Pass 2 — analyze tracks with no (or malformed) file stamps.
+  // Since Sep 29 2026: N parallel workers, each getting an equal slice of
+  // the queue and sending it to ONE `analyzeMoods()` call — the uv/model
+  // bootstrap is paid once per worker (N times total), not once per file.
+  // The old sequential 20-file chunks spawned a fresh Python process each
+  // time; on a 500-track run the uv bootstrap alone cost ~75s (2–3s × 25
+  // chunks). With --jobs 4: 4 concurrent ONNX batches, one bootstrap each.
   let analyzed = 0;
   let failed = 0;
-  const CHUNK = 20;
+  const jobs = Math.max(1, opts.jobs ?? 2);
+
   if (runnable.length > 0) {
     log(
-      `  analysis: ${runnable.length} file(s) in ${Math.ceil(runnable.length / CHUNK)} chunk(s) of ${CHUNK} (uv bootstrap + model load precede the first result — tens of seconds on a cold cache)`,
+      `  analysis: ${runnable.length} file(s) across ${jobs} parallel worker(s) (uv bootstrap + model load on first result — tens of seconds on cold cache)`,
     );
   }
-  for (let i = 0; i < runnable.length; i += CHUNK) {
-    const chunk = runnable.slice(i, i + CHUNK);
-    log(`  mood chunk ${i + 1}-${i + chunk.length} of ${runnable.length}…`);
-    const result = await analysisPass(opts, chunk, record, log);
-    analyzed += result.analyzed;
-    failed += result.failed;
+
+  // Partition the queue into N roughly-equal slices — round-robin so
+  // heterogeneous durations spread across workers instead of clustering.
+  const slices: TrackRow[][] = Array.from(
+    { length: Math.min(jobs, runnable.length) },
+    () => [],
+  );
+  for (let i = 0; i < runnable.length; i++) {
+    slices[i % slices.length]!.push(runnable[i]!);
+  }
+
+  async function moodWorker(workerId: number, slice: TrackRow[]) {
+    if (!slice.length) return;
+    const results = await analyzeMoods(
+      slice.map((t) => t.file_path!),
+      { withEmbedding: opts.embeddings === true },
+    );
+    for (const t of slice) {
+      const path = t.file_path!;
+      const m = results.get(path);
+      if (!m) {
+        failed++;
+        log(`  [w${workerId}] ✗ no result — ${basename(path)}`);
+        continue;
+      }
+      record(t, m);
+      analyzed++;
+      log(
+        `  [w${workerId}:${analyzed + failed}/${runnable.length}] dance=${m.danceability.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)} — ${basename(path)}`,
+      );
+    }
+  }
+  if (runnable.length > 0) {
+    await Promise.all(slices.map((slice, i) => moodWorker(i + 1, slice)));
   }
 
   await emitMoodSummary(opts, {
@@ -191,10 +219,14 @@ function syncPass(
   candidates: TrackRow[],
   record: (t: TrackRow, m: MoodResult) => void,
   log: (msg: string) => void,
-): SyncCounts & { needEmbedding: TrackRow[] } {
+): SyncCounts & {
+  needEmbedding: TrackRow[];
+  truthCache: Map<string, ReturnType<typeof groundTruth>>;
+} {
   let synced = 0;
   let energySynced = 0;
   const needEmbedding: TrackRow[] = [];
+  const truthCache = new Map<string, ReturnType<typeof groundTruth>>();
   const HEARTBEAT_EVERY = 250;
   for (let ci = 0; ci < candidates.length; ci++) {
     const t = candidates[ci]!;
@@ -220,6 +252,7 @@ function syncPass(
     if (!owesEmbedding && !opts.force && opts.state.moodRecord(t.video_id))
       continue;
     const truth = groundTruth(t.file_path!);
+    truthCache.set(t.file_path!, truth);
     // Energy stamp → DB column mirror (same idea as the mood ledger sync:
     // the file is ground truth; the column feeds audit/complete checks).
     if (truth.energy !== null && t.energy === null && !opts.dryRun) {
@@ -241,7 +274,7 @@ function syncPass(
     record(t, m);
     synced++;
   }
-  return { synced, energySynced, needEmbedding };
+  return { synced, energySynced, needEmbedding, truthCache };
 }
 
 /** The ONNX queue: every track without a valid file stamp (analysis
@@ -256,7 +289,10 @@ function syncPass(
  *  Copy first (`slice()` unconditionally), then truncate the original. */
 function buildAnalysisQueue(
   opts: MoodOptions,
-  pass1: SyncCounts & { needEmbedding: TrackRow[] },
+  pass1: SyncCounts & {
+    needEmbedding: TrackRow[];
+    truthCache: Map<string, ReturnType<typeof groundTruth>>;
+  },
   candidates: TrackRow[],
   log: (msg: string) => void,
 ): TrackRow[] {
@@ -272,19 +308,17 @@ function buildAnalysisQueue(
   );
   let probed = 0;
   const needAnalysis = candidates.filter((t) => {
-    // DB short-circuit first (#278): file scans are the expensive part.
-    // --embeddings does NOT lift this (#279): a ledgered row is analyzed;
-    // its embedding gap (if any) rides through syncPass's stamped-file
-    // path, and refilling a no-stamp gap is a --force decision, never an
-    // --embeddings side effect. Dry-run probes keep the file scan so the
-    // would-do report stays honest.
     if (!opts.force && !opts.dryRun && opts.state.moodRecord(t.video_id))
       return false;
     probed++;
     if (probed % 250 === 0) {
       log(`  analysis probe: ${probed}/${toProbe.length} stamp checks done…`);
     }
-    const truth = groundTruth(t.file_path!);
+    // Use the pass-1 cache to avoid a SECOND groundTruth spawn per file.
+    // groundTruth is ffprobe + mutagen = ~100ms/file; on 5k files the
+    // double scan cost ~8 minutes of pure overhead (fixed Sep 29).
+    const truth =
+      pass1.truthCache.get(t.file_path!) ?? groundTruth(t.file_path!);
     return !(truth.mood && parseMoodStamp(truth.mood));
   });
   log(
@@ -298,38 +332,6 @@ function buildAnalysisQueue(
   needAnalysis.length = 0;
   needAnalysis.push(...analysisQueue);
   return needAnalysis;
-}
-
-/** Pass 2 — ONNX analysis for the queue; each result is recorded through
- *  the same `record` seam as pass 1. */
-async function analysisPass(
-  opts: MoodOptions,
-  needAnalysis: TrackRow[],
-  record: (t: TrackRow, m: MoodResult) => void,
-  log: (msg: string) => void,
-): Promise<{ analyzed: number; failed: number }> {
-  let analyzed = 0;
-  let failed = 0;
-  if (!needAnalysis.length) return { analyzed, failed };
-  const results = await analyzeMoods(
-    needAnalysis.map((t) => t.file_path!),
-    {
-      withEmbedding: opts.embeddings === true,
-    },
-  );
-  for (const t of needAnalysis) {
-    const m = results.get(t.file_path!);
-    if (!m) {
-      failed++;
-      continue;
-    }
-    record(t, m);
-    analyzed++;
-    log(
-      `  analyzed dance=${m.danceability.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)} — ${basename(t.file_path!)}`,
-    );
-  }
-  return { analyzed, failed };
 }
 
 /** Summary line + the --json payload. A zero-work run must read as

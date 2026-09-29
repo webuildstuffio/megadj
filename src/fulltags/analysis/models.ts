@@ -361,7 +361,17 @@ export async function analyzeMoods(
     const expected = paths.length;
     while (out.size < expected) {
       const line = await readLine(180_000);
-      if (line === null) break;
+      if (line === null) {
+        // Timeout or EOF — report which files were missed so the caller
+        // can diagnose wedged tracks instead of a silent partial result.
+        const missing = paths.filter((p) => !out.has(p));
+        if (missing.length > 0) {
+          console.error(
+            `[fulltags mood worker] timeout/EOF: ${missing.length} file(s) produced no result (first: ${missing[0]?.slice(-60)})`,
+          );
+        }
+        break;
+      }
       const msg = parseMoodWorkerLine(line);
       if (msg.ok) out.set(msg.path, msg.mood);
       else console.error(`[${msg.context}] ${msg.detail}`);

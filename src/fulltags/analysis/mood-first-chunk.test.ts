@@ -5,9 +5,9 @@
 // short-circuit only protects LEDGERED queues; a large UNANALYZED queue
 // (--force, or a fresh import wave) still walks the expensive path:
 //
-//   allTracks+existsSync scan → syncPass (groundTruth PER FILE)
-//   → buildAnalysisQueue (groundTruth PER FILE again)
-//   → first chunk's uv bootstrap + ONNX model load
+//   allTracks+existsSync scan → syncPass (groundTruth PER FILE, cached)
+//   → buildAnalysisQueue (uses cache from pass 1)
+//   → parallel worker bootstrap + ONNX model load
 //
 // Root cause of the SILENCE (this file's contract): none of those stages
 // announced themselves. The fix adds stage-entry/heartbeat/duration logs
@@ -75,12 +75,12 @@ describe("#308 mood pre-first-chunk visibility", () => {
     const probeLine = lines.findIndex((l) =>
       l.includes("analysis probe: 4 file(s)"),
     );
-    const chunkLine = lines.findIndex((l) => l.includes("mood chunk 1-4 of 4"));
+    const chunkLine = lines.findIndex((l) => l.includes("parallel worker(s)"));
     for (const [name, idx] of [
       ["queue", queueLine],
       ["sync done", syncLine],
       ["probe entry", probeLine],
-      ["chunk", chunkLine],
+      ["worker header", chunkLine],
     ] as const) {
       expect(idx, `${name} line present`).toBeGreaterThanOrEqual(0);
     }
@@ -89,9 +89,9 @@ describe("#308 mood pre-first-chunk visibility", () => {
     expect(probeLine).toBeLessThan(chunkLine);
     // the probe line separates ledgered from unledgered honestly
     expect(lines[probeLine] ?? "").toContain("skipping 0 ledgered");
-    // the analysis header names the chunking shape (uv/model bootstrap
-    // warning rides it — the literal wedge window)
-    expect(text).toContain("1 chunk(s) of 20");
+    // the analysis header names the parallel worker shape (uv/model
+    // bootstrap warning rides it — the literal wedge window)
+    expect(text).toContain("parallel worker(s)");
     expect(text).toContain("uv bootstrap + model load");
     // the queue still RAN: all four fakes were processed by pass 2 (the
     // worker errored on each — fake audio — and mood-queue.test.ts pins
