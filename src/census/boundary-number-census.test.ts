@@ -221,7 +221,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
     // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
     // sanctioned unchanged, digest shifted.
-    digest: "84e03e454b7a9a33b410a2cf37bfd2cd3a38cc88e6fba5c3766b7d5d6029b3e5",
+    // Sep 29 (#411): radar refactor re-homed Number() sites (extract
+    // helpers); counts unchanged, digest shifted.
+    digest: "423e5b6cae89d55e6020a4cb1d4b24fb16ec59f67486f9d268019314cad5f05b",
   });
 });
 

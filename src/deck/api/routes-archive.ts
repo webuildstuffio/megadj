@@ -157,10 +157,167 @@ function resolveSetBuild(
   };
 }
 
-/** M3U comment fields are one physical line; strip control characters rather
- * than allowing track metadata to inject playlist directives. BUILT ONCE in
- * megaset/m3u.ts (rev-52): the route renders every playlist through that
- * seam — never a route-local twin. */
+/** /api/archive/megaset — set-builder route handler (#343: extracted from
+ *  archiveHandlers to reduce CCN — the inline lambda was the biggest
+ *  contributor to the 52-CCN hotspot). */
+function megasetHandler(
+  url: URL,
+  archive: ArchiveReader,
+): Response | Promise<Response> {
+  const resolved = resolveSetBuild(url, archive);
+  if ("error" in resolved) return json({ error: resolved.error }, 400);
+  const format = parseFormatParam(url.searchParams.get("format"));
+  if (typeof format === "object" && "error" in format)
+    return json({ error: format.error }, 400);
+  if (format === "m3u8") {
+    const index = m3uCandidateIndex(resolved.census.candidates);
+    const render = m3uSetLines(resolved.built.steps, index);
+    const lines = [...render.lines];
+    if (render.skippedMetadataOnly > 0) {
+      lines.push(
+        m3uSkipNote(resolved.built.steps.length, render.skippedMetadataOnly),
+      );
+    }
+    const actual = String(resolved.built.actualMinutes).replace(".", "-");
+    return m3uResponse(lines, `set-${resolved.built.preset}-${actual}m.m3u8`);
+  }
+  const { census } = resolved;
+  const genreSuggestionExtra =
+    census.genreFiltered === 0 &&
+    (url.searchParams.get("genre") ?? "").trim() !== ""
+      ? {
+          genreSuggestion:
+            megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
+              ?.family ?? undefined,
+        }
+      : {};
+
+  const toPayload = (variant: MegasetVariant) => {
+    const classifications = classifyChain(variant.result.steps);
+    const classifiedSteps = variant.result.steps.map((s, i) => ({
+      ...s,
+      transitionType: classifications[i]?.type,
+    }));
+    return buildMegasetPayload({
+      built: variant.result,
+      quality: variant.quality,
+      classifiedSteps,
+      available: archive.available(),
+      census: {
+        sourceTotal: census.sourceTotal,
+        total: census.total,
+        missingFiles: census.missingFiles,
+        metadataOnly: census.metadataOnly,
+        duplicateFiles: census.duplicateFiles,
+        relocatedFiles: census.relocatedFiles,
+        rekordboxKeyHits: census.rekordboxKeyHits,
+        rekordboxBpmHits: census.rekordboxBpmHits,
+        keyReads: census.keyReads,
+        keyReadFailures: census.keyReadFailures,
+        genreFiltered: census.genreFiltered,
+        freshness: census.freshness,
+        stagesMs: census.stagesMs,
+      },
+      ...genreSuggestionExtra,
+    });
+  };
+
+  const rawCandidates = url.searchParams.get("candidates");
+  const parsedCandidates = rawCandidates !== null ? Number(rawCandidates) : 1;
+  const candidateCount = Number.isFinite(parsedCandidates)
+    ? Math.max(1, Math.round(parsedCandidates))
+    : 1;
+  if (candidateCount > 1) {
+    const variants = buildMegasetCandidates(
+      {
+        candidates: census.candidates,
+        preset: SET_PRESETS[resolved.parsed.preset],
+        minutes: resolved.parsed.minutes,
+        openerId: url.searchParams.get("opener") ?? undefined,
+        landmarkIds: url.searchParams.getAll("landmark"),
+        searchOverride: resolved.searchOverride,
+      },
+      candidateCount,
+    );
+    return json({
+      variants: variants.map((v) => ({
+        seed: v.seed,
+        label: v.label,
+        payload: toPayload(v),
+      })),
+      best: 0,
+    });
+  }
+  const singleVariant: MegasetVariant = {
+    seed: 0,
+    label: "A",
+    result: resolved.built,
+    quality: setQuality(resolved.built),
+  };
+  return json(toPayload(singleVariant));
+}
+
+/** /api/archive/megaset-cohorts — genre-cohort session planner (#343:
+ *  extracted from archiveHandlers). */
+function megasetCohortsHandler(
+  url: URL,
+  archive: ArchiveReader,
+): Response | Promise<Response> {
+  const format = parseFormatParam(url.searchParams.get("format"));
+  if (typeof format === "object" && "error" in format)
+    return json({ error: format.error }, 400);
+  const parsedQ = parseMegasetQuery({
+    preset: "peak",
+    minutes: url.searchParams.get("minutes"),
+  });
+  if ("error" in parsedQ) return json({ error: parsedQ.error }, 400);
+  const limitParam = url.searchParams.get("limit");
+  let limit: number | undefined = undefined;
+  if (limitParam !== null) {
+    const parsedLimit = Number(limitParam);
+    if (limitParam.trim() === "" || !Number.isFinite(parsedLimit))
+      return json({ error: "limit must be a finite number" }, 400);
+    limit = parsedLimit;
+  }
+  const families = parseCohortFamilies(url.searchParams.get("families"));
+  if ("error" in families) return json({ error: families.error }, 400);
+  const plan = buildCohortPlan(archive, {
+    minutes: parsedQ.minutes,
+    families: families.families,
+    limit,
+  });
+  if (format === "m3u8") {
+    const index = new Map<
+      string,
+      (typeof plan)["cohorts"][number]["warmup"]["poolRows"][number]
+    >();
+    for (const row of plan.cohorts) {
+      for (const arm of [row.warmup, row.peak]) {
+        for (const c of arm.poolRows) index.set(c.videoId, c);
+      }
+    }
+    const render = m3uCohortSessionLines(plan, index);
+    return m3uResponse(
+      render.lines,
+      `cohort-session-${plan.minutes}m-${plan.cohorts.length}x.m3u8`,
+    );
+  }
+  return json({
+    command: "megaset-cohorts" as const,
+    minutes: plan.minutes,
+    families: plan.families,
+    cohorts: plan.cohorts.map((row) => ({
+      family: row.family,
+      warmup: cohortArmWire(row.warmup),
+      peak: cohortArmWire(row.peak),
+    })),
+    all_complete: plan.allComplete,
+    outside_scope: {
+      blank_genre_note: plan.blankGenreNote,
+    },
+    elapsed_ms: plan.elapsedMs,
+  });
+}
 
 /** One handler per /api/archive/* route. `archiveRoutes` derives the route
  *  list from these keys — the keys ARE the route census, never a second
@@ -294,118 +451,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // MCP tool): unknown preset → 400, never a silent peak-time fallback;
     // minutes clamp to 10–240; defaults live in shared/types.ts so every
     // surface agrees.
-    megaset: (url, archive) => {
-      const resolved = resolveSetBuild(url, archive);
-      if ("error" in resolved) return json({ error: resolved.error }, 400);
-      // rev-52 format gate: `?format=` is a CONTRACT param — m3u8
-      // renders the Rekordbox playlist (a downloaded UTF-8 file is the
-      // safe bridge: import through File → Import → Playlist; read-only,
-      // never opens master.db), absent/blank/json is the wire default,
-      // and ANYTHING ELSE is a 400 — never the silent JSON fall-through
-      // that made a requested file look like success (the exact defect
-      // class that shipped on /megaset-cohorts).
-      const format = parseFormatParam(url.searchParams.get("format"));
-      if (typeof format === "object" && "error" in format)
-        return json({ error: format.error }, 400);
-      if (format === "m3u8") {
-        // through the ONE seam (megaset/m3u.ts) — the same renderer the
-        // cohorts export uses, never a route-local twin
-        const index = m3uCandidateIndex(resolved.census.candidates);
-        const render = m3uSetLines(resolved.built.steps, index);
-        const lines = [...render.lines];
-        if (render.skippedMetadataOnly > 0) {
-          // B1 (#104): metadata-only steps are counted, never dead entries
-          lines.push(
-            m3uSkipNote(
-              resolved.built.steps.length,
-              render.skippedMetadataOnly,
-            ),
-          );
-        }
-        const actual = String(resolved.built.actualMinutes).replace(".", "-");
-        return m3uResponse(
-          lines,
-          `set-${resolved.built.preset}-${actual}m.m3u8`,
-        );
-      }
-      const { census } = resolved;
-      const genreSuggestionExtra =
-        census.genreFiltered === 0 &&
-        (url.searchParams.get("genre") ?? "").trim() !== ""
-          ? {
-              genreSuggestion:
-                megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
-                  ?.family ?? undefined,
-            }
-          : {};
-
-      const toPayload = (variant: MegasetVariant) => {
-        const classifications = classifyChain(variant.result.steps);
-        const classifiedSteps = variant.result.steps.map((s, i) => ({
-          ...s,
-          transitionType: classifications[i]?.type,
-        }));
-        return buildMegasetPayload({
-          built: variant.result,
-          quality: variant.quality,
-          classifiedSteps,
-          available: archive.available(),
-          census: {
-            sourceTotal: census.sourceTotal,
-            total: census.total,
-            missingFiles: census.missingFiles,
-            metadataOnly: census.metadataOnly,
-            duplicateFiles: census.duplicateFiles,
-            relocatedFiles: census.relocatedFiles,
-            rekordboxKeyHits: census.rekordboxKeyHits,
-            rekordboxBpmHits: census.rekordboxBpmHits,
-            keyReads: census.keyReads,
-            keyReadFailures: census.keyReadFailures,
-            genreFiltered: census.genreFiltered,
-            freshness: census.freshness,
-            stagesMs: census.stagesMs,
-          },
-          ...genreSuggestionExtra,
-        });
-      };
-
-      // S14 (#288): ?candidates=N — return N seeded variants
-      const rawCandidates = url.searchParams.get("candidates");
-      const parsedCandidates =
-        rawCandidates !== null ? Number(rawCandidates) : 1;
-      const candidateCount = Number.isFinite(parsedCandidates)
-        ? Math.max(1, Math.round(parsedCandidates))
-        : 1;
-      if (candidateCount > 1) {
-        const variants = buildMegasetCandidates(
-          {
-            candidates: census.candidates,
-            preset: SET_PRESETS[resolved.parsed.preset],
-            minutes: resolved.parsed.minutes,
-            openerId: url.searchParams.get("opener") ?? undefined,
-            landmarkIds: url.searchParams.getAll("landmark"),
-            searchOverride: resolved.searchOverride,
-          },
-          candidateCount,
-        );
-        return json({
-          variants: variants.map((v) => ({
-            seed: v.seed,
-            label: v.label,
-            payload: toPayload(v),
-          })),
-          best: 0,
-        });
-      }
-      // Single build (default) — wrap in a MegasetVariant for toPayload
-      const singleVariant: MegasetVariant = {
-        seed: 0,
-        label: "A",
-        result: resolved.built,
-        quality: setQuality(resolved.built),
-      };
-      return json(toPayload(singleVariant));
-    },
+    megaset: (url, archive) => megasetHandler(url, archive),
     // FullTags read side (the enrichment engine's mirror columns):
     // genre/year/artwork/energy/codec profile of the playable archive.
     library: (url, archive) => {
@@ -451,78 +497,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // by the shared parse (unknown id → 400 with the known list); an arm
     // that falls short keeps `complete: false` + shortfall on the wire
     // (200 — a short plan is a RESULT, not a request error).
-    "megaset-cohorts": (url, archive) => {
-      // rev-52 format gate FIRST (before any build work): m3u8 → the
-      // whole session as ONE importable playlist (per-family sections,
-      // SHORT arms labeled — the export never dresses up a shortfall);
-      // absent/blank/json → the plan wire; anything else → 400. The old
-      // shape silently IGNORED ?format=m3u8 and returned JSON — a query
-      // param a route never reads is a lie, not a default.
-      const format = parseFormatParam(url.searchParams.get("format"));
-      if (typeof format === "object" && "error" in format)
-        return json({ error: format.error }, 400);
-      const parsedQ = parseMegasetQuery({
-        preset: "peak",
-        minutes: url.searchParams.get("minutes"),
-      });
-      if ("error" in parsedQ) return json({ error: parsedQ.error }, 400);
-      const limitParam = url.searchParams.get("limit");
-      let limit: number | undefined = undefined;
-      if (limitParam !== null) {
-        const parsedLimit = Number(limitParam);
-        if (limitParam.trim() === "" || !Number.isFinite(parsedLimit))
-          return json({ error: "limit must be a finite number" }, 400);
-        // reuse the SINGLE parsed conversion — the raw Number() below was
-        // a second, unguarded site of the same parse (number-census)
-        limit = parsedLimit;
-      }
-      const families = parseCohortFamilies(url.searchParams.get("families"));
-      if ("error" in families) return json({ error: families.error }, 400);
-      const plan = buildCohortPlan(archive, {
-        minutes: parsedQ.minutes,
-        families: families.families,
-        limit,
-      });
-      if (format === "m3u8") {
-        // union every arm's census rows into ONE path index (same family
-        // shares the pool today, but stay correct for any future per-arm
-        // divergence — a missing path still skips honestly)
-        const index = new Map<
-          string,
-          (typeof plan)["cohorts"][number]["warmup"]["poolRows"][number]
-        >();
-        for (const row of plan.cohorts) {
-          for (const arm of [row.warmup, row.peak]) {
-            for (const c of arm.poolRows) index.set(c.videoId, c);
-          }
-        }
-        const render = m3uCohortSessionLines(plan, index);
-        return m3uResponse(
-          render.lines,
-          `cohort-session-${plan.minutes}m-${plan.cohorts.length}x.m3u8`,
-        );
-      }
-      // the JSON wire strips the server-side export fields (chain +
-      // poolRows never serialize: filePath stays server-side by
-      // contract; `steps` stays a COUNT on the wire)
-      return json({
-        command: "megaset-cohorts" as const,
-        minutes: plan.minutes,
-        families: plan.families,
-        cohorts: plan.cohorts.map((row) => ({
-          family: row.family,
-          warmup: cohortArmWire(row.warmup),
-          peak: cohortArmWire(row.peak),
-        })),
-        all_complete: plan.allComplete,
-        outside_scope: {
-          blank_genre_note: plan.blankGenreNote,
-        },
-        // measured wall-clock for the whole plan (the caller's timing,
-        // never a fixed schedule — same honesty as /megaset's stages_ms)
-        elapsed_ms: plan.elapsedMs,
-      });
-    },
+    "megaset-cohorts": (url, archive) => megasetCohortsHandler(url, archive),
   };
 }
 
