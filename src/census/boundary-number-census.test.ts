@@ -191,8 +191,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // audited 51→52, sanctioned 16→17.
     // Sep 29 (B10.1 comment-v2): parseCommentV2 regex-guarded Number(part.slice(1)) —
     // audited 52→53, sanctioned 17→18.
-    audited: 53,
-    guarded: 35,
+    // Sep 29 (B2.4 pca-version): parsePcaVersion has 2 Number() calls both
+    // followed by Number.isFinite guards — audited 53→55, guarded 35→37.
+    audited: 55,
+    guarded: 37,
     sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -215,7 +217,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 28: tools/metadata-backfill.ts adds two Number.isFinite-guarded
     // sites (limit argv + year parse) — audited 47→49, guarded 31→33,
     // sanctioned unchanged, digest shifted.
-    digest: "95fc10c0f03ebb77a6d97730da38301b31ae6a702d10e92d98964783b0bcedc0",
+    digest: "8010f8101cfa9ebed45d4305d86a450731927e1b89e2872d3c25b2a30d6cdafa",
   });
 });
 
