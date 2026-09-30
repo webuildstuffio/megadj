@@ -45,11 +45,16 @@ const result = (over: Partial<MegasetResult> = {}): MegasetResult => ({
 });
 
 describe("setQuality (M4 #328)", () => {
-  test("determinism: same payload → same score", () => {
-    const r = result();
-    const a = setQuality(r);
-    const b = setQuality(r);
-    expect(a).toEqual(b);
+  test("default peak fixture → known component scores", () => {
+    expect(setQuality(result())).toEqual({
+      transition: 80,
+      floor: 80,
+      arc: 33.6,
+      diversity: 100,
+      budget: 100,
+      landmark: 100,
+      total: 77.7,
+    });
   });
 
   test("empty chain → all zeros", () => {
