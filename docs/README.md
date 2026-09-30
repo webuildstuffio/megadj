@@ -108,15 +108,20 @@ tracker is one of those — the recipes stay in the acceptance doc).
   FullTags ↔ rekordbox ↔ live-file tag sources side by side: pure-DB
   census (`archive_tag_census`) + per-track three-source read
   (`archive_tag_compare`); read-only, files never read on the census path.
-- [Genre audit](fulltags/genre-audit.md) — inclusion and source-precedence
-  policy; v3 statistical revalidation (CIs, McNemar, duration guards).
-  MegaSet consumes it family-level only.
+- [**Genre system** (consolidated, Sep 30)](fulltags/genre-system.md) — the
+  single reference for the entire genre subsystem: 8-rung weighted vote
+  ladder, election mechanics, refold/canonicalization, 9-family scoring
+  map, umbrella abstention, dispute flagging, inference, eval harness
+  (≥65% ship gate), module map, measured state (Sep 30). Supersedes the
+  three archived docs below.
 - [Embedding model benchmark](fulltags/embedding-models.md) — tower
   evaluation and decision; v2 rerun (effnet confirmed on both metrics),
   fusion sweep settled (+1.1 pt — not adopted). Feeds MegaSet's similarity
   prior (B10p).
-- [Genre taxonomy sources](fulltags/genre-taxonomy-sources.md) — external
-  authorities and the family map.
+- Archived genre docs (historical baselines and methodology):
+  [genre-audit (Sep 14)](archive/genre-audit-2026-09-14.md),
+  [genre-pipeline (Sep 16)](archive/genre-pipeline-2026-09-16.md),
+  [genre-taxonomy-sources (Sep 14)](archive/genre-taxonomy-sources-2026-09-14.md).
 - [Embedding research review (Sep 14)](archive/embedding-research-2026-09-14.md)
   — external deep-read (archived): tower landscape, probe/readout ladder,
   compute + licence audit, adoption verdicts.
@@ -125,26 +130,6 @@ tracker is one of those — the recipes stay in the acceptance doc).
   verdicts live in the FullTags roadmap revs): random label
   noise, no artist leakage, hub tail confirmed, `edm↔house` is the error
   block, probe loses to kNN. Re-ranked the genre plan.
-- [Genre refold (Sep 15)](fulltags/genre-audit.md) — `edm` umbrella
-  arbitration + label canonicalization SHIPPED: LOO gated 61.7% → 69.2%
-  (+7.4 pts), ≥65% post-refold target PASS (§5b.3 step 1). Demote-and-flag
-  (§5b.3 step 2) shipped: 96/2982 disputed labels flagged + excluded from
-  seeding; Tier-0 battery re-ran clean post-flag.
-- **Bandcamp arm (Sep 15, rev 7.8)** — the fetch ladder's third catalog
-  vote (`src/fulltags/sources/bandcamp.ts`, W2b): hard-artist-gated search +
-  one page fetch voting genre/year/label/art, on the shared
-  name-matching SSOT (`src/fulltags/sources/name-match.ts`). Same-day
-  consolidation: #66 masterDbPath (11/11 callers), #67 NFC+casefold
-  name key, #82 errorText SSOT — all pinned by tests; #67/#82/#75/#100
-  issues closed with evidence.
-- [Genre pipeline architecture (Sep 16, rev 6; rev 7 — Sep 20 revote)](fulltags/genre-pipeline.md) —
-  how the genre system processes a track end to end: **§2 is the full
-  write-source inventory** (every path that can put a genre in the DB —
-  sync/fetch-SC/fetch-BP/**fetch-imprint (W7)**/fetch-Bandcamp/AI/MusicBrainz/
-  ingest/kNN — including the two
-  commonly forgotten: `megadj enrich` and `megadj ingest`), then hygiene
-  passes, **the dispute review surface (`genre --disputes` +
-  `--agree`/`--keep`, #64)**, inference discipline, scoring read path, the ≥65%
   gate, the tag census/compare surfaces, 11 invariants, design
   rationale, and live state. Start here for "where does genre come from?"
 - [FullTags + GetDat merge proposal (Sep 20)](fulltags/fulltags-getdat-merge-2026-09-20.md) —

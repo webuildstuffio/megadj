@@ -260,7 +260,7 @@ self-healing). Key learnings (audit §5b.6): the biggest error block was
 a scoring-policy bug, not bad labels; unanimity keeps the dispute
 census reviewable; label hygiene cleaned provenance, not the score.
 Architecture walkthrough:
-[genre-pipeline.md](genre-pipeline.md). Next highest-value queue (Sep 15
+[genre-system.md](genre-system.md) (archived: [genre-pipeline](../archive/genre-pipeline-2026-09-16.md)). Next highest-value queue (Sep 15
 at the time; superseded — see rev 7.14 for the live queue): #61
 (Music-placeholder unstrand, SHIPPED in code), #62 (cluster-proposed labels — still
 open, the only fix that attacks the remaining `house→techno` mass), #63 (ranked

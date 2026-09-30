@@ -19,7 +19,7 @@ export interface GenreVoteRungDef {
   id: string;
   /** Human name on every surface. */
   name: string;
-  /** The doc's W-number (genre-pipeline.md §5b.3.6). */
+  /** The doc's W-number (genre-system.md §2). */
   docRef: string;
   /** The rung's fixed vote weight — MIRRORED from GENRE_VOTE_WEIGHTS so
    *  browser surfaces can render abstained rungs' would-be weight without

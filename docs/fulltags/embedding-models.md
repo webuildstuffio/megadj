@@ -94,7 +94,7 @@ Reading:
 - Families are unevenly hard (hiphop/dnb/rock are easy; house/techno/trance
   boundary is genuinely fuzzy — that's the library, not the tower).
 - Genre labels are the noisy ground truth we have; the [genre
-  audit](genre-audit.md) measured them at ~60-76% audio-consistent. Any tower
+  audit](../archive/genre-audit-2026-09-14.md) measured them at ~60-76% audio-consistent. Any tower
   measured against them is
   capped by that ceiling. Towers could be re-ranked by retrieval-quality
   human eval later.
@@ -124,7 +124,7 @@ Reading:
    because it has the best measured retrieval coherence. Musicnn can be
    evaluated as a diversity re-ranker, but the current results do not justify
    a hard-coded interleave ratio.
-3. **Re-benchmark after refold** ([genre audit §5b](genre-audit.md)): cleaner
+3. **Re-benchmark after refold** ([genre audit §5b](../archive/genre-audit-2026-09-14.md)): cleaner
    labels → tighter ceiling → re-measure; promote MERT only if the ensemble
    stalls
    below 0.55 AND the compute budget allows 10-30× slower batch runs.
@@ -158,7 +158,7 @@ _Harness:_ `tools/emb_benchmark.py` (manual research harness; productize as
 
 > The post-harness-fix rerun landed (commit `3715e9f fix: correct
 embedding benchmark metrics`), the fusion/variant sweep completed, and
-> every [genre-audit](genre-audit.md) number was re-validated with duration
+> every [genre-audit](../archive/genre-audit-2026-09-14.md) number was re-validated with duration
 > guards, full-population LOO, bootstrap CIs and McNemar tests (v3, below).
 
 ### Protocol changes vs the v1 table above

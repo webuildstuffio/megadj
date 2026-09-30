@@ -1,7 +1,10 @@
 # FullTags — Genre Pipeline Architecture (Sep 16, 2026, rev 6; rev 7 — Sep 20 revote)
 
-**Status:** 📚 REFERENCE — how the genre system processes a track, end to
-end. Every stage below ships and runs on the live archive.
+**Status:** 📦 ARCHIVED 2026-09-30 — superseded by [genre-system.md](../fulltags/genre-system.md).
+Kept for the full flow diagram history and invariant record. Numbers are from Sep 16–20 2026.
+
+~~**Status:** 📚 REFERENCE — how the genre system processes a track, end to
+end. Every stage below ships and runs on the live archive.~~
 
 > **v3 supersession notice (Sep 29):** the W-table vote ladder described
 > here is being replaced by a Dawid–Skene label model over a
@@ -13,32 +16,32 @@ end. Every stage below ships and runs on the live archive.
 > [fulltags-v3-rebench-and-build-plan-2026-09-29.md](fulltags-v3-rebench-and-build-plan-2026-09-29.md)
 > WS4–WS5 for the migration plan. This doc remains the accurate
 > description of the **current** (v2) system until the estimator ships.
-**Rev 6 (Sep 17): the breakdown's explainability read is wired through
-every surface (#215) — `megadj genre-why <id>` (CLI; exit 1 on a DRIFTED
-row), `archive_genre_why` (MCP), `/api/archive/genre-why` (HTTP), and
-the FullTags ⌗ Genre Why tab (UI, weight bars + drift callout). All
-three replay through the write path's exact `electGenre` seam, so a
-displayed winner can never disagree with the row.**
-**Rev 5 (Sep 16): the weighted multi-source vote ladder is LIVE (#173)
-— every rung (SC/BP/BC/imprint/AI/MB/file/sync) casts a vote
-(genre + weight + provenance) through `src/fulltags/genre/genre-vote.ts`;
-highest total weight elects, ties break toward the harder gate, and the
-breakdown persists in `tracks.genre_votes` (every stored genre is
-explainable). First-win writes are gone. Also Sep 16: `megadj regate
+> **Rev 6 (Sep 17): the breakdown's explainability read is wired through
+> every surface (#215) — `megadj genre-why <id>` (CLI; exit 1 on a DRIFTED
+> row), `archive_genre_why` (MCP), `/api/archive/genre-why` (HTTP), and
+> the FullTags ⌗ Genre Why tab (UI, weight bars + drift callout). All
+> three replay through the write path's exact `electGenre` seam, so a
+> displayed winner can never disagree with the row.**
+> **Rev 5 (Sep 16): the weighted multi-source vote ladder is LIVE (#173)
+> — every rung (SC/BP/BC/imprint/AI/MB/file/sync) casts a vote
+> (genre + weight + provenance) through `src/fulltags/genre/genre-vote.ts`;
+> highest total weight elects, ties break toward the harder gate, and the
+> breakdown persists in `tracks.genre_votes` (every stored genre is
+> explainable). First-win writes are gone. Also Sep 16: `megadj regate
 genre` runs the LOO harness against the ≥65% ship gate (#169).**
-**Rev 4 (Sep 15): Bandcamp is now a LIVE ladder source (W2b, third vote
-behind SC → BP) with the shared hard artist gate; W1's `Music` mint
-removed (#61 stop-new-damage half; unstrand of ~154 legacy rows still
-queued). The SC/BP/Bandcamp scorers share one name-matching seam
-(`src/fulltags/sources/name-match.ts`).**
-**Rev 3 (Sep 15): W2 hard artist gate shipped (`scoreScHits`, mirrors
-Beatport's — wrong-uploader hits can no longer win the [0] slot); W1
-`Music` mint removed (#61 stop-new-damage half; unstrand of ~154 legacy
-rows still queued).**
-**Rev 2 (Sep 15): full write-source inventory (§2) — every path that can
-put a genre in the DB, including the two the v1 walkthrough missed
-(`megadj ingest` W6, `megadj enrich`/MusicBrainz W5); `sc_genre_ids`
-cache flagged as orphaned (§5).**
+> **Rev 4 (Sep 15): Bandcamp is now a LIVE ladder source (W2b, third vote
+> behind SC → BP) with the shared hard artist gate; W1's `Music` mint
+> removed (#61 stop-new-damage half; unstrand of ~154 legacy rows still
+> queued). The SC/BP/Bandcamp scorers share one name-matching seam
+> (`src/fulltags/sources/name-match.ts`).**
+> **Rev 3 (Sep 15): W2 hard artist gate shipped (`scoreScHits`, mirrors
+> Beatport's — wrong-uploader hits can no longer win the [0] slot); W1
+> `Music` mint removed (#61 stop-new-damage half; unstrand of ~154 legacy
+> rows still queued).**
+> **Rev 2 (Sep 15): full write-source inventory (§2) — every path that can
+> put a genre in the DB, including the two the v1 walkthrough missed
+> (`megadj ingest` W6, `megadj enrich`/MusicBrainz W5); `sc_genre_ids`
+> cache flagged as orphaned (§5).**
 
 Reading order by question:
 
@@ -81,7 +84,7 @@ that can put a genre into `tracks.genre` (search: `updateGenre` /
 | W3  | **Beatport lookup**     | `megadj fetch` (when SC misses)                | Beatport store genre (`bpGenre`)                                                                                                                                                                   | medium-high (store taxonomy)                                                   | same tag-first discipline as W2                                                                                                                                                                                                                                                                                                       |
 | W2b | **Bandcamp vote**       | `megadj fetch` (when SC AND BP miss)           | artist-entered tags on the bandcamp item page (`src/fulltags/sources/bandcamp.ts`) — same junk gate as W2                                                                                          | medium (artist-tagged, label-curated pages; junk rare)                         | **hard artist gate** (band/artist must contain the query artist) before the page fetch; one fetch votes genre + year (publish date) + label (publisher) + art (og:image)                                                                                                                                                              |
 | W4  | **AI classifier**       | `megadj fetch` with `aiAllowed`                | OpenRouter, closed `AI_VOCAB` vocabulary, conf ≥ 0.7                                                                                                                                               | medium                                                                         | fires ONLY when SC AND Beatport both missed; **opt-in, off by default**                                                                                                                                                                                                                                                               |
-| W5  | **MusicBrainz harvest** | `megadj enrich`                                | MB artist folksonomy tags (`src/fulltags/sources/mb-lookup.ts`)                                                                                                                                           | medium (community-curated)                                                     | fills weak/missing only; tag-write-first                                                                                                                                                                                                                                                                                              |
+| W5  | **MusicBrainz harvest** | `megadj enrich`                                | MB artist folksonomy tags (`src/fulltags/sources/mb-lookup.ts`)                                                                                                                                    | medium (community-curated)                                                     | fills weak/missing only; tag-write-first                                                                                                                                                                                                                                                                                              |
 | W6  | **Ingest file tags**    | `megadj ingest`                                | the FILE's own TCON (pool rips — Bandcamp/Hypeddit-quality), MB artist tags as fallback (`src/getdat/commands/ingest.ts`)                                                                          | medium (measured 53.1%)                                                        | real-genre check (refuses `Music`) before adopting the file tag                                                                                                                                                                                                                                                                       |
 | W7  | **Imprint prior**       | `megadj fetch` (when SC AND BP miss the genre) | the track's record label (Beatport-filled TPUB / Bandcamp publisher) mapped to a scene family via `IMPRINT_FAMILIES` (`src/fulltags/sources/imprint-prior.ts`, every row cited with source + date) | metadata, not audio truth — near-ground-truth for SCENE on electronic imprints | fires only when SC AND BP both missed the genre; unknown/junk label = abstain (never a guess); every mapping's family must be a live scoring family (test-pinned); the ladder's arbitration point for kNN conflicts is `imprintStands` — the prior stands only when the audio has no contradicting consensus (issue #128)             |
 | I1  | **kNN inference**       | `megadj genre`                                 | embedding cosine k-NN family vote                                                                                                                                                                  | statistical, not a claim                                                       | EMPTY columns only (COALESCE); never clobbers W1–W7                                                                                                                                                                                                                                                                                   |
@@ -300,8 +303,8 @@ gate; transparency surfaces (T) let a human see what any track claims.
 
 | Concern                                                                                                                                            | File                                                                                                                                                                                    |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Family map + kNN vote + LOO harness + embeddings ledger                                                                                            | `src/core/similar.ts`                                                                                                                                                                |
-| Seeding exclusion + flag setter + labeled population                                                                                               | `src/core/state-tracks.ts`                                                                                                                                                           |
+| Family map + kNN vote + LOO harness + embeddings ledger                                                                                            | `src/core/similar.ts`                                                                                                                                                                   |
+| Seeding exclusion + flag setter + labeled population                                                                                               | `src/core/state-tracks.ts`                                                                                                                                                              |
 | Refold engine (canonicalization + arbitration)                                                                                                     | `src/fulltags/genre/genre-refold.ts`                                                                                                                                                    |
 | Dispute classifier                                                                                                                                 | `src/fulltags/genre/genre-flag.ts`                                                                                                                                                      |
 | Dispute review surface (collect + agree/keep verbs, #64)                                                                                           | `src/fulltags/genre/genre-disputes.ts`                                                                                                                                                  |
@@ -309,25 +312,25 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Tier-0 diagnostics engine                                                                                                                          | `src/fulltags/genre/genre-diagnostics.ts`                                                                                                                                               |
 | Linear probe (informational readout)                                                                                                               | `src/fulltags/analysis/linear-probe.ts`                                                                                                                                                 |
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`)                                                                                              | `src/fulltags/genre/genre.ts`                                                                                                                                                           |
-| Fetch ladder + election write + junk gate + tag-first writes (#173/#215)                                                                           | `src/fulltags/fetch/fetch-pipeline.ts` + `src/fulltags/fetch/fetch-stages.ts` + `src/fulltags/core/archive-ledger.ts` (#184 — re-homed from tools/)                                          |
+| Fetch ladder + election write + junk gate + tag-first writes (#173/#215)                                                                           | `src/fulltags/fetch/fetch-pipeline.ts` + `src/fulltags/fetch/fetch-stages.ts` + `src/fulltags/core/archive-ledger.ts` (#184 — re-homed from tools/)                                     |
 | Vote ladder weights + election + (de)serialization (#173)                                                                                          | `src/fulltags/genre/genre-vote.ts`                                                                                                                                                      |
 | Explainability read — CLI `genre-why` (#215; MCP/UI ride the same `electGenre` replay)                                                             | `src/fulltags/genre/genre-why.ts`                                                                                                                                                       |
 | Live-run event protocol (`fetch --json` stderr `@event` lines, #215)                                                                               | `src/fulltags/fetch/fetch-events.ts`                                                                                                                                                    |
-| Run-tab server side: `fetch` job kind, feed ring, `/api/fetch/start` + `/api/fetch/feed` (#215)                                                    | `src/deck/jobs/job-legs-fetch.ts` (`runFetchJob`, re-exported by `job-legs.ts`) + `src/deck/tools/fetch-feed.ts` + `src/deck/api/routes.ts` (`fetchRoutes`)                    |
-| Run-tab UI (the ladder deciding live: per-track votes, elections, tally)                                                                           | `src/deck/web/products/fulltags/GenreRunTab.tsx`; rung display defs: `src/deck/shared/genre-vote-rungs.ts` (census-pinned to `GENRE_VOTE_WEIGHTS`)                                    |
+| Run-tab server side: `fetch` job kind, feed ring, `/api/fetch/start` + `/api/fetch/feed` (#215)                                                    | `src/deck/jobs/job-legs-fetch.ts` (`runFetchJob`, re-exported by `job-legs.ts`) + `src/deck/tools/fetch-feed.ts` + `src/deck/api/routes.ts` (`fetchRoutes`)                             |
+| Run-tab UI (the ladder deciding live: per-track votes, elections, tally)                                                                           | `src/deck/web/products/fulltags/GenreRunTab.tsx`; rung display defs: `src/deck/shared/genre-vote-rungs.ts` (census-pinned to `GENRE_VOTE_WEIGHTS`)                                      |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                                                                                    | `src/fulltags/sources/bandcamp.ts`                                                                                                                                                      |
 | Name-matching SSOT (artist gate, title overlap, tokens)                                                                                            | `src/fulltags/sources/name-match.ts`                                                                                                                                                    |
 | Intake vocabularies (`guessFromFreeText` regex, `SC_GENRE_CANON`, `AI_VOCAB`, `canonicalizeClaim`, family map `FAMILIES`/`familyOf`, umbrella set) | `src/fulltags/genre/genre-vocab.ts` (#187 — one module owns every named genre map; `canonGenre` remains a compat alias on `schema.ts`; the old exports.ts bridge was dissolved by #193) |
 | YT metadata → tags (W1 — mint removed Sep 15; unknown stays null)                                                                                  | `src/fulltags/write/metadata-build.ts`                                                                                                                                                  |
 | Ingest file-tag adoption (W6)                                                                                                                      | `src/getdat/commands/ingest.ts`                                                                                                                                                         |
-| MusicBrainz folksonomy harvest (W5)                                                                                                                | `src/fulltags/sources/mb-lookup.ts` + `src/fulltags/fetch/enrich.ts`                                                                                                                           |
+| MusicBrainz folksonomy harvest (W5)                                                                                                                | `src/fulltags/sources/mb-lookup.ts` + `src/fulltags/fetch/enrich.ts`                                                                                                                    |
 | Beatport lookup + store genre (W3)                                                                                                                 | `src/fulltags/sources/beatport.ts` (`bpGenre`)                                                                                                                                          |
 | SC search + genre write helper (W2)                                                                                                                | `src/fulltags/sources/art-sources.ts` (`scSearch`)                                                                                                                                      |
 | AI classifier (W4)                                                                                                                                 | `src/fulltags/analysis/ai.ts`                                                                                                                                                           |
 | Embedding producer (effnet via ONNX worker)                                                                                                        | `src/fulltags/analysis/models.ts` (`analyzeMoods`)                                                                                                                                      |
 | File ground-truth reader (TCON/TKEY/TBPM/… + art)                                                                                                  | `src/fulltags/write/readers.ts` (`groundTruth`)                                                                                                                                         |
-| Tag census + three-source compare (T1/T2)                                                                                                          | `src/deck/hygiene/tag-census.ts`                                                                                                                                                   |
-| Wire types (census/compare payloads)                                                                                                               | `src/deck/shared/archive-wire.ts`                                                                                                                                                      |
+| Tag census + three-source compare (T1/T2)                                                                                                          | `src/deck/hygiene/tag-census.ts`                                                                                                                                                        |
+| Wire types (census/compare payloads)                                                                                                               | `src/deck/shared/archive-wire.ts`                                                                                                                                                       |
 
 ## 8. Design rationale — why the seams are where they are
 

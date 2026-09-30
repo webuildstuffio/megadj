@@ -13,7 +13,7 @@ import { runRegate, type GateObservation, type GateResult } from "../cli/gates";
 // one command, one module; the LOO harness is evalLeaveOneOut in
 // core/similar — no second eval implementation) ----
 
-/** The genre ship gate (genre-pipeline.md §V2, tier-0 arbitration bar). */
+/** The genre ship gate (genre-system.md §9, tier-0 arbitration bar). */
 export const GENRE_GATE_PERCENT = 65;
 
 /** The per-dimension result: measured agreement + gate verdict from the

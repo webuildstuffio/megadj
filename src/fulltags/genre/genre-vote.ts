@@ -1,5 +1,5 @@
 // genre-vote.ts — the weighted multi-source genre vote ladder (#173,
-// genre-pipeline.md §5b.3.6). Supersedes first-win writes: every source
+// genre-system.md §2). Supersedes first-win writes: every source
 // rung VOTES its claim (genre + weight + provenance), the highest total
 // weight wins, ties break toward the harder gate. The write seam stays
 // one: applyVote runs the write-first discipline (file tag, then DB row)

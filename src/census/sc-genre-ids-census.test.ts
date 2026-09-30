@@ -32,9 +32,9 @@ test("census: sc_genre_ids stays dropped (no reference in code)", () => {
 });
 
 describe("sc_genre_ids verdict", () => {
-  test("genre-pipeline.md §5 records the dated drop verdict", () => {
+  test("genre-pipeline (archived) §5 records the dated drop verdict", () => {
     const doc = readFileSync(
-      join(ROOT, "docs/fulltags/genre-pipeline.md"),
+      join(ROOT, "docs/archive/genre-pipeline-2026-09-16.md"),
       "utf8",
     );
     expect(doc).toMatch(/DROPPED 2026-09-15/);

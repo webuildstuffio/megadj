@@ -1,6 +1,9 @@
 # FullTags — Genre Taxonomy: Authoritative Sources, Family Map, Embedding Validation (Sep 14, 2026)
 
-**Status:** 📚 REFERENCE — current taxonomy authorities, family map, and validation.
+**Status:** 📦 ARCHIVED 2026-09-30 — superseded by [genre-system.md](../fulltags/genre-system.md).
+Kept for the full Discogs-400 evaluation and external source research. Numbers are from Sep 14 2026.
+
+~~**Status:** 📚 REFERENCE — current taxonomy authorities, family map, and validation.~~
 
 > **v3 source expansion (Sep 29):** the v3 plan adds Discogs monthly dumps
 > (CC0, offline, 400 styles matching effnet's training taxonomy),

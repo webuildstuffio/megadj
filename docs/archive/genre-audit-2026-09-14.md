@@ -1,6 +1,9 @@
 # FullTags — Genre Audit & Inclusion Policy (Set §genre consumer)
 
-**Status:** 📚 REFERENCE — current genre inclusion and source-precedence policy.
+**Status:** 📦 ARCHIVED 2026-09-30 — superseded by [genre-system.md](../fulltags/genre-system.md).
+Kept for historical baselines and audit methodology. Numbers are from Sep 14–20 2026.
+
+~~**Status:** 📚 REFERENCE — current genre inclusion and source-precedence policy.~~
 
 > **v3 answer-key notice (Sep 29):** the "audio-consistency" metric used
 > throughout this audit grades labels against kNN agreement — which is
