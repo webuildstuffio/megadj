@@ -44,15 +44,30 @@ def main() -> None:
 
     # Build archive album lookup keyed on multiple keys
     arc_albums: dict[str, str] = {}
+    # Junk patterns: never push these as album names
+    junk_re_patterns = [
+        "unknownartist",
+        "unknown artist",
+        "unknownalbum",
+        "unknown album",
+    ]
+
+    def is_junk_album(name: str) -> bool:
+        low = name.lower()
+        return any(p in low for p in junk_re_patterns) or not name.strip()
+
     for r in archive.execute(
         "SELECT file_path, album, title, artist FROM tracks "
         "WHERE status='downloaded' AND album IS NOT NULL "
         "AND album != '' AND album != 'UnknownAlbum'"
     ):
+        album_val = r["album"]
+        if is_junk_album(album_val):
+            continue  # never push junk
         if r["file_path"]:
-            arc_albums[nfc(r["file_path"])] = r["album"]
+            arc_albums[nfc(r["file_path"])] = album_val
         if r["title"] and r["artist"]:
-            arc_albums[nfc(str(r["title"])) + "|" + nfc(str(r["artist"]))] = r["album"]
+            arc_albums[nfc(str(r["title"])) + "|" + nfc(str(r["artist"]))] = album_val
     archive.close()
 
     # Build album name → ID cache
