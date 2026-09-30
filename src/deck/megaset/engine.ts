@@ -14,7 +14,7 @@
 // item 2); this module owns the query parse, the candidate model, and
 // the chain/search family (greedy vs beam + the commit loop).
 export { camelotOf } from "../shared/camelot";
-import { round3 } from "../../shared/leaf/fmt";
+import { round1, round3 } from "../../shared/leaf/fmt";
 export type { MegasetPresetDef, MegasetPresetId } from "../shared/types";
 import {
   DEFAULT_MEGASET_PRESET,
@@ -174,8 +174,7 @@ export interface MegasetInput {
 const candidateDuration = planCandidateDuration;
 
 /** Set-runtime precision shared by step clocks and the result summary. */
-const minutesAt = (seconds: number): number =>
-  Math.round((seconds / 60) * 10) / 10;
+const minutesAt = (seconds: number): number => round1(seconds / 60);
 
 // The SELECTION family (greedy/beam chain builders + their types) lives
 // in ./megaset/search (#89 diet extraction) — this module owns the pool
@@ -279,8 +278,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
    *  exhausted pools report the remaining time instead of echoing intent. */
   const result = (): MegasetResult => {
     const actualMinutes = minutesAt(elapsed);
-    const shortfallMinutes =
-      Math.round(Math.max(0, minutes - actualMinutes) * 10) / 10;
+    const shortfallMinutes = round1(Math.max(0, minutes - actualMinutes));
     // #283-followup: set-level quality stats so proposals are COMPARABLE
     // (the MD eval previously hand-derived these from steps). null on a
     // single-step chain — no transitions, no average.

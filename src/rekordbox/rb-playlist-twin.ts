@@ -226,7 +226,7 @@ export function applyPlaylistTwinMutation<T>(
     const message = errorText(error);
     try {
       closed(`restoring failed ${options.what}`);
-      restoreMasterBackup(options.dbPath, backedUpTo);
+      restoreMasterBackup(options.dbPath, backedUpTo, undefined, closed);
       atomicReplace(xmlPath, readFileSync(xmlBackedUpTo));
     } catch (restoreError) {
       throw new Error(

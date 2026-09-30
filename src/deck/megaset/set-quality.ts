@@ -18,6 +18,7 @@ import {
   type MegasetResult,
   type MegasetStep,
 } from "../shared/megaset";
+import { round1 } from "../../shared/leaf/fmt";
 
 export type { MegasetQuality } from "../shared/megaset";
 
@@ -153,5 +154,5 @@ function landmarkComponent(result: MegasetResult): number {
 }
 
 function clamp100(v: number): number {
-  return Math.max(0, Math.min(100, Math.round(v * 10) / 10));
+  return Math.max(0, Math.min(100, round1(v)));
 }

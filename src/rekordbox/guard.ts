@@ -69,13 +69,16 @@ function restoreFileAtomic(source: string, destination: string): void {
   }
 }
 
-/** Atomically restore a master DB and its WAL/SHM family from backup. */
+/** Atomically restore a master DB and its WAL/SHM family from backup.
+ *  `assertClosed` defaults to the real `assertRbClosed` gate; tests inject
+ *  a no-op so the restore path runs regardless of live RB state (#420). */
 export function restoreMasterBackup(
   dbPath: string,
   backupPath: string,
   what = "restoring the master DB backup",
+  assertClosed: (what: string) => void = assertRbClosed,
 ): void {
-  assertRbClosed(what);
+  assertClosed(what);
   if (!existsSync(backupPath))
     throw new Error(`master DB backup not found at ${backupPath}`);
   restoreFileAtomic(backupPath, dbPath);

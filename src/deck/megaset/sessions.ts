@@ -9,6 +9,7 @@
 // Each verb produces a NEW session with a parent_id link to the source.
 
 import type { MegasetQuality, MegasetResult } from "../shared/megaset";
+import { round3 } from "../../shared/leaf/fmt";
 
 /** Session status lifecycle. */
 export type SessionStatus = "draft" | "committed" | "superseded";
@@ -125,5 +126,5 @@ function recomputeMinTransition(steps: MegasetResult["steps"]): number | null {
     .map((s) => s.transition)
     .filter((t): t is number => t !== null);
   if (transitions.length === 0) return null;
-  return Math.round(Math.min(...transitions) * 1000) / 1000;
+  return round3(Math.min(...transitions));
 }

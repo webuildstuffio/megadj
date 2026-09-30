@@ -138,7 +138,7 @@ export function loadConfig(root: string): CrateConfig {
   const rawImageProvider =
     typeof images.provider === "string"
       ? images.provider
-      : process.env.CRATEDECK_IMAGE_PROVIDER;
+      : nonEmptyEnv("CRATEDECK_IMAGE_PROVIDER");
   if (
     rawImageProvider !== undefined &&
     rawImageProvider !== "brave" &&

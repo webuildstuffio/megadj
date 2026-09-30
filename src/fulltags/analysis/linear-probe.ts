@@ -12,6 +12,8 @@
 // Deterministic: zero-init weights, fixed learning rate, fixed epochs
 // — same input, same weights, same predictions. Pure: no DB, no IO.
 
+import { round4 } from "../../shared/leaf/fmt";
+
 /** One training row: the frozen vector, its family label (the class
  *  index), and an id (self-exclusion during LOO). */
 export interface ProbeRow {
@@ -103,7 +105,7 @@ export function fitProbe(
   }
   return {
     fit: { classes, weights: W, bias: b },
-    loss: Math.round((loss / n) * 10000) / 10000,
+    loss: round4(loss / n),
     epochs,
   };
 }

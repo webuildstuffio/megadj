@@ -23,12 +23,13 @@ describe("guard", () => {
     expect(typeof rekordboxRunning()).toBe("boolean");
   });
 
-  test("assertRbClosed throws when rekordbox is running (injected via env)", () => {
-    // The gate consults pgrep; we can't spawn RB in CI, so assert the
-    // throw-path via a stubbed process check: call with a fake running
-    // state by monkey-patching is fragile — instead verify the happy path
-    // (RB not running in test env) doesn't throw.
-    expect(() => assertRbClosed("test-op")).not.toThrow();
+  test("assertRbClosed agrees with rekordboxRunning — throws iff RB is live", () => {
+    const running = rekordboxRunning();
+    if (running) {
+      expect(() => assertRbClosed("test-op")).toThrow(/rekordbox is running/u);
+    } else {
+      expect(() => assertRbClosed("test-op")).not.toThrow();
+    }
   });
 
   test("fileExistsSafe: null/false/real file/missing", () => {
@@ -53,7 +54,8 @@ describe("guard", () => {
     writeFileSync(backup, "original");
     writeFileSync(`${backup}-wal`, "original-wal");
 
-    restoreMasterBackup(db, backup, "test restore");
+    // Inject a no-op assertClosed so the test works regardless of RB state.
+    restoreMasterBackup(db, backup, "test restore", () => {});
 
     expect(readFileSync(db, "utf8")).toBe("original");
     expect(readFileSync(`${db}-wal`, "utf8")).toBe("original-wal");

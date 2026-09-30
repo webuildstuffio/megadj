@@ -2,7 +2,7 @@
 // from gold.ts): per-track scoring against predicted phrase/BPM/cues and
 // the aggregate metrics. The annotation schema + loader stay in gold.ts.
 import type { GoldAnnotation, GoldBranch } from "./gold";
-import { round1, round3 } from "../../shared/leaf/fmt";
+import { round1, round2, round3 } from "../../shared/leaf/fmt";
 
 // ---------- GA-00b metric math (pure — the scorer consumes these) ----------
 
@@ -47,8 +47,7 @@ export function scoreGoldTrack(
     pred.firstDownbeatS === null
       ? null
       : round1(pred.firstDownbeatS * 1000 - gold.firstDownbeatMs);
-  const bpmDelta =
-    pred.bpm === null ? null : Math.round((pred.bpm - gold.bpm) * 100) / 100;
+  const bpmDelta = pred.bpm === null ? null : round2(pred.bpm - gold.bpm);
   const bpmRatio =
     pred.bpm === null || !(gold.bpm > 0) ? null : round3(pred.bpm / gold.bpm);
 
