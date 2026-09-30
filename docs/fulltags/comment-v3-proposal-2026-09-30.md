@@ -1,294 +1,582 @@
-# Comment v3 Proposal — 2026-09-30
+# FullTags Booth Metadata v4 — Comment, Color & My Tag Spec
 
-Status: **PROPOSAL v2** — format pick + implementation spec
+**Sep 30 2026** · Status: **PROPOSAL** — format pick + implementation spec
 
-## Problem
+## Summary
 
-Current format: `Fm · E5.4 · Party+Dance+Electronic`
+v4 replaces the mood-label comment with a mix-first booth string, backed
+by My Tags for filtering and track color for scanning:
 
-| Field | Issue |
-|---|---|
-| Key (`Fm`) | Redundant — RB shows Key in its own column |
-| Energy (`E5.4`) | ✅ Good — real sorting value |
-| Mood (`Party+Dance+Electronic`) | **94% of library identical** — zero sorting value |
+```
+E8 IN:32 OUT:16 VOX Drop Dark · MelTechno
+```
 
-Every track in an EDM collection fires party (94.7%), electronic (90.0%),
-and dance (96.4%). Showing those three labels tells the DJ nothing.
+Read mid-set: energy 8 of 9, 32-bar mixable intro (you have 32 bars of
+instrumental music at the start to blend over before vocals or the main
+melody kicks in), 16-bar clean outro (16 bars of instrumental at the end
+after the last vocal or melodic phrase fades), vocals appear inside those
+mix zones so watch for clash, a big build-and-drop track, dark for its
+genre, melodic techno subgenre.
 
-## Pioneer Hardware: No Emoji, No Symbols
+**Key decisions:**
 
-`booth-text.ts` NON_FLEET_TEXT blocks **all** of:
-- Emoji (U+1F000–1FAFF) — render as empty boxes or vanish on CDJs
-- Miscellaneous Symbols (U+2600–27BF) — includes ☀ ★ ♪ ♠
-- Geometric Shapes (U+25A0–25FF) — includes ▲ ▼ ● ○ ■
-- Arrows (U+2190–21FF) — includes ↑ ↓ ← →
-- All CJK, Cyrillic, Arabic, Hebrew
+- **Comment shows only what no other rekordbox column shows.** Key, BPM,
+  primary genre and rating stay in their own columns.
+- **Mix window first.** IN/OUT bar counts and vocal clash risk decide
+  whether a blend works; that is the question asked most at the booth.
+- **Mood is relative to genre.** "Dark" means dark *for a techno track*,
+  so the words stay informative in a library of similar songs.
+- **Three channels, not one.** Comment for reading, My Tags for on-deck
+  filtering (the XDJ-XZ has Track Filter), color for scanning energy
+  down a list.
+- **Words, not symbols.** The token itself is the check mark: if `VOX`
+  is present, the track has vocals. No emoji, no arrows, no symbols.
+- **Accuracy over reuse.** v4 re-derives energy, vocals and structure
+  rather than reformatting v3's uncalibrated classifier outputs.
 
-**Safe characters**: ASCII letters, digits, `·` (U+00B7 Latin-1 Supplement),
-`-`, `/`, `|`, `%`, `(`, `)`, `:`, space. That's it.
+**Why it beats v3:** v3's A/H percentages repeat the vibe word, its
+two-digit precision is noise, and its set placement is a pure function
+of fields already shown. v4 drops all three and adds mix window, vocal
+clash and drop/roll shape — none of which exist anywhere in rekordbox
+today.
 
-So "smile icon 23% / dark icon 70%" must use **text abbreviations**,
-not Unicode pictograms. This is actually better — abbreviations are
-legible at arm's length on a dim CDJ screen where a tiny glyph isn't.
+---
 
-## Character Budget
+## Hardware Facts
 
-| Surface | Visible chars | Scrolls? |
+The XDJ-XZ has Track Filter, so My Tags are worth writing: they become
+filterable at the booth, not just in rekordbox.
+
+| Fact | Detail | Confidence |
 |---|---|---|
-| RB DB (`djmdContent.Commnt`) | TEXT column — **no hard limit** | n/a |
-| CDJ-3000 / XDJ-XZ display | ~50–60 | Yes — jog display auto-scrolls |
-| CDJ-2000NXS2 | ~40 | Yes (slower) |
-| CDJ-900NXS | ~32 | Yes |
-| rekordbox app (list view) | Column-width dependent, 80+ | No (truncated) |
-| CrateDeck web UI | Unlimited | n/a |
-| Current max in library | 36 chars | — |
+| XDJ-XZ has Track Filter | Inherited from the CDJ-2000NXS2 alongside QWERTY search and shortcuts (Soundstore XL) | Medium — retailer listing; confirm on unit |
+| NXS2-style Track Filter criteria | BPM, key, rating, color and My Tags, combinable with AND/OR (Bonedo review) | High |
+| Filter follows the master deck | e.g. only tracks within 3% BPM of the playing track, updating as you load new tracks (RA review) | High |
+| Filters are set at the player | Cannot be preset from rekordbox for USB playback (Digital DJ Tips) | High |
+| Track colors | 8 fixed colors (Pink, Red, Orange, Yellow, Green, Aqua, Blue, Purple); one per track; no gradients | High |
+| Comment charset | ASCII letters, digits and `· - / | % ( ) :`; no emoji, arrows, check marks or geometric symbols (from `booth-text.ts`) | High |
+| `+` renders | Already in the live library (`Party+Dance+Electronic`) | High |
 
-**Key insight**: all modern Pioneer hardware scrolls the comment field.
-There is NO hard character limit — the only constraint is "how much is
-visible at a glance" vs "how much scrolls". A DJ can read the first
-50 chars instantly; the rest scrolls for deeper info.
+**2-minute hardware check:** hold Track Filter on the XDJ-XZ, confirm
+My Tag appears as a criterion, and test an AND of two tags. This single
+check gates Phase 3.
 
-This means we can design TWO tiers in ONE string:
-- **First 40-50 chars**: the at-a-glance data (energy, vibe, key moods)
-- **Chars 50+**: extended data that scrolls (extra genres, set placement)
+---
 
-## Available Data — Discriminative Analysis
+## Three Channels
 
-Measured from archive.db, 4,555 mood-analyzed tracks (Sep 30 2026 12:53 ET).
+Each channel does one job. All three are written by the same sync run
+from the same analysis row.
 
-### Dimensions Worth Showing (discriminative)
-
-| Dimension | Range | Coverage | Distribution | Why useful |
-|---|---|---|---|---|
-| Energy (1–10) | Integer | 4,644/4,569 (99.6%) | Full 1–10 spread | Mixing energy levels — the #1 sorting field |
-| Aggressive | 0–97% | 4,555 (99.6%) | Smooth ramp, no bucket > 8% | How hard/heavy — distinguishes a chill house track from a peak techno banger |
-| Happy | 0–99% | 4,555 (99.6%) | 49% below 20%, 25% at 20–40%, 14% at 40–60% | Emotional tone — euphoric vs dark vs neutral |
-| Vibe (7 buckets) | Word | 4,555 (99.6%) | Smooth 29.7%, Bright 21.9%, Driving 18.7%, Medium 12.7%, Groovy 8.1%, Hard 6.7%, Deep 2.2% | Quick-read character label, no bucket > 30% |
-| Secondary genre | 27 labels | 2,744/4,569 (60.1%) | EDM 875, House 584, Techno 319, Tech House 278, Hip-Hop 176 | Style context beyond the primary genre column |
-| Tertiary genre | Parsed from votes | Variable | Long tail | Extra style depth when available |
-
-### Dimensions NOT Worth Showing (saturated for EDM collection)
-
-| Dimension | Why skip |
-|---|---|
-| Danceability | **96.4%** of tracks are 95–100% — everything is danceable, zero info |
-| Electronic | **90.0%** fire > 0.5 — it's an EDM collection, everything is electronic |
-| Party | **94.7%** fire > 0.5 — same saturation |
-| Valence | **90.7%** cluster at 4.0, 9.3% at 5.0 — nearly no spread |
-| Arousal | **96.6%** cluster at 5.0 — already captured by Energy mapping |
-| Primary genre | Already in RB Genre column via genre-sync |
-| BPM | Already in RB BPM column |
-| Key | Already in RB Key column |
-
-### What About "Aggressive" as a Word?
-
-The current vibe system maps `aggressive > 0.7` → "Hard". But "Hard" hides
-the granularity: a track at 71% aggro and one at 95% aggro are both "Hard"
-but feel very different in a mix. Showing the **raw percentage alongside the
-vibe word** gives DJs both the quick label AND the precision:
-
-```
-E9·Hard·A95·H3·Techno       ← REALLY hard, dark
-E7·Hard·A72·H34·Tech House  ← hard but with some fun
-```
-
-The vibe word is the "what kind of track is this?" glance. The A/H numbers
-are the "how much of each?" precision for mixing decisions.
-
-## Data Quality Edge Cases Found
-
-**83 tracks** have secondary genre = primary genre (e.g., genre "House",
-genre_secondary "House"). The v3 builder must deduplicate: if secondary
-matches primary, skip it and promote tertiary. Implementation: casefold
-compare in `build_comment()` and `buildCommentV3()`.
-
-## Format Design: Three Tiers in One String
-
-All tiers share the same builder — it just emits more fields as data
-is available. The "tier" is what the DJ sees at a glance on their
-hardware; the rest scrolls.
-
-### Anatomy
-
-```
-E6·Driving·A46·H27·Tech House-Progressive·Build
-│  │       │   │   │                       │
-│  │       │   │   │                       └─ Set placement (scrolling zone)
-│  │       │   │   └─ Secondary-Tertiary genres (dash-joined)
-│  │       │   └─ Happy % (0-99, omit if <5 — reads as neutral)
-│  │       └─ Aggressive % (0-99, omit if <5 — reads as chill)
-│  └─ Vibe bucket (7 labels)
-└─ Energy integer (1-10)
-```
-
-### Tier 1: Compact — any CDJ screen (20–30 chars)
-
-For tracks with sparse data or when only the essentials matter:
-
-```
-E6·Driving·Tech House
-E9·Hard·Techno
-E5·Smooth
-```
-
-### Tier 2: Mood-Rich — CDJ-3000/XDJ-XZ at a glance (30–45 chars)
-
-The recommended default. Adds the raw aggressive/happy percentages:
-
-```
-E6·Driving·A46·H27·Tech House
-E9·Hard·A95·H3·Techno
-E5·Smooth·A2·H80·Deep House
-E10·Driving·A67·H34·Tech House
-E7·Groovy·A25·H46·House
-E8·Bright·A3·H72·EDM
-```
-
-Reading these mid-set: "E9 Hard A95 H3 Techno" = energy 9, hard,
-95% aggressive, 3% happy, techno subgenre → peak-time dark techno.
-"E8 Bright A3 H72 EDM" = energy 8, bright, barely aggressive, very
-happy → euphoric buildup track.
-
-### Tier 3: Full — scrolls on CDJ, visible in rekordbox (40–60 chars)
-
-Adds tertiary genre and set placement when available:
-
-```
-E6·Driving·A46·H27·Tech House-Progressive·Build
-E9·Hard·A95·H3·Techno-Trance·Peak
-E5·Smooth·A2·H80·Deep House·Opener
-E3·Deep·A8·H5·Electronica·Closer
-E8·Bright·A3·H72·EDM-Pop·Floor
-```
-
-### Real Library Examples
-
-| Track | Primary | Comment v3 (Tier 2) | Chars |
+| Channel | Job | Content | Where it shows |
 |---|---|---|---|
-| MEDUZA - NO SLEEP (BEARKAT RMX) | Techhouse | `E10·Driving·A67·H34·Tech House` | 31 |
-| Diamond Girl - CIREZ D | Techno | `E5·Driving·A58·H27·EDM` | 23 |
-| Creamfields 2019 ID - Cirez D | Techno | `E9·Driving·A63·H3·Trance` | 25 |
-| Walking On A Dream - prodbyocx | Techno | `E8·Driving·A46·H27·EDM` | 24 |
-| Wonders - Neelix et al. | Trance | `E9·Medium·A24·H3·Techno` | 25 |
-| The Rush - entity_A | EDM | `E8·Medium·A21·H36·Tech House` | 30 |
-| Would You (Go To Bed…) | Electronic | `E9·Medium·A21·H46·EDM` | 23 |
-| Petrichor - RIGOONI | EDM | `E8·Smooth·A3·H2·House` | 22 |
-| Aura - Anthony P. | Afro House | `E9·Smooth·A2·H3·Techno` | 23 |
+| **Comment** | Read a track at a glance | `E8 IN:32 OUT:16 VOX Drop Dark · MelTechno` | Deck info, browse list, rekordbox column; scrolls on long strings |
+| **My Tags** | Filter a playlist at the booth | `[Vocal]` `[Drop]` `[Dark]` `[MelTechno]` `[TechHouse 58%]` `[Trance 22%]` | Track Filter on XDJ-XZ / CDJ-3000; rekordbox filter |
+| **Track color** | Scan energy down a list | 6 colors mapped from E1–E9 | Color bar in every browse list |
 
-**Max observed: 31 chars** at Tier 2. Fits any modern CDJ with room.
-Tier 3 adds ~15–20 chars for genres/placement → 45–50 chars, still
-within the no-scroll zone on CDJ-3000.
+**Booth filter recipes this enables:**
 
-## Set Placement Derivation
+- **Long blend candidates:** `[Roll]` AND `[Vocal] = INST`, BPM ±3%
+- **Peak moment:** `[Drop]` AND color Red or Orange
+- **Mood switch:** `[Euph]`, when the room needs lifting after a dark run
+- **Subgenre dive:** `[AfroHouse]` to browse only that style
 
-A bonus field for Tier 3, derived from energy + vibe (zero new analysis):
+The comment carries a word only when it fires. My Tags carry **every
+value** including `INST` and `Mid`, because a filter needs an explicit
+value to match against.
 
-| Vibe + Energy | Placement | DJ meaning |
+---
+
+## Comment Grammar v4
+
+The first two tokens (energy and mix window) are always present. Every
+other token appears only when it fires — the token itself is the check
+mark.
+
+```
+E{1-9} IN:{bars} OUT:{bars} [VOX|HOOK] [Drop|Roll] [Hard|Soft] [Dark|Euph] [VAR] [· Subgenre]
+```
+
+### Token Reference
+
+| Token | Values | What it means | When it fires |
+|---|---|---|---|
+| `E` | E1–E9 | Energy band, library-relative; higher = more energy. E9 is the hardest-hitting ninth of your own library. | Always |
+| `IN:` | 0, 8, 16, 32, 64 | **Intro mix window in bars.** How many bars of clean instrumental music at the START of the track before the first vocal or main melody kicks in. A DJ blends over this window. `IN:32` = "you have 32 bars to mix in before anything melodic or vocal starts." `IN:0` = "vocals or melody start immediately — no room to blend." `IN:64` = "64 or more bars of intro — extended mix, lots of room." Always rounded DOWN to the nearest value so you never promise mix room that isn't there. | Always |
+| `OUT:` | 0, 8, 16, 32, 64 | **Outro mix window in bars.** How many bars of clean instrumental music at the END of the track after the last vocal or melodic phrase fades out. `OUT:16` = "16 clean bars at the end to mix out of." `OUT:0` = "track ends abruptly or vocals/melody run to the end — mix early or use a loop." | Always |
+| `VOX` | present or absent | **Vocal clash warning.** Vocals appear inside the intro or outro mix window, meaning you might hear two vocal tracks at once during a blend. Does NOT mean the track has no vocals overall — just that they creep into the zones where you'd be mixing. | ~15–35% of library |
+| `HOOK` | present or absent | **Vocals in the body only.** The track has vocals, but ONLY in the main body — the intro and outro mix windows are clean and safe to blend. You get a vocal track that mixes like an instrumental. | ~15–35% of library |
+| `Drop` | present or absent | **Build-and-drop structure.** The track has a clear tension arc: a breakdown (drums/bass drop out), a build (energy ramps up), and a drop (everything hits at once). Classic peak-time EDM shape. Absence means the track grooves steadily without a big contrast moment. | ~20–30% |
+| `Roll` | present or absent | **Rolling groove.** The track maintains a steady, driving energy without a big build-and-drop moment. The floor keeps moving with no dramatic contrast. Think rolling techno, hypnotic house. Absence does NOT mean it has a drop — it might be neither (midsection utility tracks). | ~20–30% |
+| `Hard` | present or absent | **Aggressive for its genre.** In the top 20% of aggression within its primary genre family. A "Hard" house track is hard *for house*, not compared to techno. Genre-relative so the word stays meaningful in a library of similar music. | ~20% |
+| `Soft` | present or absent | **Gentle for its genre.** In the bottom 20% of aggression within its primary genre family. Opposite of Hard. | ~20% |
+| `Dark` | present or absent | **Dark for its genre.** In the bottom 20% of happiness within its primary genre family. Minor keys, moody pads, no euphoria. | ~20% |
+| `Euph` | present or absent | **Euphoric for its genre.** In the top 20% of happiness within its primary genre family. Uplifting melodies, major chords, festival energy. | ~20% |
+| `VAR` | present or absent | **Variable tempo warning.** The beat grid is not constant — tempo changes, live drums, or edits that shift the BPM. Do NOT trust sync; beatmatch by ear or loop a stable section. Rare in quantized EDM; common in live recordings and edits. | Under 5% |
+| `· Sub` | abbreviated subgenre | **Subgenre label.** The specific style within the broader genre family (which is already in the rekordbox Genre column). Only shown when the classifier is confident. Appears after `·` so the eye separates the glance zone from the scroll zone. | ~30–60% |
+
+### How to Read IN/OUT
+
+The intro/outro numbers answer one question: **"How long can I blend
+over this track before it gets busy?"**
+
+| IN: value | What you have at the start | Example scenario |
 |---|---|---|
-| Hard + E ≥ 8 | Peak | Main room climax |
-| Hard + E < 8 | Build | Ramping up intensity |
-| Driving + E ≥ 7 | Build | The ramp before peak |
-| Driving + E < 7 | Floor | Sustain energy, keep moving |
-| Groovy (any) | Floor | Fun, bouncy, dance-focused |
-| Bright + E ≥ 6 | Floor | Uplifting, euphoric |
-| Bright + E < 6 | Opener | Warm, inviting |
-| Medium (any) | Floor | Solid sustain |
-| Smooth + E ≥ 5 | Floor | Flowing, easy transitions |
-| Smooth + E < 5 | Opener | Set start, ease in |
-| Deep (any) | Closer | Late night, moody wind-down |
+| `IN:0` | Nothing — vocals or melody from bar 1 | Radio edit, vocal house that starts singing immediately. Must loop-in or hard-cut. |
+| `IN:8` | Short intro — 8 bars (~16 seconds at 128 BPM) | Quick intro, tight timing needed for the blend. |
+| `IN:16` | Standard intro — 16 bars (~32 seconds) | Enough for a basic blend. Most club edits. |
+| `IN:32` | Long intro — 32 bars (~64 seconds) | Comfortable blend, standard extended mix. Room to EQ and filter. |
+| `IN:64` | Extended intro — 64+ bars (~2+ minutes) | Lots of room. Long extended mixes, DJ tools, transition tracks. |
 
-Five labels: Peak / Build / Floor / Opener / Closer. Distribution will
-follow the energy × vibe cross-product — no bucket should dominate.
+Same logic for `OUT:` — how long you have at the END to blend the next
+track in before this one finishes.
 
-## A/H Percentage: Why This Beats the Old Mood Heads
+**Why bars, not seconds:** bars scale with BPM. 16 bars at 128 BPM is
+32 seconds; at 140 BPM it's 27 seconds. But the DJ thinks in bars and
+phrases, not seconds — "I have two 8-bar phrases to work with" is more
+useful than "I have 32 seconds."
 
-The old v2 showed one binary label: `AGGRO` or `HAPPY` or nothing.
-Problems: (1) only one label shown per track, (2) boolean (fired or not),
-(3) thresholded at library fire rate, (4) saturated heads suppressed.
+### Format Rules
 
-The v3 A/H percentages fix all four:
-1. **Both shown** — you see aggressive AND happy simultaneously
-2. **Continuous** — 70% aggressive is different from 95%
-3. **No threshold** — the number IS the data
-4. **No saturation gate** — A and H are the two non-saturated dimensions
+- **Separator:** single space between tokens; `·` only before the
+  subgenre so the eye sees *glance zone* and *scroll zone* as two parts.
+- **Order is fixed** so the parser and your eye both know where to look.
+  Glance zone max is 35 characters; worst case with subgenre is 48.
+- **Search-safe:** E1–E9 (never E10), so searching `E1` cannot match
+  `E10`; words are unique and do not appear in other tokens.
+- **Parser regex** (both builders):
+  `^E[1-9] IN:(0|8|16|32|64) OUT:(0|8|16|32|64)( (VOX|HOOK))?( (Drop|Roll))?( (Hard|Soft))?( (Dark|Euph))?( VAR)?( · [A-Za-z]+)?$`
 
-The "vibe word + A/H numbers" pattern gives the DJ two reading speeds:
-- Scanning: read "Hard" or "Bright" → instant character
-- Mixing: check A95 H3 vs A72 H34 → this track is darker than that one
+---
 
-## Omission Rules
+## Energy Scale
 
-- **A < 5**: omit `A` field entirely (reads as "not aggressive / chill")
-- **H < 5**: omit `H` field entirely (reads as "not particularly happy")
-- **Secondary = primary**: skip, promote tertiary
-- **No secondary**: genres field omitted
-- **Placement**: only in Tier 3; omit when redundant (e.g., Groovy is
-  always "Floor" — the vibe word already tells you)
+Energy is E1 to E9 — nine bands, higher means more energy. E9 is the
+hardest-hitting ninth of your own library.
 
-These keep the string tight: a track at A2 H3 shows only `E5·Smooth·Deep House`
-(18 chars) — the absence of A/H IS the information (nothing stands out).
+- **Library-relative:** tracks are ranked by energy score, then cut into
+  nine equal groups (~11% each, roughly 420 tracks per band at 3,800
+  tracks). E5 is the middle of *your* collection, not the middle of all
+  music.
+- **Why relative:** in a library of similar EDM, an absolute scale piles
+  most tracks into E7–E8 and the number stops telling tracks apart.
+  Ranking guarantees the full spread.
+- **Why 9, not 10:** single digit, so rekordbox search for `E1` never
+  matches `E10`, and one character less on screen.
+- **Peak energy, not average:** the band reflects the loudest sustained
+  phrase (the drop), because that is what hits the floor. A track with a
+  long quiet intro and a huge drop is still E9.
+- **Consequence:** adding 500 harder tracks shifts some existing tracks
+  down a band. That is correct (they are now less energetic relative to
+  what you own), and the hysteresis guard prevents jitter: a track moves
+  band only when 2 percentile points past the boundary.
 
-## Comparison with Existing Formats
+---
 
-| Format | Example | Info content | Problem |
+## Color Mapping
+
+rekordbox allows one of 8 fixed colors per track (no gradients), so v4
+uses 6 colors as a cold-to-hot heat ramp over energy and keeps 2 free.
+
+| Color | Energy bands | Share of library | Booth meaning |
 |---|---|---|---|
-| v1 | `8A · E6 · Party+Dance+Electronic` | Key + energy + mood | Key redundant; moods 94% identical |
-| v2 (current) | `Fm · E5.4 · Party+Dance+Electronic` | Same | Same — 94% identical strings |
-| v3 (this proposal) | `E6·Driving·A46·H27·Tech House` | Energy + vibe + aggro% + happy% + subgenre | Every field discriminates; 7 dimensions in 25–35 chars |
+| Blue | E1–E2 | ~22% | Warm-up, ambient, closers |
+| Aqua | E3 | ~11% | Early set |
+| Green | E4–E5 | ~22% | Sustain the floor |
+| Yellow | E6 | ~11% | Lifting |
+| Orange | E7–E8 | ~22% | Build toward peak |
+| Red | E9 | ~11% | Peak-time bangers only |
+| Pink | manual | — | Reserved for you (e.g. new, untested) |
+| Purple | manual | — | Reserved for you (e.g. personal anthems) |
 
-**Information density gain**: v2 carries ~3 useful bits (energy decile).
-v3 carries ~18 useful bits (energy + 7 vibes + aggro 0–100 + happy 0–100
-+ 27 genre labels). That is a ~6× information increase in fewer characters.
+Red stays rare on purpose — a red bar in a playlist means something.
+Sync never overwrites Pink or Purple; it only writes a color when the
+track has none or already has a ramp color.
 
-## Separator: `·` (kept, no spaces)
+---
 
-The compact `·` separator (no spaces) from the current v3 spec is retained.
-Spaces waste chars on a CDJ display. The `·` is visually clean and
-fleet-safe (U+00B7, Latin-1 Supplement).
+## My Tags — Genre Tags with Confidence
 
-## Implementation
+My Tags carry every value explicitly (filters need a value to match),
+including genre information that goes beyond the main Genre column.
 
-### Phase 1: TS builder + tests
+### Genre tags
 
-Update `src/fulltags/booth/comment-v3.ts`:
-- Add `aggressive` and `happy` fields to `CommentV3Input`
-- Add `placement` field (optional, Tier 3)
-- Omission rules (A < 5, H < 5, secondary = primary dedup)
-- Update `parseCommentV3` to round-trip the new fields
-- Add `setPlacement()` function deriving from energy + vibe
-
-### Phase 2: Python builder sync
-
-Update `comment-sync.kit.py`:
-- `build_comment()` emits Tier 2/3 format
-- `resolve_data()` returns aggressive, happy raw percentages
-- Secondary = primary dedup in the genre fields
-- `set_placement()` mirrors the TS derivation
-
-### Phase 3: Library rollout
+Every genre vote that is NOT already in the rekordbox Genre column gets
+its own My Tag with the vote percentage — how confident the system is
+that this track belongs to that genre:
 
 ```
-megadj rb-comment-sync --apply --yes
+[TechHouse 58%]  [Progressive 22%]  [DeepHouse 12%]
 ```
 
-One command rewrites all 3,819+ comments. Idempotent — re-run safe.
-Verify via delayed re-read (existing contract).
+If a track's Genre column says "House" and the vote breakdown has
+Tech House at 58%, Progressive House at 22%, and Deep House at 12%,
+all three become tags. The DJ can then Track-Filter for `[TechHouse]`
+to narrow a House playlist to just the tech house subset.
 
-### Phase 4: CrateDeck render
+**Confidence display:** always show the percentage — it's one glance
+to know if the label is solid (58%) or a guess (12%). No mid/high/low
+tiers — the number IS the tier, and it keeps things simple.
 
-Update the Comment column renderer to parse and colorize v3 fields:
-- Energy: color-coded (green → yellow → red)
-- Vibe: badge/pill
-- A/H: mini bar or gradient
-- Placement: icon or label
+### Mood, shape and vocal tags
 
-## Recommendation
+| Tag | Values | What it does |
+|---|---|---|
+| `[Vocal]` or `[Inst]` | every track gets one | Filter for instrumentals only (safe blends) or vocal tracks |
+| `[VOX]` | only when vocal clash exists | Find tracks where you need to watch the blend zones |
+| `[HOOK]` | only when body-only vocals | Find vocal tracks that blend cleanly |
+| `[Drop]` or `[Roll]` or `[Steady]` | every track gets one | Filter by track structure/shape |
+| `[Hard]` or `[Soft]` or `[Mid]` | every track gets one | Filter by aggression (genre-relative) |
+| `[Dark]` or `[Euph]` or `[Neutral]` | every track gets one | Filter by mood (genre-relative) |
+| `[VAR]` | only when tempo varies | Find tracks that need manual beatmatching |
 
-**Tier 2** as the default: `E6·Driving·A46·H27·Tech House`
+Tags use `[ ]` display notation. Every category assigns a value to every
+track so the filter always has something to match — unlike the comment,
+which omits mid-range values.
 
-Five fields, 25–35 chars, fits any screen, every field carries real
-discriminative value. The aggressive + happy percentages replace the
-useless party+dance+electronic labels with actual mixing data.
+---
 
-Tier 3 (set placement + tertiary genre) is opt-in for power users
-who want the scrolling extra data.
+## Genre Plan
+
+Split genre into two levels: the rekordbox Genre column holds the broad
+family, and the comment subgenre + My Tags hold the specific style.
+
+- **Genre column = family:** House, Techno, Trance, Bass, EDM, Hip-Hop.
+  Few values, sortable, rarely wrong.
+- **Subgenre = the useful detail:** shown after `·` in the comment and
+  written as a My Tag so Track Filter can isolate it.
+- **Confidence gate for comment:** emit in the comment only when the top
+  subgenre score is ≥ 0.5 and beats the runner-up by ≥ 0.15. Otherwise
+  omit — a blank is better than a wrong label at the booth. (My Tags
+  still get ALL subgenre votes with their percentages regardless.)
+- **No tertiary genre, no dash-joined pairs.** One label or none in the
+  comment. All candidates go into My Tags.
+- **Dedup:** casefold-compare against the family; drop if equal.
+
+### Subgenre Abbreviations
+
+One word each, max 12 characters, so the parser never splits them:
+
+| Subgenre | Token | Subgenre | Token |
+|---|---|---|---|
+| Tech House | TechHouse | Melodic Techno | MelTechno |
+| Deep House | DeepHouse | Peak-Time Techno | PeakTechno |
+| Afro House | AfroHouse | Hard Techno | HardTechno |
+| Progressive House | ProgHouse | Minimal / Deep Tech | Minimal |
+| Melodic House | MelHouse | Big Room | BigRoom |
+| Organic House | OrgHouse | Future House | FutHouse |
+| Bass House | BassHouse | Drum & Bass | DnB |
+| Trance | Trance | Psytrance | Psy |
+| Dubstep | Dubstep | Trap | Trap |
+| Hip-Hop | HipHop | UK Garage | UKG |
+
+The exact list follows the FullTags v3 genre rebench taxonomy
+(epic [#346](https://github.com/webuildstuffio/megadj/issues/346));
+the table is the naming rule, not the final set.
+
+---
+
+## Analysis Upgrades
+
+Every token is re-derived from stronger signals. If a token can't meet
+the accuracy bar, it stays out of the comment until analysis improves —
+it can always be re-derived and rewritten later as better models or
+sources become available.
+
+| Token | Current source | v4 source | Why more accurate |
+|---|---|---|---|
+| Energy | Mood-head arousal mapping (96.6% stuck at 5.0) | Drop-phrase loudness + kick/onset density + spectral flux, percentile-ranked | Measures what hits the floor; ranked so the full E1–E9 spread is guaranteed |
+| IN/OUT bars | none | rekordbox phrase analysis (PSSI in ANLZ) snapped to beat grid; own novelty detection as fallback | Uses rekordbox's own phrase labels already parsed |
+| VOX / HOOK | none | Demucs vocal stem, RMS per bar, located against the intro/outro windows | Stem-level energy beats a whole-track classifier; tells you WHERE vocals are |
+| Drop / Roll | none | Loudness contrast between peak phrase and breakdowns, plus drums-stem dropout in breakdowns | Directly measures the build-and-drop shape |
+| Hard/Soft, Dark/Euph | Global thresholds on Essentia heads | Same heads, percentile within primary genre | Stops re-encoding genre (a "hard" house track != a "hard" techno track) |
+| Subgenre | Secondary genre votes | FullTags v3 rebench model with confidence gate | Tracks epic #346 |
+| VAR | none | Beat grid tempo changes read from ANLZ | Exact measurement, not estimated |
+
+**No hand-labeling required up front.** The analysis pipeline runs
+automatically. If results need refinement later, every token can be
+re-derived and all comments rewritten with one command — nothing is
+baked in permanently. The accuracy bar (see CI section) catches broken
+tokens automatically.
+
+---
+
+## Stress Tests
+
+Twelve edge cases run against the grammar. Five exposed rule changes,
+now folded into the spec. Outputs are illustrative until the v4 analysis
+ships.
+
+### Case 1: Vocal house — vocals only in the breakdown
+
+**Scenario:** A deep house track where the vocal melody only appears
+during the breakdown/build section (the middle of the track). The intro
+is a long instrumental groove, and the outro returns to the same groove.
+Mix zones are completely clean.
+
+**Output:** `E6 IN:32 OUT:32 HOOK Roll · DeepHouse`
+
+**Reading:** Energy 6, 32-bar intro (long, clean), 32-bar outro (long,
+clean), vocals exist but only in the body (HOOK — safe to blend), rolling
+groove structure, deep house.
+
+**What this exposed:** a single `VOX` flag would warn you off this track
+— but it blends perfectly because vocals never touch the mix zones.
+**Fix:** split into `VOX` (vocals IN the mix zones = clash warning) and
+`HOOK` (vocals only in the body = safe blends).
+
+### Case 2: Acapella from bar 1
+
+**Scenario:** A vocal house track where the singer starts immediately
+on bar 1. No instrumental intro at all.
+
+**Output:** `E6 IN:0 OUT:32 VOX`
+
+**Reading:** Energy 6, zero-bar intro (vocals from the start — no room
+to blend in), 32-bar clean outro, vocal clash in the intro zone.
+
+**What this exposed:** intro length must be measured to the first
+vocal/melodic entry, not the first phrase change.
+**Fix:** IN = bars before first vocal or lead-instrument entry.
+
+### Case 3: Radio edit — short track, no intro, no outro
+
+**Scenario:** A radio edit downloaded from YouTube. Vocals start
+immediately, and the track fades out at the end. No mix-friendly zones.
+
+**Output:** `E7 IN:0 OUT:0 VOX Drop`
+
+**Reading:** Energy 7, zero intro, zero outro, vocal clash everywhere, a
+build-and-drop structure. Looks alarming — but that IS the most useful
+warning: this track needs special handling (loop a section, hard-cut, or
+find the extended mix).
+
+**What this exposed:** `0/0` looks broken but is correct.
+**Fix:** keep as-is. CrateDeck can flag `IN:0 OUT:0` tracks with a
+"find extended mix" suggestion.
+
+### Case 4: Extended mix with 128-bar intro
+
+**Scenario:** A DJ tool or extended mix with a very long instrumental
+intro — 128 bars of drums-only before anything melodic happens.
+
+**Output:** `E6 IN:64 OUT:64 Roll`
+
+**Reading:** Energy 6, extended intro (64+ bars — over 2 minutes of mix
+room), extended outro, rolling groove.
+
+**What this exposed:** three-digit bar counts waste display width and no
+DJ actually blends over 128 bars.
+**Fix:** cap at 64, meaning "64 or more bars." Plenty of room regardless.
+
+### Case 5: Intro of 30 bars — rounding rules
+
+**Scenario:** A track with a 30-bar instrumental intro. Should that
+round to 32?
+
+**Output:** `E7 IN:16 OUT:32 Drop`
+
+**Reading:** Energy 7, 16-bar intro (rounded DOWN from 30), 32-bar outro,
+build-and-drop structure.
+
+**What this exposed:** rounding UP would promise mix room that isn't
+there. A DJ who sees `IN:32` expects 32+ bars. 30 bars is closer to 32
+than 16, but the wrong direction is dangerous.
+**Fix:** always round DOWN to the nearest step (0/8/16/32/64), so the
+number is a guaranteed minimum.
+
+### Case 6: Rap / trap — small genre family
+
+**Scenario:** A trap track. The Hip-Hop family only has ~176 tracks
+in the library. Within-family mood percentiles would be noisy.
+
+**Output:** `E6 IN:8 OUT:8 VOX · Trap`
+
+**Reading:** Energy 6, short 8-bar intro, short 8-bar outro, vocal
+clash in the mix zones, trap subgenre. No Hard/Soft/Dark/Euph because
+the genre family is too small for reliable percentile ranking.
+
+**What this exposed:** families under ~300 tracks make within-family
+percentiles unreliable (20% of 176 = 35 tracks — too few for a
+meaningful "top 20%").
+**Fix:** families under 300 tracks fall back to global percentiles
+instead of within-family.
+
+### Case 7: Euphoric hard trance — contradictory moods
+
+**Scenario:** A trance anthem that is both aggressive (driving bassline,
+distorted leads) and euphoric (uplifting breakdown, major-key melody).
+
+**Output:** `E9 IN:32 OUT:16 Drop Hard Euph · Trance`
+
+**Reading:** Energy 9, 32-bar intro, 16-bar outro, build-and-drop, hard
+AND euphoric, trance. Both mood tokens fire together.
+
+**What this exposed:** `Hard Euph` looks contradictory but isn't.
+"Hard but euphoric" is a real and musically useful description — think
+festival trance or uplifting hardstyle.
+**Fix:** allowed. They measure different dimensions (aggression vs
+happiness). Both can be in the top 20%.
+
+### Case 8: Afro House mislabelled Techno in v3
+
+**Scenario:** "Aura" by Anthony P. — an Afro House track that v3's
+secondary genre vote called "Techno." The techno label was low-confidence.
+
+**Output:** `E6 IN:32 OUT:32 Roll Soft · AfroHouse`
+
+**Reading:** Energy 6, long intro, long outro, rolling groove, soft for
+its genre, afro house subgenre. The Genre column says "House" (correct
+family). The comment says "AfroHouse" (correct subgenre). No misleading
+"Techno" label.
+
+**What this exposed:** low-confidence subgenres in v3 put wrong labels
+at eye level.
+**Fix:** confidence gate — subgenre only emits when score ≥ 0.5 and lead
+≥ 0.15 over runner-up. Family in Genre column stays correct regardless.
+
+### Case 9: Live-drum edit with drifting tempo
+
+**Scenario:** An edit of a live recording. The drummer plays slightly
+ahead/behind the grid. BPM drifts between 120 and 123.
+
+**Output:** `E5 IN:16 OUT:16 VAR`
+
+**Reading:** Energy 5, 16-bar intro, 16-bar outro, **variable tempo
+warning** — do not trust sync, beatmatch by ear.
+
+**What this exposed:** sync fails on these tracks and bar counts are
+approximate. The DJ needs a heads-up.
+**Fix:** add the `VAR` warning token, sourced from ANLZ grid data.
+
+### Case 10: Utility track — nothing extreme
+
+**Scenario:** A mid-energy house track with no vocals, no dramatic
+drop, average aggression, average happiness. A solid floor filler with
+no standout characteristics.
+
+**Output:** `E5 IN:32 OUT:32`
+
+**Reading:** Energy 5, long intro, long outro. No other tokens fire.
+Sparse, but honest: a safe tool track with nothing to warn about and
+nothing to get excited about.
+
+**What this exposed:** nothing; confirms that absence of tokens is the
+correct signal for "average everything."
+
+### Case 11: Worst-case string — every token fires
+
+**Scenario:** Hypothetical peak-time techno with vocals in the mix zone,
+a big drop, hard and dark for its genre, variable tempo, and a confident
+subgenre label.
+
+**Output:** `E9 IN:64 OUT:64 VOX Drop Hard Dark VAR · PeakTechno`
+
+**Reading:** 48 characters total. Glance zone (before `·`) is 38 chars.
+
+**What this exposed:** even the worst case fits within the CDJ-3000's
+~50-char display and within the 48-char target.
+
+### Case 12: 500 harder tracks added — energy band churn
+
+**Scenario:** You import 500 tracks that are all harder than your
+current library average. Many existing tracks should shift down one
+energy band because they're now relatively less energetic.
+
+**Output:** Many tracks drop from, say, E7 to E6.
+
+**What this exposed:** every import could churn band assignments,
+changing colors and comments across the library.
+**Fix:** hysteresis guard — a track moves band only when 2 percentile
+points past the boundary, preventing jitter on small imports.
+
+---
+
+## Guards and CI Tests
+
+The saturation guard fails at 80%, not 50%, because the library is
+intentionally homogeneous; it exists to catch a broken token, not to
+punish a consistent crate.
+
+| Test | Rule | Fails on |
+|---|---|---|
+| Saturation | Any absolute token (VOX, HOOK, VAR, any single subgenre) fires on > 80% of the library | Hard fail |
+| Family saturation | Same check within one genre family | Warning only (VOX near 100% in hip-hop is expected) |
+| Dead token | Any token except VAR fires on under 2% | Hard fail: threshold is wrong or signal is broken |
+| Percentile drift | Relative tokens (E bands, Hard/Soft, Dark/Euph) off target share by > 3 points | Hard fail: bug in ranking code |
+| Round-trip | `parse(build(x)) == x` in TS and Python, and both builders emit identical strings | Any mismatch |
+| Grammar | Every comment matches the parser regex | Any non-match |
+| Charset | Every comment passes `booth-text.ts` allowlist | Any blocked character |
+| Length | Glance zone at most 38, full string at most 48 | Any overrun |
+| Stability | Re-running analysis on unchanged audio changes at most 1% of comments | Over 1% |
+| Accuracy | Each token agrees with analysis confidence bars | Token is suppressed, not the build |
+
+The audit prints a fire-rate table per token on every run, so threshold
+tuning is a read of one table rather than a debugging session.
+
+---
+
+## Rollout
+
+Six phases. Nothing touches the live library until Phase 5, and each
+phase has a gate.
+
+1. **Hardware check.** Confirm My Tag filtering on the XDJ-XZ Track
+   Filter. **Gate:** works, or My Tags drop to a rekordbox-only
+   nice-to-have.
+
+2. **Analysis pipeline.** Phrase extraction from ANLZ, Demucs
+   vocal/drum stem pass (one-time overnight batch — cache bar-level
+   RMS, not the stems), energy model fit, within-family percentiles.
+   **Gate:** every token meets its accuracy bar, or is suppressed.
+
+3. **Builders and CI.** TS `comment-v4.ts` and Python `comment-sync` in
+   lockstep, My Tag and color writers, all guards green.
+   **Gate:** CI passes on the full library in dry-run.
+
+4. **Field test.** Export one USB with v4 comment, My Tags and color;
+   play a practice set on the XDJ-XZ; note which tokens you actually
+   used. **Gate:** cut anything you ignored.
+
+5. **Library run.** `megadj rb-comment-sync --apply --yes`, delayed
+   re-read verify, then CrateDeck renderer update (energy color chip,
+   token pills).
+
+6. **Iterate.** Any token can be re-derived and all comments rewritten
+   with one command. Nothing is permanent — if better analysis arrives,
+   re-run and every track updates.
+
+---
+
+## Comparison with Previous Formats
+
+| Format | Example | Problem |
+|---|---|---|
+| v1 | `8A · E6 · Party+Dance+Electronic` | Key redundant; moods 94% identical |
+| v2 | `Fm · E5.4 · Party+Dance+Electronic` | Same saturation, same waste |
+| v3 | `E6·Driving·A46·H27·Tech House` | A/H repeat the vibe word; no mix window; no vocal clash |
+| **v4** | `E8 IN:32 OUT:16 VOX Drop Dark · MelTechno` | Every token answers a DJ question; mix window is new; mood is genre-relative |
+
+---
+
+## Open Questions
+
+- [ ] Does My Tag show up as a Track Filter criterion on XDJ-XZ firmware?
+- [ ] Do you already use track colors by hand? If yes, which ones must
+      sync leave alone besides Pink and Purple?
+- [ ] Is rekordbox phrase analysis enabled for your library (PSSI data
+      in the ANLZ files)?
+- [ ] Should rap and trap share the same energy ranking as EDM, or get
+      their own?
+- [ ] Is the subgenre list final once the FullTags v3 rebench (#346)
+      lands, or should v4 ship with the current labels first?
+
+---
+
+## Sources
+
+- Soundstore XL: Pioneer XDJ-XZ — XDJ-XZ inherits Track Filter from the CDJ-2000NXS2
+- Bonedo: CDJ-2000NXS2 test — Track Filter criteria and AND/OR
+- Resident Advisor: CDJ-2000NXS2 review — dynamic filtering against the master deck
+- Digital DJ Tips: CDJ-2000NXS2 review — filters set at the player
