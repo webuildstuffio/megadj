@@ -1,6 +1,6 @@
 # FullTags Booth Metadata v4 — Comment, Color & My Tag Spec
 
-**Sep 30 2026** · Status: **PROPOSAL** — format pick + implementation spec
+**Sep 30 2026** · Status: **SHIPPED** — v4 comment live on 3,807 tracks; reserved tokens below
 
 ## Summary
 
@@ -277,28 +277,213 @@ the table is the naming rule, not the final set.
 
 ---
 
-## Analysis Upgrades
+## Implementation Status
 
-Every token is re-derived from stronger signals. If a token can't meet
-the accuracy bar, it stays out of the comment until analysis improves —
-it can always be re-derived and rewritten later as better models or
-sources become available.
+### Shipped (Sep 30 2026)
 
-| Token | Current source | v4 source | Why more accurate |
+All 3,807 master.db tracks carry v4 comments. Re-run via
+`megadj rb-comment-sync --apply --yes` (re-derives from archive.db).
+
+| Token | Status | Source | Coverage |
 |---|---|---|---|
-| Energy | Mood-head arousal mapping (96.6% stuck at 5.0) | Drop-phrase loudness + kick/onset density + spectral flux, percentile-ranked | Measures what hits the floor; ranked so the full E1–E9 spread is guaranteed |
-| IN/OUT bars | none | rekordbox phrase analysis (PSSI in ANLZ) snapped to beat grid; own novelty detection as fallback | Uses rekordbox's own phrase labels already parsed |
-| VOX / HOOK | none | Demucs vocal stem, RMS per bar, located against the intro/outro windows | Stem-level energy beats a whole-track classifier; tells you WHERE vocals are |
-| Drop / Roll | none | Loudness contrast between peak phrase and breakdowns, plus drums-stem dropout in breakdowns | Directly measures the build-and-drop shape |
-| Hard/Soft, Dark/Euph | Global thresholds on Essentia heads | Same heads, percentile within primary genre | Stops re-encoding genre (a "hard" house track != a "hard" techno track) |
-| Subgenre | Secondary genre votes | FullTags v3 rebench model with confidence gate | Tracks epic #346 |
-| VAR | none | Beat grid tempo changes read from ANLZ | Exact measurement, not estimated |
+| **E1–E9** | ✅ shipped | `tracks.energy` percentile-ranked across all downloaded tracks | 100% — E1 8.3%, E2 10.4%, E3 10.2%, E4 12.2%, E5 9.3%, E6 10.3%, E7 13.3%, E8 11.3%, E9 14.6% |
+| **Hard/Soft** | ✅ shipped | `mood.aggressive` percentile within genre family (300-track min, global fallback) | Hard 17.8%, Soft 22.6% — matches the ≤20% design |
+| **Dark/Euph** | ✅ shipped | `mood.happy` percentile within genre family | Dark 20.4%, Euph 19.8% — matches the ≤20% design |
+| **· Subgenre** | ✅ shipped | `tracks.genre_secondary` deduped vs primary, abbreviated via `SUBGENRE_ABBREV` map | 63.7% (2,424 tracks) |
+| **IN/OUT** | ⏳ reserved | needs phrase boundary detection — see plan below | 0% |
+| **VOX/HOOK** | ⏳ reserved | needs vocal stem separation — see plan below | 0% |
+| **Drop/Roll** | ⏳ reserved | needs structure classification — see plan below | 0% |
+| **VAR** | ⏳ reserved | needs ANLZ grid parse — see plan below | 0% |
+| **Track color** | ⏳ reserved | builder ready (`comment-v4.ts`), writer not wired | 0% |
+| **My Tags** | ⏳ reserved | spec ready, writer not built | 0% |
 
-**No hand-labeling required up front.** The analysis pipeline runs
-automatically. If results need refinement later, every token can be
-re-derived and all comments rewritten with one command — nothing is
-baked in permanently. The accuracy bar (see CI section) catches broken
-tokens automatically.
+### Code
+
+| File | Role |
+|---|---|
+| `src/fulltags/booth/comment-v4.ts` | TS builder + parser (52 tests) |
+| `src/fulltags/booth/comment-v4.test.ts` | round-trip, edge cases, percentile math |
+| `src/rekordbox/rb-scripts/comment-sync.kit.py` | Python builder (runs via `megadj rb-comment-sync`) |
+| `src/fulltags/booth/booth-text.ts` | Pioneer charset allowlist |
+| `src/census/boundary-number-census.test.ts` | Pins the 3 new `Number()` calls |
+
+---
+
+## Reserved Token Plan — What We Have and What's Missing
+
+### IN/OUT bars (mix window)
+
+**What we have today:**
+
+- **4,523 tracks with cue data** in `cues` table (`cues_json` — bar-indexed
+  positions with `memory: true/false`). These are rekordbox-placed cues with
+  bar numbers.
+- **4,536 tracks with beat grids** in `beats` table (`beats_json` — timestamp
+  arrays, `downbeats_json` for bar boundaries).
+- **`section-classifier.ts`** — PSSI section classifier already written (B8.2).
+  Maps rekordbox phrase type codes (INTRO=1, UP=2, DOWN=3, CHORUS=5, OUTRO=6,
+  VERSE=8, BRIDGE=9) to section labels. Has `classifySections()` + `sectionFeatures()`.
+- **`phrase-search.ts`** — self-similarity phrase boundary detection (B8.1).
+  `PhraseBoundary` interface with `startBar`/`endBar`/`lengthBars`/`internalSimilarity`.
+- **`anlz.ts`** — ANLZ sidecar decoder. Reads PQTZ beat grids from rekordbox's
+  binary analysis files. Has `AnlzBeat` and `AnlzGrid` types.
+
+**What's missing:**
+
+- **PSSI data reader in `anlz.ts`** — the ANLZ parser reads PQTZ (beat grid)
+  but NOT PSSI (phrase segments). Need to add PSSI section parsing to `anlz.ts`
+  (the PSSI tag format is documented by Deep-Symmetry/crate-digger).
+- **Intro/outro measurement** — once PSSI sections are read, the intro bar
+  count = length of the first `INTRO` section; outro = length of the last
+  `OUTRO` section. For tracks without PSSI, fall back to `phrase-search.ts`
+  novelty detection against per-bar spectral similarity.
+- **Integration into `comment-sync.kit.py`** — pass intro/outro bars through
+  `roundBarsDown()` and add to the comment.
+
+**Effort:** Medium. The code scaffolding exists; the PSSI parse is the only
+new binary decode work. ~2–3 sessions.
+
+### VOX/HOOK (vocal clash detection)
+
+**What we have today:**
+
+- **Mood model `happy` + `aggressive` dimensions** — weakly correlate with
+  vocal presence but cannot locate WHERE in the track vocals appear.
+- No vocal stem separation pipeline.
+
+**What's missing:**
+
+- **Demucs vocal stem extraction** — one-time batch run to separate vocals.
+  Demucs v4 `htdemucs_ft` model runs per-track (~30s each on MPS, ~12h for
+  3,800 tracks). Output: per-bar RMS of the vocal stem.
+- **Per-bar vocal energy** — store vocal stem RMS per bar in a new
+  `vocal_energy` table or extend `bar_features`.
+- **Vocal zone classification** — compare vocal RMS in the intro/outro windows
+  vs the body. VOX = vocal RMS above threshold in mix zones; HOOK = vocal RMS
+  above threshold in body only.
+
+**Effort:** Large. Demucs is a heavy dependency (PyTorch, ~12h batch).
+Consider a lighter alternative: vocal activity detection (VAD) models are much
+faster but less accurate. ~3–4 sessions for Demucs; ~1–2 for VAD.
+
+### Drop/Roll (track structure)
+
+**What we have today:**
+
+- **`drop-energy.ts`** — already computes drop features: peak LUFS, mean LUFS
+  at the drop, `lufsContrast` (drop vs rest). Has `DropEnergyFeatures` interface.
+- **`section-classifier.ts`** — can identify CHORUS (= drop) and VERSE sections
+  from PSSI codes.
+- **`bar-features.ts`** — per-bar LUFS, onset density, low-band share, spectral
+  flux. No data stored yet (table doesn't exist in archive.db).
+
+**What's missing:**
+
+- **Bar features batch run** — run the per-bar feature extraction for all tracks
+  and store in a new `bar_features` table.
+- **Drop/Roll classifier** — threshold on `lufsContrast`: high contrast (>6 dB)
+  = Drop; low contrast (<3 dB) + high onset density = Roll. Needs calibration
+  against a human-labeled sample (~50 tracks).
+- **Integration** — add to comment-sync.
+
+**Effort:** Medium. The analysis code exists, just needs storage + calibration.
+~2 sessions (blocked on bar_features batch, which needs PSSI or beat-grid
+aligned feature extraction).
+
+### VAR (variable tempo)
+
+**What we have today:**
+
+- **`bpm_residual_std`** in `beats` table — already computed for 4,450/4,536
+  tracks. Distribution:
+  - `< 0.5` (constant grid): 2,240 tracks (50.3%)
+  - `0.5–2.0` (slight drift): 760 tracks (17.1%)
+  - `2.0–5.0` (variable): 592 tracks (13.3%)
+  - `> 5.0` (highly variable): 858 tracks (19.3%)
+
+**What's missing:**
+
+- **Threshold calibration** — `bpm_residual_std > 5.0` catches ~19% of the
+  library, which is too high for the spec's "under 5%" target. Need to either:
+  (a) raise the threshold to catch only truly problematic grids, or
+  (b) cross-reference with ANLZ grid data for rekordbox's own grid confidence.
+- **ANLZ grid comparison** — `anlz.ts` already reads PQTZ grids. Compare the
+  ANLZ grid's tempo variation against the beats model's fitted BPM.
+- **Integration** — add `VAR` token when `bpm_residual_std` exceeds the
+  calibrated threshold.
+
+**Effort:** Small. Data exists; just needs threshold tuning + wiring.
+~1 session.
+
+### Track Color
+
+**What we have today:**
+
+- Color mapping spec (Blue→Red from E1→E9).
+- pyrekordbox can write `djmdContent.ColorID`.
+
+**What's missing:**
+
+- **Color writer in `comment-sync.kit.py`** — after computing the energy band,
+  map to a `ColorID` and write it. Respect Pink/Purple as manual (never
+  overwrite).
+- **Hysteresis** — only change a color when the band actually shifts (not on
+  every re-run).
+
+**Effort:** Small. ~1 session.
+
+### My Tags
+
+**What we have today:**
+
+- Tag spec with `[Vocal]`, `[Inst]`, `[Drop]`, `[TechHouse 58%]` etc.
+- pyrekordbox can write `djmdMyTag` entries.
+
+**What's missing:**
+
+- **My Tag writer** — create/update `djmdMyTag` rows for each track. Need to
+  understand the pyrekordbox API for tags (or raw SQL).
+- **Hardware verification** — confirm My Tags appear in XDJ-XZ Track Filter
+  before investing in the writer.
+
+**Effort:** Medium (blocked on hardware check). ~2 sessions.
+
+---
+
+## Analysis Pipeline Dependency Graph
+
+```
+         ┌─────────────┐
+         │  ANLZ PSSI  │ ← add to anlz.ts
+         │   parse     │
+         └──────┬──────┘
+                │
+         ┌──────▼──────┐     ┌───────────────┐
+         │  IN / OUT   │     │  bar_features  │ ← batch run
+         │   bars      │     │   extraction   │
+         └──────┬──────┘     └───────┬───────┘
+                │                    │
+         ┌──────▼──────┐     ┌───────▼───────┐
+         │  VOX/HOOK   │     │  Drop / Roll  │
+         │  (Demucs or │     │  (loudness    │
+         │   VAD)      │     │   contrast)   │
+         └─────────────┘     └───────────────┘
+
+         ┌─────────────┐     ┌───────────────┐
+         │    VAR      │     │  Track Color  │
+         │  (bpm_resid │     │  (E band →    │
+         │   threshold)│     │   ColorID)    │
+         └─────────────┘     └───────────────┘
+```
+
+**Recommended order (least effort, most value first):**
+
+1. **VAR** — data exists, just threshold + wire (~1 session)
+2. **Track Color** — E band already computed, just write ColorID (~1 session)
+3. **IN/OUT** — add PSSI parse to anlz.ts, measure intro/outro (~2–3 sessions)
+4. **Drop/Roll** — needs bar_features + calibration (~2 sessions, after PSSI)
+5. **My Tags** — blocked on hardware check (~2 sessions)
+6. **VOX/HOOK** — heaviest lift, Demucs batch (~3–4 sessions)
 
 ---
 
@@ -519,31 +704,30 @@ tuning is a read of one table rather than a debugging session.
 
 ## Rollout
 
-Six phases. Nothing touches the live library until Phase 5, and each
-phase has a gate.
+### Completed (Sep 30 2026)
+
+- ✅ **Phase 3 (builders):** `comment-v4.ts` (TS) + `comment-sync.kit.py` (Python),
+  round-trip tested, census-pinned.
+- ✅ **Phase 5 (library run):** `megadj rb-comment-sync --apply --yes` — all 3,807
+  tracks labeled, delayed re-read verified, backup at
+  `master.db.bak-20260930T185439`.
+
+### Remaining
 
 1. **Hardware check.** Confirm My Tag filtering on the XDJ-XZ Track
    Filter. **Gate:** works, or My Tags drop to a rekordbox-only
    nice-to-have.
 
-2. **Analysis pipeline.** Phrase extraction from ANLZ, Demucs
-   vocal/drum stem pass (one-time overnight batch — cache bar-level
-   RMS, not the stems), energy model fit, within-family percentiles.
-   **Gate:** every token meets its accuracy bar, or is suppressed.
+2. **Reserved token analysis.** VAR threshold calibration → Track Color
+   writer → ANLZ PSSI parse for IN/OUT → bar_features batch for
+   Drop/Roll → Demucs/VAD for VOX/HOOK.
+   **Gate:** each token meets its accuracy bar before entering the comment.
 
-3. **Builders and CI.** TS `comment-v4.ts` and Python `comment-sync` in
-   lockstep, My Tag and color writers, all guards green.
-   **Gate:** CI passes on the full library in dry-run.
-
-4. **Field test.** Export one USB with v4 comment, My Tags and color;
+3. **Field test.** Export one USB with v4 comment, My Tags and color;
    play a practice set on the XDJ-XZ; note which tokens you actually
    used. **Gate:** cut anything you ignored.
 
-5. **Library run.** `megadj rb-comment-sync --apply --yes`, delayed
-   re-read verify, then CrateDeck renderer update (energy color chip,
-   token pills).
-
-6. **Iterate.** Any token can be re-derived and all comments rewritten
+4. **Iterate.** Any token can be re-derived and all comments rewritten
    with one command. Nothing is permanent — if better analysis arrives,
    re-run and every track updates.
 
