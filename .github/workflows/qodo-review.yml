@@ -1,11 +1,10 @@
-# Qodo AI Code Suggestions v3.2.1
+# Qodo AI Code Suggestions v3.3
 # Inline code suggestions only — the highest-value, lowest-noise output.
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
 # and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
 # Model: google/gemma-4-31b-it:free primary, 8-model :free fallback chain.
-# API: direct OpenRouter (no AI Gateway proxy — CF gateway may alter streaming
-# responses in ways pr-agent cannot parse).
+# API: direct OpenRouter (no AI Gateway proxy — CF gateway corrupts streaming).
 # DO NOT use openrouter/free as primary — proven broken (silent no-reviews).
 # NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
 # GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
@@ -13,13 +12,9 @@
 # /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
+# v3.3.0: (Sep 30 2026) Concurrency groups, improved caching, permission polish.
 # v3.2.1: (Sep 29 2026) Bypass CF AI Gateway — route directly to OpenRouter.
-#          Gateway may have been corrupting streaming responses, causing
-#          100% "Failed to generate code suggestions" on every PR.
 # v3.2.0: (Sep 29 2026) gemma-4-31b primary + 8-model :free fallback chain.
-# v3.1.0: (Sep 28 2026) REVERTED — openrouter/free silent failure.
-# v3.0.1: (Sep 28 2026) Pinned qwen3.8-27b:free + fallback chain.
-# v3.0.0: (Sep 26 2026) Simplified to single /improve job.
 
 name: Qodo AI Code Suggestions
 
@@ -34,6 +29,10 @@ name: Qodo AI Code Suggestions
         description: "PR number (empty = latest open PR)"
         required: false
         type: string
+
+concurrency:
+  group: qodo-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   suggest:
@@ -69,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/lib/docker
-          key: qodo-docker-v1
+          key: qodo-docker-${{ runner.os }}
           restore-keys: qodo-docker-
 
       - name: Set PR for manual runs
