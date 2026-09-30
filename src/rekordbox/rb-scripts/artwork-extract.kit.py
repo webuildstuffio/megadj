@@ -97,7 +97,6 @@ def main() -> None:
     db_path = sys.argv[1]
     mount = sys.argv[2]
     apply = len(sys.argv) > 3 and sys.argv[3] == "apply"
-    art_root = os.path.join(mount, "PIONEER", "Artwork")
 
     db = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))
 
@@ -135,18 +134,17 @@ def main() -> None:
             out["no_embed"] += 1
             continue
 
-        uid = str(c.UUID or "")
-        if not uid or len(uid) < 4:
+        # Write to the EXISTING ImagePath location — RB already set the path,
+        # we just need the file on disk. Using ImagePath directly instead of
+        # deriving from UUID avoids mismatches if the path convention differs.
+        ip = str(c.ImagePath or "")
+        art_file = ip if ip.startswith("/Volumes/") else (mount + ip)
+        if not art_file or "//" in art_file.replace("://", ""):
             out["failed"] += 1
             continue
 
-        d1 = uid[:3]
-        d2 = uid[3:]
-        art_dir = os.path.join(art_root, d1, d2)
-        art_file = os.path.join(art_dir, "artwork.jpg")
-
         if apply:
-            os.makedirs(art_dir, exist_ok=True)
+            os.makedirs(os.path.dirname(art_file), exist_ok=True)
             with open(art_file, "wb") as f:
                 f.write(img)
             out["extracted"] += 1
