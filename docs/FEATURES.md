@@ -184,12 +184,17 @@ proposal is retained only as [archive evidence](archive/roadmap-proposal.md).
 megadj sync                    # GetDat: pull new music
 megadj fetch && megadj audit   # FullTags: perfect the metadata
 megadj catch-up                # FullTags: beats + mood gap pass in one (ledgered == analyzed)
+megadj mood --embeddings       # FullTags: compute embeddings (--jobs 2 for parallel ONNX)
 megadj years                   # FullTags: verify years vs SC page (kills AI 2023 guesses)
 megadj shelf-sync              # shelf: archive → shelf master (new music out)
 megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive intake)
 megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
 megadj shelf-dupescan          # shelf: fingerprint dupes regardless of name/folder
 megadj similar <video_id>      # FullTags: sounds-like kNN over the embeddings ledger
+megadj rb-adopt <drive>        # RB: mirror master.db content → archive ledger
+megadj rb-comment-sync <drive> # RB: write Comment (Key·Energy·Mood) + genre to master.db
+megadj rb-import <drive>       # RB: import new tracks → master.db (closed, backup, verify)
+megadj rb-dedup <drive>        # RB: detect/resolve duplicate entries in master.db
 megadj megaset --preset peak  # MegaSet: propose a Camelot/energy-arc mix chain
 megadj megaset-cohorts        # MegaSet: warmup+peak chain PER genre family, one run (#295)
 bun run deck                   # CrateDeck: see every drive, sync + verify

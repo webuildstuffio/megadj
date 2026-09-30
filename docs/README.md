@@ -177,6 +177,13 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   until its reference ledger exists (never a manufactured pass).
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
+- [FullTags v3 rebench and build plan (Sep 29)](fulltags/fulltags-v3-rebench-and-build-plan-2026-09-29.md) —
+  plan of record for v3 re-measurement through `megadj bench`.
+- [FullTags v3 landscape and redesign (Sep 28)](fulltags/fulltags-v3-landscape-and-redesign-2026-09-28.md) —
+  the analysis pipeline redesign research.
+- [Analysis pipeline (Sep 29)](fulltags/analysis-pipeline-2026-09-29.md) —
+  current pipeline architecture: parallel ONNX workers, batch-write
+  semantics, the mood/beats/embeddings/genre coverage tables.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
   retained as a reference.
 
@@ -265,7 +272,11 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 - [0d — rekordbox write-path spike](runbooks/0d-write-path-spike.md) — harness
   shipped; hardware observations remain.
 - [0e — drive-day full pipeline](runbooks/0e-full-pipeline.md) — the one
-  command (`src/ops/full-pipeline.sh`) encoding the Sep 20 analysis chain.
+  command (`src/ops/full-pipeline.sh`) encoding the analysis chain;
+  last drive-day: Sep 29 (shelf-sync 332 files/4.7 GB, rb-adopt 3,819,
+  rb-comment-sync 3,819, artwork extraction 1,196).
+- [Overnight report (Sep 29)](overnight-report-2026-09-29.md) — drive-day
+  session log and pipeline results.
 
 ## Package entry points
 
@@ -290,10 +301,10 @@ Archived files are historical evidence, not current instructions:
 - [Archived roadmap index](archive/roadmap-index-2026-09-15.md) — the former
   product-categorized issue index; superseded by GitHub labels/search.
 - [Codebase quality snapshot](archive/codebase-quality-report.md)
-- [Code quality progress report (Sep 17 → Sep 20)](code-quality-2026-09-17.md) — measured
-  push summaries (60 issues/3 days, then the Sep 20 scorecard: reorg program
-  closed 6/7, gates at best-ever, 8 issues open) and the honest 75k-census
-  verdict; the live trend lives in the megadj-quality-trend canvas.
+- [Code quality progress report (Sep 17 → Sep 29)](code-quality-2026-09-17.md) — measured
+  push summaries: Sep 17 (60 issues/3 days), Sep 20 (reorg closed 6/7,
+  gates at best-ever, 8 open), Sep 29 (cratedeck fold, TS7, 2,631 tests,
+  157k LOC, 16 open); the live trend lives in the megadj-quality-trend canvas.
 - [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
   2026-09-14; the old-path redirect stub was removed 2026-09-15, so this
   archive path is the only reference.
