@@ -71,9 +71,10 @@ describe("rb-comment-sync", () => {
     expect(s).toContain('["pgrep", "-x", "rekordbox"]');
   });
 
-  test("script formats comments as v3 compact · separator (BPM never enters)", () => {
+  test("script formats comments as v4 space-separated tokens (BPM never enters)", () => {
     const s = commentSyncScript();
-    expect(s).toContain('"·".join(parts)');
+    expect(s).toContain("build_comment_v4");
+    expect(s).toContain("energy_band");
     expect(s).not.toContain("BPM"); // BPM has its own RB column (AGENTS.md)
   });
 

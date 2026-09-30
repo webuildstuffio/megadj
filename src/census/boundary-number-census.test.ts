@@ -202,8 +202,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 30 (comment-v3 A/H): parseCommentV3 adds 2 more
     // Number.isFinite-gated Number() calls for aggressive (A<nn>) and
     // happy (H<nn>) fields — audited 58→60, guarded 40→42.
-    audited: 60,
-    guarded: 42,
+    // Sep 30 (comment-v4): parseCommentV4 adds 3 Number.isFinite-gated
+    // Number() calls (energy eVal, introBars iVal, outroBars oVal) —
+    // audited 60→63, guarded 42→45, sanctioned unchanged.
+    audited: 63,
+    guarded: 45,
     sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -230,7 +233,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // helpers); counts unchanged, digest shifted.
     // Sep 30 (comment-v3 A/H): unique variable names (eVal, aVal, hVal)
     // in parseCommentV3 so guard detection doesn't cross-shadow — digest shifted.
-    digest: "63ad2ac3b3a152825fea4eca962d41b4d84a4ab7d8a3de2c371bcf189dfbce3d",
+    // Sep 30 (comment-v4): parseCommentV4 adds 3 guarded Number() calls —
+    // digest shifted.
+    digest: "a7fa2303f53a1eb0a1635055480b30492d26fdc7a8a4a3584d745d29d48e91d5",
   });
 });
 

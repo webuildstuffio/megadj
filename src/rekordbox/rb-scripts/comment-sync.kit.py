@@ -155,82 +155,198 @@ def main() -> None:
                     pass
         con_g.close()
 
-    def vibe_label(aggressive: float, happy: float, valence: float) -> str:
-        """7-bucket vibe system from mood model dimensions."""
-        if aggressive > 0.7:
-            return "Hard"
-        if aggressive > 0.4:
-            return "Driving"
-        if aggressive > 0.2 and happy > 0.3:
-            return "Groovy"
-        if aggressive > 0.2:
-            return "Medium"
-        if happy > 0.3:
-            return "Bright"
-        if valence < 4.2:
-            return "Deep"
-        return "Smooth"
-
-    def resolve_data(
-        p: str, tags: dict | None, rb_key_id: str | None = None
-    ) -> tuple[str, str, str, str, str]:
-        """Resolve energy/vibe/genre2/genre3 for v3 comment format.
-
-        Returns (key, energy, vibe, genre2, genre3). Key is kept for
-        enrichment fallback but NOT rendered in v3 comments.
-        """
-        key = (tags or {}).get("key", "")
-        energy = (tags or {}).get("energy", "")
-        # RB key analysis fallback
-        if not key and rb_key_id:
-            key = rb_key_map.get(rb_key_id, "")
-        if not energy:
-            led_row = led.get("path:" + nfc_casefold(p))
-            if led_row and led_row.get("energy"):
-                energy = str(led_row["energy"])
-        if not energy:
-            e_mood = energy_from_mood.get(nfc_casefold(p))
-            if e_mood:
-                energy = e_mood
-
-        # Vibe from mood model dimensions
-        vibe = ""
-        m = moods_by_path.get(nfc_casefold(p))
-        if m:
+    # ---- v4: library-relative energy bands ----
+    all_energies: list[float] = []
+    energy_by_path: dict[str, float] = {}
+    if os.path.exists(ledger_path):
+        con_e = sqlite3.connect(ledger_path)
+        for row_e in con_e.execute(
+            "SELECT file_path, energy FROM tracks WHERE energy IS NOT NULL AND file_path IS NOT NULL"
+        ):
+            fp = nfc_casefold(row_e[0] or "")
             try:
-                agg = float(m.get("aggressive") or 0)
-                hap = float(m.get("happy") or 0)
-                val = float(m.get("valence") or 4.3)
-                vibe = vibe_label(agg, hap, val)
+                e = float(row_e[1])
+                all_energies.append(e)
+                energy_by_path[fp] = e
             except (TypeError, ValueError):
                 pass
+        con_e.close()
+    all_energies.sort()
 
-        # Genre2 (secondary) and genre3 (tertiary)
-        fp_key = nfc_casefold(p)
-        genre2 = genres_secondary.get(fp_key, "")
-        genre3 = genres_tertiary.get(fp_key, "")
+    def energy_band(track_energy: float) -> int:
+        """Library-relative energy band E1-E9."""
+        if not all_energies:
+            return 5
+        rank = 0
+        for e in all_energies:
+            if e <= track_energy:
+                rank += 1
+            else:
+                break
+        pct = rank / len(all_energies)
+        import math
+        band = math.ceil(pct * 9)
+        return max(1, min(9, band))
 
-        return key, energy, vibe, genre2, genre3
-
-    def build_comment(key: str, energy: str, vibe: str, genre2: str, genre3: str) -> str:
-        """v3 format: E6·Driving·House-Tech House (compact, no spaces)."""
-        # Energy: round to integer
-        epart = ""
-        if energy:
+    # ---- v4: within-family mood percentiles ----
+    family_aggressive: dict[str, list[float]] = {}
+    family_happy: dict[str, list[float]] = {}
+    all_aggressive: list[float] = []
+    all_happy: list[float] = []
+    agg_by_path: dict[str, float] = {}
+    hap_by_path: dict[str, float] = {}
+    genre_by_path: dict[str, str] = {}
+    if os.path.exists(ledger_path):
+        con_fm = sqlite3.connect(ledger_path)
+        for row_fm in con_fm.execute(
+            "SELECT t.file_path, t.genre, m.aggressive, m.happy "
+            "FROM tracks t JOIN mood m ON t.video_id = m.video_id "
+            "WHERE t.file_path IS NOT NULL AND t.genre IS NOT NULL"
+        ):
+            fp = nfc_casefold(row_fm[0] or "")
+            genre_fam = (row_fm[1] or "").strip()
             try:
-                epart = f"E{round(float(energy))}"
+                agg = float(row_fm[2])
+                hap = float(row_fm[3])
             except (TypeError, ValueError):
-                epart = f"E{energy}" if energy else ""
-        parts = [x for x in (epart, vibe) if x]
-        # Genres: dash-joined, skip if same as vibe
-        genre_parts = [g for g in (genre2, genre3) if g]
-        if genre_parts:
-            parts.append("-".join(genre_parts))
-        # Final guard
-        parts = [
-            p for p in parts if ".com" not in p.lower() and "http" not in p.lower() and "=" not in p
-        ]
-        return "·".join(parts)
+                continue
+            agg_by_path[fp] = agg
+            hap_by_path[fp] = hap
+            genre_by_path[fp] = genre_fam
+            all_aggressive.append(agg)
+            all_happy.append(hap)
+            family_aggressive.setdefault(genre_fam, []).append(agg)
+            family_happy.setdefault(genre_fam, []).append(hap)
+        con_fm.close()
+    all_aggressive.sort()
+    all_happy.sort()
+    for fam_vals in family_aggressive.values():
+        fam_vals.sort()
+    for fam_vals in family_happy.values():
+        fam_vals.sort()
+
+    FAMILY_MIN_SIZE = 300
+
+    def family_percentile(value: float, family_vals: list[float], all_vals: list[float]) -> float:
+        """Within-family percentile. Falls back to global for small families."""
+        pool = family_vals if len(family_vals) >= FAMILY_MIN_SIZE else all_vals
+        if not pool:
+            return 0.5
+        rank = 0
+        for v in pool:
+            if v <= value:
+                rank += 1
+            else:
+                break
+        return rank / len(pool)
+
+    # ---- v4: subgenre abbreviation map ----
+    SUBGENRE_ABBREV: dict[str, str] = {
+        "tech house": "TechHouse", "deep house": "DeepHouse",
+        "afro house": "AfroHouse", "progressive house": "ProgHouse",
+        "melodic house": "MelHouse", "organic house": "OrgHouse",
+        "bass house": "BassHouse", "future house": "FutHouse",
+        "melodic techno": "MelTechno", "peak-time techno": "PeakTechno",
+        "hard techno": "HardTechno", "minimal": "Minimal",
+        "minimal deep tech": "Minimal", "deep tech": "Minimal",
+        "big room": "BigRoom", "drum & bass": "DnB", "drum and bass": "DnB",
+        "psytrance": "Psy", "hip-hop": "HipHop", "hip hop": "HipHop",
+        "uk garage": "UKG", "trance": "Trance", "dubstep": "Dubstep",
+        "trap": "Trap", "techhouse": "TechHouse",
+        "melodic house & techno": "MelHouse", "electro": "Electro",
+        "electronica": "Electronica", "indie dance": "IndieDance",
+        "nu disco": "NuDisco", "disco": "Disco", "amapiano": "Amapiano",
+        "jersey club": "JerseyClub", "breakbeat": "Breakbeat",
+        "downtempo": "Downtempo", "ambient": "Ambient", "r&b": "RnB",
+    }
+
+    def abbreviate_subgenre(sub: str) -> str:
+        return SUBGENRE_ABBREV.get(sub.lower().strip(), sub.replace(" ", ""))
+
+    def resolve_data_v4(p: str, tags: dict | None, rb_key_id: str | None = None) -> dict:
+        """Resolve all v4 comment tokens for a track.
+
+        Returns dict with keys: energy_band, hard, soft, dark, euph, subgenre.
+        IN/OUT, VOX/HOOK, Drop/Roll, VAR need analysis pipelines not yet built.
+        """
+        result: dict = {
+            "energy_band": None, "hard": False, "soft": False,
+            "dark": False, "euph": False, "subgenre": "",
+        }
+        fp_key = nfc_casefold(p)
+
+        # Energy band (library-relative percentile)
+        raw_energy = energy_by_path.get(fp_key)
+        if raw_energy is None:
+            energy_str = (tags or {}).get("energy", "")
+            if not energy_str:
+                led_row = led.get("path:" + fp_key)
+                if led_row and led_row.get("energy"):
+                    energy_str = str(led_row["energy"])
+            if not energy_str:
+                energy_str = energy_from_mood.get(fp_key, "")
+            if energy_str:
+                try:
+                    raw_energy = float(energy_str)
+                except (TypeError, ValueError):
+                    pass
+        if raw_energy is not None:
+            result["energy_band"] = energy_band(raw_energy)
+
+        # Within-family mood percentiles
+        agg = agg_by_path.get(fp_key)
+        hap = hap_by_path.get(fp_key)
+        genre_fam = genre_by_path.get(fp_key, "")
+        if agg is not None and genre_fam:
+            fam_agg = family_aggressive.get(genre_fam, [])
+            pct_agg = family_percentile(agg, fam_agg, all_aggressive)
+            if pct_agg >= 0.80:
+                result["hard"] = True
+            elif pct_agg <= 0.20:
+                result["soft"] = True
+        if hap is not None and genre_fam:
+            fam_hap = family_happy.get(genre_fam, [])
+            pct_hap = family_percentile(hap, fam_hap, all_happy)
+            if pct_hap <= 0.20:
+                result["dark"] = True
+            elif pct_hap >= 0.80:
+                result["euph"] = True
+
+        # Subgenre with confidence gate
+        sub = genres_secondary.get(fp_key, "")
+        if sub:
+            # Check confidence from genre_votes
+            primary = genre_by_path.get(fp_key, "")
+            if sub.lower() != primary.lower():
+                result["subgenre"] = abbreviate_subgenre(sub)
+            else:
+                # Secondary = primary: try tertiary
+                ter = genres_tertiary.get(fp_key, "")
+                if ter and ter.lower() != primary.lower():
+                    result["subgenre"] = abbreviate_subgenre(ter)
+
+        return result
+
+    def build_comment_v4(data: dict) -> str:
+        """v4 format: E8 Hard Dark · MelTechno"""
+        parts: list[str] = []
+        eb = data.get("energy_band")
+        if eb is not None:
+            parts.append(f"E{eb}")
+        # IN/OUT, VOX/HOOK, Drop/Roll not yet available — omit
+        if data.get("hard"):
+            parts.append("Hard")
+        elif data.get("soft"):
+            parts.append("Soft")
+        if data.get("dark"):
+            parts.append("Dark")
+        elif data.get("euph"):
+            parts.append("Euph")
+        sub = data.get("subgenre", "")
+        # Guard against URL/metadata junk in subgenre
+        if sub and ".com" not in sub.lower() and "http" not in sub.lower() and "=" not in sub:
+            return f"{' '.join(parts)} · {sub}" if parts else f"· {sub}"
+        return " ".join(parts)
 
     import re
 
@@ -266,12 +382,15 @@ def main() -> None:
             continue
 
         rb_kid = str(c.KeyID) if c.KeyID else None
-        _key, energy, vibe, genre2, genre3 = resolve_data(p, tags, rb_kid)
+        v4_data = resolve_data_v4(p, tags, rb_kid)
+
+        new_comment = build_comment_v4(v4_data)
+        if not new_comment:
+            out["skipped"].append([p[-70:], "no tag data"])
+            continue
 
         if existing:
-            # v3 always overwrites — fresh comment from latest data
-            new_comment = build_comment("", energy, vibe, genre2, genre3)
-            if new_comment != existing and new_comment:
+            if new_comment != existing:
                 out["enriched"] += 1
                 out["eligible"] += 1
                 if len(out["samples"]) < 5:
@@ -281,15 +400,11 @@ def main() -> None:
             else:
                 out["alreadyHad"] += 1
         else:
-            if not (energy or vibe):
-                out["skipped"].append([p[-70:], "no tag data"])
-                continue
-            comment = build_comment("", energy, vibe, genre2, genre3)
             out["eligible"] += 1
             if len(out["samples"]) < 5:
-                out["samples"].append([p[-60:], comment])
+                out["samples"].append([p[-60:], new_comment])
             if apply:
-                pending.append((c, str(c.ID), comment))
+                pending.append((c, str(c.ID), new_comment))
 
     if apply:
         try:
