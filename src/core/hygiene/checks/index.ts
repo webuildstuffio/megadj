@@ -4,10 +4,9 @@
  * re-reported by a later one (byte-twin evidence beats acoustic evidence
  * beats name heuristics — §5 Phase 1.2).
  *
- * NOT shipped (plan §4.2 lists them; each needs a producer that doesn't
- * exist yet and gets its own slice): spelling-typo + stale-pointer +
- * orphan-audio (rekordbox DB seam), re-download (manual ledger). The
- * truncated-name detector SHIPPED (Sep 17, #9/#37 slice 3). The registry
+ * All §4.2 detectors SHIPPED: truncated-name (Sep 17, #9/#37 slice 3),
+ * stale-pointer, orphan-audio, re-download (all via the rekordbox DB
+ * seam). Only spelling-typo remains unbuilt. The registry
  * here is the extension point — add the import + one array row;
  * claimed-set + upsert semantics come free.
  */
