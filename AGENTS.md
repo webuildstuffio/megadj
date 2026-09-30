@@ -63,7 +63,10 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep
   `src/census/boundary-number-census.test.ts` and `src/census/boundary-json-census.test.ts`
-  green when either call surface changes. Env-var PATH overrides go through
+  green when either call surface changes. Multiple `Number()` parses in one
+  function need distinct binding names per call — the census pairs
+  `Number.isFinite` guards by variable name; reusing `n` cross-shadows siblings
+  (Sep 30 comment-v3/v4 parsers). Env-var PATH overrides go through
   `nonEmptyEnv` (`src/shared/leaf/guards.ts`), never raw `??` on
   `process.env` — `??` only catches `undefined`, so `MEGADJ_MUSIC_DIR="$SHELF"`
   with `$SHELF` unset expanded to empty string, resolved CWD-relative, and
@@ -216,6 +219,9 @@ a.prop !== null`), one strict check does NOT imply the other.
   REGISTERED_KINDS (`checks/index.ts`) — `--kind` validates against it
   (unknown = exit 2, zero work); a CLI flag the engine never reads is a
   silent no-op bug (`--kind` shipped parsed-but-dropped for months).
+  Plan §4.2 detectors truncated-name, stale-pointer, orphan-audio, and
+  re-download are all SHIPPED with tests (#37 closed Sep 30); spelling-typo
+  remains unbuilt.
   Applied findings keep a recoverable ledger copy: `shelf-restore
 <finding-id|path>` (MD5-verified) + `/api/hygiene/restore` with a
   QuarantinePanel (#35/#36, Sep 19) — quarantine-empty flips rows to
@@ -240,14 +246,18 @@ a.prop !== null`), one strict check does NOT imply the other.
   the `sc_genre_ids` cache was dropped (#108) — never resurrect without owning
   its writer. ID3 genre frames are unreliable: curated genres live in the
   archive ledger, never the tag frame.
-- FullTags comment v3 = `E6·Driving·House-Tech House` (compact `·` separator,
-  no spaces); no Key (redundant — RB shows it), energy integer 1–10, vibe from
-  7-bucket system (Hard/Driving/Groovy/Medium/Bright/Deep/Smooth derived from
-  aggressive+happy+valence), up to 2 secondary genres dash-joined. BPM has its
-  own RB column and never enters the comment. `vibeFromMood` thresholds and
-  `buildCommentV3`/`parseCommentV3` live in `src/fulltags/booth/comment-v3.ts`
-  (34 tests). The Python twin in `comment-sync.kit.py` (`vibe_label`,
-  `build_comment`) MUST stay in sync — the census doesn't cross-check them.
+- FullTags booth comment **v4 is plan of record** (owner spec Sep 30,
+  `docs/fulltags/comment-v3-proposal-2026-09-30.md` — filename legacy):
+  mix-first string `E8 IN:32 OUT:16 VOX Drop Dark · MelTechno` — library-relative
+  E1–E9, IN/OUT bar counts (round DOWN to 0/8/16/32/64), VOX/HOOK, Drop/Roll,
+  Hard/Soft + Dark/Euph within-family, VAR for non-constant grids, subgenre
+  after `·`. Comment shows only what RB columns omit (no Key/BPM/primary genre).
+  **Three channels:** Comment (read), My Tags (XDJ-XZ Track Filter), track color
+  (energy scan). Words not symbols — `booth-text.ts` `NON_FLEET_TEXT` blocks
+  emoji/arrows; ASCII + `·` only. v3 (`comment-v3.ts`) is interim until
+  `rb-comment-sync` ships v4; `buildCommentV4`/`parseCommentV4` in
+  `src/fulltags/booth/comment-v4.ts`. Python twin in `comment-sync.kit.py`
+  MUST stay in sync — the census doesn't cross-check them.
 
 ## Rekordbox and hardware
 
@@ -474,11 +484,12 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - Super-sure verification passes are expected to find something: a pass that ends "all green" should still probe the hard gates (`check:full` caught a silent 99.62% typecov baseline), re-prove acceptance live (fresh-run leak sweep), and fix defects found — not just re-list statuses.
 - Expects a locally running dev server to hand-test UI changes ("dev up please and let me test it out").
 - Wants findings surfaced before fixes on audits and risky ops: report first (canvas or grouped GitHub issues), then an explicit go-ahead to act (Sep 19: "instead of you fixing please make a detailed canvas of all bugs"; "lets turn that off right now" on a suspected backup).
-- Wants long-running multi-stage work encoded as one reusable command, never a hand-run step list: "keep didve / make sure automatic next time" produced `src/ops/full-pipeline.sh` + `docs/runbooks/0e-full-pipeline.md`; when a manual step bites a second time, script it, runbook it, and cite both (Sep 20).
+- Wants long-running multi-stage work encoded as one reusable command, never a hand-run step list: "keep didve / make sure automatic next time" produced `src/ops/full-pipeline.sh` + `docs/runbooks/0e-full-pipeline.md`; when a manual step bites a second time, script it, runbook it, and cite both (Sep 20). Pipeline expanded Sep 30: 5→7 stages (added `catch-up`, `rb-comment-sync`, `album-push.kit.py`), `--ai-fallback` flag for AI genre stragglers, RB-closed gate with skip+warning.
 - SHELF1/drive-day pipelines: prep offline (fixes, baselines, dry checks), report ready, then wait for explicit mount confirmation before shelf-sync/RB writes ("plugged in, do it") (Sep 29).
 - After material mood/analysis pipeline changes, pilot a bounded cohort and compare to the prior baseline before fleet-wide `--force` re-analysis (Sep 29).
 - Iterates by re-sending and deepening ("status now?", "full canvas update fully") — each pass must re-measure live and land visible artifacts (canvas version bump, doc status header, pushed commit), not re-assert old numbers.
 - Quota-style quality passes (N calculation fixes, N visual bugs, hundreds of LOC dedup) require manual per-file review and judgment — grep/lint/check alone does not satisfy the ask (Sep 26 build-fixing session).
+- Booth metadata: mix-first v4 (IN/OUT bars, vocal clash, structure, genre-relative mood words) over v3 vibe + A/H percentages; paste/update the written spec when iterating — not ad-hoc comment tweaks (Sep 30).
 
 ## Learned Workspace Facts
 
@@ -490,7 +501,7 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - Genre vote ladder (#173) SHIPPED in f54ba04 (Sep 16, closed Sep 17): every rung votes (genre+weight+provenance), one election seam (`stageGenreElection`) owns tag+DB write, breakdown persists in `tracks.genre_votes`, weights versioned in code as `GENRE_VOTE_WEIGHTS` (test-pinned ordering). First-win writes are gone. The writer-only GAP closed: `genre-why.ts` is now the production reader of `ArchiveState.genreVotes()` (#215 closed Sep 17). Lesson stands: knip is blind to dead methods on live classes — only a caller census catches that class. Shipped ≠ run: a day after ship, `tracks.genre_votes` was still 0 rows (no real fetch since the ship run) — quote per-cohort run state, not the feature's existence (Sep 18). The megamem transfer doc is `docs/megaset/embedding-learnings-from-megamem-2026-09-17.md` (v2 rewrite, Sep 18: 2,003 experiments re-censused, status split 1,001 failed / 681 done / 279 skipped / 40 queued); `docs/megaset/11-master-architecture-v2.md` (`e2e08918`) is the v2 synthesis with the 7 cross-shop invariants and a reject list (all 19 DIV diversity experiments dead — diversity ships as hard caps only).
 - `archive.db` is megadj's own intake ledger, not a shelf copy: rows decompose into YouTube liked-videos (music-checked by `megadj sync`, mostly never downloaded), local ingests, and playlists; `pending` ≠ gap and `skipped_not_music` rows are correctly parked non-music. Never present ledger counts as library size. Measured decomposition (Sep 18): ~5.9k tracks = 3.1k rekordbox mirror + 750 ingest + ~2.0k liked/liked-videos (1,087 liked-videos pending, unclassified since Aug 22); known audio ~26 GB vs 3,125 rows on SHELF1. YT rows are `tracks` rows keyed by video_id ONLY — zero embeddings/beats/mood; FullTags has NO YouTube search arm (votes: SoundCloud via yt-dlp, Beatport, Bandcamp), so there is no youtube-find store to reconcile. Storage/retention answers live in `docs/getdat/data-model.md` + the `storage-intake-census` skill (Sep 18, `9dae86a4`): every state-dir path has exactly one retention owner (dated backups → `tmp-purge --state`, newest per stem always kept); RB pilots zip + `.sha256`, never plain-delete; the "library size" honest answer is bytes-per-volume → ledger decomposition → per-source freshness.
 - SoundCloud is a first-class DOWNLOAD source since 062355ce + 4411f57e (Sep 19, #255–#259): `src/getdat/soundcloud.ts` is the one acquisition module (format ladder `SC_FORMAT` tops out at `hls_aac_256k` with a Plus-authenticated session — cookies; `hls_aac_160k` stays the honest anonymous ceiling; walled tracks serve a 30-second preview, not the song — the MONETIZE class stays unrippable at ANY tier (Widevine; verified live against a fresh Plus session, Sep 19; a DRM-circumvention ask was refused twice — the owner-accepted paths are the purchase-link census via Beatport/Bandcamp `link_surfaced` and official SNIP alternates); link-first means purchase/free-download/smart-links (`smarturl.it` included) surface as `link_surfaced` + `source_links` and are NEVER counted as downloaded (`--force-rip` overrides; the decision lands in the ledger so sync never re-queues); SC rows key on numeric SC id; permalink 404 = permanent `gone` (the old generic class retried dead slugs forever); the HIGHQ bar is source-aware (SC ≥160k). `scExtractionArgs(formatId)` makes mp3-fallback streams COPY (`-c copy`), never re-encode — a lossy→lossy transcode of an mp3 stream is double lossy (pinned in `soundcloud.test.ts`, Sep 20). The #278/#279 analysis DB short-circuit is a rule, not an optimization: ledgered == analyzed, and gap passes must skip ledgered work unless `--force` (the old `--embeddings` path re-queued 3.1k analyzed tracks into an ~8h compute storm).
-- The backup decision is RECORDED (Sep 19): the shelf IS the backup — `shelf-sync` to SHELF1 gives every track two physical copies; no cloud backup infra exists or runs (issue #2 was a never-wired proposal, retired from the drive-day plan, stays parked). Don't start or assume a backup; #147 write-path spike is the only p0.
+- The backup decision is RECORDED (Sep 19): the shelf IS the backup — `shelf-sync` to SHELF1 gives every track two physical copies; no cloud backup infra exists or runs (issue #2 was a never-wired proposal, retired from the drive-day plan, stays parked). Don't start or assume a backup. #147 (GA-07 write-path spike) **closed Sep 30 by owner** — harness shipped, four hands-on RB observations still unrun but deprioritized until grid/cue repair is the active arc.
 - Concurrent-agent collisions resolve content-first: a foreign commit that swept staged files counts as landed when the diff is byte-identical vs the worktree (hash is irrelevant); a stash round-trip restores content byte-identical but loses the staged/unstaged distinction. Staging is contested under concurrency: a plain `git add`/`commit` on the shared index can sweep (or unstage, or resurrect) another agent's paths — for surgical multi-agent commits use a temp/plumbing index containing exactly your set (`git commit-tree` + ref advance), and after any foreign sweep audit HEAD for duplicate/resurrected paths before "fixing" (Sep 18: the #244 moves landed via three cooperative sweeps; one foreign commit re-added 24 old paths alongside the new ones — the follow-up deletions completed the rename).
 - rb-adopt mirrors write `tracks.codec` from the master DB's own `FileType`/`BitDepth` columns (pyrekordbox enum: MP3=1, M4A=4, FLAC=5, WAV=11, AIFF=12), never from filename extensions — a `.m4a` name on a FileType-11 row is still WAV. `rb-adopt-apply.ts` originally skipped the column entirely, leaving the whole 3,133-row rekordbox mirror as `unknown` in the Codecs card (fixed `15e8544d`, Sep 19); the UPDATE branch backfills on the next `rb-adopt --apply --yes` run with the drive mounted.
 - plugin/skills files are git symlinks (mode 120000) into .claude/skills — that IS the dedup mechanism, not duplication; `wc` over `git ls-files` double-counts symlinked content (a v1 audit claimed 1.3kL of dupes that don't exist). Verify with `git ls-files -s` mode 120000 before proposing a dedup.
@@ -507,6 +518,7 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - After pyrekordbox master.db write sessions: `PRAGMA wal_checkpoint(TRUNCATE)` before `db.close()` in every RB `*.kit.py` that commits — leftover WAL crashes RB on open (5.7 MB WAL, Sep 28); all six write kits checkpoint (Sep 29 expanded beyond comment-sync only).
 - `src/cli-env.ts` is the SSOT for `DB_PATH`, `MUSIC_DIR`, and cookie defaults (`nonEmptyEnv` on `MEGADJ_*` + `HOME`); throws if `HOME` is unset/empty — never hardcode `~/.local/state/megadj/archive.db` in TS/tools (Sep 29 consolidated eight dupes).
 - `rb-comment-sync` runs three phases: (1) Comment write (Key·Energy·Mood), (2) comment enrichment (partial→full — key from RB `djmdKey.ScaleName`, mood-arousal-derived energy as fallback; ~3807/3819 tracks have KeyID vs sparse TXXX tags), (3) genre sync (archive.db vote-winner → RB `GenreID`); primary genre lands in RB, secondary stays archive-only.
+- `album-push.kit.py` pushes album data from archive.db → master.db: matches on NFC-casefolded file path first, then title+artist fallback; creates new `djmdAlbum` rows with UUID+timestamps via raw SQL (ORM album creation fails on NULL identity key); drove master.db album coverage from 48.2% → 94.0% (Sep 30); integrated into `full-pipeline.sh` stage 7.
 - `tracks.genre_secondary` in archive.db holds vote runner-ups + embedding KNN (~60–64% coverage); only the vote winner writes to RB genre.
 - Every `djmdGenre` row MUST have a non-null UUID — NULL UUID crashes RB on open (342 bad rows Sep 28); delete orphan genre rows with no content references; post-cleanup target is a small clean set (44 rows, all valid UUIDs, Sep 28).
 - RB "missing artwork" is often embedded in the file — RB does not re-read tags after initial import; fix by extracting embedded art to `PIONEER/Artwork/<uuid-prefix>/<uuid-rest>/artwork.jpg` and setting `ImagePath` on the content row (`rb-comment-sync` extracted 1196, Sep 28).
