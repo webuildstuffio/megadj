@@ -1,10 +1,11 @@
-# Claude Code Assistant v5.20
+# Claude Code Assistant v5.21
 # Triggered by @claude mentions in issues, PRs, and reviews.
 # Uses Z.AI routing (org ANTHROPIC_API_KEY is a Z.AI credential).
 #
-# v5.20 - (Sep 30 2026) Concurrency groups, ubicloud, all permissions,
-#          improved system prompt (reads AGENTS.md/CLAUDE.md automatically),
-#          bun caching for faster tool installs.
+# v5.21 - (Sep 30 2026) Bump to v1.0.237 (Claude Code 2.1.285 — native
+#          AGENTS.md support, no CLAUDE.md symlink needed). Added job-level
+#          retry for Z.AI rate limits. Increased max-turns to 75.
+# v5.20 - Concurrency groups, AGENTS.md-first prompt.
 # v5.19 - Z.AI routing, sonnet-4-5/haiku-4-5 pins.
 
 name: Claude Code
@@ -31,7 +32,7 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubicloud-standard-2
-    timeout-minutes: 25
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -105,7 +106,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude_action
-        uses: anthropics/claude-code-action@v1.0.233
+        uses: anthropics/claude-code-action@v1.0.237
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -115,27 +116,12 @@ jobs:
             Repository: ${{ github.repository }}
             Event: ${{ github.event_name }}
 
-            Please help with the task described in the issue/PR above.
-
-            **IMPORTANT**: Ensure you follow the request 100% by completing everything fully. If you strongly disagree with the approach, provide feedback after conducting thorough research.
-
-            **Requirements**:
-            - Read AGENTS.md (or CLAUDE.md) at the repo root FIRST for project-specific guidelines — it takes precedence over defaults
-            - Use the available tools to achieve the best outcome
-            - State any failures with tools and suggest workflow improvements
-            - Be self-iterating and act as a senior engineer
-            - Find the most impactful long-term solutions without overengineering
-          claude_args: >-
-            --max-turns 50
-            --append-system-prompt "You are an exceptional PM + Senior SWE.
-            Read AGENTS.md/CLAUDE.md at repo root first — it takes precedence.
-            Security-review changes, keep quality high, avoid overengineering.
-            Be pragmatic: user value first."
-            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,
-            TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),
-            Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),
-            Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),
-            Bash(mv:*),Bash(rm:*)"
+            Help with the task described in the issue/PR above. Complete it 100%.
+            Read AGENTS.md at the repo root first for project-specific guidelines.
+          claude_args: |
+            --max-turns 75
+            --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first."
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*)"
           settings: |
             {
               "env": {
