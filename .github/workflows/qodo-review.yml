@@ -12,6 +12,10 @@
 # /review and /describe available via manual /command in PR comments.
 #
 # CHANGELOG:
+# v3.3.1: (Sep 30 2026) Fix: issue_comment events cancelled in-progress PR reviews
+#          via shared concurrency group. Root cause: GH Actions evaluates concurrency
+#          BEFORE job-level 'if:', so any bot comment entering the same group killed
+#          the running /improve job. Fix: include event_name in group key.
 # v3.3.0: (Sep 30 2026) Concurrency groups, improved caching, permission polish.
 # v3.2.1: (Sep 29 2026) Bypass CF AI Gateway — route directly to OpenRouter.
 # v3.2.0: (Sep 29 2026) gemma-4-31b primary + 8-model :free fallback chain.
@@ -31,7 +35,7 @@ name: Qodo AI Code Suggestions
         type: string
 
 concurrency:
-  group: qodo-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  group: qodo-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -86,7 +90,7 @@ jobs:
             else { core.setFailed('No open PRs'); }
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run Qodo /improve
         uses: qodo-ai/pr-agent@v0.46.0
