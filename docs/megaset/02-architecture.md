@@ -31,7 +31,7 @@ status (v0 uses / planned / rejected) and the exact order things are applied
         ▼
    MegasetResult ── steps[] · excluded[] · pool/freshness counters
         │
-        ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; no alias kept)
+        ├─▶ CLI        megadj megaset (src/fulltags/megaset/megaset.ts; no alias kept)
         ├─▶ HTTP       GET /api/archive/megaset · ?format=m3u8 (archive/routes.ts)
         │             (rev-52: `format` is a CONTRACT param on both set-builder
         │              routes through the ONE seam megaset/m3u.ts — an unknown

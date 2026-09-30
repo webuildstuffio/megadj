@@ -85,8 +85,8 @@ describe("schema: completeness", () => {
     expect(r.complete).toBe(false);
   });
   test("both audit gates derive dims from THIS list (census, #97)", () => {
-    // The two audit surfaces — `fulltags audit <folder>` (fulltags/cli.ts)
-    // and megadj's auditArchive (src/fulltags/fetch.ts) — must not carry
+    // The two audit surfaces — `fulltags audit <folder>` (src/fulltags/cli/cli.ts)
+    // and megadj's auditArchive (src/fulltags/fetch/fetch.ts) — must not carry
     // hand-copied dim arrays. Pin the full dim list here; any dim added
     // to COMPLETENESS_FIELDS lights up in both gates via completeness().
     const r = completeness({} as Partial<FullTag>);

@@ -36,7 +36,7 @@ Dev mode (hot reload): `bun run web:dev` in `src/deck/web/` alongside `bun run d
   `src/deck/shared/check-matrix.ts`); it's marked "master library lives here ·
   sticks sync from this".
 
-Read-only by construction: every disk write goes through `src/deck/guard.ts`
+Read-only by construction: every disk write goes through `src/deck/server/guard.ts`
 (allow-list = `src/deck/data/` + deliberate structured writes onto mounted
 sticks). Tests: `bun test src/deck/`.
 
