@@ -327,7 +327,7 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
   7800–7899 range collided with the launchd megamem service (:7823), and
   EADDRINUSE mid-boot masqueraded as "server failed to boot" (fixed
   03e5ed2, Sep 17). Since #247 the deck server installs as launchd
-  `com.nick.megadj-deck` (`ops/deck-service.ts`, doctor `deck-service`
+  `com.nick.megadj-deck` (`src/ops/deck-service.ts`, doctor `deck-service`
   check probes pid + `/api/interlock`) — restart via launchctl, not bare
   background processes. Render launchd filesystem paths with XML escaping and
   single-pass callback substitution; native `plutil` round-trip tests must
@@ -419,7 +419,7 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - Super-sure verification passes are expected to find something: a pass that ends "all green" should still probe the hard gates (`check:full` caught a silent 99.62% typecov baseline), re-prove acceptance live (fresh-run leak sweep), and fix defects found — not just re-list statuses.
 - Expects a locally running dev server to hand-test UI changes ("dev up please and let me test it out").
 - Wants findings surfaced before fixes on audits and risky ops: report first (canvas or grouped GitHub issues), then an explicit go-ahead to act (Sep 19: "instead of you fixing please make a detailed canvas of all bugs"; "lets turn that off right now" on a suspected backup).
-- Wants long-running multi-stage work encoded as one reusable command, never a hand-run step list: "keep didve / make sure automatic next time" produced `ops/full-pipeline.sh` + `docs/runbooks/0e-full-pipeline.md`; when a manual step bites a second time, script it, runbook it, and cite both (Sep 20).
+- Wants long-running multi-stage work encoded as one reusable command, never a hand-run step list: "keep didve / make sure automatic next time" produced `src/ops/full-pipeline.sh` + `docs/runbooks/0e-full-pipeline.md`; when a manual step bites a second time, script it, runbook it, and cite both (Sep 20).
 - SHELF1/drive-day pipelines: prep offline (fixes, baselines, dry checks), report ready, then wait for explicit mount confirmation before shelf-sync/RB writes ("plugged in, do it") (Sep 29).
 - After material mood/analysis pipeline changes, pilot a bounded cohort and compare to the prior baseline before fleet-wide `--force` re-analysis (Sep 29).
 - Iterates by re-sending and deepening ("status now?", "full canvas update fully") — each pass must re-measure live and land visible artifacts (canvas version bump, doc status header, pushed commit), not re-assert old numbers.

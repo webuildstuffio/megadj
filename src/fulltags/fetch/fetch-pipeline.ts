@@ -26,7 +26,7 @@
  * Shared archive plumbing lives in archive-ledger.ts; stage runners in
  * fetch-stages.ts; AI fallbacks come from ai.ts (via exports).
  *
- * Callers: `megadj fetch` (src/fulltags/fetch.ts) runs runFetch()
+ * Callers: `megadj fetch` (src/fulltags/fetch/fetch.ts) runs runFetch()
  * IN-PROCESS through the exports leaf — one Bun boot, no 6.4s overhead.
  */
 import {
