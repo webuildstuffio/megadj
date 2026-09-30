@@ -12,6 +12,7 @@ describe("cleanTitle", () => {
     expect(cleanTitle("Let Her Go (Official Audio)")).toBe("Let Her Go");
     expect(cleanTitle("P2 [Official Lyric Video]")).toBe("P2");
     expect(cleanTitle("Fade Away (Official Video)")).toBe("Fade Away");
+    expect(cleanTitle("Used To (Official Visualizer)")).toBe("Used To");
   });
 
   test("normalizes smart quotes and whitespace", () => {

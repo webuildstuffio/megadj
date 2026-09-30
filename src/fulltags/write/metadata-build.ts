@@ -113,8 +113,14 @@ export function extractComposer(
 export function cleanTitle(raw: string | null | undefined): string | null {
   if (!raw) return null;
   return raw
-    .replace(/\(Official (?:Audio|Video|Music Video|Lyric Video)\)/gi, "")
-    .replace(/\[Official (?:Audio|Video|Music Video|Lyric Video)\]/gi, "")
+    .replace(
+      /\(Official (?:Audio|Video|Music Video|Lyric Video|Visualizer)\)/gi,
+      "",
+    )
+    .replace(
+      /\[Official (?:Audio|Video|Music Video|Lyric Video|Visualizer)\]/gi,
+      "",
+    )
     .replace(/\(Official\)/gi, "")
     .replace(/\((?:Lyric[s]?|Audio|Video)\)/gi, "")
     .replace(/\[(?:Lyric[s]?|Audio|Video)\]/gi, "")
