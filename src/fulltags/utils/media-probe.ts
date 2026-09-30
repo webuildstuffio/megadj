@@ -4,6 +4,7 @@
  * and src/commands/energy.ts so every enrichment concern lives here.
  */
 import { $ } from "bun";
+import { round1 } from "../../shared/leaf/fmt";
 
 function finiteNumber(raw: string | undefined): number | null {
   if (!raw) return null;
@@ -123,7 +124,7 @@ function failedProbe(): Probe {
 export function energyFromLufs(rmsDb: number | null): number | null {
   if (rmsDb === null || !Number.isFinite(rmsDb)) return null;
   const clamped = Math.min(-8, Math.max(-25, rmsDb));
-  return Math.round((1 + ((clamped + 25) / 17) * 9) * 10) / 10;
+  return round1(1 + ((clamped + 25) / 17) * 9);
 }
 
 /** Integrated RMS level (dBFS) via ffmpeg astats; null on failure.

@@ -109,7 +109,7 @@ const BPM_TOLERANCE = 0.05;
 /** Percentage with 1 decimal (null when the denominator is 0). Pure —
  *  module-level, not re-created per `aggregateScores` call. */
 const pct = (hit: number, n: number): number | null =>
-  n === 0 ? null : Math.round((hit / n) * 1000) / 10;
+  n === 0 ? null : round1((hit / n) * 100);
 
 /** Aggregate per-track scores into the §0.2 metrics row. Pure. */
 export function aggregateScores(scores: GoldTrackScore[]): GoldMetrics {

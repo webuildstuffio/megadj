@@ -126,6 +126,44 @@ function parseTomlSimple(src: string): TomlTable {
   return out;
 }
 
+/** Resolve the uv binary path: env override → standard install → bare name. */
+function resolveUvPath(): string {
+  const candidates = [
+    nonEmptyEnv("MEGADJ_UV_BIN"),
+    nonEmptyEnv("UV_BIN"),
+    `${nonEmptyEnv("HOME") ?? "/usr/local"}/.local/bin/uv`,
+  ].filter((p): p is string => typeof p === "string" && p.length > 0);
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return "uv";
+}
+
+/** Parse [players.players] table: only "device" and "onelibrary" values. */
+function parseExtraPlayers(
+  file: Record<string, TomlValue>,
+): Record<string, string> {
+  const players = isTomlTable(file.players) ? file.players : {};
+  const inner = isTomlTable(players.players) ? players.players : {};
+  const out: Record<string, string> = {};
+  for (const [name, reads] of Object.entries(inner)) {
+    if (reads === "device" || reads === "onelibrary") out[name] = reads;
+  }
+  return out;
+}
+
+/** Parse [booth] fleet array, validated against known FLEET_PROFILES. */
+function parseBoothFleet(file: Record<string, TomlValue>): string[] {
+  const booth = isTomlTable(file.booth) ? file.booth : {};
+  const raw = booth.fleet;
+  const ids = Array.isArray(raw)
+    ? (raw as unknown[]).filter((x): x is string => typeof x === "string")
+    : [];
+  const known = new Set(FLEET_PROFILES.map((p) => p.id as string));
+  const valid = ids.filter((id) => known.has(id));
+  return valid.length > 0 ? valid : [...DEFAULT_FLEET];
+}
+
 export function loadConfig(root: string): CrateConfig {
   const cfgPath = join(root, "config.toml");
   const file = existsSync(cfgPath)
@@ -212,45 +250,14 @@ export function loadConfig(root: string): CrateConfig {
     // 'Executable not found in $PATH: "uv"', Sep 20). Resolution: env
     // override → the standard install location → bare name (PATH) so
     // dev shells and hermetic test envs keep working.
-    uvPath: (() => {
-      const candidates = [
-        nonEmptyEnv("MEGADJ_UV_BIN"),
-        nonEmptyEnv("UV_BIN"),
-        `${nonEmptyEnv("HOME") ?? "/usr/local"}/.local/bin/uv`,
-      ].filter((p): p is string => typeof p === "string" && p.length > 0);
-      for (const candidate of candidates) {
-        if (existsSync(candidate)) return candidate;
-      }
-      return "uv";
-    })(),
+    uvPath: resolveUvPath(),
     // [players.players] MY-XDJ = "device" — user-added players for the N75
     // compatibility matrix (players.ts merges them with the vendor defaults).
-    extraPlayers: (() => {
-      const players = isTomlTable(file.players) ? file.players : {};
-      const inner = isTomlTable(players.players) ? players.players : {};
-      const out: Record<string, string> = {};
-      for (const [name, reads] of Object.entries(inner)) {
-        if (reads === "device" || reads === "onelibrary") out[name] = reads;
-      }
-      return out;
-    })(),
+    extraPlayers: parseExtraPlayers(file),
     // [booth] fleet = "xdj-xz", "cdj-3000", … — validated against
     // fulltags FLEET_PROFILES; unknown ids fall back to the defaults
     // rather than silently shrinking the safety floor.
-    boothFleet: (() => {
-      const booth = isTomlTable(file.booth) ? file.booth : {};
-      const raw = booth.fleet;
-      const ids = Array.isArray(raw)
-        ? (raw as unknown[]).filter((x): x is string => typeof x === "string")
-        : [];
-      const known = new Set(FLEET_PROFILES.map((p) => p.id as string));
-      const valid = ids.filter((id) => known.has(id));
-      return valid.length > 0 || ids.length === 0
-        ? valid.length > 0
-          ? valid
-          : [...DEFAULT_FLEET]
-        : [...DEFAULT_FLEET];
-    })(),
+    boothFleet: parseBoothFleet(file),
   };
   return cfg;
 }

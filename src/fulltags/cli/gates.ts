@@ -8,6 +8,7 @@
  */
 import { writePatchSync } from "../write/writer";
 import type { TagPatch } from "../write/schema";
+import { round1, round2 } from "../../shared/leaf/fmt";
 
 export type GateDimension = "bpm" | "genre" | "effnet";
 
@@ -74,9 +75,7 @@ const offsetPercent = (expected: unknown, actual: unknown): number | null => {
     expected === 0
   )
     return null;
-  return (
-    Math.round((Math.abs(actual - expected) / Math.abs(expected)) * 10000) / 100
-  );
+  return round2((Math.abs(actual - expected) / Math.abs(expected)) * 100);
 };
 
 function assertNotSaturated<T>(
@@ -119,9 +118,7 @@ export function runRegate<T>(options: RegateOptions<T>): GateResult {
   });
   const passedCount = tracks.filter((track) => track.pass).length;
   const passPercent =
-    tracks.length === 0
-      ? 0
-      : Math.round((passedCount / tracks.length) * 1000) / 10;
+    tracks.length === 0 ? 0 : round1((passedCount / tracks.length) * 100);
   return {
     dimension: options.dimension,
     tolerancePercent,

@@ -6,6 +6,7 @@ Reads recently-fixed tracks from archive.db and updates master.db Title
 and ArtistID. Creates new djmdArtist rows when needed. Safety: RB-closed
 gate, dated backup, WAL checkpoint.
 """
+
 import json
 import os
 import sqlite3
@@ -16,7 +17,7 @@ import uuid
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
-from pyrekordbox.db6.tables import DjmdContent, DjmdArtist  # type: ignore[import-not-found]
+from pyrekordbox.db6.tables import DjmdArtist, DjmdContent  # type: ignore[import-not-found]
 
 
 def nfc_casefold(s: str) -> str:
