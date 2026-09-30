@@ -185,6 +185,7 @@ def main() -> None:
                 break
         pct = rank / len(all_energies)
         import math
+
         band = math.ceil(pct * 9)
         return max(1, min(9, band))
 
@@ -242,22 +243,43 @@ def main() -> None:
 
     # ---- v4: subgenre abbreviation map ----
     SUBGENRE_ABBREV: dict[str, str] = {
-        "tech house": "TechHouse", "deep house": "DeepHouse",
-        "afro house": "AfroHouse", "progressive house": "ProgHouse",
-        "melodic house": "MelHouse", "organic house": "OrgHouse",
-        "bass house": "BassHouse", "future house": "FutHouse",
-        "melodic techno": "MelTechno", "peak-time techno": "PeakTechno",
-        "hard techno": "HardTechno", "minimal": "Minimal",
-        "minimal deep tech": "Minimal", "deep tech": "Minimal",
-        "big room": "BigRoom", "drum & bass": "DnB", "drum and bass": "DnB",
-        "psytrance": "Psy", "hip-hop": "HipHop", "hip hop": "HipHop",
-        "uk garage": "UKG", "trance": "Trance", "dubstep": "Dubstep",
-        "trap": "Trap", "techhouse": "TechHouse",
-        "melodic house & techno": "MelHouse", "electro": "Electro",
-        "electronica": "Electronica", "indie dance": "IndieDance",
-        "nu disco": "NuDisco", "disco": "Disco", "amapiano": "Amapiano",
-        "jersey club": "JerseyClub", "breakbeat": "Breakbeat",
-        "downtempo": "Downtempo", "ambient": "Ambient", "r&b": "RnB",
+        "tech house": "TechHouse",
+        "deep house": "DeepHouse",
+        "afro house": "AfroHouse",
+        "progressive house": "ProgHouse",
+        "melodic house": "MelHouse",
+        "organic house": "OrgHouse",
+        "bass house": "BassHouse",
+        "future house": "FutHouse",
+        "melodic techno": "MelTechno",
+        "peak-time techno": "PeakTechno",
+        "hard techno": "HardTechno",
+        "minimal": "Minimal",
+        "minimal deep tech": "Minimal",
+        "deep tech": "Minimal",
+        "big room": "BigRoom",
+        "drum & bass": "DnB",
+        "drum and bass": "DnB",
+        "psytrance": "Psy",
+        "hip-hop": "HipHop",
+        "hip hop": "HipHop",
+        "uk garage": "UKG",
+        "trance": "Trance",
+        "dubstep": "Dubstep",
+        "trap": "Trap",
+        "techhouse": "TechHouse",
+        "melodic house & techno": "MelHouse",
+        "electro": "Electro",
+        "electronica": "Electronica",
+        "indie dance": "IndieDance",
+        "nu disco": "NuDisco",
+        "disco": "Disco",
+        "amapiano": "Amapiano",
+        "jersey club": "JerseyClub",
+        "breakbeat": "Breakbeat",
+        "downtempo": "Downtempo",
+        "ambient": "Ambient",
+        "r&b": "RnB",
     }
 
     def abbreviate_subgenre(sub: str) -> str:
@@ -270,8 +292,12 @@ def main() -> None:
         IN/OUT, VOX/HOOK, Drop/Roll, VAR need analysis pipelines not yet built.
         """
         result: dict = {
-            "energy_band": None, "hard": False, "soft": False,
-            "dark": False, "euph": False, "subgenre": "",
+            "energy_band": None,
+            "hard": False,
+            "soft": False,
+            "dark": False,
+            "euph": False,
+            "subgenre": "",
         }
         fp_key = nfc_casefold(p)
 

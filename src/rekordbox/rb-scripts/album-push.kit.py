@@ -34,9 +34,7 @@ def main() -> None:
     ledger_path = sys.argv[2]
     apply = sys.argv[3] == "apply" if len(sys.argv) > 3 else False
 
-    if subprocess.run(
-        ["pgrep", "-x", "rekordbox"], capture_output=True
-    ).returncode == 0:
+    if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
         print(json.dumps({"error": "rekordbox is running — refusing write"}))
         sys.exit(1)
 
