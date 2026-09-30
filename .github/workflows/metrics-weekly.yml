@@ -18,7 +18,7 @@ jobs:
   snapshot:
     runs-on: ubicloud-standard-2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # activity check needs history
 
@@ -35,7 +35,7 @@ jobs:
       - name: Restore tool cache
         id: toolcache
         if: steps.activity.outputs.active == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/../metrics-tools
           key: >-
