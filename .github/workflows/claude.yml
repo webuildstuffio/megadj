@@ -125,10 +125,17 @@ jobs:
             - State any failures with tools and suggest workflow improvements
             - Be self-iterating and act as a senior engineer
             - Find the most impactful long-term solutions without overengineering
-          claude_args: |
+          claude_args: >-
             --max-turns 50
-            --append-system-prompt "You are an exceptional Product Manager AND Senior Software Engineer. Balance user needs, business objectives, and technical excellence. Security-review your changes, keep quality high, avoid overengineering. ALWAYS read the AGENTS.md and/or CLAUDE.md file at the repo root first — it contains project-specific guidelines, architecture decisions, and conventions that take precedence over your defaults. Be pragmatic: perfect vs done, user value first, collaborate clearly."
-            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*)"
+            --append-system-prompt "You are an exceptional PM + Senior SWE.
+            Read AGENTS.md/CLAUDE.md at repo root first — it takes precedence.
+            Security-review changes, keep quality high, avoid overengineering.
+            Be pragmatic: user value first."
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,
+            TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),
+            Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),
+            Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),
+            Bash(mv:*),Bash(rm:*)"
           settings: |
             {
               "env": {
