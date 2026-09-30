@@ -231,8 +231,14 @@ a.prop !== null`), one strict check does NOT imply the other.
   the `sc_genre_ids` cache was dropped (#108) — never resurrect without owning
   its writer. ID3 genre frames are unreliable: curated genres live in the
   archive ledger, never the tag frame.
-- FullTags comment = `Key · Energy · Mood`; BPM has its own RB column and never
-  enters the comment.
+- FullTags comment v3 = `E6·Driving·House-Tech House` (compact `·` separator,
+  no spaces); no Key (redundant — RB shows it), energy integer 1–10, vibe from
+  7-bucket system (Hard/Driving/Groovy/Medium/Bright/Deep/Smooth derived from
+  aggressive+happy+valence), up to 2 secondary genres dash-joined. BPM has its
+  own RB column and never enters the comment. `vibeFromMood` thresholds and
+  `buildCommentV3`/`parseCommentV3` live in `src/fulltags/booth/comment-v3.ts`
+  (34 tests). The Python twin in `comment-sync.kit.py` (`vibe_label`,
+  `build_comment`) MUST stay in sync — the census doesn't cross-check them.
 
 ## Rekordbox and hardware
 
@@ -279,6 +285,18 @@ a.prop !== null`), one strict check does NOT imply the other.
   AIFF/MP3; RB analysis can overwrite it. Audio analysis decodes in-process
   via PyAV (`Audio2Beats(signal, sr)`) — never reintroduce the ffmpeg
   temp-WAV bridge.
+- `tag-fix.kit.py` pushes archive.db title/artist fixes to master.db.
+  Safety rules (hardened Sep 30 after 37 titles damaged): (1) timestamp filter
+  via argv, never hardcoded; (2) title push only when archive.db is genuinely
+  better (longer, case-fix, or filename-style cleanup — never overwrite a
+  proper master.db title with a truncated YouTube one); (3) pgrep RB-closed
+  guard before commit; (4) WAL checkpoint on close. The `.kit.py` files have
+  `@kit()` annotation markers that the TS orchestrator expands via
+  `renderKitMarkers` — running a `.kit.py` directly with `python` leaves the
+  markers as comments and any code AFTER the marker (like the RB-closed guard
+  raise) runs unconditionally. Always invoke kits through the CLI
+  (`megadj rb-comment-sync`) or `runPyScript`/`pyUvFileArgv`, never bare
+  `python src/rekordbox/rb-scripts/*.kit.py`.
 
 ## Test and process traps
 
