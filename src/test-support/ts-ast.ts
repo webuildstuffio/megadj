@@ -45,8 +45,6 @@ export const isBlock: typeof ts.isBlock = ts.isBlock;
 export const isCallExpression: typeof ts.isCallExpression = ts.isCallExpression;
 export const isCaseClause: typeof ts.isCaseClause = ts.isCaseClause;
 export const isCatchClause: typeof ts.isCatchClause = ts.isCatchClause;
-export const isClassDeclaration: typeof ts.isClassDeclaration =
-  ts.isClassDeclaration;
 export const isClassLike: typeof ts.isClassLike = ts.isClassLike;
 export const isConditionalExpression: typeof ts.isConditionalExpression =
   ts.isConditionalExpression;

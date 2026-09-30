@@ -1,7 +1,7 @@
 {
   "name": "megadj",
   "version": "0.2.0",
-  "description": "Rate-limited YouTube Music library archiver with rekordbox-ready metadata \u2014 GetDat (acquire), FullTags (enrich), CrateDeck (USB drives)",
+  "description": "Rate-limited YouTube Music library archiver with rekordbox-ready metadata — GetDat (acquire), FullTags (enrich), CrateDeck (USB drives)",
   "license": "MIT",
   "type": "module",
   "module": "src/cli.ts",
@@ -22,7 +22,7 @@
     "format:py:check": "uv run --no-sync ruff format --check src/deck/python src/rekordbox/rb-scripts tools",
     "format:py": "uv run --no-sync ruff format src/deck/python src/rekordbox/rb-scripts tools",
     "test:py": "uv run --no-sync python -m unittest discover -s tools -p '*_test.py' -v && uv run --no-sync python -m unittest discover -s .claude/skills/rekordbox-usb-sync/scripts -t .claude/skills/rekordbox-usb-sync/scripts -p '*_test.py' -v",
-    "web:build": "cd src/deck/web && bun run build",
+    "web:build": "cd src/deck/web && bun install --frozen-lockfile && bun run build",
     "format:check": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --check src tools knip.json .oxlintrc.json plugin",
     "format": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --write src tools knip.json .oxlintrc.json plugin",
     "knip": "knip",
@@ -39,12 +39,18 @@
     "deps:age": "bun -e 'const p=require(\"./package.json\");for(const n of Object.keys({...p.dependencies,...p.devDependencies})){const r=await fetch(\"https://registry.npmjs.org/\"+n).then(r=>r.json());const ks=Object.keys(r.time).filter(k=>!k.includes(\"-\")&&k!==\"created\");console.log(n.padEnd(20),ks[ks.length-1].slice(0,10))}'"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@tanstack/preact-table": "^9.2.4",
     "@types/bun": "^1.4.2",
     "knip": "^6.36.0",
+    "lucide-preact": "^1.46.0",
     "oxlint": "1.83.0",
+    "preact": "^10.29.8",
+    "preact-render-to-string": "^6.7.0",
     "prettier": "^3.9.7",
     "type-coverage": "^2.30.1",
     "typescript": "^7.0.2",
-    "typescript-compiler-api": "npm:typescript@5.9.3"
+    "typescript-compiler-api": "npm:typescript@5.9.3",
+    "vite": "^8.3.0"
   }
 }
