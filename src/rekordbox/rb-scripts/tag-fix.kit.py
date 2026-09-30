@@ -1,10 +1,15 @@
 """rb-tag-fix.kit.py — Push title/artist fixes from archive.db to master.db.
 
-argv: <dbPath> <ledgerPath> <apply|report>
+argv: <dbPath> <ledgerPath> <apply|report> [since-timestamp]
 
-Reads recently-fixed tracks from archive.db and updates master.db Title
-and ArtistID. Creates new djmdArtist rows when needed. Safety: RB-closed
-gate, dated backup, WAL checkpoint.
+Reads recently-fixed tracks from archive.db (filtered by updated_at > since)
+and updates master.db Title and ArtistID. Creates new djmdArtist rows when
+needed. Safety: RB-closed gate, dated backup, WAL checkpoint.
+
+Only pushes fields that genuinely differ between archive.db and master.db —
+never overwrites a good master.db title with a truncated archive.db one
+(the Sep 30 incident: artist-case-only fixes bumped updated_at, which
+then pushed bad archive.db titles over good master.db ones).
 """
 
 import json
@@ -28,6 +33,7 @@ def main() -> None:
     db_path = sys.argv[1]
     ledger_path = sys.argv[2]
     apply = sys.argv[3] == "apply"
+    since = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else "2026-09-30T08:37"
 
     rbdb = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))
 
@@ -45,7 +51,8 @@ def main() -> None:
         """SELECT t.video_id, t.title, t.artist, t.year, rc.content_id
            FROM tracks t
            JOIN rekordbox_content rc ON rc.video_id = t.video_id
-           WHERE t.updated_at > '2026-09-30T08:37'"""
+           WHERE t.updated_at > ?""",
+        (since,),
     ):
         fixed[str(row["content_id"])] = {
             "title": row["title"],
@@ -68,13 +75,29 @@ def main() -> None:
 
         old_title = c.Title or ""
 
-        # Fix title
-        if f["title"] and f["title"] != c.Title:
-            if apply:
-                c.Title = f["title"]
-            title_fixed += 1
-            if len(samples) < 10:
-                samples.append([old_title[:60], f["title"][:60], f.get("artist") or ""])
+        # Fix title — only push when archive.db title is genuinely better.
+        # Safety: never overwrite a longer/proper-cased master.db title with
+        # a shorter/truncated archive.db one (YouTube titles are often worse).
+        new_title = f["title"] or ""
+        if new_title and new_title != old_title:
+            # Heuristic: archive.db title is better if it's longer or the
+            # master.db title looks like a raw filename/YouTube dump
+            old_lower = old_title.lower().strip()
+            new_lower = new_title.lower().strip()
+            is_genuine_improvement = (
+                # Case-only fix (same content, better casing)
+                old_lower == new_lower
+                # Or old title contains underscores/hyphens (filename-style)
+                or "_" in old_title or old_title.startswith("[")
+                # Or new title is at least as long
+                or len(new_title) >= len(old_title)
+            )
+            if is_genuine_improvement:
+                if apply:
+                    c.Title = new_title
+                title_fixed += 1
+                if len(samples) < 10:
+                    samples.append([old_title[:60], new_title[:60], f.get("artist") or ""])
 
         # Fix artist
         if f["artist"]:
@@ -99,6 +122,11 @@ def main() -> None:
                 artist_fixed += 1
 
     if apply:
+        if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
+            rbdb.session.rollback()
+            print(json.dumps({"error": "rekordbox is running — refusing write"}))
+            rbdb.close()
+            sys.exit(1)
         rbdb.session.commit()
 
     out = {
