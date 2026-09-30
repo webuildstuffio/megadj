@@ -88,7 +88,8 @@ def main() -> None:
                 # Case-only fix (same content, better casing)
                 old_lower == new_lower
                 # Or old title contains underscores/hyphens (filename-style)
-                or "_" in old_title or old_title.startswith("[")
+                or "_" in old_title
+                or old_title.startswith("[")
                 # Or new title is at least as long
                 or len(new_title) >= len(old_title)
             )

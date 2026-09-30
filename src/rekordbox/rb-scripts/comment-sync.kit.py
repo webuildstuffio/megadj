@@ -266,7 +266,7 @@ def main() -> None:
             continue
 
         rb_kid = str(c.KeyID) if c.KeyID else None
-        key, energy, vibe, genre2, genre3 = resolve_data(p, tags, rb_kid)
+        _key, energy, vibe, genre2, genre3 = resolve_data(p, tags, rb_kid)
 
         if existing:
             # v3 always overwrites — fresh comment from latest data
