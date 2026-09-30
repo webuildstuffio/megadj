@@ -110,9 +110,9 @@ for f in files:
                 if artist == use_title:
                     idx = use_title.index(" - ")
                     if idx > 0 and idx + 3 < len(use_title):
-                        use_title = use_title[idx + 3:].strip() or use_title
+                        use_title = use_title[idx + 3 :].strip() or use_title
                 elif use_title.lower().startswith(artist.lower() + " - "):
-                    use_title = use_title[len(artist) + 3:].strip() or use_title
+                    use_title = use_title[len(artist) + 3 :].strip() or use_title
             row = DjmdContent(
                 ID=cid,
                 FolderPath=full,
