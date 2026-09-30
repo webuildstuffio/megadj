@@ -163,6 +163,15 @@ a.prop !== null`), one strict check does NOT imply the other.
   byte compare; `--trashes --into F` for trash intake. Quarantine/staging at
   the shelf root, never under `Contents/`; never walk `PIONEER/`, do walk
   `PIONEER REC/`.
+- `shelf-sync` artifact multiplication bug (root-caused Sep 30):
+  `divergentDestination()` writes `track [archive].ext` for byte-divergent
+  same-name copies; on the next sync run `walkArchive()` re-picked them up as
+  new source, creating `[archive 2]`, `[archive 3]` … `[archive 9]`.
+  `SYNC_ARTIFACT_RE` (regex: `\[archive(?: \d+)?\]|\[BACKUP\d*\]`) now filters
+  BOTH `walkArchive()` (source scan) AND `shelfAudioIndex()` (shelf index), so
+  artifacts are invisible to sync. Test-pinned in `sync.test.ts`. The filter is
+  sync-only: `shelf-archive`'s `ShelfIndex` correctly indexes artifacts (they
+  suppress re-copy), and `dupescan` needs to see them as dedup candidates.
 - Whole-volume ExFAT rsync wedges — never use it; per-directory tar-pipe /
   file-count resume (shelf-intake skill). Move files individually and verify
   the destination hash; whole-directory moves can lose files.

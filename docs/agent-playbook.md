@@ -69,6 +69,19 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   auto-relocate scans `Contents/` and will chase quarantined files.
 - Divergent same-name rips are preserved as `<name> [<volume>]` twins, never
   overwritten — the shelf's rekordbox DB references its own files.
+- **shelf-sync artifact multiplication (Sep 30).** `divergentDestination()`
+  creates `track [archive].ext` when a same-name file has different bytes.
+  On the next run, `walkArchive()` and `shelfAudioIndex()` both saw the
+  `[archive]` copy as new content: walkArchive re-synced it, and if its
+  bytes differed from the original, divergentDestination created
+  `[archive 2]`, then `[archive 3]`, etc. 334 files × up to 9 copies =
+  2,810 total junk files (1,405 audio + 1,405 `._` resource forks).
+  Root cause fix: `SYNC_ARTIFACT_RE` (regex matching `[archive N]` and
+  `[BACKUP*]` filenames) filters both `walkArchive()` (source scan) and
+  `shelfAudioIndex()` (destination index). Test-pinned in
+  `sync.test.ts`. The filter is ONLY in `sync.ts` — `shelf-archive` and
+  `dupescan` correctly include these files (shelf-archive needs to see
+  them as "already present"; dupescan needs to detect them as duplicates).
 - **shelf-sync is regroup-aware (Sep 11).** The archive keeps its batch
   folders while the shelf is artist-foldered, so the skip check can't key
   on the literal relative path: a same-basename same-size copy anywhere
