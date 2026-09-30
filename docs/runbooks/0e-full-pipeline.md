@@ -1,41 +1,49 @@
 # 0e — Drive-Day Full Pipeline (the one command)
 
-**Status:** ✅ ACTIVE — the Sep 20 manual sequence, encoded. `src/ops/full-pipeline.sh`
+**Status:** ✅ ACTIVE (updated Sep 30 2026) — `src/ops/full-pipeline.sh`
 owns the order; this runbook owns the WHY and the verification.
 
 ## The command
 
 ```bash
-bash src/ops/full-pipeline.sh              # analysis chain (no YouTube)
-bash src/ops/full-pipeline.sh --with-sync  # + YouTube sync LAST (owner go required)
+bash src/ops/full-pipeline.sh                            # analysis + RB sync
+bash src/ops/full-pipeline.sh --ai-fallback              # + AI genre for stragglers
+bash src/ops/full-pipeline.sh --with-sync                # + YouTube sync LAST
+bash src/ops/full-pipeline.sh --ai-fallback --with-sync  # all of the above
 ```
 
-Env knobs: `MEGADJ_SHELF` (default `/Volumes/SHELF1/Contents`).
+Env knobs: `MEGADJ_SHELF` (default `/Volumes/SHELF1/Contents`),
+`MEGADJ_DRIVE` (default `/Volumes/SHELF1`).
 Log lands in `/tmp/megadj-full-pipeline-<date>.log`.
 
 ## Stage order and why it is serial
 
 1. **`fetch --genres --revote` (shelf scope)** — the vote ladder over the
    old-system rows (file genre present, row `genre_votes` empty). Shelf
-   first: the biggest cohort (3.4k rows), while the drive is mounted.
+   first: the biggest cohort, while the drive is mounted.
 2. **`fetch --genres --revote` (local scope)** — the `~/Music/DJ-Imports`
-   batch folders (~100 rows).
-3. **`mood --embeddings`** — backfills embedding gaps (mood-ledgered but
+   batch folders.
+2b. **(optional) `fetch --genres --revote --ai-fallback`** — fills remaining
+   genre gaps using the ONNX AI classifier (opt-in via `--ai-fallback`).
+3. **`catch-up --max-seconds 600 --jobs 4`** — beats → mood analysis for
+   new imports (skips tracks >10min to save compute).
+4. **`mood --embeddings`** — backfills embedding gaps (mood-ledgered but
    unembedded rows). Runs BEFORE the kNN stage so the new rows can seed.
-4. **`cues`** — derives 8-bar phrase cues for any beat-analyzed track
-   missing them. After fetch so freshly-elected rows are covered.
 5. **`genre --eval` → gate-conditional `genre --apply`** — the LOO harness
    measures agreement; `--apply` (audio-kNN inference) fires ONLY at ≥65%
-   agreement. Below the gate the gap stands honestly — never a
-   manufactured pass (genre-pipeline.md §V2).
-6. **`--with-sync` only: YouTube sync** — ALWAYS last (owner policy,
-   Sep 20: "dont do the new youtube videos though until the end"). Serial
-   `--sources LL` by design (parallel yt-dlp = IP-403 storms). After sync,
+   agreement. Below the gate the gap stands honestly.
+6. **`rb-comment-sync --apply --yes`** — pushes comments (Key·Energy·Mood)
+   + genres from archive.db to master.db. Requires RB closed.
+7. **`album-push apply`** — pushes album data from archive.db to master.db.
+   Creates new `djmdAlbum` rows when needed. Non-fatal on failure.
+8. **`--with-sync` only: YouTube sync** — ALWAYS last (owner policy).
+   Serial by design (parallel yt-dlp = IP-403 storms). After sync,
    re-run the script WITHOUT `--with-sync` so the new rows get analyzed.
 
 **One DB writer at a time.** `archive.db`'s busy_timeout is 5s — two
 concurrent writers is the exact-5s parallel-suite flake. Never background
-two stages.
+two stages. The RB stages (6–7) gate on `pgrep -x rekordbox` — if RB is
+running they are SKIPPED with a warning (close RB, re-run to pick them up).
 
 ## Pre-flight (the agent checks, not the script)
 
