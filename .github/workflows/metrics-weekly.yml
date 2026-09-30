@@ -6,7 +6,7 @@
 name: metrics-weekly
 "on":
   schedule:
-    - cron: "0 13 * * 0" # Sundays 09:00 ET
+    - cron: "0 13 * * *" # daily 09:00 ET
   release:
     types: [published]
   workflow_dispatch:
@@ -22,12 +22,12 @@ jobs:
         with:
           fetch-depth: 0 # activity check needs history
 
-      - name: Skip if quiet (no commits in the last 7 days)
+      - name: Skip if quiet (no commits in the last 24 hours)
         id: activity
         run: |
-          if [ -z "$(git log --since='7 days ago' --format=%H)" ]; then
+          if [ -z "$(git log --since='24 hours ago' --format=%H)" ]; then
             echo "active=false" >> "$GITHUB_OUTPUT"
-            echo "Quiet week — skipping snapshot."
+            echo "Quiet 24h — skipping snapshot."
           else
             echo "active=true" >> "$GITHUB_OUTPUT"
           fi
