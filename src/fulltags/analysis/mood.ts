@@ -6,7 +6,11 @@ import { parseMoodStamp } from "../pipeline/pipeline";
 import type { ArchiveState, TrackRow } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
-import { findDropSection } from "./drop-finder";
+import {
+  findDropSection,
+  findDropCandidates,
+  type DropSection,
+} from "./drop-finder";
 
 /** M1 (#325): the model identifier written to `embeddings.model`. This is
  * the Essentia effnet tower producing 1280-d mean embeddings. Changing
@@ -15,8 +19,13 @@ import { findDropSection } from "./drop-finder";
 export const EMBEDDING_MODEL = "effnet-discogs-1280";
 
 /** Section-aware embedding model tag: same effnet tower but run on the
- * cue-point-guided drop/peak section only (more genre-discriminative). */
-export const SECTION_EMBEDDING_MODEL = "effnet-discogs-1280-section";
+ * cue-point-guided drop/peak section only (more genre-discriminative).
+ * Best-of-3 strategy (bench-validated Sep 30): three non-overlapping sections
+ * are stored; genre kNN picks the one with highest seed agreement. */
+export const SECTION_EMBEDDING_MODEL_PREFIX = "effnet-discogs-1280-section";
+export function sectionModelTag(candidateIdx: number): string {
+  return `${SECTION_EMBEDDING_MODEL_PREFIX}-${candidateIdx + 1}`;
+}
 
 /**
  * megadj mood — ONNX mood/dance/valence into the archive DB ledger.
@@ -102,7 +111,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
         videoId: t.video_id,
         vec: m.sectionEmbedding,
         sourcePath: t.file_path!,
-        model: SECTION_EMBEDDING_MODEL,
+        model: sectionModelTag(0),
         ...(sec !== undefined
           ? { sectionStart: sec.start, sectionEnd: sec.end }
           : {}),
@@ -190,6 +199,9 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // Section-aware embeddings: use the beats ledger to find the drop/peak
   // section for each track. The section embedding captures the genre-defining
   // core without intro/outro dilution.
+  // Best-of-3 strategy (bench-validated Sep 30): compute 3 non-overlapping
+  // section embeddings per track. At genre-inference time, kNN picks the
+  // one with the highest seed agreement (+3–12pp accuracy over whole-track).
   const sectionRanges = new Map<string, { start: number; end: number }>();
   if (opts.embeddings) {
     const beatTracks = opts.state.beatAnalyzedTracks();
@@ -210,6 +222,28 @@ export async function mood(opts: MoodOptions): Promise<void> {
       log(
         `  section embeddings: ${sectionRanges.size} tracks have drop-section time ranges from the beats ledger`,
       );
+    }
+  }
+
+  // Build best-of-3 candidate map: path → [section1, section2, section3]
+  const candidateMap = new Map<
+    string,
+    { videoId: string; candidates: DropSection[] }
+  >();
+  if (opts.embeddings) {
+    const beatTracks = opts.state.beatAnalyzedTracks();
+    const byVideoId = new Map(beatTracks.map((r) => [r.track.video_id, r]));
+    for (const t of runnable) {
+      const b = byVideoId.get(t.video_id);
+      if (b !== undefined && b.downbeats.length >= 16 && t.file_path !== null) {
+        const dropCands = findDropCandidates(b.downbeats, 3, t.duration_s);
+        if (dropCands.length > 0) {
+          candidateMap.set(t.file_path, {
+            videoId: t.video_id,
+            candidates: dropCands,
+          });
+        }
+      }
     }
   }
 
@@ -245,6 +279,54 @@ export async function mood(opts: MoodOptions): Promise<void> {
   }
   if (runnable.length > 0) {
     await Promise.all(slices.map((slice, i) => moodWorker(i + 1, slice)));
+  }
+
+  // Best-of-3 section embedding post-pass: for tracks that had 3 candidate
+  // sections, candidates 2 and 3 still need embedding. The mood workers
+  // already computed candidate 1 (via sectionRanges). This post-pass sends
+  // the remaining candidates through a dedicated embedding-only batch.
+  if (opts.embeddings && candidateMap.size > 0) {
+    for (let cIdx = 1; cIdx < 3; cIdx++) {
+      const batchPaths: string[] = [];
+      const batchRanges = new Map<string, { start: number; end: number }>();
+      const batchVideoIds = new Map<string, string>();
+
+      for (const [filePath, info] of candidateMap) {
+        if (cIdx >= info.candidates.length) continue;
+        const sec = info.candidates[cIdx]!;
+        batchPaths.push(filePath);
+        batchRanges.set(filePath, {
+          start: sec.startSec,
+          end: sec.endSec,
+        });
+        batchVideoIds.set(filePath, info.videoId);
+      }
+
+      if (batchPaths.length === 0) continue;
+      log(`  section post-pass ${cIdx + 1}/3: ${batchPaths.length} tracks...`);
+
+      const results = await analyzeMoods(batchPaths, {
+        withEmbedding: true,
+        sectionRanges: batchRanges,
+      });
+
+      for (const [path, result] of results) {
+        const videoId = batchVideoIds.get(path);
+        if (videoId === undefined || result.sectionEmbedding === undefined)
+          continue;
+        const sec = batchRanges.get(path);
+        opts.state.setSectionEmbeddingRecord({
+          videoId,
+          vec: result.sectionEmbedding,
+          sourcePath: path,
+          model: sectionModelTag(cIdx),
+          ...(sec !== undefined
+            ? { sectionStart: sec.start, sectionEnd: sec.end }
+            : {}),
+        });
+      }
+    }
+    log(`  section embeddings: best-of-3 post-pass complete`);
   }
 
   await emitMoodSummary(opts, {

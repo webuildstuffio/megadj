@@ -82,6 +82,8 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "src/fulltags/bench/stages/version-match.ts::runVersionMatchStage::JSON.parse(t.genre_votes)",
     "src/fulltags/identity/version-llm.ts::validateLlmResponse::JSON.parse(json)",
   ]),
+  "src/fulltags/analysis/section-bench.ts::loadSample::JSON.parse(r.downbeats_json)":
+    "Bench script: downbeats JSON from self-written DB column; try/catch returns [] on corrupt rows — bench skips the track, never throws.",
   "src/deck/megaset/sessions.ts::sessionResultStable::JSON.parse(session.result_json)":
     "Determinism check on validated persisted session; catch returns false on corrupt JSON — not a silent parse but an explicit integrity verdict.",
 };
@@ -227,10 +229,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 29 (M6 #330): sessions.ts sessionResultStable adds one
     // sanctioned JSON.parse (determinism check — catch returns false,
     // not a recognized visible failure shape); audited +1, sanctioned +1.
-    audited: 83,
+    audited: 84,
     guarded: 56,
-    sanctioned: 27,
-    digest: "bf0f6a995d2b15fa44580f479ea70255d4fcdae917556ff95a8270d740cf4125",
+    sanctioned: 28,
+    digest: "68f20564438227559e6891b23da0b1fb3a26074a4581fd13ece8cb98954c6e46",
   });
 });
 

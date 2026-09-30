@@ -329,35 +329,52 @@ export class ArchiveTracks extends ArchiveCore {
 
   genreSeeds(): {
     seeds: { video_id: string; genre: string; vec_json: string }[];
-    queries: { video_id: string; title: string | null; vec_json: string }[];
+    queries: {
+      video_id: string;
+      title: string | null;
+      vec_json: string;
+      section_vecs: string[];
+    }[];
   } {
-    // flagged-disputed seeds cannot vote: one bad label poisons every
-    // neighbourhood it lands in, and the flag already says a unanimous
-    // audio consensus contradicts it (§5b.3 step 2). Excluded, not
-    // rewritten — the human decision remains open.
-    // Section-aware: prefer section embedding (drop/peak only) over
-    // whole-track embedding — the drop is more genre-discriminative.
+    // Seeds use whole-track embeddings: their genres are trusted labels,
+    // and whole-track gives maximum coverage (section embeddings are sparse).
     const seeds = this.db
       .query(
-        `SELECT e.video_id, t.genre,
-                COALESCE(se.vec_json, e.vec_json) AS vec_json
+        `SELECT e.video_id, t.genre, e.vec_json
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
-         LEFT JOIN section_embeddings se
-           ON se.video_id = e.video_id AND se.model = 'effnet-discogs-1280-section'
          WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''
            AND (t.genre_flag IS NULL OR t.genre_flag != 'disputed')`,
       )
       .all() as { video_id: string; genre: string; vec_json: string }[];
-    const queries = this.db
+    // Queries get whole-track vec + all section embeddings. The caller runs
+    // kNN with each and picks the best (best-of-3, bench-validated Sep 30).
+    const queryRows = this.db
       .query(
-        `SELECT e.video_id, t.title,
-                COALESCE(se.vec_json, e.vec_json) AS vec_json
+        `SELECT e.video_id, t.title, e.vec_json
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
-         LEFT JOIN section_embeddings se
-           ON se.video_id = e.video_id AND se.model = 'effnet-discogs-1280-section'
          WHERE t.status = 'downloaded' AND (t.genre IS NULL OR t.genre = '')`,
       )
       .all() as { video_id: string; title: string | null; vec_json: string }[];
+    const sectionRows = this.db
+      .query(
+        `SELECT video_id, model, vec_json FROM section_embeddings
+         WHERE model LIKE 'effnet-discogs-1280-section-%'
+         ORDER BY video_id, model`,
+      )
+      .all() as { video_id: string; model: string; vec_json: string }[];
+    const sectionsByVid = new Map<string, string[]>();
+    for (const r of sectionRows) {
+      let arr = sectionsByVid.get(r.video_id);
+      if (arr === undefined) {
+        arr = [];
+        sectionsByVid.set(r.video_id, arr);
+      }
+      arr.push(r.vec_json);
+    }
+    const queries = queryRows.map((r) => ({
+      ...r,
+      section_vecs: sectionsByVid.get(r.video_id) ?? [],
+    }));
     return { seeds, queries };
   }
 

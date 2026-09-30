@@ -238,7 +238,7 @@ export class EmbeddingsLedger extends RecordLedger {
          FROM embeddings e
          JOIN tracks t ON t.video_id = e.video_id
          LEFT JOIN section_embeddings se
-           ON se.video_id = e.video_id AND se.model = 'effnet-discogs-1280-section'
+           ON se.video_id = e.video_id AND se.model = 'effnet-discogs-1280-section-1'
          WHERE t.status = 'downloaded'`,
       )
       .all() as {

@@ -39,8 +39,18 @@ describe("genre command JSON boundary", () => {
       genreSeeds: () => ({
         seeds: [{ video_id: "seed", genre: "House", vec_json: "[1,0]" }],
         queries: [
-          { video_id: "would-write", title: "First", vec_json: "[1,0]" },
-          { video_id: "corrupt", title: "Second", vec_json: "not-json" },
+          {
+            video_id: "would-write",
+            title: "First",
+            vec_json: "[1,0]",
+            section_vecs: [],
+          },
+          {
+            video_id: "corrupt",
+            title: "Second",
+            vec_json: "not-json",
+            section_vecs: [],
+          },
         ],
       }),
       updateGenre: (videoId: string) => updates.push(videoId),

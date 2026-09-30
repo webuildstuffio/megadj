@@ -19,6 +19,9 @@ export interface ParsedInferenceQuery {
   videoId: string;
   title: string | null;
   vec: number[];
+  /** Section-candidate embeddings (best-of-3). Empty when no section
+   * embeddings exist — falls back to whole-track vec. */
+  sectionVecs: number[][];
 }
 
 export interface ParsedInferencePopulation {
@@ -64,12 +67,21 @@ export function parseInferencePopulation(
     genre: row.genre!,
     vec: parseEmbeddingVector(row.vec_json, `genre seed ${row.video_id}`),
   }));
-  // Parse every query before the first write. A corrupt late row must not
-  // leave an earlier query partially committed.
-  const queries = rows.queries.map((row) => ({
-    videoId: row.video_id,
-    title: row.title,
-    vec: parseEmbeddingVector(row.vec_json, `genre query ${row.video_id}`),
-  }));
+  const queries = rows.queries.map((row) => {
+    const sectionVecs: number[][] = [];
+    for (const svj of row.section_vecs) {
+      try {
+        sectionVecs.push(parseEmbeddingVector(svj, `section ${row.video_id}`));
+      } catch {
+        // skip corrupt section embedding
+      }
+    }
+    return {
+      videoId: row.video_id,
+      title: row.title,
+      vec: parseEmbeddingVector(row.vec_json, `genre query ${row.video_id}`),
+      sectionVecs,
+    };
+  });
   return { seeds, queries, queryCount: rows.queries.length };
 }
