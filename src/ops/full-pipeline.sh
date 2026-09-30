@@ -12,8 +12,9 @@
 #   3. catch-up: beats → mood (fills analysis gaps)
 #   4. mood --embeddings (fills embedding gaps for the genre kNN)
 #   5. genre --eval (LOO harness) — gate-conditional apply at ≥65%
-#   6. rb-comment-sync (push comments + genres to master.db)
-#   7. album-push (push album data from archive.db → master.db)
+#   6. artwork-extract (embedded art → PIONEER/Artwork/ — disk-only, safe while RB open)
+#   7. rb-comment-sync (push comments + genres to master.db — RB must be closed)
+#   8. album-push (push album data from archive.db → master.db — RB must be closed)
 # YouTube sync (--with-sync) runs LAST by owner policy, never mid-chain.
 #
 # #341: every stage captures its exit code and aborts loudly on failure.
@@ -62,7 +63,7 @@ if [ ! -d "$SHELF" ]; then
   exit 1
 fi
 
-TOTAL_STAGES=7
+TOTAL_STAGES=8
 N=1
 
 # --- ANALYSIS CHAIN ---
@@ -106,6 +107,17 @@ else
 fi
 N=$((N + 1))
 
+# --- ARTWORK EXTRACTION (disk-only — safe while RB open) ---
+MASTER_DB="${DRIVE}/PIONEER/Master/master.db"
+if [ -f "$MASTER_DB" ]; then
+  run_stage "${N}/${TOTAL_STAGES}" "artwork-extract (embedded art → PIONEER/Artwork/)" \
+    uv run --with pyrekordbox,mutagen python3 src/rekordbox/rb-scripts/artwork-extract.kit.py \
+      "$MASTER_DB" "$DRIVE" apply
+else
+  say "SKIP artwork-extract — master.db not found at $MASTER_DB"
+fi
+N=$((N + 1))
+
 # --- RB SYNC (requires rekordbox CLOSED + drive mounted) ---
 # Check RB is closed before writing to master.db
 if pgrep -x rekordbox > /dev/null 2>&1; then
@@ -116,7 +128,6 @@ else
   N=$((N + 1))
 
   # Album push: archive.db album → master.db AlbumID
-  MASTER_DB="${DRIVE}/PIONEER/Master/master.db"
   LEDGER="${HOME}/.local/state/megadj/archive.db"
   if [ -f "$MASTER_DB" ] && [ -f "$LEDGER" ]; then
     say "stage ${N}/${TOTAL_STAGES}: album-push (archive.db album → master.db)"

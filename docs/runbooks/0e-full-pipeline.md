@@ -32,18 +32,22 @@ Log lands in `/tmp/megadj-full-pipeline-<date>.log`.
 5. **`genre --eval` → gate-conditional `genre --apply`** — the LOO harness
    measures agreement; `--apply` (audio-kNN inference) fires ONLY at ≥65%
    agreement. Below the gate the gap stands honestly.
-6. **`rb-comment-sync --apply --yes`** — pushes comments (Key·Energy·Mood)
+6. **`artwork-extract apply`** — extracts embedded cover art (APIC/covr)
+   from audio files to `PIONEER/Artwork/` JPEGs. Disk-only writes, safe
+   while RB is open. Covers tracks imported since the last extract run.
+7. **`rb-comment-sync --apply --yes`** — pushes comments (Key·Energy·Mood)
    + genres from archive.db to master.db. Requires RB closed.
-7. **`album-push apply`** — pushes album data from archive.db to master.db.
+8. **`album-push apply`** — pushes album data from archive.db to master.db.
    Creates new `djmdAlbum` rows when needed. Non-fatal on failure.
-8. **`--with-sync` only: YouTube sync** — ALWAYS last (owner policy).
+9. **`--with-sync` only: YouTube sync** — ALWAYS last (owner policy).
    Serial by design (parallel yt-dlp = IP-403 storms). After sync,
    re-run the script WITHOUT `--with-sync` so the new rows get analyzed.
 
 **One DB writer at a time.** `archive.db`'s busy_timeout is 5s — two
 concurrent writers is the exact-5s parallel-suite flake. Never background
-two stages. The RB stages (6–7) gate on `pgrep -x rekordbox` — if RB is
+two stages. The RB stages (7–8) gate on `pgrep -x rekordbox` — if RB is
 running they are SKIPPED with a warning (close RB, re-run to pick them up).
+Stage 6 (artwork-extract) is disk-only and safe while RB is open.
 
 ## Pre-flight (the agent checks, not the script)
 
