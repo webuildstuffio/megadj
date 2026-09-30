@@ -149,6 +149,122 @@ export class EmbeddingsLedger extends RecordLedger {
       }
     });
   }
+
+  // ── Section embeddings ──────────────────────────────────────────────
+
+  /** Upsert one section embedding. Compound key: (video_id, model). */
+  setSectionEmbeddingRecord(rec: {
+    videoId: string;
+    vec: number[];
+    sourcePath: string;
+    model: string;
+    sectionStart?: number;
+    sectionEnd?: number;
+  }): void {
+    this.db
+      .query(
+        `INSERT INTO section_embeddings
+           (video_id, model, dim, vec_json, source_path, analyzed_at,
+            section_start, section_end)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(video_id, model) DO UPDATE SET
+           dim = excluded.dim, vec_json = excluded.vec_json,
+           source_path = excluded.source_path,
+           analyzed_at = excluded.analyzed_at,
+           section_start = excluded.section_start,
+           section_end = excluded.section_end`,
+      )
+      .run(
+        rec.videoId,
+        rec.model,
+        rec.vec.length,
+        JSON.stringify(rec.vec),
+        rec.sourcePath,
+        this.now(),
+        rec.sectionStart ?? null,
+        rec.sectionEnd ?? null,
+      );
+  }
+
+  /** Section embedding for a video (by model), null when absent. */
+  sectionEmbeddingRecord(
+    videoId: string,
+    model: string,
+  ): {
+    vec: number[];
+    sectionStart: number | null;
+    sectionEnd: number | null;
+  } | null {
+    const row = this.db
+      .query(
+        `SELECT vec_json, section_start, section_end
+         FROM section_embeddings WHERE video_id = ? AND model = ?`,
+      )
+      .get(videoId, model) as {
+      vec_json: string;
+      section_start: number | null;
+      section_end: number | null;
+    } | null;
+    if (!row) return null;
+    try {
+      return {
+        vec: parseEmbeddingVector(row.vec_json, `sec-emb ${videoId}`),
+        sectionStart: row.section_start,
+        sectionEnd: row.section_end,
+      };
+    } catch (error) {
+      this.absorbParseFailure(error, `sec-emb ${videoId}`, console.error);
+      return null;
+    }
+  }
+
+  /** Genre-inference corpus preferring section embeddings over whole-track.
+   * For each downloaded track that has a section embedding: use that vector.
+   * Fall back to the whole-track embedding for tracks without one.
+   * This maximizes genre discrimination. */
+  sectionPreferredCorpus(): {
+    videoId: string;
+    title: string | null;
+    artist: string | null;
+    vec: number[];
+    isSection: boolean;
+  }[] {
+    // LEFT JOIN: section_embeddings onto embeddings; pick section when present
+    const rows = this.db
+      .query(
+        `SELECT e.video_id, t.title, t.artist,
+                COALESCE(se.vec_json, e.vec_json) AS vec_json,
+                CASE WHEN se.vec_json IS NOT NULL THEN 1 ELSE 0 END AS is_section
+         FROM embeddings e
+         JOIN tracks t ON t.video_id = e.video_id
+         LEFT JOIN section_embeddings se
+           ON se.video_id = e.video_id AND se.model = 'effnet-discogs-1280-section'
+         WHERE t.status = 'downloaded'`,
+      )
+      .all() as {
+      video_id: string;
+      title: string | null;
+      artist: string | null;
+      vec_json: string;
+      is_section: number;
+    }[];
+    return rows.flatMap((r) => {
+      try {
+        return [
+          {
+            videoId: r.video_id,
+            title: r.title,
+            artist: r.artist,
+            vec: parseEmbeddingVector(r.vec_json, `corpus ${r.video_id}`),
+            isSection: r.is_section === 1,
+          },
+        ];
+      } catch (error) {
+        this.absorbParseFailure(error, `corpus ${r.video_id}`, console.error);
+        return [];
+      }
+    });
+  }
 }
 
 /**

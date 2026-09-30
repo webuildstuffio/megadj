@@ -335,18 +335,26 @@ export class ArchiveTracks extends ArchiveCore {
     // neighbourhood it lands in, and the flag already says a unanimous
     // audio consensus contradicts it (§5b.3 step 2). Excluded, not
     // rewritten — the human decision remains open.
+    // Section-aware: prefer section embedding (drop/peak only) over
+    // whole-track embedding — the drop is more genre-discriminative.
     const seeds = this.db
       .query(
-        `SELECT e.video_id, t.genre, e.vec_json
+        `SELECT e.video_id, t.genre,
+                COALESCE(se.vec_json, e.vec_json) AS vec_json
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
+         LEFT JOIN section_embeddings se
+           ON se.video_id = e.video_id AND se.model = 'effnet-discogs-1280-section'
          WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''
            AND (t.genre_flag IS NULL OR t.genre_flag != 'disputed')`,
       )
       .all() as { video_id: string; genre: string; vec_json: string }[];
     const queries = this.db
       .query(
-        `SELECT e.video_id, t.title, e.vec_json
+        `SELECT e.video_id, t.title,
+                COALESCE(se.vec_json, e.vec_json) AS vec_json
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
+         LEFT JOIN section_embeddings se
+           ON se.video_id = e.video_id AND se.model = 'effnet-discogs-1280-section'
          WHERE t.status = 'downloaded' AND (t.genre IS NULL OR t.genre = '')`,
       )
       .all() as { video_id: string; title: string | null; vec_json: string }[];

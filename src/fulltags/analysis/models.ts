@@ -52,6 +52,10 @@ export interface MoodResult {
    * present when the caller asked (analyzeMoods withEmbedding: true) —
    * round-tripped as plain numbers, 4dp-rounded (cosine noise floor). */
   embedding?: number[];
+  /** Section-aware embedding: effnet 1280-d over only the drop/peak
+   * section (cue-point guided). More genre-discriminative than the
+   * whole-track mean because intros/outros are genre-ambiguous. */
+  sectionEmbedding?: number[];
 }
 
 export type MoodWorkerParseResult =
@@ -138,6 +142,12 @@ export function parseMoodWorkerLine(line: string): MoodWorkerParseResult {
     if (!embedding || embedding.length !== EFFNET_EMBEDDING_DIM)
       return { ok: false, context, detail: `${path}: invalid embedding` };
     result.embedding = embedding;
+  }
+  if (candidate.sectionEmbedding !== undefined) {
+    const secEmb = finiteNumberList(candidate.sectionEmbedding);
+    if (secEmb !== null && secEmb.length === EFFNET_EMBEDDING_DIM) {
+      result.sectionEmbedding = secEmb;
+    }
   }
   return { ok: true, path, mood: result };
 }
@@ -261,7 +271,7 @@ def chunks_of(frames, size):
     n = (frames.shape[0] // size) * size
     return frames[:n].reshape(-1, size, frames.shape[1])
 
-def analyze(path, want_embedding):
+def analyze(path, want_embedding, section_start=None, section_end=None):
     audio = MonoLoader(filename=path, sampleRate=16000, resampleQuality=4)()
     # effnet tower: musiCNN melspec (512/256), 128-frame chunks
     mel = TensorflowInputMusiCNN()
@@ -272,11 +282,25 @@ def analyze(path, want_embedding):
     emb1280 = emb.mean(axis=0).astype(np.float32)[np.newaxis, :]
     out = {}
     if want_embedding:
-        # I49 "sounds like": the tower's own 1280-d mean embedding — one
-        # probe run already computes it; emitting it costs a JSON field.
-        # Rounded to 4dp (1e-4 in a unit-ish vector ~ noise floor for
-        # cosine ranking) to keep the wire/ledger rows compact.
         out["embedding"] = [round(float(x), 4) for x in emb1280[0]]
+        # Section-aware embedding: re-run effnet on only the drop/peak section.
+        # Uses the cue-point-derived time window passed from the TS side.
+        # The section audio is sliced from the already-loaded signal — no
+        # extra disk read. Intros/outros dilute the whole-track embedding
+        # with genre-ambiguous content; the section embedding captures the
+        # genre-defining core.
+        if section_start is not None and section_end is not None:
+            sr = 16000
+            s = max(0, int(section_start * sr))
+            e = min(len(audio), int(section_end * sr))
+            if e - s >= sr * 4:  # at least 4 seconds of section audio
+                sec_audio = audio[s:e]
+                sec_frames = np.asarray([mel(f) for f in FrameGenerator(sec_audio, frameSize=512, hopSize=256)], dtype=np.float32)
+                sec_batch = chunks_of(sec_frames, 128)
+                if sec_batch.shape[0] > 0:
+                    sec_emb = effnet.run(["embeddings"], {"melspectrogram": sec_batch})[0]
+                    sec_1280 = sec_emb.mean(axis=0).astype(np.float32)
+                    out["sectionEmbedding"] = [round(float(x), 4) for x in sec_1280]
     for name, sess in heads.items():
         act = sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
         # label order from the model .json — POSITIVE FIRST for every head
@@ -306,11 +330,15 @@ for line in sys.stdin:
     if not line: continue
     path = json.loads(line)
     want_embedding = False
+    section_start = None
+    section_end = None
     if isinstance(path, dict):
         want_embedding = bool(path.get("embedding", False))
+        section_start = path.get("sectionStart")
+        section_end = path.get("sectionEnd")
         path = path["path"]
     try:
-        print(json.dumps({"path": path, "mood": analyze(path, want_embedding)}), flush=True)
+        print(json.dumps({"path": path, "mood": analyze(path, want_embedding, section_start, section_end)}), flush=True)
     except Exception as e:
         print(json.dumps({"path": path, "error": str(e)[:200]}), flush=True)
 `;
@@ -329,6 +357,11 @@ export async function analyzeMoods(
   paths: string[],
   opts: {
     withEmbedding?: boolean;
+    /** Per-path section time ranges for section-aware embeddings.
+     * Key = file path, value = {start, end} in seconds. Tracks with
+     * section ranges get a `sectionEmbedding` in addition to the
+     * whole-track embedding. */
+    sectionRanges?: Map<string, { start: number; end: number }>;
     onResult?: (path: string, mood: MoodResult) => void;
   } = {},
 ): Promise<Map<string, MoodResult>> {
@@ -356,12 +389,18 @@ export async function analyzeMoods(
   const lr = lineReader(proc.stdout as ReadableStream);
   const readLine = (timeoutMs: number) => lr.next(timeoutMs);
   try {
-    for (const p of paths)
-      proc.stdin.write(
-        enc.encode(
-          `${JSON.stringify({ path: p, embedding: opts.withEmbedding === true })}\n`,
-        ),
-      );
+    for (const p of paths) {
+      const msg: Record<string, unknown> = {
+        path: p,
+        embedding: opts.withEmbedding === true,
+      };
+      const sec = opts.sectionRanges?.get(p);
+      if (sec !== undefined) {
+        msg.sectionStart = sec.start;
+        msg.sectionEnd = sec.end;
+      }
+      proc.stdin.write(enc.encode(`${JSON.stringify(msg)}\n`));
+    }
     // EOF the python worker's stdin — without this the worker never exits
     // when files FAIL (error replies don't count toward `expected`, and the
     // readLine below would block the full 180s timeout per missing result).

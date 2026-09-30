@@ -6,12 +6,17 @@ import { parseMoodStamp } from "../pipeline/pipeline";
 import type { ArchiveState, TrackRow } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
+import { findDropSection } from "./drop-finder";
 
 /** M1 (#325): the model identifier written to `embeddings.model`. This is
  * the Essentia effnet tower producing 1280-d mean embeddings. Changing
  * the model or its version MUST bump this string — `similarTracks` refuses
  * to score across distinct model values. */
 export const EMBEDDING_MODEL = "effnet-discogs-1280";
+
+/** Section-aware embedding model tag: same effnet tower but run on the
+ * cue-point-guided drop/peak section only (more genre-discriminative). */
+export const SECTION_EMBEDDING_MODEL = "effnet-discogs-1280-section";
 
 /**
  * megadj mood — ONNX mood/dance/valence into the archive DB ledger.
@@ -91,6 +96,18 @@ export async function mood(opts: MoodOptions): Promise<void> {
         sourcePath: t.file_path!,
         model: EMBEDDING_MODEL,
       });
+    if (opts.embeddings && m.sectionEmbedding) {
+      const sec = sectionRanges.get(t.file_path!);
+      opts.state.setSectionEmbeddingRecord({
+        videoId: t.video_id,
+        vec: m.sectionEmbedding,
+        sourcePath: t.file_path!,
+        model: SECTION_EMBEDDING_MODEL,
+        ...(sec !== undefined
+          ? { sectionStart: sec.start, sectionEnd: sec.end }
+          : {}),
+      });
+    }
   };
 
   // Pass 1 — sync existing file stamps into the ledger (cheap, no ONNX).
@@ -170,17 +187,41 @@ export async function mood(opts: MoodOptions): Promise<void> {
     slices[i % slices.length]!.push(runnable[i]!);
   }
 
+  // Section-aware embeddings: use the beats ledger to find the drop/peak
+  // section for each track. The section embedding captures the genre-defining
+  // core without intro/outro dilution.
+  const sectionRanges = new Map<string, { start: number; end: number }>();
+  if (opts.embeddings) {
+    const beatTracks = opts.state.beatAnalyzedTracks();
+    const byVideoId = new Map(beatTracks.map((r) => [r.track.video_id, r]));
+    for (const t of runnable) {
+      const b = byVideoId.get(t.video_id);
+      if (b !== undefined && b.downbeats.length >= 16) {
+        const section = findDropSection(b.downbeats, t.duration_s);
+        if (section !== null && t.file_path !== null) {
+          sectionRanges.set(t.file_path, {
+            start: section.startSec,
+            end: section.endSec,
+          });
+        }
+      }
+    }
+    if (sectionRanges.size > 0) {
+      log(
+        `  section embeddings: ${sectionRanges.size} tracks have drop-section time ranges from the beats ledger`,
+      );
+    }
+  }
+
   async function moodWorker(workerId: number, slice: TrackRow[]) {
     if (!slice.length) return;
-    // Build a path→TrackRow lookup so the streaming callback can record
-    // each result as it arrives from the Python worker — crash-safe:
-    // a mid-batch death loses only the in-flight file, not the slice.
     const byPath = new Map(slice.map((t) => [t.file_path!, t]));
     const recorded = new Set<string>();
     const results = await analyzeMoods(
       slice.map((t) => t.file_path!),
       {
         withEmbedding: opts.embeddings === true,
+        sectionRanges,
         onResult(path, m) {
           const t = byPath.get(path);
           if (!t) return;
