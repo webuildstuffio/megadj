@@ -12,9 +12,7 @@ import { probeMediaSync } from "../fulltags/utils/media-probe";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { rbPythonFile } from "./rb-python-file.js";
 import { lastJsonLine, parseJsonBoundary } from "./rb-command-kit.js";
-// AUDIO_EXTS: the #69 SSOT — the private set that lived in rb-import.ts
-// missed .alac, so an ALAC rip reaching intake was invisible to
-// discovery (issue #200: the #69 drift class, regrown).
+import { splitArtistFromTitle } from "../fulltags/write/metadata-build";
 import { AUDIO_EXTS } from "../shared/audio-exts";
 
 /** Sep 19 path policy: when the same file also exists under the mount's
@@ -80,17 +78,27 @@ export function probePayloadFiles(
     // tags come from the archive DB conventions: parse "Artist · Album · Title"
     const stem = fname.replace(/\.[^.]+$/u, "");
     const parts = stem.split(" · ");
-    let title = parts[2] ?? parts[1] ?? stem;
-    const artist = parts.length >= 3 ? (parts[0] ?? null) : (parts[0] ?? null);
-    // Strip "Artist - " prefix from title when the artist field already
-    // carries the name (#321 title contamination: yt-dlp/SC filenames are
-    // "Artist - Track.ext"; importing that as-is puts the artist in the
-    // Title column, where it shows as redundant "Artist - Track" in RB).
-    if (
-      artist !== null &&
-      title.toLowerCase().startsWith(`${artist.toLowerCase()} - `)
-    ) {
-      title = title.slice(artist.length + 3).trim();
+    let title: string;
+    let artist: string | null;
+    if (parts.length >= 3) {
+      title = parts[2] ?? stem;
+      artist = parts[0] ?? null;
+    } else if (parts.length === 2) {
+      title = parts[1] ?? stem;
+      artist = parts[0] ?? null;
+    } else {
+      // No " · " separator — try "Artist - Track" (yt-dlp/SC convention).
+      // The standard identity split extracts the artist from the title;
+      // without it, artist stays null (not the whole stem — that minted
+      // phantom artist rows for plain "Track Name" files, #321).
+      const split = splitArtistFromTitle(stem);
+      if (split !== null) {
+        title = split.track;
+        artist = split.artist;
+      } else {
+        title = stem;
+        artist = null;
+      }
     }
     const fp = fingerprintFileLength(full);
     if (fp !== null) fingerprinted++;

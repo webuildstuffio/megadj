@@ -140,8 +140,18 @@ function plausibleGenre(candidate: string): boolean {
 }
 
 export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
-  const title = cleanTitle(info.title) ?? info.title ?? null;
   const artist = info.artist?.trim() || null;
+  // Strip "Artist - " prefix from the title when the artist field already
+  // carries the name (yt-dlp/SC titles are "Artist - Track"; keeping the
+  // prefix mints a contaminated Title in archive.db AND in file tags —
+  // the #321 root cause). Clean first, then strip.
+  let title = cleanTitle(info.title) ?? info.title ?? null;
+  if (title !== null && artist !== null) {
+    const split = splitArtistFromTitle(title);
+    if (split !== null && split.artist.toLowerCase() === artist.toLowerCase()) {
+      title = split.track;
+    }
+  }
   // #275: "<uploader> - Unknown Album" placeholders are a LIE the writer
   // minted when album was unknown — an honest unknown beats a lying
   // placeholder (repo rule). Strip the pattern wherever it rode in.

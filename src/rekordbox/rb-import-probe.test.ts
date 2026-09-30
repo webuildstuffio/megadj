@@ -103,3 +103,59 @@ describe("intra-batch dedup (Sep 26 fix)", () => {
     }
   });
 });
+
+describe("filename stem parsing (#321 title contamination)", () => {
+  test("yt-dlp 'Artist - Track.ext' splits into artist + clean title", () => {
+    const archive = t.dir();
+    const batch = join(archive, "batch-parse");
+    mkdirSync(batch, { recursive: true });
+    writeFileSync(join(batch, "Skrillex - Bangarang.m4a"), "audio-bytes");
+
+    const rows = probePayloadFiles(batch, () => {});
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.[2]).toBe("Bangarang"); // title
+    expect(rows[0]?.[3]).toBe("Skrillex"); // artist
+  });
+
+  test("archive convention 'Artist · Album · Title.ext' parses correctly", () => {
+    const archive = t.dir();
+    const batch = join(archive, "batch-dot");
+    mkdirSync(batch, { recursive: true });
+    writeFileSync(
+      join(batch, "Mau P · Doing It Right · TESLA.m4a"),
+      "audio-bytes",
+    );
+
+    const rows = probePayloadFiles(batch, () => {});
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.[2]).toBe("TESLA"); // title
+    expect(rows[0]?.[3]).toBe("Mau P"); // artist
+  });
+
+  test("plain 'Track Name.ext' gets null artist (not the stem as artist)", () => {
+    const archive = t.dir();
+    const batch = join(archive, "batch-plain");
+    mkdirSync(batch, { recursive: true });
+    writeFileSync(join(batch, "My Great Song.m4a"), "audio-bytes");
+
+    const rows = probePayloadFiles(batch, () => {});
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.[2]).toBe("My Great Song"); // title
+    expect(rows[0]?.[3]).toBeNull(); // artist — NOT the stem
+  });
+
+  test("multiple dashes: only first split separates artist from title", () => {
+    const archive = t.dir();
+    const batch = join(archive, "batch-multi-dash");
+    mkdirSync(batch, { recursive: true });
+    writeFileSync(
+      join(batch, "Miss Monique - Melodic Techno Mix - Session 5.m4a"),
+      "audio-bytes",
+    );
+
+    const rows = probePayloadFiles(batch, () => {});
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.[2]).toBe("Melodic Techno Mix - Session 5"); // title
+    expect(rows[0]?.[3]).toBe("Miss Monique"); // artist
+  });
+});

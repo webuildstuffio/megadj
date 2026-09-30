@@ -250,3 +250,69 @@ describe("junk-genre guard (Sep 19 organize audit)", () => {
     expect(buildMetadata({ genre: "Kuduro" }).genre).toBe("Kuduro");
   });
 });
+
+describe("artist-prefix stripping (#321 title contamination)", () => {
+  test("SC-style 'Artist - Track' title strips when artist matches", () => {
+    const meta = buildMetadata({
+      title: "Skrillex - Bangarang",
+      artist: "Skrillex",
+    });
+    expect(meta.title).toBe("Bangarang");
+    expect(meta.artist).toBe("Skrillex");
+  });
+
+  test("case-insensitive artist match strips prefix", () => {
+    const meta = buildMetadata({
+      title: "DJ SNAKE - Corona Remix",
+      artist: "DJ Snake",
+    });
+    expect(meta.title).toBe("Corona Remix");
+  });
+
+  test("does NOT strip when artist is a substring (not a prefix)", () => {
+    const meta = buildMetadata({
+      title: "Gabss - She Freaks (Original Mix)",
+      artist: "Gabss",
+    });
+    expect(meta.title).toBe("She Freaks (Original Mix)");
+  });
+
+  test("does NOT strip when artist doesn't match", () => {
+    const meta = buildMetadata({
+      title: "Skrillex - Bangarang",
+      artist: "Diplo",
+    });
+    expect(meta.title).toBe("Skrillex - Bangarang");
+  });
+
+  test("handles title with multiple dashes (remix suffix)", () => {
+    const meta = buildMetadata({
+      title: "Miss Monique - Melodic Techno Mix - Session 5",
+      artist: "Miss Monique",
+    });
+    expect(meta.title).toBe("Melodic Techno Mix - Session 5");
+  });
+
+  test("no artist → title stays unchanged", () => {
+    const meta = buildMetadata({ title: "Skrillex - Bangarang" });
+    expect(meta.title).toBe("Skrillex - Bangarang");
+  });
+
+  test("plain title without dash stays unchanged", () => {
+    const meta = buildMetadata({
+      title: "Bangarang",
+      artist: "Skrillex",
+    });
+    expect(meta.title).toBe("Bangarang");
+  });
+
+  test("SC pipeline end-to-end: title + artist separate cleanly", () => {
+    const mapped = scInfoToYtdlpInfo({
+      title: "Mau P - TESLA",
+      uploader: "Mau P",
+    });
+    const meta = buildMetadata(mapped);
+    expect(meta.artist).toBe("Mau P");
+    expect(meta.title).toBe("TESLA");
+  });
+});

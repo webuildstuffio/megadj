@@ -102,10 +102,16 @@ for f in files:
                     db.session.commit()
                 art_id = a.ID
             cid = rid()
-            # Strip "Artist - " prefix from title when artist is already separate
+            # Strip "Artist - " prefix from title when artist is already separate.
+            # When probe sends artist == title (no " · " split), also try
+            # splitting on " - " (yt-dlp/SC filenames are "Artist - Track.ext").
             use_title = title or fname
             if artist and use_title and " - " in use_title:
-                if use_title.lower().startswith(artist.lower() + " - "):
+                if artist == use_title:
+                    idx = use_title.index(" - ")
+                    if idx > 0 and idx + 3 < len(use_title):
+                        use_title = use_title[idx + 3:].strip() or use_title
+                elif use_title.lower().startswith(artist.lower() + " - "):
                     use_title = use_title[len(artist) + 3:].strip() or use_title
             row = DjmdContent(
                 ID=cid,
