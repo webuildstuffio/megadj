@@ -11,6 +11,11 @@ updates:
       interval: "monthly"
       day: "monday"
       time: "05:00"
+    # Cooldown MUST exceed bunfig.toml minimumReleaseAge (5d). Dependabot's
+    # default 3-day cooldown is shorter than the install-time poison window,
+    # so it can select versions bun then refuses to resolve, failing the job.
+    cooldown:
+      default-days: 7
     versioning-strategy: increase-if-necessary
     open-pull-requests-limit: 10
     rebase-strategy: "auto"
@@ -42,6 +47,11 @@ updates:
       time: "05:00"
     rebase-strategy: "auto"
     open-pull-requests-limit: 10
+    # Ignore the metrics-reusable pin: it points at PRIVATE repo-review, which
+    # Dependabot cannot read (403 -> git_dependencies_not_reachable, failing the
+    # whole github-actions update job). The pin is bumped manually via chore commits.
+    ignore:
+      - dependency-name: "webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml"
     groups:
       all-actions:
         patterns:
