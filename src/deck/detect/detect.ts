@@ -61,19 +61,32 @@ export function isPhysicalExternal(v: {
 
 // ---- the USB-tree cache lives in detect-usb.ts (#42 item 2 split) ----
 
+// Volume-set cache: when the /Volumes dir listing is byte-identical to the
+// previous sweep, no plug/unplug happened — skip all diskutil/plutil/python
+// subprocess spawns and return the cached result. A real mount/unmount always
+// changes the name set, so the cache auto-invalidates. This eliminates
+// 4N+1 subprocess spawns on >99% of sweeps (FSEvents fires on .DS_Store
+// writes, Spotlight reindexes, etc. that don't change the volume set).
+let volumeCache: { key: string; volumes: MountedVolume[] } | null = null;
+
 export async function listMountedVolumes(
   cfgRoot = "/Volumes",
 ): Promise<MountedVolume[]> {
-  invalidateUsbTreeCache(); // a sweep = one coherent tree snapshot
   let names: string[] = [];
   try {
     names = readdirSync(cfgRoot);
   } catch {
     return [];
   }
+  const eligible = names
+    .filter((n) => !IGNORED.has(n) && !n.startsWith("."))
+    .toSorted();
+  const key = `${cfgRoot}\0${eligible.join("\0")}`;
+  if (volumeCache && volumeCache.key === key) return volumeCache.volumes;
+
+  invalidateUsbTreeCache(); // new volume set → fresh USB tree
   const out: MountedVolume[] = [];
-  for (const name of names) {
-    if (IGNORED.has(name) || name.startsWith(".")) continue;
+  for (const name of eligible) {
     const mountPoint = `${cfgRoot.replace(/\/$/, "")}/${name}`;
     try {
       readdirSync(mountPoint); // readable? else skip (mount in progress)
@@ -84,6 +97,7 @@ export async function listMountedVolumes(
     if (!isPhysicalExternal(detail)) continue; // images/internal never register
     out.push(detail);
   }
+  volumeCache = { key, volumes: out };
   return out;
 }
 

@@ -73,6 +73,10 @@ export class JobEngine {
   }
 
   private reapPhantoms(): void {
+    // No in-flight or recently-touched jobs → nothing to reap. Boot orphans
+    // are already handled by db.reapOrphanJobs() at startup, so only jobs
+    // that crash DURING this server's lifetime need the 30s sweep.
+    if (this.running.size === 0 && this.touched.size === 0) return;
     const cutoff = Date.now() - 120_000;
     for (const [id, at] of this.touched) {
       if (at < cutoff) this.touched.delete(id);
@@ -95,6 +99,7 @@ export class JobEngine {
   }
 
   private killStalled(): void {
+    if (this.running.size === 0) return;
     const stallCutoff = Date.now() - this.cfg.stallTimeoutMin * 60_000;
     for (const handle of this.running.values()) {
       const job = handle.jobId ? this.db.getJob(handle.jobId) : null;
