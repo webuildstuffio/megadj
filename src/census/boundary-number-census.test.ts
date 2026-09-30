@@ -197,8 +197,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // isFinite guard — audited 55→56, guarded 37→38.
     // Sep 29 (S14 #288 wiring): routes-archive ?candidates=N adds 1
     // Number() call with isFinite guard — audited 56→57, guarded 38→39.
-    audited: 57,
-    guarded: 39,
+    // Sep 30 (comment-v3): parseCommentV3 adds Number.isFinite-gated
+    // parse for energy — audited 57→58, guarded 39→40.
+    audited: 58,
+    guarded: 40,
     sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -223,7 +225,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // sanctioned unchanged, digest shifted.
     // Sep 29 (#411): radar refactor re-homed Number() sites (extract
     // helpers); counts unchanged, digest shifted.
-    digest: "423e5b6cae89d55e6020a4cb1d4b24fb16ec59f67486f9d268019314cad5f05b",
+    digest: "4dfcdc0d169b4091f9bc99a7b8f3e9ac2be6ac4cba66381f115e621f875ad9d4",
   });
 });
 

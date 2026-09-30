@@ -127,55 +127,110 @@ def main() -> None:
         "errors": [],
     }
 
+    # ---- v3 genre lookup: secondary + tertiary from archive.db ----
+    genres_secondary: dict[str, str] = {}
+    genres_tertiary: dict[str, str] = {}
+    if os.path.exists(ledger_path):
+        con_g = sqlite3.connect(ledger_path)
+        con_g.row_factory = sqlite3.Row
+        for g in con_g.execute(
+            "SELECT video_id, genre, genre_secondary, genre_votes, file_path"
+            " FROM tracks WHERE file_path IS NOT NULL"
+        ):
+            fp_key = nfc_casefold(g["file_path"] or "")
+            if g["genre_secondary"]:
+                genres_secondary[fp_key] = g["genre_secondary"]
+            # Parse 3rd genre from genre_votes JSON
+            if g["genre_votes"]:
+                try:
+                    votes = json.loads(g["genre_votes"])
+                    primary = g["genre"] or ""
+                    secondary = g["genre_secondary"] or ""
+                    for v in votes:
+                        vg = v.get("genre", "")
+                        if vg and vg != primary and vg != secondary:
+                            genres_tertiary[fp_key] = vg
+                            break
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        con_g.close()
+
+    def vibe_label(aggressive: float, happy: float, valence: float) -> str:
+        """7-bucket vibe system from mood model dimensions."""
+        if aggressive > 0.7:
+            return "Hard"
+        if aggressive > 0.4:
+            return "Driving"
+        if aggressive > 0.2 and happy > 0.3:
+            return "Groovy"
+        if aggressive > 0.2:
+            return "Medium"
+        if happy > 0.3:
+            return "Bright"
+        if valence < 4.2:
+            return "Deep"
+        return "Smooth"
+
     def resolve_data(
         p: str, tags: dict | None, rb_key_id: str | None = None
-    ) -> tuple[str, str, str]:
-        """Resolve key/energy/mood from TXXX tags + RB KeyID + ledger fallback."""
+    ) -> tuple[str, str, str, str, str]:
+        """Resolve energy/vibe/genre2/genre3 for v3 comment format.
+
+        Returns (key, energy, vibe, genre2, genre3). Key is kept for
+        enrichment fallback but NOT rendered in v3 comments.
+        """
         key = (tags or {}).get("key", "")
         energy = (tags or {}).get("energy", "")
-        mood = (tags or {}).get("mood", "")
-        # Old-format raw-score tags (dance=0.999;...) and URL junk are useless
-        if mood and ("=" in mood or ".com" in mood.lower() or "http" in mood.lower()):
-            mood = ""
-        # RB key analysis fallback (djmdKey table — 99.7% coverage)
+        # RB key analysis fallback
         if not key and rb_key_id:
             key = rb_key_map.get(rb_key_id, "")
         if not energy:
             led_row = led.get("path:" + nfc_casefold(p))
             if led_row and led_row.get("energy"):
                 energy = str(led_row["energy"])
-        # Energy from mood arousal fallback
         if not energy:
             e_mood = energy_from_mood.get(nfc_casefold(p))
             if e_mood:
                 energy = e_mood
-        if not mood:
-            m = moods_by_path.get(nfc_casefold(p))
-            if m:
-                tops = []
-                for head, label in (
-                    ("party", "Party"),
-                    ("dance", "Dance"),
-                    ("aggressive", "Aggro"),
-                    ("happy", "Happy"),
-                    ("electronic", "Electronic"),
-                ):
-                    try:
-                        if float(m.get(head) or 0) >= 0.5:
-                            tops.append(label)
-                    except (TypeError, ValueError):
-                        pass
-                mood = "+".join(tops[:3])
-        return key, energy, mood
 
-    def build_comment(key: str, energy: str, mood: str) -> str:
-        epart = f"E{energy}" if energy else ""
-        parts = [x for x in (key, epart, mood) if x]
-        # Final guard: strip any URL junk or raw data that slipped through
+        # Vibe from mood model dimensions
+        vibe = ""
+        m = moods_by_path.get(nfc_casefold(p))
+        if m:
+            try:
+                agg = float(m.get("aggressive") or 0)
+                hap = float(m.get("happy") or 0)
+                val = float(m.get("valence") or 4.3)
+                vibe = vibe_label(agg, hap, val)
+            except (TypeError, ValueError):
+                pass
+
+        # Genre2 (secondary) and genre3 (tertiary)
+        fp_key = nfc_casefold(p)
+        genre2 = genres_secondary.get(fp_key, "")
+        genre3 = genres_tertiary.get(fp_key, "")
+
+        return key, energy, vibe, genre2, genre3
+
+    def build_comment(key: str, energy: str, vibe: str, genre2: str, genre3: str) -> str:
+        """v3 format: E6·Driving·House-Tech House (compact, no spaces)."""
+        # Energy: round to integer
+        epart = ""
+        if energy:
+            try:
+                epart = f"E{round(float(energy))}"
+            except (TypeError, ValueError):
+                epart = f"E{energy}" if energy else ""
+        parts = [x for x in (epart, vibe) if x]
+        # Genres: dash-joined, skip if same as vibe
+        genre_parts = [g for g in (genre2, genre3) if g]
+        if genre_parts:
+            parts.append("-".join(genre_parts))
+        # Final guard
         parts = [
             p for p in parts if ".com" not in p.lower() and "http" not in p.lower() and "=" not in p
         ]
-        return " · ".join(parts)
+        return "·".join(parts)
 
     import re
 
@@ -211,17 +266,12 @@ def main() -> None:
             continue
 
         rb_kid = str(c.KeyID) if c.KeyID else None
-        key, energy, mood = resolve_data(p, tags, rb_kid)
+        key, energy, vibe, genre2, genre3 = resolve_data(p, tags, rb_kid)
 
         if existing:
-            ex_key, ex_energy, ex_mood = parse_existing(existing)
-            new_key = ex_key or key
-            new_energy = ex_energy or energy
-            new_mood = ex_mood or mood
-            new_comment = build_comment(new_key, new_energy, new_mood)
-            if new_comment != existing and (
-                new_key != ex_key or new_energy != ex_energy or new_mood != ex_mood
-            ):
+            # v3 always overwrites — fresh comment from latest data
+            new_comment = build_comment("", energy, vibe, genre2, genre3)
+            if new_comment != existing and new_comment:
                 out["enriched"] += 1
                 out["eligible"] += 1
                 if len(out["samples"]) < 5:
@@ -231,10 +281,10 @@ def main() -> None:
             else:
                 out["alreadyHad"] += 1
         else:
-            if not (energy or mood or key):
+            if not (energy or vibe):
                 out["skipped"].append([p[-70:], "no tag data"])
                 continue
-            comment = build_comment(key, energy, mood)
+            comment = build_comment("", energy, vibe, genre2, genre3)
             out["eligible"] += 1
             if len(out["samples"]) < 5:
                 out["samples"].append([p[-60:], comment])
