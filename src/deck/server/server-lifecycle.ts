@@ -27,26 +27,22 @@ export function makeServerLifecycle(deps: {
     return `${cfg.volumesRoot}/${driveName}`;
   }
 
-  /** Drive-photo re-sync at mount time: every reconcile sweep, for each
-   *  mounted drive, make local copy and stick copy agree (cheap no-op when
-   *  they do — extension+size check, no hashing). Failures log, never break
-   *  the sweep. */
+  /** Drive-photo re-sync — fires ONLY for drives that just transitioned
+   *  ghost → mounted (justMountedIds), not every sweep. choose() already
+   *  calls syncToDrive directly, so the only remaining gap is mount-time
+   *  restore / push. Runs before autoSchedule clears the set. */
   async function photoMountResync(): Promise<void> {
-    for (const d of db.allDrives()) {
-      if (!d.mounted) continue;
+    if (!registry.justMountedIds.size) return;
+    for (const id of registry.justMountedIds) {
+      const d = db.getDrive(id);
+      if (!d?.mounted) continue;
       try {
-        await images.syncOnMount(d.id);
+        await images.syncOnMount(id);
       } catch (e) {
-        const msg = errMessage(e);
-        // #420: EPERM on ExFAT from launchd = missing Full Disk Access, log
-        // once as a one-liner, not a full stack trace every reconcile sweep.
-        if (msg.includes("EPERM")) {
-          console.error(
-            `photo mount re-sync skipped for ${d.name} (EPERM — grant Full Disk Access to bun)`,
-          );
-        } else {
-          console.error(`photo mount re-sync failed for ${d.name}:`, msg);
-        }
+        console.error(
+          `photo mount re-sync failed for ${d.name}:`,
+          errMessage(e),
+        );
       }
     }
   }
