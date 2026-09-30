@@ -45,7 +45,7 @@ jobs:
     steps:
       - name: Create Claude Labels if Missing
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -82,12 +82,12 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Add Claude Working Badge
         if: ${{ steps.context.outputs.issue_number != '' }}
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -136,7 +136,7 @@ jobs:
       - name: Update Claude Completion Badge
         if: always() && steps.context.outputs.issue_number != ''
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
