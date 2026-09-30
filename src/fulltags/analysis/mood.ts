@@ -172,23 +172,34 @@ export async function mood(opts: MoodOptions): Promise<void> {
 
   async function moodWorker(workerId: number, slice: TrackRow[]) {
     if (!slice.length) return;
+    // Build a path→TrackRow lookup so the streaming callback can record
+    // each result as it arrives from the Python worker — crash-safe:
+    // a mid-batch death loses only the in-flight file, not the slice.
+    const byPath = new Map(slice.map((t) => [t.file_path!, t]));
+    const recorded = new Set<string>();
     const results = await analyzeMoods(
       slice.map((t) => t.file_path!),
-      { withEmbedding: opts.embeddings === true },
+      {
+        withEmbedding: opts.embeddings === true,
+        onResult(path, m) {
+          const t = byPath.get(path);
+          if (!t) return;
+          record(t, m);
+          recorded.add(path);
+          analyzed++;
+          log(
+            `  [w${workerId}:${analyzed + failed}/${runnable.length}] dance=${m.danceability.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)} — ${basename(path)}`,
+          );
+        },
+      },
     );
+    // Count any files that produced no result (already logged by analyzeMoods)
     for (const t of slice) {
       const path = t.file_path!;
-      const m = results.get(path);
-      if (!m) {
+      if (!recorded.has(path) && !results.has(path)) {
         failed++;
         log(`  [w${workerId}] ✗ no result — ${basename(path)}`);
-        continue;
       }
-      record(t, m);
-      analyzed++;
-      log(
-        `  [w${workerId}:${analyzed + failed}/${runnable.length}] dance=${m.danceability.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)} — ${basename(path)}`,
-      );
     }
   }
   if (runnable.length > 0) {

@@ -319,10 +319,18 @@ for line in sys.stdin:
  * the ORIGINAL path. Missing models → modelsEnsure first, or this returns
  * an empty map. Errors per-file are dropped (caller sees a short map).
  * withEmbedding: also emit the effnet 1280-d mean embedding per file
- * (I49 "sounds like") — same single probe run, no extra model cost. */
+ * (I49 "sounds like") — same single probe run, no extra model cost.
+ *
+ * onResult (Sep 29): streaming callback — if provided, fires per-file
+ * as each result arrives from the Python worker BEFORE the full batch
+ * completes. This lets the caller write to DB incrementally so a crash
+ * mid-batch loses only the in-flight file, not the whole slice. */
 export async function analyzeMoods(
   paths: string[],
-  opts: { withEmbedding?: boolean } = {},
+  opts: {
+    withEmbedding?: boolean;
+    onResult?: (path: string, mood: MoodResult) => void;
+  } = {},
 ): Promise<Map<string, MoodResult>> {
   const out = new Map<string, MoodResult>();
   if (!paths.length || !moodModelsPresent()) return out;
@@ -374,8 +382,10 @@ export async function analyzeMoods(
         break;
       }
       const msg = parseMoodWorkerLine(line);
-      if (msg.ok) out.set(msg.path, msg.mood);
-      else console.error(`[${msg.context}] ${msg.detail}`);
+      if (msg.ok) {
+        out.set(msg.path, msg.mood);
+        opts.onResult?.(msg.path, msg.mood);
+      } else console.error(`[${msg.context}] ${msg.detail}`);
     }
   } finally {
     try {
