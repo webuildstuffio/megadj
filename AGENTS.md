@@ -374,7 +374,12 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
   move.
 - `megadj mood` pass 2 (ONNX) shards the queue across `--jobs` parallel
   workers (default 2) — one uv/model bootstrap per worker, not per chunk
-  (Sep 29; use `--jobs 4` on long fleet runs).
+  (Sep 29; use `--jobs 4` on long fleet runs). `analyzeMoods()` streams
+  results through an `onResult` callback that writes each file's mood +
+  embedding to DB immediately (Sep 30, `a5b053f6`); without the callback
+  results accumulate in a `Map` and write ONLY after the full batch — a
+  crash loses everything (4 failed force runs lost ~2,800 files each before
+  the streaming fix). Never revert to batch-accumulate architecture.
 - Booth compatibility is data-driven (`[booth].fleet` / `MEGADJ_FLEET`);
   `player-compat.ts` + `booth-text.ts` enforce it. `megadj booth-fix` proposes
   by default.
