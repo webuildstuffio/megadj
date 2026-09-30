@@ -17,9 +17,11 @@ export {
   positionalArgs,
 } from "./cli-flags";
 
-/** macOS-only by design (Principle 2) — fail fast with the reason. */
+/** macOS-only by design (Principle 2) — fail fast with the reason.
+ *  CI sets MEGADJ_ALLOW_LINUX=1 so CLI tests can exercise flag
+ *  validation on Linux runners (they never touch rekordbox/cookies). */
 function assertMac(): void {
-  if (process.platform !== "darwin") {
+  if (process.platform !== "darwin" && !process.env["MEGADJ_ALLOW_LINUX"]) {
     console.error(
       "megadj is macOS-only by design (docs/PRINCIPLES.md §2) — it drives rekordbox, Pioneer hardware, and macOS browser cookies.",
     );
