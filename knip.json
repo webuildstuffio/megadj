@@ -72,16 +72,7 @@
         "uv",
         "jscpd"
       ],
-      "ignoreDependencies": [
-        "@preact/preset-vite",
-        "@tanstack/preact-table",
-        "fuse.js",
-        "lucide-preact",
-        "preact",
-        "preact-render-to-string",
-        "tinykeys",
-        "vite"
-      ]
+      "ignoreDependencies": ["fuse.js", "tinykeys"]
     }
   }
 }

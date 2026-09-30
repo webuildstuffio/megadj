@@ -22,7 +22,9 @@
     "tsBuildInfoFile": "./node_modules/.cache/megadj-tsbuildinfo",
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
-    "types": ["bun"]
+    "types": [
+      "bun"
+    ]
   },
   "include": [
     "src/**/*.ts",
