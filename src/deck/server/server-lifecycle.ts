@@ -2,6 +2,7 @@
 // drive-photo mount re-sync, extracted from index.ts (complexity hot-spot
 // split, #42). Pure orchestration over injected deps: no HTTP, no globals.
 import { listMountedVolumes } from "../detect/detect";
+import { errMessage } from "../../shared/leaf/fmt";
 import {
   shouldAutoScan,
   shouldAutoVerify,
@@ -36,7 +37,16 @@ export function makeServerLifecycle(deps: {
       try {
         await images.syncOnMount(d.id);
       } catch (e) {
-        console.error(`photo mount re-sync failed for ${d.name}`, e);
+        const msg = errMessage(e);
+        // #420: EPERM on ExFAT from launchd = missing Full Disk Access, log
+        // once as a one-liner, not a full stack trace every reconcile sweep.
+        if (msg.includes("EPERM")) {
+          console.error(
+            `photo mount re-sync skipped for ${d.name} (EPERM — grant Full Disk Access to bun)`,
+          );
+        } else {
+          console.error(`photo mount re-sync failed for ${d.name}:`, msg);
+        }
       }
     }
   }
