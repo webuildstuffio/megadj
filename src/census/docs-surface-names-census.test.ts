@@ -8,10 +8,7 @@
  * none of it was mechanically visible).
  *
  * Names are DERIVED from the same producers the surface-parity census
- * reads (never hand-copied): src/command-doc-* producer leaves,
- * src/deck/deckctl.ts DECK_COMMANDS + PRE_SERVER_VERBS, the tool
- * keys in mcp.ts / archive/tools.ts / getdat_tools.ts + MCP_SURFACES,
- * and JOB_KINDS.
+ * reads (never hand-copied): src/test-support/surface-producers.ts.
  *
  * Scanned prose: docs/ (non-archive), src/deck/*.md, the repo READMEs,
  * and the SKILL.md files under .claude/skills -- the teaching surfaces.
@@ -21,101 +18,14 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { COMMAND_DOCS } from "../command-registry";
+import {
+  canonicalJobKinds,
+  deckctlVerbs,
+  megadjCommands,
+  mcpTools,
+} from "../test-support/surface-producers";
 
 const ROOT = join(import.meta.dir, "..", "..");
-
-/* ---------- producers ---------- */
-
-function read(rel: string): string {
-  return readFileSync(join(ROOT, rel), "utf8");
-}
-
-function megadjVerbs(): string[] {
-  const verbs = COMMAND_DOCS.map(({ name }) => name);
-  // #235: the maintenance verb list is gone — the rb-*/shelf-hygiene
-  // verbs derive from the domain command records like every other family.
-  for (const f of [
-    "src/shelf/cli-commands.ts",
-    "src/rekordbox/cli-commands.ts",
-  ]) {
-    const src = read(f);
-    for (const tbl of src.matchAll(
-      /export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g,
-    )) {
-      for (const m of (tbl[0] ?? "").matchAll(/"([a-z-]+)":/g)) {
-        const v = m[1];
-        if (v) verbs.push(v);
-      }
-    }
-  }
-  return [...new Set(verbs)].toSorted();
-}
-
-function deckctlVerbs(): string[] {
-  const src = read("src/deck/deckctl.ts");
-  const verbs: string[] = [];
-  const start = src.indexOf("DECK_COMMANDS");
-  const end = src.indexOf("};", start);
-  if (start !== -1 && end > start) {
-    const table = src.slice(start, end);
-    for (const m of table.matchAll(/\n  ([a-z-]+):/g)) {
-      const v = m[1];
-      if (v) verbs.push(v);
-    }
-  }
-  const preLine = src
-    .split("\n")
-    .find((l) => l.includes("PRE_SERVER_VERBS = ["));
-  if (preLine) {
-    const inner = preLine.match(/\[([^\]]*)\]/);
-    if (inner && inner[1]) {
-      for (const tok of inner[1].split(",")) {
-        const v = tok.trim().replaceAll('"', "");
-        if (v) verbs.push(v);
-      }
-    }
-  }
-  return [...new Set(verbs)].toSorted();
-}
-
-function mcpTools(): string[] {
-  const tools: string[] = [];
-  const files = [
-    "src/deck/mcp.ts",
-    "src/deck/report/tools.ts",
-    "src/getdat/tools.ts",
-  ];
-  for (const f of files) {
-    for (const line of read(f).split("\n")) {
-      const m = line.match(/^ {2,4}((?:deck|archive|getdat|megaset)_[a-z_]+):/);
-      if (m && m[1]) tools.push(m[1]);
-    }
-  }
-  const surfacesFile = ["src/deck/mcp/surfaces.ts", "src/deck/mcp.ts"].find(
-    (f) => existsSync(join(ROOT, f)),
-  );
-  if (surfacesFile) {
-    for (const m of read(surfacesFile).matchAll(/tool: "([a-z_]+)"/g)) {
-      const t = m[1];
-      if (t) tools.push(t);
-    }
-  }
-  return [...new Set(tools)].toSorted();
-}
-
-function jobKinds(): string[] {
-  const src = read("src/deck/shared/types/jobs.ts");
-  const block = src.match(/export const JOB_KINDS = \[([^\]]*)\]/);
-  const kinds: string[] = [];
-  if (block && block[1]) {
-    for (const m of block[1].matchAll(/"([a-z-]+)"/g)) {
-      const k = m[1];
-      if (k) kinds.push(k);
-    }
-  }
-  return kinds;
-}
 
 /* ---------- prose inventory ---------- */
 
@@ -167,10 +77,10 @@ interface Violation {
 }
 
 function scan(): { violations: Violation[]; taught: Violation[] } {
-  const verbs = new Set(megadjVerbs());
+  const verbs = new Set(megadjCommands());
   const dverbs = new Set(deckctlVerbs());
   const tools = new Set(mcpTools());
-  const kinds = new Set(jobKinds());
+  const kinds = new Set(canonicalJobKinds());
 
   const violations: Violation[] = [];
   const taught: Violation[] = [];
@@ -221,10 +131,10 @@ function scan(): { violations: Violation[]; taught: Violation[] } {
 
 describe("docs surface-names census (the names half of docs-vs-code)", () => {
   test("the producers actually define the surfaces", () => {
-    expect(megadjVerbs().length).toBeGreaterThan(30);
+    expect(megadjCommands().length).toBeGreaterThan(30);
     expect(deckctlVerbs().length).toBeGreaterThan(15);
     expect(mcpTools().length).toBeGreaterThan(30);
-    expect(jobKinds().length).toBeGreaterThan(8);
+    expect(canonicalJobKinds().length).toBeGreaterThan(8);
   });
 
   test("every taught megadj/deckctl verb, MCP tool, and job kind is real", () => {

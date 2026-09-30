@@ -2,8 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { COMMAND_DOCS } from "../../command-registry";
-import { JOB_KINDS } from "../shared/types";
 import { DECK_MCP_SURFACES } from "../mcp/surfaces";
+import {
+  canonicalJobKinds,
+  deckctlVerbs,
+  megadjCommands,
+  mcpTools,
+} from "../../test-support/surface-producers";
 
 /**
  * Surface-parity regression guard (docs/surface-parity.md).
@@ -24,53 +29,6 @@ const read = (p: string) =>
   readFileSync(join(ROOT, p), "utf8").split("\n") as string[];
 
 // ---- census: derive each surface from source -----------------------------
-
-/** deckctl verb set: the DECK_COMMANDS dispatch table in deckctl.ts (the
- *  old switch's `case "x":` arms — #89 turned it into a verb table), plus
- *  the PRE_SERVER_VERBS list (help works before the server boots — still a
- *  first-class verb, documented in usage). */
-function deckctlVerbs(): string[] {
-  const src = read("src/deck/deckctl.ts");
-  const tableStart = src.findIndex((l) => l.includes("DECK_COMMANDS: Record<"));
-  const tableEnd = src.indexOf("};");
-  const verbs = src
-    .slice(tableStart, tableEnd > tableStart ? tableEnd : src.length)
-    .map((l) => l.match(/^\s{2}([a-z-]+):/))
-    .map((m) => (m ? m[1] : undefined))
-    .filter((v): v is string => v !== undefined);
-  const pre = src
-    .find((l) => l.includes("PRE_SERVER_VERBS = ["))
-    ?.match(/\[([^\]]*)\]/)?.[1];
-  if (pre)
-    for (const v of pre.split(",").map((s) => s.trim().replace(/['"]/g, "")))
-      if (v) verbs.push(v);
-  return [...new Set(verbs)].toSorted();
-}
-
-/** megadj CLI command set: derived from the #143 command registry (the
- *  help/census SSOT) plus the maintenance dispatch table read. This
- *  surface was historically NOT censused (deckctl + MCP were), which is
- *  exactly how the doc drifted to "19 commands" while the code carried 30
- *  (the whole shelf family + booth-fix + similar + upgrade landed with no
- *  census to fail). */
-function megadjCommands(): string[] {
-  const verbs = COMMAND_DOCS.map(({ name }) => name);
-  // #235: the MAINTENANCE_VERBS list dissolved into the domain records —
-  // the rb-*/shelf-hygiene verbs derive from those tables now.
-  for (const f of [
-    "src/shelf/cli-commands.ts",
-    "src/rekordbox/cli-commands.ts",
-  ]) {
-    const src = read(f).join("\n");
-    for (const tbl of src.matchAll(
-      /export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g,
-    )) {
-      for (const match of (tbl[0] ?? "").matchAll(/"([a-z-]+)":/g))
-        if (match[1]) verbs.push(match[1]);
-    }
-  }
-  return [...new Set(verbs)].toSorted();
-}
 
 /** HTTP API path census. Route literals are intentionally derived from the
  * dispatchers: exact-path table keys (`"/status": …`) in api_routes.ts,
@@ -127,28 +85,6 @@ function httpApiRoutes(): string[] {
     if (name) routes.add(`/archive/${name}`);
   }
   return [...routes].toSorted();
-}
-
-/** MCP tool set: tool keys in mcp.ts's table + the extracted archive_tools
- *  module (both are part of the server's tool census; the module's keys sit
- *  one level deeper — 4 spaces — inside its factory). */
-function mcpTools(): string[] {
-  const files = [
-    "src/deck/mcp.ts",
-    "src/deck/report/tools.ts",
-    "src/getdat/tools.ts",
-  ];
-  const tools = files
-    .flatMap((f) =>
-      read(f).map((l) =>
-        l.match(/^\s{2,4}((?:deck|archive|getdat|megaset)_[a-z_]+):/),
-      ),
-    )
-    .map((m) => (m ? m[1] : undefined))
-    .filter((v): v is string => v !== undefined);
-  return [
-    ...new Set([...DECK_MCP_SURFACES.map((surface) => surface.tool), ...tools]),
-  ].toSorted();
 }
 
 /** UI job-enqueue surface: every kind the web can POST to /jobs. The
@@ -249,13 +185,6 @@ function uiEndpointFamilies(): string[] {
   };
   walk(WEB_ROOT);
   return [...families].toSorted();
-}
-
-/** The canonical job-kind set comes directly from the runtime SSOT. Importing
- *  the producer avoids a text parser that can drift when its type declaration
- *  changes — exactly the class of hand-maintained twin this test forbids. */
-function canonicalJobKinds(): string[] {
-  return [...JOB_KINDS].toSorted();
 }
 
 // ---- the parity registry (mirror of docs/surface-parity.md §3/§4) --------
