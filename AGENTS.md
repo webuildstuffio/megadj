@@ -265,7 +265,21 @@ a.prop !== null`), one strict check does NOT imply the other.
   imports/relocations. Shelf-tier empty `PIONEER/rekordbox/` is correct — do
   not export to the shelf; role-aware checks come only from
   `src/deck/shared/check-matrix.ts`. CrateDeck reads scratch copies and
-  refuses while RB runs.
+  refuses while RB runs. On shelf tier, `dualDbCheck` treats legacy
+  `export.pdb` as vestigial — parity work is `master.db` ↔
+  `exportLibrary.db` (OneLibrary). Programmatic exportLibrary sync from
+  master needs pyrekordbox **git** (`DeviceLibraryPlus` is not in the PyPI
+  wheel); ORM `Content.genre`/`artist` are relationships, not columns — raw
+  SQL inserts avoid cascade errors; device paths are drive-relative (strip
+  the mount prefix). `export.pdb` writes still require rekordbox export (USB
+  prep), not pyrekordbox alone.
+- Doctor F2 title+duration dupes are heuristic — different artists can share
+  a title and similar length (e.g. two "Nevada" tracks). Confirm with
+  `rb-dedup` / `shelf-dupescan` fingerprint evidence before deleting; leftover
+  F2 pairs after cleanup are often false positives, not missing dedup work.
+- GROOVE CIRCUIT sampler preset rows in master.db use local
+  `Music/rekordbox/Sampler/` paths — RB built-in pad content, not user
+  library; keep Mac-local, never repoint to SHELF1.
 - RB auto-writes are `rb-import`'s job only (closed, dated backup, whole-table
   verify); `Write to master.db` tool calls refuse while RB runs. Rekordbox is
   SSOT for the collection, never archive bytes: unreferenced files get
@@ -289,7 +303,9 @@ a.prop !== null`), one strict check does NOT imply the other.
   Safety rules (hardened Sep 30 after 37 titles damaged): (1) timestamp filter
   via argv, never hardcoded; (2) title push only when archive.db is genuinely
   better (longer, case-fix, or filename-style cleanup — never overwrite a
-  proper master.db title with a truncated YouTube one); (3) pgrep RB-closed
+  proper master.db title with a truncated YouTube one; artist-only archive
+  fixes must not re-push stale lowercase titles just because `updated_at`
+  re-enters the since filter); (3) pgrep RB-closed
   guard before commit; (4) WAL checkpoint on close. The `.kit.py` files have
   `@kit()` annotation markers that the TS orchestrator expands via
   `renderKitMarkers` — running a `.kit.py` directly with `python` leaves the
@@ -300,6 +316,9 @@ a.prop !== null`), one strict check does NOT imply the other.
 
 ## Test and process traps
 
+- RB guard tests must inject `assertClosed` (or equivalent) and isolate from
+  live `pgrep` — suites that assume RB is closed fail whenever rekordbox is
+  running on the host (Sep 30: `guard.test.ts` + twin rollback).
 - Parallel-suite flakes at exactly 5s = the one SQLite seam's
   `busy_timeout` (`openLedger`); child-CLI hangs = worker spawned with no work.
   Lazy-open expensive sessions only for real work; hermetic workers
@@ -365,6 +384,10 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
   checksums.
 - API legs get longer client deadlines; SSE has heartbeat/reaper; UI coalesces
   job events; caps: 20 snapshots, 2,000 events per drive.
+- Volume reconcile: `photoMountResync` runs only when `justMountedIds` is
+  non-empty (#420, Sep 30) — not every FSEvents/poll sweep. `listMountedVolumes`
+  caches on an unchanged volume name set to skip the per-sweep diskutil/plutil
+  subprocess storm.
 - Jobs watch progress fraction, never log activity; every leg has a wall-clock
   budget; cancellation never forces progress to 1; `setJobProgress` is
   tri-state (`undefined` keep, `null` clear). The megadj↔CrateDeck live-run

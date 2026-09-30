@@ -23,6 +23,11 @@ import { writeJson, setExit } from "../shared/cli-output";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 import { md5Cli } from "./md5-cli";
 
+/** Files created by shelf-sync's own divergent-destination logic (or legacy
+ *  BACKUP runs). Matched against basenames so they are never re-synced as
+ *  source material AND never indexed as "already on shelf" destinations. */
+const SYNC_ARTIFACT_RE = /\[archive(?: \d+)?\]|\[BACKUP\d*\]/u;
+
 export interface ShelfSyncOptions {
   /** Archive root — new music lands here (megadj drop / organize output). */
   musicDir: string;
@@ -44,13 +49,20 @@ interface CopyPlan {
 
 /** walkArchive rides the shared walker (#69): dot-entries skipped, the
  * AUDIO_EXTS regex SSOT as the ext gate, soft-fail on unreadable
- * dirs. Plans are {src, rel, bytes} over the walker's entries. */
+ * dirs. Plans are {src, rel, bytes} over the walker's entries.
+ *
+ * Archive/BACKUP suffix files are EXCLUDED — these are shelf-sync's own
+ * divergent-destination outputs from prior runs. Re-syncing them is what
+ * causes the [archive] → [archive 2] → [archive N] multiplication bug
+ * (Sep 30 audit: 334 files × up to 9 copies = 1,353 junk files). */
 function walkArchive(root: string): CopyPlan[] {
-  return walkTree(root, { exts: AUDIO_EXTS }).entries.map((e) => ({
-    src: e.abs,
-    rel: e.rel,
-    bytes: e.bytes,
-  }));
+  return walkTree(root, { exts: AUDIO_EXTS })
+    .entries.filter((e) => !SYNC_ARTIFACT_RE.test(basename(e.abs)))
+    .map((e) => ({
+      src: e.abs,
+      rel: e.rel,
+      bytes: e.bytes,
+    }));
 }
 
 interface VolumeResult {
@@ -87,6 +99,8 @@ function artistFolder(rel: string): string {
 function shelfAudioIndex(contents: string): Map<string, string[]> {
   const idx = new Map<string, string[]>();
   for (const e of walkTree(contents, { exts: AUDIO_EXTS }).entries) {
+    // Skip shelf-sync artifacts so they never suppress a real copy.
+    if (SYNC_ARTIFACT_RE.test(basename(e.abs))) continue;
     // fskit exFAT hands back NFD; the archive side is NFC. Key the index
     // on the shared NFC+casefold name key (issue #67 SSOT) so Unicode
     // forms AND case variants can never split one file into two.

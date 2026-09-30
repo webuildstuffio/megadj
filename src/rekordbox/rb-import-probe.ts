@@ -80,8 +80,18 @@ export function probePayloadFiles(
     // tags come from the archive DB conventions: parse "Artist · Album · Title"
     const stem = fname.replace(/\.[^.]+$/u, "");
     const parts = stem.split(" · ");
-    const title = parts[2] ?? parts[1] ?? stem;
+    let title = parts[2] ?? parts[1] ?? stem;
     const artist = parts.length >= 3 ? (parts[0] ?? null) : (parts[0] ?? null);
+    // Strip "Artist - " prefix from title when the artist field already
+    // carries the name (#321 title contamination: yt-dlp/SC filenames are
+    // "Artist - Track.ext"; importing that as-is puts the artist in the
+    // Title column, where it shows as redundant "Artist - Track" in RB).
+    if (
+      artist !== null &&
+      title.toLowerCase().startsWith(`${artist.toLowerCase()} - `)
+    ) {
+      title = title.slice(artist.length + 3).trim();
+    }
     const fp = fingerprintFileLength(full);
     if (fp !== null) fingerprinted++;
     // Sep 19 path policy: prefer the shelf twin's path when it exists —

@@ -102,11 +102,16 @@ for f in files:
                     db.session.commit()
                 art_id = a.ID
             cid = rid()
+            # Strip "Artist - " prefix from title when artist is already separate
+            use_title = title or fname
+            if artist and use_title and " - " in use_title:
+                if use_title.lower().startswith(artist.lower() + " - "):
+                    use_title = use_title[len(artist) + 3:].strip() or use_title
             row = DjmdContent(
                 ID=cid,
                 FolderPath=full,
                 FileNameL=clip,
-                Title=title or fname,
+                Title=use_title,
                 ArtistID=art_id,
                 AlbumID=None,
                 GenreID=None,

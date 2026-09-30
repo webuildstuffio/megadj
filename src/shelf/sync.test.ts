@@ -181,4 +181,45 @@ describe("sync", () => {
       ).text(),
     ).toBe("archive version");
   });
+
+  test("does NOT re-sync [archive] / [BACKUP2] files from the archive dir", async () => {
+    const src = tempDir("megadj-shelf-artifact-src-").rippable();
+    const vol = tempDir("megadj-shelf-artifact-vol-").rippable();
+    afterAll(() => {
+      src.rippleAll();
+      vol.rippleAll();
+    });
+    const srcDir = src.dir();
+    mkdirSync(join(srcDir, "Batch"), { recursive: true });
+    writeFakeAudio(join(srcDir, "Batch", "track.mp3"), "original");
+    writeFakeAudio(join(srcDir, "Batch", "track [archive].mp3"), "artifact1");
+    writeFakeAudio(join(srcDir, "Batch", "track [archive 2].mp3"), "artifact2");
+    writeFakeAudio(join(srcDir, "Batch", "remix [BACKUP2].mp3"), "backup");
+
+    const volDir = vol.dir();
+    mkdirSync(join(volDir, "Contents", "Batch"), { recursive: true });
+
+    const logs: string[] = [];
+    await shelfSync({
+      musicDir: srcDir,
+      shelfVolume: volDir,
+      log: (s) => logs.push(s),
+    });
+
+    // Only the original should be copied — artifacts filtered out
+    expect(existsSync(join(volDir, "Contents", "Batch", "track.mp3"))).toBe(
+      true,
+    );
+    expect(
+      existsSync(join(volDir, "Contents", "Batch", "track [archive].mp3")),
+    ).toBe(false);
+    expect(
+      existsSync(join(volDir, "Contents", "Batch", "track [archive 2].mp3")),
+    ).toBe(false);
+    expect(
+      existsSync(join(volDir, "Contents", "Batch", "remix [BACKUP2].mp3")),
+    ).toBe(false);
+    // Summary: 1 copied, not 4
+    expect(logs.some((l) => l.includes("copied 1"))).toBe(true);
+  });
 });

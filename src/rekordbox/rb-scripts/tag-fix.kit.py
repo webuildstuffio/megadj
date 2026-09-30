@@ -84,9 +84,18 @@ def main() -> None:
             # master.db title looks like a raw filename/YouTube dump
             old_lower = old_title.lower().strip()
             new_lower = new_title.lower().strip()
+            # Artist-prefix strip: "Artist - Track" → "Track" is always
+            # an improvement when the artist field already carries the name.
+            art_name = (f.get("artist") or "").lower().strip()
+            is_artist_prefix_strip = (
+                art_name
+                and old_lower.startswith(art_name + " - ")
+                and new_lower == old_lower[len(art_name) + 3 :].strip()
+            )
             is_genuine_improvement = (
+                is_artist_prefix_strip
                 # Case-only fix (same content, better casing)
-                old_lower == new_lower
+                or old_lower == new_lower
                 # Or old title contains underscores/hyphens (filename-style)
                 or "_" in old_title
                 or old_title.startswith("[")
