@@ -95,6 +95,9 @@ const ELECTION_UMBRELLA = new Set([
   "various",
   "dance/electronic",
   "electronic/dance",
+  "edits / bootlegs",
+  "edits/bootlegs",
+  "bass",
 ]);
 
 /** Elect the winning genre from collected votes. Highest total weight

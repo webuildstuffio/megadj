@@ -60,6 +60,9 @@ export const UMBRELLA_STRINGS = new Set([
   "other",
   "unknown",
   "various",
+  "edits / bootlegs",
+  "edits/bootlegs",
+  "bass",
 ]);
 
 /** L3 subgenres within each family (Discogs Electronic styles + Beatport). */

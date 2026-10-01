@@ -144,13 +144,17 @@ function buildTasks(
   const tasks: Task[] = [];
   for (const r of rows) {
     const truth = groundTruth(r.file_path);
-    const genreOk = Boolean(truth.genre) && truth.genre !== "Music";
+    const genrePresent = Boolean(truth.genre) && truth.genre !== "Music";
+    const genreIsUmbrella =
+      genrePresent && UMBRELLA_STRINGS.has(truth.genre!.toLowerCase());
+    const genreOk = genrePresent && !genreIsUmbrella;
     const oldSystemGenre =
       revote &&
-      Boolean(genreOk) &&
+      Boolean(genrePresent) &&
       !(r.genre_votes && r.genre_votes.trim() !== "");
     const needGenre =
-      (only === "all" || only === "genres") && (!genreOk || oldSystemGenre);
+      (only === "all" || only === "genres") &&
+      (!genreOk || oldSystemGenre || genreIsUmbrella);
     const needTags =
       (only === "all" || only === "tags") &&
       (!truth.title || !truth.artist || !truth.album || !genreOk);
