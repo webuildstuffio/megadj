@@ -73,6 +73,39 @@ def load_audio_section(path: str, start: float, end: float) -> FloatArray | None
         return None
 
 
+def load_full_audio(path: str) -> FloatArray | None:
+    """Load full track at 16kHz mono (for RMS computation)."""
+    try:
+        from essentia.standard import MonoLoader
+        return MonoLoader(filename=path, sampleRate=16000)().astype(np.float32)  # type: ignore[no-any-return]
+    except Exception:
+        return None
+
+
+def rms_per_bar(audio: FloatArray, downbeats: list[float]) -> list[float]:
+    """Compute RMS energy for each bar defined by consecutive downbeat pairs."""
+    sr = 16000
+    rms: list[float] = []
+    for i in range(len(downbeats)):
+        s = int(downbeats[i] * sr)
+        e = int(downbeats[i + 1] * sr) if i + 1 < len(downbeats) else min(s + int(2.0 * sr), len(audio))
+        segment = audio[s:e]
+        if len(segment) < 100:
+            rms.append(0.0)
+        else:
+            rms.append(float(np.sqrt(np.mean(segment**2))))
+    return rms
+
+
+def minmax_norm(vals: list[float]) -> list[float]:
+    """Min-max normalize to [0, 1]."""
+    lo, hi = min(vals), max(vals)
+    rng = hi - lo
+    if rng < 1e-12:
+        return [0.0] * len(vals)
+    return [(v - lo) / rng for v in vals]
+
+
 def find_drop_candidates(downbeats: list[float], n: int = 3) -> list[tuple[float, float]]:
     """Port of drop-finder.ts — picks top N 32-bar windows by position + density score."""
     if len(downbeats) < 33:
@@ -113,11 +146,70 @@ def find_drop_candidates(downbeats: list[float], n: int = 3) -> list[tuple[float
     return result
 
 
+def find_drop_candidates_rms(
+    downbeats: list[float], bar_rms_vals: list[float], n: int = 3
+) -> list[tuple[float, float]]:
+    """P6: RMS-guided drop finder — mirrors the TS implementation.
+
+    When bar_rms_vals is supplied, loudness peaks dominate scoring (0.50 weight)
+    with position (0.35) and density (0.15). Picks actual energy peaks instead
+    of relying on position heuristics.
+    """
+    total_bars = len(downbeats)
+    section_bars = min(32, total_bars)
+    if total_bars < 33 or len(bar_rms_vals) < total_bars:
+        return find_drop_candidates(downbeats, n)
+
+    raw_pos: list[float] = []
+    raw_density: list[float] = []
+    raw_rms: list[float] = []
+
+    for i in range(total_bars - section_bars + 1):
+        mid_bar = i + section_bars / 2
+        pos_frac = mid_bar / total_bars
+        raw_pos.append(1.0 - 4.0 * (pos_frac - 0.5) ** 2)
+
+        ivs = [
+            downbeats[j + 1] - downbeats[j]
+            for j in range(i, i + section_bars - 1)
+            if downbeats[j + 1] - downbeats[j] > 0
+        ]
+        mean_iv = sum(ivs) / len(ivs) if ivs else 2.0
+        raw_density.append(2.0 / max(0.5, mean_iv))
+
+        rms_sum = sum(bar_rms_vals[j] for j in range(i, i + section_bars))
+        raw_rms.append(rms_sum / section_bars)
+
+    norm_pos = minmax_norm(raw_pos)
+    norm_dens = minmax_norm(raw_density)
+    norm_rms = minmax_norm(raw_rms)
+
+    scored = [
+        (norm_rms[i] * 0.5 + norm_pos[i] * 0.35 + norm_dens[i] * 0.15, i)
+        for i in range(len(raw_pos))
+    ]
+    scored.sort(key=lambda x: -x[0])
+
+    result: list[tuple[float, float]] = []
+    for _score, idx in scored:
+        start = downbeats[idx]
+        end_idx = min(idx + section_bars, len(downbeats) - 1)
+        end = downbeats[end_idx] + (downbeats[end_idx] - downbeats[max(0, end_idx - 1)])
+        overlap = any(start < re and end > rs for rs, re in result)
+        if not overlap:
+            result.append((start, end))
+        if len(result) >= n:
+            break
+
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default=os.path.expanduser("~/.local/state/megadj/archive.db"))
     parser.add_argument("--limit", type=int, default=0, help="Limit tracks (0=all)")
     parser.add_argument("--force", action="store_true", help="Recompute existing")
+    parser.add_argument("--rms", action="store_true", help="P6: use RMS-guided drop finder")
     args = parser.parse_args()
 
     if not EFFNET_PATH.exists():
@@ -184,7 +276,16 @@ def main() -> None:
             failed += 1
             continue
 
-        sections = find_drop_candidates(downbeats, 3)
+        if args.rms:
+            full_audio = load_full_audio(file_path)
+            if full_audio is None:
+                failed += 1
+                continue
+            bar_rms_vals = rms_per_bar(full_audio, downbeats)
+            sections = find_drop_candidates_rms(downbeats, bar_rms_vals, 3)
+        else:
+            sections = find_drop_candidates(downbeats, 3)
+
         if not sections:
             failed += 1
             continue
@@ -193,9 +294,17 @@ def main() -> None:
         stored = 0
 
         for si, (start, end) in enumerate(sections):
-            audio = load_audio_section(file_path, start, end)
-            if audio is None:
-                continue
+            if args.rms:
+                s_idx = int(start * 16000)
+                e_idx = int(end * 16000)
+                section_audio = full_audio[s_idx:e_idx].astype(np.float32)  # type: ignore[index]
+                if len(section_audio) < 16000:
+                    continue
+                audio = section_audio
+            else:
+                audio = load_audio_section(file_path, start, end)
+                if audio is None:
+                    continue
 
             vec = emb_effnet(audio, sess)
             model_tag = f"{MODEL_TAG}-section-{si + 1}"

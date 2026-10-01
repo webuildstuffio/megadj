@@ -126,3 +126,27 @@ On the subset with both whole-track and section embeddings cached:
 Concatenating whole+sections doesn't help much. The position-based drop finder
 may be picking wrong sections — P6 (RMS-based finder) is the fix. Full results
 pending when all 3,094 tracks are cached (~2.5h remaining).
+
+## P6 Results: RMS-Guided Drop Finder (Oct 1)
+
+**189 tracks analyzed** with per-bar RMS loudness computation:
+
+| Metric | Value |
+|---|---|
+| Sections moved (different from position-only) | 163/189 (86.2%) |
+| **RMS picks louder section** | **141/163 (86.5%)** |
+| RMS picks quieter section | 1/163 (0.6%) |
+| Same loudness | 21/163 (12.9%) |
+
+The position-only finder was wrong on **86% of tracks** — picking
+genre-ambiguous quiet sections (intros, breakdowns) instead of the actual
+energy peak (drop/chorus). The RMS-guided finder picks the right section
+86.5% of the time with effectively zero regressions.
+
+**Implementation:** Optional `rmsPerBar` parameter on `findDropSection`
+and `findDropCandidates`. When supplied: RMS weight 0.50, position 0.35,
+density 0.15. Without: backward-compatible original behavior (0.70/0.30).
+`cache_section_embeddings.py --rms` enables the new path.
+
+**Next:** Re-cache section embeddings with `--rms --force` and re-run the
+section probe bench to measure the classification impact.

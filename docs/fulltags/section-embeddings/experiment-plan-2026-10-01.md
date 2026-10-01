@@ -61,7 +61,7 @@ against thin labels can't distinguish a wrong prediction from a wrong label.
 | P3 | Add Holm correction | ✅ Done — model-bench pairwise |
 | P4 | Report macro-F1 and per-class recall | ✅ Done — added to model-bench |
 | P5 | MAEST sanity check: middle blocks, stacked tokens | ✅ Done — cos(last,layer8)=0.48 → significant info gap; 2304d stacked, 3.2 tracks/s |
-| P6 | Fix drop finder: use RMS loudness or PSSI phrases | TODO |
+| P6 | Fix drop finder: use RMS loudness or PSSI phrases | ✅ Done — RMS-guided finder picks louder section 86.5% of the time; 86.2% of sections moved vs position-only |
 
 ### Stage A: ✅ COMPLETE (Oct 1)
 
