@@ -45,6 +45,8 @@
         "src/fulltags/analysis/phrase-search.ts",
         "src/fulltags/booth/cue-writer-v2.ts",
         "src/fulltags/sources/discogs.ts",
+        "src/fulltags/sources/discogs-ingest.ts",
+        "src/fulltags/sources/sc-tag-sanitizer.ts",
         "src/fulltags/sources/traxsource.ts",
         "src/fulltags/analysis/section-classifier.ts",
         "src/fulltags/bench/key-challengers.ts",

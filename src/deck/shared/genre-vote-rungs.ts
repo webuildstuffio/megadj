@@ -85,11 +85,19 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     description: "uploader free-text — junk-gated, artist-gated",
   },
   {
+    id: "lastfm",
+    name: "Last.fm",
+    docRef: "W8",
+    weight: 0.3,
+    order: 7,
+    description: "track folksonomy — count ≥ 25 gate, community-curated",
+  },
+  {
     id: "sync",
     name: "Sync category",
     docRef: "W1",
     weight: 0.2,
-    order: 7,
+    order: 8,
     description: "title/artist regex — a category, not a genre",
   },
   {
@@ -97,7 +105,7 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     name: "Imprint prior",
     docRef: "W7",
     weight: 0.15,
-    order: 8,
+    order: 9,
     description: "scene-family inference — abstains vs real votes",
   },
 ];

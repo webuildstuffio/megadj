@@ -202,7 +202,43 @@ interface MbArtistSearch {
   }[];
 }
 
+/** MB recording detail — tags on the recording + release group. */
+interface MbRecordingDetail {
+  id?: string;
+  tags?: { name: string; count: number }[];
+  "release-groups"?: {
+    id?: string;
+    "primary-type"?: string;
+    tags?: { name: string; count: number }[];
+  }[];
+}
+
 const artistCache = new Map<string, string | null>();
+const recordingTagCache = new Map<string, string | null>();
+
+/** Shared tag → genre resolver (3-pass folksonomy).
+ *  Used by both artist and recording tag resolvers. */
+function resolveTags(
+  tags: readonly { name: string; count: number }[],
+): string | null {
+  const sorted = [...tags].toSorted((x, y) => y.count - x.count);
+  // Pass 1: exact canon match
+  for (const t of sorted) {
+    const lower = t.name.toLowerCase().trim();
+    if (SC_GENRE_CANON_KEYS.has(lower)) return canonGenre(lower);
+  }
+  // Pass 2: regex free-text per tag individually
+  for (const t of sorted) {
+    const g = guessFromFreeText([t.name]);
+    if (g) return g;
+  }
+  // Pass 3: join top 3 + free-text
+  const raw = sorted
+    .slice(0, 3)
+    .map((t) => t.name)
+    .join(" ");
+  return guessFromFreeText([raw]);
+}
 
 /** Artist → canonical genre via MB folksonomy tags. Null on miss/error. */
 export async function mbGenreForArtist(artist: string): Promise<string | null> {
@@ -228,38 +264,106 @@ export async function mbGenreForArtist(artist: string): Promise<string | null> {
     // the canonical map. The old code joined ALL tags into one string and
     // tried to canonicalize the blob, producing tag-soup genres like
     // "Hip hop r&b pop rap contemporary r&b..." (#351).
-    const tags = [...(a.tags ?? [])].toSorted((x, y) => y.count - x.count);
-    // Pass 1: exact canon match (tag is a known key in SC_GENRE_CANON)
-    for (const t of tags) {
-      const lower = t.name.toLowerCase().trim();
-      if (SC_GENRE_CANON_KEYS.has(lower)) {
-        const mapped = canonGenre(lower);
-        artistCache.set(key, mapped);
-        return mapped;
-      }
-    }
-    // Pass 2: regex-based free-text guess on each tag individually
-    for (const t of tags) {
-      const g = guessFromFreeText([t.name]);
-      if (g) {
-        artistCache.set(key, g);
-        return g;
-      }
-    }
-    // Pass 3: join top 3 tags and try free-text (catches compound signals)
-    const raw = tags
-      .slice(0, 3)
-      .map((t) => t.name)
-      .join(" ");
-    const guessed = guessFromFreeText([raw]);
-    artistCache.set(key, guessed);
-    return guessed;
+    const result = resolveTags(a.tags ?? []);
+    artistCache.set(key, result);
+    return result;
   } catch {
     return null;
   }
 }
 
-/** Reset the in-process cache (tests). */
+/**
+ * Recording-level genre from MusicBrainz (issue #D26, genre-source-expansion).
+ *
+ * Steps:
+ * 1. Search recordings by artist+title → get MBID
+ * 2. Fetch recording detail with tags + release groups
+ * 3. Merge recording tags + release-group tags (recording wins ties)
+ * 4. Resolve through the 3-pass folksonomy
+ *
+ * This is significantly more precise than artist-level (catches remixes,
+ * genre-crossing tracks where the artist's modal genre is wrong).
+ */
+export async function mbGenreForRecording(
+  artist: string | null,
+  title: string,
+): Promise<{ genre: string | null; mbid: string | null }> {
+  const key = `${(artist ?? "").toLowerCase()}::${title.toLowerCase()}`;
+  if (recordingTagCache.has(key)) {
+    return { genre: recordingTagCache.get(key) ?? null, mbid: null };
+  }
+
+  // Step 1: search recordings → get MBID
+  let recordings: MbRecording[] | null;
+  try {
+    recordings = await mbFetchRecordings(artist, title);
+  } catch {
+    recordingTagCache.set(key, null);
+    return { genre: null, mbid: null };
+  }
+  const rec = recordings?.[0];
+  if (!rec?.id) {
+    recordingTagCache.set(key, null);
+    return { genre: null, mbid: null };
+  }
+
+  // Step 2: fetch recording detail (tags + release-groups)
+  await rateLimit();
+  let detail: MbRecordingDetail | null = null;
+  try {
+    const res = await fetch(
+      `https://musicbrainz.org/ws/2/recording/${rec.id}?inc=tags+release-groups&fmt=json`,
+      {
+        headers: {
+          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
+        },
+        signal: AbortSignal.timeout(MB_TIMEOUT_MS),
+      },
+    );
+    if (res.ok) {
+      detail = (await res.json()) as MbRecordingDetail;
+    }
+  } catch {
+    // degrade — recording-level tags are bonus, not critical
+  }
+
+  // Step 3: merge recording + release-group tags
+  const allTags: { name: string; count: number }[] = [];
+  if (detail?.tags) allTags.push(...detail.tags);
+  // Release group tags (broader — album-level genre): add but lower count
+  const rg = detail?.["release-groups"]?.[0];
+  if (rg?.tags) {
+    for (const t of rg.tags) {
+      allTags.push({
+        name: t.name,
+        count: Math.max(1, Math.floor(t.count * 0.7)),
+      });
+    }
+  }
+  // Also fold in artist-credit tags from the search result
+  const creditTags = rec["artist-credit"]?.[0]?.artist?.tags;
+  if (creditTags) {
+    for (const t of creditTags) {
+      allTags.push({
+        name: t.name,
+        count: Math.max(1, Math.floor(t.count * 0.5)),
+      });
+    }
+  }
+
+  if (allTags.length === 0) {
+    recordingTagCache.set(key, null);
+    return { genre: null, mbid: rec.id ?? null };
+  }
+
+  // Step 4: resolve
+  const genre = resolveTags(allTags);
+  recordingTagCache.set(key, genre);
+  return { genre, mbid: rec.id ?? null };
+}
+
+/** Reset the in-process caches (tests). */
 export function mbGenreCacheReset(): void {
   artistCache.clear();
+  recordingTagCache.clear();
 }

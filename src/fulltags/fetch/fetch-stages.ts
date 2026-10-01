@@ -64,6 +64,10 @@ export interface Stats {
    *  genreElected it separates "nothing to vote on" from "votes that
    *  lost/abstained". */
   votesCast: number;
+  /** W8 Last.fm folksonomy votes cast. */
+  genreLastfm: number;
+  /** MB recording-level genre votes cast (deepened #D26). */
+  genreMbRec: number;
 }
 
 /** Per-task mutable state shared by the stage runners. */

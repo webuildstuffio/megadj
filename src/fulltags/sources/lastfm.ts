@@ -1,15 +1,31 @@
 /**
- * lastfm.ts — Last.fm track tags arm (B4.5).
+ * lastfm.ts — Last.fm track tags arm (B4.5, wired as W8 vote rung).
  *
  * Uses the Last.fm API to fetch user-applied tags for tracks.
  * Tags are community-sourced and carry genre/mood/era information.
  *
- * Free tier: 5 requests/second, API key required.
+ * Free tier: 5 requests/second, API key required (LASTFM_API_KEY env).
+ *
+ * Genre mapping: each tag goes through mapToFamily individually (never
+ * joined as a blob — the #351 tag-soup lesson from mb-lookup.ts). Tags
+ * with count < MIN_TAG_COUNT are dropped (low-count = artist-specific junk).
+ *
+ * Vote integration: lastfmGenreVote() returns a GenreVote or null,
+ * ready for the vote ladder. The caller (fetch-pipeline or enrich)
+ * pushes it onto the genreVotes accumulator.
  */
+import { canonicalizeClaim } from "../genre/genre-vocab";
 import { mapToFamily } from "../genre/taxonomy-v3";
+import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre/genre-vote";
 
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 const LASTFM_DELAY_MS = 250; // 4 req/sec, below the 5/sec limit
+
+/** Minimum tag count to consider (low-count = artist-specific junk). */
+const MIN_TAG_COUNT = 25;
+
+/** Timeout for Last.fm API requests (seconds). */
+const LASTFM_TIMEOUT_MS = 8_000;
 
 /** A Last.fm tag with its community count. */
 export interface LastfmTag {
@@ -26,6 +42,8 @@ export interface LastfmTrackResult {
   readonly tags: readonly LastfmTag[];
   /** Top genre family from tags (most frequent mappable tag). */
   readonly topFamily: string | null;
+  /** Canonicalized genre label from the top mappable tag. */
+  readonly topGenre: string | null;
 }
 
 /** Raw Last.fm API response shapes. */
@@ -42,19 +60,23 @@ interface LastfmApiResponse {
   };
 }
 
+/** In-process cache: artist::title → result (including verified misses). */
+const lastfmCache = new Map<string, LastfmTrackResult | null>();
+
 /**
  * Fetch track tags from Last.fm.
- *
- * @param artist - Artist name
- * @param track - Track title
- * @param apiKey - Last.fm API key
- * @returns Track tags with genre mapping
+ * Cached per process lifetime; rate-limited to ~4 req/sec.
  */
 export async function fetchLastfmTags(
   artist: string,
   track: string,
   apiKey: string,
 ): Promise<LastfmTrackResult | null> {
+  const cacheKey = `${artist.toLowerCase()}::${track.toLowerCase()}`;
+  if (lastfmCache.has(cacheKey)) return lastfmCache.get(cacheKey) ?? null;
+
+  await lastfmDelay();
+
   const params = new URLSearchParams({
     method: "track.getInfo",
     artist,
@@ -64,17 +86,40 @@ export async function fetchLastfmTags(
   });
 
   const url = `${LASTFM_API_URL}?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) return null;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(LASTFM_TIMEOUT_MS),
+    });
+  } catch {
+    lastfmCache.set(cacheKey, null);
+    return null;
+  }
+  if (!response.ok) {
+    lastfmCache.set(cacheKey, null);
+    return null;
+  }
 
-  const data = (await response.json()) as LastfmApiResponse;
-  if (!data.track) return null;
+  let data: LastfmApiResponse;
+  try {
+    data = (await response.json()) as LastfmApiResponse;
+  } catch {
+    lastfmCache.set(cacheKey, null);
+    return null;
+  }
+
+  if (!data.track) {
+    lastfmCache.set(cacheKey, null);
+    return null;
+  }
 
   const rawTags = data.track.toptags?.tag ?? [];
   const tags: LastfmTag[] = rawTags
     .filter(
       (t): t is { name: string; count: number } =>
-        typeof t.name === "string" && typeof t.count === "number",
+        typeof t.name === "string" &&
+        typeof t.count === "number" &&
+        t.count >= MIN_TAG_COUNT,
     )
     .map((t) => ({
       name: t.name,
@@ -82,27 +127,63 @@ export async function fetchLastfmTags(
       family: mapToFamily(t.name),
     }));
 
-  // Find the top genre family
+  // Find the top genre: highest-count tag that maps to a family.
+  // Each tag is tried individually (never joined — #351 lesson).
   let topFamily: string | null = null;
+  let topGenre: string | null = null;
   let topCount = 0;
   for (const t of tags) {
     if (t.family !== null && t.count > topCount) {
       topFamily = t.family;
+      topGenre = canonicalizeClaim(t.name);
       topCount = t.count;
     }
   }
 
-  return {
+  const result: LastfmTrackResult = {
     trackName: data.track.name ?? track,
     artistName: data.track.artist?.name ?? artist,
     tags,
     topFamily,
+    topGenre,
+  };
+  lastfmCache.set(cacheKey, result);
+  return result;
+}
+
+/**
+ * Produce a GenreVote from Last.fm tags, or null if no mappable tag found.
+ * Ready for the vote ladder — the caller pushes onto genreVotes[].
+ */
+export async function lastfmGenreVote(
+  artist: string,
+  title: string,
+  apiKey: string,
+): Promise<GenreVote | null> {
+  const result = await fetchLastfmTags(artist, title, apiKey);
+  if (!result?.topGenre) return null;
+  return {
+    rung: "lastfm",
+    genre: result.topGenre,
+    weight: GENRE_VOTE_WEIGHTS.lastfm,
+    detail: `lastfm:${result.tags
+      .filter((t) => t.family !== null)
+      .map((t) => `${t.name}(${t.count})`)
+      .join(",")}`,
   };
 }
 
 /** Delay between Last.fm API calls. */
+let lastLastfmCall = 0;
 export function lastfmDelay(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, LASTFM_DELAY_MS);
-  });
+  const now = Date.now();
+  const wait = lastLastfmCall + LASTFM_DELAY_MS - now;
+  lastLastfmCall = Date.now();
+  if (wait > 0) return new Promise((resolve) => setTimeout(resolve, wait));
+  return Promise.resolve();
+}
+
+/** Reset the in-process cache (tests). */
+export function lastfmCacheReset(): void {
+  lastfmCache.clear();
 }

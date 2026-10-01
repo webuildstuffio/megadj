@@ -34,6 +34,15 @@ describe("GENRE_VOTE_WEIGHTS (the doc's W-table, versioned in code)", () => {
   test("the imprint prior can never outvote two agreeing catalog rungs", () => {
     expect(GENRE_VOTE_WEIGHTS.imprint * 2).toBeLessThan(GENRE_VOTE_WEIGHTS.sc);
   });
+
+  test("lastfm rung exists with weight < sc (folksonomy, not curated)", () => {
+    expect(GENRE_VOTE_WEIGHTS.lastfm).toBeDefined();
+    expect(GENRE_VOTE_WEIGHTS.lastfm).toBe(0.3);
+    expect(GENRE_VOTE_WEIGHTS.lastfm).toBeLessThan(GENRE_VOTE_WEIGHTS.sc);
+    expect(GENRE_VOTE_WEIGHTS.lastfm).toBeGreaterThan(
+      GENRE_VOTE_WEIGHTS.imprint,
+    );
+  });
 });
 
 describe("electGenre", () => {
@@ -123,11 +132,53 @@ describe("electGenre", () => {
     expect(electGenre(votes).genre).toBe("Ambient");
     expect(electGenre(votes.toReversed()).genre).toBe("Ambient");
   });
+
+  test("lastfm vote participates in the election", () => {
+    const r = electGenre([v("lastfm", "Techno"), v("sc", "Techno")]);
+    expect(r.genre).toBe("Techno");
+    expect(r.winnerRungs).toContain("lastfm");
+    expect(r.weight).toBeCloseTo(
+      GENRE_VOTE_WEIGHTS.lastfm + GENRE_VOTE_WEIGHTS.sc,
+      10,
+    );
+  });
+
+  test("lastfm alone loses to bp (catalog wins)", () => {
+    const r = electGenre([v("lastfm", "House"), v("bp", "Techno")]);
+    expect(r.genre).toBe("Techno");
+    expect(r.winnerRungs).toEqual(["bp"]);
+  });
+
+  test("lastfm + mb agreement beats sc alone", () => {
+    // lastfm 0.30 + mb 0.40 = 0.70 > sc 0.35
+    const r = electGenre([
+      v("lastfm", "Techno"),
+      v("mb", "Techno"),
+      v("sc", "House"),
+    ]);
+    expect(r.genre).toBe("Techno");
+    expect(r.weight).toBeCloseTo(
+      GENRE_VOTE_WEIGHTS.lastfm + GENRE_VOTE_WEIGHTS.mb,
+      10,
+    );
+  });
+
+  test("runner-up from lastfm shows as secondaryGenre", () => {
+    const r = electGenre([v("bp", "Techno"), v("lastfm", "House")]);
+    expect(r.genre).toBe("Techno");
+    expect(r.secondaryGenre).toBe("House");
+  });
 });
 
 describe("serializeVotes / parseVotes round-trip", () => {
   test("breakdown survives the ledger column", () => {
     const votes = [v("bp", "Techno"), v("imprint", "techno", "Drumcode")];
+    const back = parseVotes(serializeVotes(votes));
+    expect(back).toEqual(votes);
+  });
+
+  test("lastfm vote round-trips through serialize/parse", () => {
+    const votes = [v("lastfm", "House", "lastfm:house(100),deep house(50)")];
     const back = parseVotes(serializeVotes(votes));
     expect(back).toEqual(votes);
   });

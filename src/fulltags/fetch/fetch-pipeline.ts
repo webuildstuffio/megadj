@@ -63,7 +63,10 @@ import {
 // old art-stage piggyback double-voted SC — fixed with #215's election
 // visibility pass).
 import { stageArt } from "./fetch-art";
-import type { GenreVote } from "../genre/genre-vote";
+import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre/genre-vote";
+import { lastfmGenreVote } from "../sources/lastfm";
+import { mbGenreForRecording } from "../sources/mb-lookup";
+import { nonEmptyEnv } from "../../shared/leaf/guards";
 import {
   emitFetchDone,
   emitFetchStart,
@@ -187,6 +190,8 @@ function emptyStats(): Stats {
     genreImprint: 0,
     genreElected: 0,
     votesCast: 0,
+    genreLastfm: 0,
+    genreMbRec: 0,
   };
 }
 
@@ -279,6 +284,42 @@ async function processTask({
       t.needYear && !best?.year,
       t.needTags && !t.truth.label,
     );
+  }
+
+  // ---- W8 Last.fm vote (opt-in, needs LASTFM_API_KEY env) ----
+  if (t.needGenre && !dry && genreVotes !== undefined) {
+    const lastfmKey = nonEmptyEnv("LASTFM_API_KEY");
+    if (lastfmKey) {
+      const lfmArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
+      const lfmTitle = ctx.truth.title ?? r.title;
+      if (lfmArtist && lfmTitle) {
+        const lfmVote = await lastfmGenreVote(lfmArtist, lfmTitle, lastfmKey);
+        if (lfmVote) {
+          genreVotes.push(lfmVote);
+          stats.genreLastfm++;
+          notes.push(`genre:${lfmVote.genre} (lastfm, vote)`);
+        }
+      }
+    }
+  }
+
+  // ---- MB recording-level genre vote (deepened from artist-only) ----
+  if (t.needGenre && !dry && genreVotes !== undefined) {
+    const mbArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
+    const mbTitle = ctx.truth.title ?? r.title;
+    if (mbTitle) {
+      const mbRec = await mbGenreForRecording(mbArtist, mbTitle);
+      if (mbRec.genre) {
+        genreVotes.push({
+          rung: "mb",
+          genre: mbRec.genre,
+          weight: GENRE_VOTE_WEIGHTS.mb,
+          detail: mbRec.mbid ? `mbid:${mbRec.mbid}` : undefined,
+        });
+        stats.genreMbRec++;
+        notes.push(`genre:${mbRec.genre} (mb-rec, vote)`);
+      }
+    }
   }
 
   // ---- #173 the ONE genre election + write (vote mode only) ----
@@ -461,6 +502,8 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
      *  the notes stream. */
     votesCast: stats.votesCast,
     genreElected: stats.genreElected,
+    genreLastfm: stats.genreLastfm,
+    genreMbRec: stats.genreMbRec,
   };
   if (jsonOut) {
     // structured stderr channel: the ladder feed's footer
@@ -469,7 +512,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     await writeJson(summary);
   } else {
     progress?.close(
-      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + AI ${stats.genreAi} | vote ladder: ${stats.votesCast} votes → ${stats.genreElected} elected | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
+      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + LFM ${stats.genreLastfm} + MB-rec ${stats.genreMbRec} + AI ${stats.genreAi} | vote ladder: ${stats.votesCast} votes → ${stats.genreElected} elected | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
 }

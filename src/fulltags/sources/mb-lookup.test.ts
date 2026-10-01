@@ -4,7 +4,12 @@
 // ONE fetch/UA/timeout/not-ok/parse block, per-caller logging policy,
 // malformed JSON throws (never a silent false answer).
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mbLookupCached, mbRecording } from "./mb-lookup";
+import {
+  mbLookupCached,
+  mbRecording,
+  mbGenreForRecording,
+  mbGenreCacheReset,
+} from "./mb-lookup";
 
 interface FetchCall {
   url: string;
@@ -116,5 +121,89 @@ describe("MB wire seam (issue #99)", () => {
     });
     // mbLookupCached: logged miss → null
     expect(await mbLookupCached("X", "net-fail")).toBeNull();
+  });
+});
+
+describe("mbGenreForRecording (recording-level tags)", () => {
+  afterEach(() => {
+    mbGenreCacheReset();
+  });
+
+  test("returns genre from recording tags", async () => {
+    let callIndex = 0;
+    responder = () => {
+      callIndex++;
+      if (callIndex === 1) {
+        // First call: search recordings
+        return okJson({
+          recordings: [
+            {
+              title: "Acid Rain",
+              id: "rec-123",
+              "artist-credit": [
+                {
+                  artist: {
+                    name: "DJ Pierre",
+                    tags: [{ name: "acid house", count: 5 }],
+                  },
+                },
+              ],
+              releases: [{ title: "Acid Tracks", date: "1987-01-01" }],
+            },
+          ],
+        });
+      }
+      // Second call: recording detail with tags
+      return okJson({
+        id: "rec-123",
+        tags: [
+          { name: "acid house", count: 10 },
+          { name: "house", count: 8 },
+        ],
+        "release-groups": [
+          {
+            id: "rg-1",
+            "primary-type": "Single",
+            tags: [{ name: "electronic", count: 15 }],
+          },
+        ],
+      });
+    };
+
+    const result = await mbGenreForRecording("DJ Pierre", "Acid Rain");
+    expect(result.genre).toBeTruthy();
+    expect(result.mbid).toBe("rec-123");
+  });
+
+  test("returns null for no recording match", async () => {
+    responder = () => okJson({ recordings: [] });
+    const result = await mbGenreForRecording("Unknown", "Not A Track");
+    expect(result.genre).toBeNull();
+    expect(result.mbid).toBeNull();
+  });
+
+  test("degrades gracefully on recording detail 404", async () => {
+    let callIndex = 0;
+    responder = () => {
+      callIndex++;
+      if (callIndex === 1) {
+        return okJson({
+          recordings: [
+            {
+              title: "Test",
+              id: "rec-456",
+              "artist-credit": [{ artist: { name: "Test", tags: [] } }],
+              releases: [],
+            },
+          ],
+        });
+      }
+      // Detail fetch fails
+      return new Response("", { status: 404 });
+    };
+
+    const result = await mbGenreForRecording("Test", "Test");
+    // Should still return the mbid from search, just no genre
+    expect(result.genre).toBeNull();
   });
 });

@@ -50,6 +50,8 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "s is a digits-or-decimal ISO-8601 duration capture (T…S group), truthiness-gated before use.",
   "src/fulltags/fetch/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
     "datePublished is DB JSON produced by the fetch pipeline's four-digit year regex; the slice is exactly four chars.",
+  "src/fulltags/sources/discogs-ingest.ts::ingestDiscogsXml::Number(relMatch[1])":
+    "relMatch[1] is a digits-only capture (\\d+) from the XML release id attribute; guarded by Number.isFinite on the next line — continue skips the release.",
   "src/fulltags/bench/stages/bpm-gold.ts::runBpmGoldStage::Number(g.value)":
     "immediately followed by Number.isFinite(expected) guard on the next line.",
   "src/fulltags/booth/comment-v2.ts::parseCommentV2::Number(part.slice(1))":
@@ -205,9 +207,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 30 (comment-v4): parseCommentV4 adds 3 Number.isFinite-gated
     // Number() calls (energy eVal, introBars iVal, outroBars oVal) —
     // audited 60→63, guarded 42→45, sanctioned unchanged.
-    audited: 63,
+    audited: 64,
     guarded: 45,
-    sanctioned: 18,
+    sanctioned: 19,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
     // Sep 21 (cratedeck→src/deck fold): the whole tree re-rooted —
@@ -235,7 +237,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // in parseCommentV3 so guard detection doesn't cross-shadow — digest shifted.
     // Sep 30 (comment-v4): parseCommentV4 adds 3 guarded Number() calls —
     // digest shifted.
-    digest: "a7fa2303f53a1eb0a1635055480b30492d26fdc7a8a4a3584d745d29d48e91d5",
+    // Genre source expansion: discogs-ingest.ts adds 1 Number() site
+    // (digits-only regex capture, sanctioned), audited 63→64, sanctioned 18→19.
+    digest: "b227da6de50b8407e52de071d6ce3a6993ae6a420a4f8ad34edce52710b99ad3",
   });
 });
 
