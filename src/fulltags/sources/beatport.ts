@@ -28,6 +28,7 @@
  */
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { canonGenre, SC_GENRE_CANON } from "../write/schema";
+import { UMBRELLA_STRINGS } from "../genre/taxonomy-v3";
 import {
   ARTIST_MIN_LEN,
   cleanSearchQuery,
@@ -477,6 +478,8 @@ export function bpGenre(t: BpTrack): string | null {
   const tryMap = (raw: string | null): string | null => {
     if (!raw) return null;
     const canon = canonGenre(raw);
+    // Umbrella strings (EDM/Electronic/Dance) carry no information — skip.
+    if (UMBRELLA_STRINGS.has(canon.toLowerCase())) return null;
     if (vocab.has(canon)) return canon;
     // Compound store forms: strip " (...)" annotations, then try each
     // "&"-/"/"-separated segment on its own.

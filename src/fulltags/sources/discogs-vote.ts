@@ -15,6 +15,7 @@ import { discogsLookup } from "./discogs-ingest";
 import { discogsApiSearch, discogsApiAvailable } from "./discogs-api";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { canonicalizeClaim } from "../genre/genre-vocab";
+import { UMBRELLA_STRINGS } from "../genre/taxonomy-v3";
 
 /** Sentinel for "not tried yet" vs null (tried, unavailable). */
 const NOT_TRIED = Symbol("not-tried");
@@ -44,7 +45,7 @@ function resultToVote(
   bestFamily: string | null,
 ): GenreVote | null {
   const genre = bestStyle ? canonicalizeClaim(bestStyle) : bestFamily;
-  if (!genre) return null;
+  if (!genre || UMBRELLA_STRINGS.has(genre.toLowerCase())) return null;
   return {
     rung: "discogs",
     genre,

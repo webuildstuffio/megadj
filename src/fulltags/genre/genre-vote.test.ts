@@ -210,3 +210,38 @@ describe("serializeVotes / parseVotes round-trip", () => {
     expect(partial).toEqual([v("bp", "Techno")]);
   });
 });
+
+// ---- umbrella demotion ----
+describe("electGenre umbrella demotion", () => {
+  test("EDM is demoted when a specific genre exists", () => {
+    const result = electGenre([
+      v("bp", "EDM", 0.6),
+      v("sc", "Tech House", 0.35),
+    ]);
+    expect(result.genre).toBe("Tech House");
+  });
+
+  test("EDM wins when it is the ONLY genre on the ballot", () => {
+    const result = electGenre([v("bp", "EDM", 0.6), v("sc", "EDM", 0.35)]);
+    expect(result.genre).toBe("EDM");
+  });
+
+  test("Electronic and Dance are also demoted", () => {
+    const r1 = electGenre([
+      v("bp", "Electronic", 0.6),
+      v("sc", "House", 0.35),
+    ]);
+    expect(r1.genre).toBe("House");
+
+    const r2 = electGenre([v("bp", "Dance", 0.6), v("sc", "Techno", 0.35)]);
+    expect(r2.genre).toBe("Techno");
+  });
+
+  test("case-insensitive umbrella matching", () => {
+    const result = electGenre([
+      v("bp", "edm", 0.6),
+      v("sc", "Deep House", 0.35),
+    ]);
+    expect(result.genre).toBe("Deep House");
+  });
+});

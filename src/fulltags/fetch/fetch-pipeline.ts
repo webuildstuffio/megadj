@@ -72,6 +72,7 @@ import { routeArtistForGenre } from "../identity/remix-route";
 import { estimatorEnabled, runEstimatorBatch } from "./fetch-estimator";
 import { errMessage } from "../../shared/leaf/fmt";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
+import { UMBRELLA_STRINGS } from "../genre/taxonomy-v3";
 import {
   emitFetchDone,
   emitFetchStart,
@@ -318,7 +319,7 @@ async function processTask({
     const lastfmKey = nonEmptyEnv("LASTFM_API_KEY");
     if (lastfmKey && genreArtist && rawTitle) {
       const lfmVote = await lastfmGenreVote(genreArtist, rawTitle, lastfmKey);
-      if (lfmVote) {
+      if (lfmVote && !UMBRELLA_STRINGS.has(lfmVote.genre.toLowerCase())) {
         genreVotes.push(lfmVote);
         stats.genreLastfm++;
         notes.push(
@@ -331,7 +332,7 @@ async function processTask({
   // ---- MB recording-level genre vote (deepened from artist-only) ----
   if (t.needGenre && !dry && genreVotes !== undefined && rawTitle) {
     const mbRec = await mbGenreForRecording(genreArtist, rawTitle);
-    if (mbRec.genre) {
+    if (mbRec.genre && !UMBRELLA_STRINGS.has(mbRec.genre.toLowerCase())) {
       genreVotes.push({
         rung: "mb",
         genre: mbRec.genre,

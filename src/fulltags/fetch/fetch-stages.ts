@@ -27,6 +27,7 @@ import {
   type TagValues,
 } from "../core/archive-ledger";
 import { stageGenreArm, stageYearArm } from "./fetch-genre-year";
+import { UMBRELLA_STRINGS } from "../genre/taxonomy-v3";
 // #275: the SAME download-time title split heals legacy rows at fetch
 // time — a row carrying uploader-as-artist still queries BP with the
 // title's real artist, so the artist gate stops refusing correct hits.
@@ -284,10 +285,13 @@ export function applyScGenre(
   t: Parameters<typeof stageGenreArm>[0],
   rawGenre: string,
 ): void {
-  // Junk gate: numeric genres (SC genre IDs leaked through yt-dlp) and the
-  // placeholder "Music" are not genres — refuse, never write them anywhere.
-  if (/^\d+$/.test(rawGenre) || rawGenre.toLowerCase() === "music") return;
+  // Junk gate: numeric genres (SC genre IDs leaked through yt-dlp), the
+  // placeholder "Music", and umbrella strings (EDM/Electronic/Dance) are
+  // not actionable genres — refuse, never write them anywhere.
+  const lower = rawGenre.toLowerCase();
+  if (/^\d+$/.test(rawGenre) || lower === "music") return;
   const g = canonGenre(rawGenre);
+  if (UMBRELLA_STRINGS.has(g.toLowerCase())) return;
   if (t.genreVotes !== undefined) {
     // vote mode: collect, never write (the election owns the write)
     t.genreVotes.push({
@@ -325,7 +329,7 @@ export function applyScGenre(
  *  election owns the write. */
 function bcApplyGenre(t: StageCtx, page: BcPage): boolean {
   const g = bcGenre(page, canonGenre);
-  if (!g) return false;
+  if (!g || UMBRELLA_STRINGS.has(g.toLowerCase())) return false;
   if (t.genreVotes !== undefined) {
     t.genreVotes.push({
       rung: "bc",
