@@ -86,6 +86,12 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "Bench script: downbeats JSON from self-written DB column; try/catch returns [] on corrupt rows — bench skips the track, never throws.",
   "src/deck/megaset/sessions.ts::sessionResultStable::JSON.parse(session.result_json)":
     "Determinism check on validated persisted session; catch returns false on corrupt JSON — not a silent parse but an explicit integrity verdict.",
+  "src/fulltags/analysis/model-bench.ts::loadSample::JSON.parse(r.downbeats_json)":
+    "Model bench: downbeats JSON from self-written DB column; try/catch returns [] on corrupt rows — bench skips the track, never throws.",
+  "src/fulltags/analysis/model-bench.ts::loadSample::JSON.parse(r.genre_votes)":
+    "Model bench: genre_votes JSON from self-written DB column; nested try/catch defaults to 0 on corrupt JSON — vote count is advisory, never a throw.",
+  "src/fulltags/analysis/model-bench.ts::computeModelEmbeddings::JSON.parse(output)":
+    "Model bench: parses Python subprocess stdout (own protocol); throws on corrupt output — bench cannot continue without embeddings, failure is visible.",
 };
 
 test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => {
@@ -229,10 +235,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 29 (M6 #330): sessions.ts sessionResultStable adds one
     // sanctioned JSON.parse (determinism check — catch returns false,
     // not a recognized visible failure shape); audited +1, sanctioned +1.
-    audited: 84,
+    audited: 87,
     guarded: 56,
-    sanctioned: 28,
-    digest: "68f20564438227559e6891b23da0b1fb3a26074a4581fd13ece8cb98954c6e46",
+    sanctioned: 31,
+    digest: "57bf913bd4a027fb4bc94172efe82397d46596465488219ff2c6ff649af5f923",
   });
 });
 

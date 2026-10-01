@@ -59,7 +59,8 @@
         "src/fulltags/bench/edmformer.ts",
         "src/fulltags/bench/ak4-silver.ts",
         "src/fulltags/analysis/bar-rerun.ts",
-        "src/fulltags/analysis/section-bench.ts"
+        "src/fulltags/analysis/section-bench.ts",
+        "src/fulltags/analysis/model-bench.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
