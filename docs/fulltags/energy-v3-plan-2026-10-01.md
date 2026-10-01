@@ -1,473 +1,533 @@
-# Energy v3 — Multi-Feature Composite Without Manual Labels
+# Energy v3.1 — Multi-Tier Composite, Label-Free, Training-Free
 
-**Status:** 🧭 PLAN OF RECORD — Oct 1 2026
-**Supersedes:** v3 landscape §5 (pairwise-calibrated model requiring ~200 manual judgments)
+**Status:** 🧭 PLAN OF RECORD — Oct 1 2026 (rev 2)
+**Supersedes:** v3 rev 1 (single hand-weighted formula), v3 landscape §5
+(pairwise-calibrated model requiring ~200 manual judgments)
 **Root cause:** Energy 2.0 saturates because 50% of the weight is RMS loudness,
 30% is danceability (saturated at 0.98 on EDM), and 20% is arousal. Library
-average 8.5/10. The v3 §5 fix required 200 manual "which hits harder?"
-pairwise judgments — this plan eliminates that requirement entirely.
+average 8.5/10. This plan eliminates saturation with zero manual labels
+and zero gradient training.
 
 ---
 
-## 0. The Insight — No Manual Labels Needed
+## 0. Why v3.1 Over v3 rev 1
 
-The manual-label approach was proposed because a single signal (loudness)
-can't distinguish energy. But the research consensus is clear: **perceived
-music energy is a composite of 6–8 audio features**, and when you extract
-them all, normalize across the library, and combine with theoretically
-grounded weights, the result separates energy naturally — no human
-judgments required.
+The rev 1 plan had the right thesis (multi-feature composite) but three
+structural weaknesses identified through review:
 
-**Key finding from Mixed In Key's own documentation** (their patent, their
-tutorial): energy is primarily driven by **high-frequency content** — hi-hats,
-bright percussion, sharp synth stabs, and brighter production elements.
-Two tracks at the same BPM can feel completely different because one has
-more high-frequency energy. RMS loudness alone cannot capture this.
+1. **Circular validation.** E1–E9 percentile bands pass decile-spread by
+   construction — a random number generator passes too. Genre separation
+   is the only gate with teeth, and using it to tune weights AND validate
+   makes it circular.
+2. **Collinear features fight each other.** `hf_ratio` and `low_band_share`
+   are shares of the same total: bass up → HF share down mechanically.
+   Brightness is counted three times (hf_ratio, centroid, flux). Effective
+   brightness weight is ~0.40, recreating single-signal domination.
+3. **Source-quality bias.** The 4–20 kHz band measures YouTube Opus/AAC
+   codec lowpass (15–17 kHz cutoff varies by encode quality) as much as
+   music content.
 
-**Key finding from director-signals** (MIT-ish, no ML, deterministic):
-tension/energy is a composite of RMS + onset density + spectral features,
-measured per-block and aggregated. Their drop-impact metric (contrast
-between pre-drop build and post-drop energy persistence) is exactly the
-shape we need.
-
-**Key finding from essentia's feature extractors**: every signal we need is
-already extractable with the essentia library we already depend on (the
-mood ONNX pipeline uses essentia's MonoLoader + FrameGenerator). No new
-dependencies.
+v3.1 fixes all three with: **independent multi-tier estimation** (so tiers
+validate each other), **bloc-based weighting** (so correlated signals pool
+instead of stacking), and **non-circular causal validation gates** (section
+ordering + perturbation tests that a random number generator cannot pass).
 
 ---
 
-## 1. The Feature Set — 8 Signals, All Drop-Section
+## 1. Architecture — Three Independent Tiers
 
-All features are measured on the **drop section** (loudest 16-bar window,
-already computed by `drop-energy.ts` / `computeDropEnergy()`). This
-eliminates intro/outro dilution — the drop IS the energy.
+Instead of one formula with eight hand-weighted features, v3.1 runs three
+independent kinds of energy estimate. Where they agree, you get built-in
+validation for free.
 
-| # | Feature | What it captures | Source | Direction |
-|---|---------|-----------------|--------|-----------|
-| 1 | **High-frequency energy ratio** | Brightness/hardness — Mixed In Key's primary signal | `spectral_energyband_high / (low + mid_low + mid_high + high)` | ↑ = more energy |
-| 2 | **Onset density** | Rhythmic intensity — more hits per second = more drive | `onset_rate` (onsets/sec) | ↑ = more energy |
-| 3 | **Spectral centroid** | Overall brightness — higher centroid = brighter/harder | mean of spectral centroid over drop | ↑ = more energy |
-| 4 | **Dynamic complexity** (inverted) | Loudness dynamics — compressed/flat = more relentless energy | essentia `DynamicComplexity` | ↓ = more energy (inverted) |
-| 5 | **Spectral flux** | Timbral change rate — more flux = more activity | already in `bar_features.spectral_flux` | ↑ = more energy |
-| 6 | **Low-band energy share** | Bass weight — sub-bass presence adds physical impact | `spectral_energyband_low / total` | ↑ = more energy |
-| 7 | **LUFS (short-term, drop)** | Baseline loudness — still relevant, just not dominant | EBU R128 short-term over drop bars | ↑ = more energy |
-| 8 | **Arousal** | Model-derived perceptual intensity | ONNX emomusic head (1–9 DEAM) | ↑ = more energy |
+| Tier | Signals | Training needed | Already in repo |
+|------|---------|-----------------|-----------------|
+| **A. DSP features** | Onsets/beat, 4–12 kHz energy re:LUFS, 20–150 Hz energy re:LUFS, crest factor (inverted dynamic complexity), spectral flux, drop LUFS, BPM | None | `bar_features` (LUFS, onset density, low-band share, flux), `computeDropEnergy()`, `measureRms()` |
+| **B. Pretrained effnet heads** | `mood_aggressive`, `engagement`, `approachability` (inverted), arousal (drop window) | None — downloaded ONNX from essentia model zoo, same discogs-effnet embedding the mood pipeline already computes | `models.ts` already runs `mood_aggressive` + effnet embeddings; `engagement` + `approachability` heads are ~500 KB ONNX each |
+| **C. Optional CLAP** (future) | Cosine similarity of drop audio to "peak-time high-energy club track" minus "chill relaxed lounge track" | None — text prompts only | Not yet wired |
 
-### Why these 8?
-
-- **Features 1–3** (high-freq ratio, onset density, spectral centroid) are
-  the core perceptual-energy signals identified across Mixed In Key's
-  documentation, the director-signals project, and MIR literature. A chill
-  lounge track with smooth low-mids scores low on all three; a peak-time
-  banger with sharp hi-hats, dense percussion, and bright synths scores high.
-
-- **Feature 4** (dynamic complexity, inverted) captures compression level.
-  Club masters are hyper-compressed (low dynamic complexity = relentless
-  energy). A track with big dynamic swings (e.g., classical crossover)
-  has high dynamic complexity but less perceived "energy" in a DJ context.
-
-- **Feature 5** (spectral flux) captures timbral activity — a track with
-  constantly changing timbres feels more energetic than a static loop.
-
-- **Feature 6** (low-band energy) captures physical bass impact — critical
-  for EDM where sub-bass is the body-felt energy component.
-
-- **Feature 7** (LUFS) keeps loudness as ONE signal among eight, not the
-  only one. At 10% weight it contributes proportionally.
-
-- **Feature 8** (arousal) leverages the ONNX model we already run. Arousal
-  is the only signal that captures "excitement" beyond pure acoustics.
+All tiers run on the **LUFS-normalized drop section** (loudest 16-bar
+window, loudness-normalized to a fixed short-term LUFS before any spectral
+feature extraction).
 
 ---
 
-## 2. The Algorithm — Z-Score + Weighted Composite + Percentile Band
+## 2. Tier A — DSP Features (Fixed From Rev 1)
 
-No training data. No pairwise judgments. Pure math.
+### 2.1 Fixes Applied
+
+| Rev 1 problem | v3.1 fix |
+|---------------|----------|
+| `hf_ratio` and `low_band_share` cancel (compositional shares of same total) | Measure bass and HF as **dB above drop LUFS** — absolute spectral energy relative to integrated loudness, not shares |
+| HF band goes to 20 kHz (measures codec quality) | Cap at **4–12 kHz** (codec-safe; YouTube lowpass is ≥15 kHz) |
+| Onset density (onsets/sec) is basically BPM | Use **onsets per beat** — tempo-independent rhythmic complexity |
+| Spectral centroid triple-counts brightness | Move centroid to a **tie-break** within the Brightness bloc, not a top-level feature |
+| Plain z-scores compress on skewed/heavy-tailed distributions | Use **rank normalization** (library percentile) — robust to outliers |
+| Arousal measured on whole track, not drop | **Re-run emomusic head on the drop window** |
+| `EnergyBand` called on raw audio | Correct: **frame → Windowing → Spectrum → EnergyBand**, mean across frames |
+| `LoudnessEBUR128` called on mono | Correct: use **`AudioLoader`** (stereo) for EBU R128 |
+| No LUFS normalization before spectral features | **Normalize drop to fixed LUFS** before computing any spectral feature (prevents mastering loudness leaking into every spectral ratio) |
+| No fallback for tracks without a real drop | If drop contrast (drop mean LUFS − rest mean LUFS) < 3 dB: **75% drop + 25% whole-track median**, flag `low_drop_contrast` |
+| BPM not explicit | Add BPM explicitly at 0.05–0.08 weight; use onsets/beat for density |
+
+### 2.2 Tier A Feature Set
+
+| Feature | What it captures | Extraction |
+|---------|-----------------|------------|
+| **Onsets per beat** | Rhythmic complexity (tempo-independent) | `onset_rate / (bpm/60)` from bar_features |
+| **BPM** | Tempo contribution (explicit, controlled weight) | From beats ledger |
+| **HF energy re:LUFS** | Brightness/hardness (4–12 kHz) | `frame→Windowing→Spectrum→EnergyBand(4k,12k)` averaged, expressed as dB above drop LUFS |
+| **Low energy re:LUFS** | Bass physical impact (20–150 Hz) | `EnergyBand(20,150)` dB above drop LUFS |
+| **Crest factor** (inverted dynamic complexity) | Compression level — lower dynamics = more relentless | `essentia.DynamicComplexity`, inverted |
+| **Spectral flux** | Timbral change rate | Already in `bar_features.spectral_flux` |
+| **Drop LUFS** | Baseline loudness (diminished role) | EBU R128 short-term, stereo via `AudioLoader` |
+
+---
+
+## 3. Tier B — Pretrained Essentia Heads (New)
+
+These run on the **same discogs-effnet 1280-d embedding** the mood
+pipeline already computes. Adding new heads is ~500 KB of ONNX download
+per head and zero training.
+
+| Head | Model | What it captures | Direction |
+|------|-------|-----------------|-----------|
+| **Aggressive** | `mood_aggressive-discogs-effnet-1.onnx` | Hard/abrasive production | ↑ = more energy |
+| **Engagement** | `engagement_regression-discogs-effnet-1.onnx` | "Lean forward" attention demand | ↑ = more energy |
+| **Approachability** (inverted) | `approachability_regression-discogs-effnet-1.onnx` | Accessible / mainstream feel | ↓ = more energy (inverted: less approachable = harder) |
+| **Arousal** (drop) | `emomusic-audioset-vggish-2.onnx` | Perceptual excitement (1–9 DEAM) | ↑ = more energy |
+
+**Critical change from rev 1:** arousal is re-run on the **drop window
+audio**, not read from the whole-track mood table. The whole-track value
+dilutes the drop's intensity with intro/outro calm.
+
+### Implementation
+
+The effnet embedding for the drop window is already available when
+`sectionEmbedding` is computed (models.ts already supports this for
+mood). Add the three new heads to `MODEL_HEADS`, run them on the drop
+embedding, and store results alongside the Tier A features.
 
 ```python
-import numpy as np
-
-def compute_energy_v3(features: dict, library_stats: dict) -> float:
-    """Compute energy v3 from 8 features + library z-score normalization.
-
-    features: dict with keys matching FEATURE_WEIGHTS
-    library_stats: dict of {feature: (mean, std)} across the library
-    """
-    FEATURE_WEIGHTS = {
-        'hf_ratio':           0.20,  # high-freq energy ratio
-        'onset_density':      0.15,  # onsets per second
-        'spectral_centroid':  0.12,  # brightness
-        'dynamic_complexity': 0.10,  # inverted — low complexity = more energy
-        'spectral_flux':      0.10,  # timbral change rate
-        'low_band_share':     0.10,  # bass impact
-        'lufs_drop':          0.10,  # loudness (diminished)
-        'arousal':            0.13,  # model-derived
-    }
-
-    z_scores = {}
-    for feat, weight in FEATURE_WEIGHTS.items():
-        val = features[feat]
-        mean, std = library_stats[feat]
-        if std < 1e-6:
-            z_scores[feat] = 0.0
-        else:
-            z = (val - mean) / std
-            # Invert dynamic_complexity: lower complexity = higher energy
-            if feat == 'dynamic_complexity':
-                z = -z
-            z_scores[feat] = z
-
-    # Weighted sum of z-scores
-    composite = sum(z_scores[f] * w for f, w in FEATURE_WEIGHTS.items())
-    return composite
-
-
-def energy_band_v3(composite: float, library_composites: list[float]) -> int:
-    """Percentile-rank the composite score → E1–E9.
-
-    The library_composites list is a FROZEN reference — once computed,
-    it does not change until deliberately re-baselined.
-    """
-    sorted_lib = sorted(library_composites)
-    rank = bisect_right(sorted_lib, composite) / len(sorted_lib)
-    return max(1, min(9, math.ceil(rank * 9)))
+# New heads — same embedding, new ONNX classifiers
+ENERGY_HEADS = {
+    "aggressive":     "mood_aggressive-discogs-effnet-1.onnx",       # already loaded
+    "engagement":     "engagement_regression-discogs-effnet-1.onnx",  # new download
+    "approachability":"approachability_regression-discogs-effnet-1.onnx", # new download
+}
+# Run on drop-window effnet embedding (1280-d), not whole-track
+for name, onnx_file in ENERGY_HEADS.items():
+    sess = ort.InferenceSession(f"{MODEL_DIR}/{onnx_file}", providers=PROV)
+    score = sess.run(["activations"], {"embeddings": drop_emb1280})[0].flatten()
+    # regression heads output a single value; classification heads use idx 0
 ```
 
-### Why Z-Score Normalization?
+---
 
-Each feature has a completely different scale (onset_rate is 0–20
-onsets/sec; LUFS is -30 to -5 dB; arousal is 1–9). Z-scoring puts
-every feature on the same scale (mean=0, std=1) before combining.
+## 4. Combining Signals — Blocs, Not Individual Weights
 
-This is **the standard approach in MIR for multi-feature composites**
-(AcousticBrainz, essentia's music extractor, and every scikit-learn
-pipeline normalize first).
+### 4.1 Dead-Signal Auto-Exclusion
 
-### Why Frozen Reference?
+Before combining, check every signal's **interquartile range** across the
+frozen library. If the IQR is below a threshold (effectively: the signal
+barely varies), it is **excluded and logged**. This rule is what would have
+caught danceability stuck at 0.98 in Energy 2.0.
 
-The percentile banding uses a **frozen snapshot** of all library
-composite scores. This prevents "grade inflation" — adding new tracks
-doesn't shift everyone's bands. Re-baseline only when deliberately
-chosen (e.g., after a major library expansion).
+```python
+def is_dead_signal(values: list[float], iqr_threshold: float = 0.05) -> bool:
+    q25, q75 = np.percentile(values, [25, 75])
+    return (q75 - q25) < iqr_threshold
+```
+
+### 4.2 Bloc Structure
+
+Group correlated signals into blocs. Average within each bloc (pooling
+correlated signals instead of stacking them). Weight the blocs.
+
+| Bloc | Members | Weight |
+|------|---------|--------|
+| **Rhythm** | Onsets/beat, BPM | 0.20 |
+| **Brightness** | 4–12 kHz energy re:LUFS (spectral centroid as tie-break within bloc) | 0.20 |
+| **Body** | 20–150 Hz energy re:LUFS, crest factor (inverted dynamic complexity), drop LUFS | 0.20 |
+| **Activity** | Spectral flux | 0.10 |
+| **Perceptual** (Tier B) | Arousal (drop), aggressive, engagement, approachability (inv), [CLAP when added] | 0.30 |
+
+**Energy = weighted mean of the bloc percentiles**, converted to E1–E9
+against the frozen reference.
+
+### 4.3 Rank Normalization (Not Z-Scores)
+
+Rev 1 used z-scores, which compress on skewed/heavy-tailed distributions.
+v3.1 converts every signal to a **library percentile** using the frozen
+reference. This is robust to outliers, all signals land on [0, 1], and it
+doesn't matter that some signals have no natural units.
+
+```python
+def to_percentile(value: float, frozen_sorted: list[float]) -> float:
+    """Convert a raw value to its library percentile [0, 1]."""
+    rank = bisect_right(frozen_sorted, value)
+    return rank / len(frozen_sorted)
+```
+
+### 4.4 Weight Selection — Presets, Not Hand-Picked
+
+Instead of committing to one set of hand-picked weights, score a fixed
+set of **weight presets** against the automatic validation gates (§5).
+Nothing is fitted or optimized: each preset is scored, the best one ships.
+
+| Preset | Rhythm | Brightness | Body | Activity | Perceptual |
+|--------|--------|------------|------|----------|------------|
+| **Equal blocs** | 0.20 | 0.20 | 0.20 | 0.20 | 0.20 |
+| **Default** (table above) | 0.20 | 0.20 | 0.20 | 0.10 | 0.30 |
+| **DSP-heavy** | 0.25 | 0.25 | 0.25 | 0.15 | 0.10 |
+| **Perceptual-heavy** | 0.15 | 0.15 | 0.15 | 0.05 | 0.50 |
+| **PC1 loadings** | From PCA Phase 0 — use PC1's component loadings mapped to blocs | |
+
+No labels and no gradient training. Each preset is scored on the gates
+below and the best one ships.
 
 ---
 
-## 3. Implementation — What to Build
+## 5. Validation — Non-Circular, Causal, Automatic
 
-### 3.1 Feature Extraction (Python, essentia)
+### 5.1 The Problem With Rev 1's Gates
 
-A new analysis stage that extracts the 8 features per track. Runs on the
-drop section (from beats ledger downbeats → `findDropSection()`).
+Decile spread passes by construction for percentile bands. Genre
+separation becomes circular when used for both weight tuning AND
+validation. Rev 1's validation could not distinguish a real energy
+measure from a random number generator.
 
-**File:** `src/fulltags/analysis/energy-features.py` (Python, via uv)
+### 5.2 New Validation Gates
+
+| Gate | How it works | Pass | Why it's non-circular |
+|------|-------------|------|----------------------|
+| **Section ordering** | Score intro, breakdown, build, and drop sections of every track with the same pipeline (after LUFS-normalizing each section) | Drop > breakdown in ≥ 85% of tracks | Uses structure we already decode (PSSI phrases) — the energy score has no access to section labels |
+| **Degradation test** | 4 kHz lowpass, drums attenuated 9 dB, and bass-cut versions must each score lower than the original | ≥ 95% of tracks | Causal: removing energy-producing content must reduce the score |
+| **Gain invariance** | +3 dB gain should barely change the band | ≤ 1 band shift in 95% of tracks | Energy should not be just loudness |
+| **Tier agreement** | Rank correlation between Tier A composite and Tier B composite (two unrelated estimation methods) | Spearman ρ ≥ 0.4 | Two independent methods agreeing is evidence |
+| **Duplicate consistency** | Different rips or versions of the same track (from fingerprint clusters) | ±1 band | Stability check |
+| **No bloc dominates** | Each bloc's share of the final score's variance | ≤ 40% per bloc | Prevents hidden single-signal domination |
+| **Not just BPM** | Correlation of final score with BPM | |ρ| < 0.5 | BPM contributes but doesn't dominate |
+| **Not just loudness** | Correlation of final score with raw LUFS | |ρ| < 0.5 | Loudness contributes but doesn't dominate |
+| **Genre direction** | Hard Techno and D&B average higher than Ambient and Downtempo | Cohen's d > 0.5 | Sanity check only, NOT used for weight tuning |
+
+**Critical constraint:** genre direction is a **sanity check**, never a
+tuning signal. Weights are selected by preset scoring on all gates
+*except* genre direction, then genre direction is reported as a read-only
+diagnostic.
+
+### 5.3 Section-Ordering Gate (Implementation Detail)
+
+We already decode PSSI phrase structures in `anlz.ts`:
+- `phraseInOutBars()` finds intro and outro sections
+- `dropOrRoll()` classifies drops vs rolling grooves
+- Phrase kinds map to: intro (kind=1), chorus/drop (kind=5 HIGH mood),
+  outro (kind=6 HIGH mood), with breakdown and build implied by position
 
 ```python
-# Sketch — the actual module will use essentia extractors
-from essentia.standard import (
-    MonoLoader, FrameGenerator, Windowing, Spectrum,
-    SpectralCentroidTime, OnsetRate, DynamicComplexity,
-    EnergyBand, SpectralContrast, LoudnessEBUR128
+# Per-track: score each section with the energy pipeline
+# (all sections LUFS-normalized to the same level first)
+sections = extract_pssi_sections(track)  # intro, breakdown, build, drop
+section_energies = {name: energy_pipeline(audio[s:e]) for name, (s, e) in sections}
+
+# Kendall tau between composite and expected section order
+expected_order = {'intro': 0, 'breakdown': 1, 'build': 2, 'drop': 3}
+tau = kendalltau(
+    [expected_order[s] for s in sorted_sections],
+    [section_energies[s] for s in sorted_sections]
 )
-
-def extract_energy_features(path: str, drop_start_s: float, drop_end_s: float) -> dict:
-    """Extract all 8 energy features from the drop section."""
-    audio = MonoLoader(filename=path, sampleRate=44100)()
-    sr = 44100
-    s, e = int(drop_start_s * sr), int(drop_end_s * sr)
-    drop_audio = audio[s:e]
-
-    # 1. Frequency-band energy ratios
-    low  = EnergyBand(startCutoffFrequency=20,  stopCutoffFrequency=150)(drop_audio)
-    mid_lo = EnergyBand(startCutoffFrequency=150, stopCutoffFrequency=800)(drop_audio)
-    mid_hi = EnergyBand(startCutoffFrequency=800, stopCutoffFrequency=4000)(drop_audio)
-    high = EnergyBand(startCutoffFrequency=4000, stopCutoffFrequency=20000)(drop_audio)
-    total = low + mid_lo + mid_hi + high + 1e-10
-    hf_ratio = float(high / total)
-    low_band_share = float(low / total)
-
-    # 2. Onset density
-    _, onset_rate = OnsetRate()(drop_audio)
-
-    # 3. Spectral centroid (mean over frames)
-    # ... frame-level extraction, mean
-
-    # 4. Dynamic complexity
-    dc, _ = DynamicComplexity(sampleRate=sr)(drop_audio)
-
-    # 5. Spectral flux (already in bar_features if available)
-    # ... frame-level spectral flux, mean
-
-    # 6. LUFS (short-term over drop section)
-    # ... EBU R128 loudness
-
-    # 7. Arousal (already in mood table — read, don't re-compute)
-
-    return {
-        'hf_ratio': hf_ratio,
-        'onset_density': float(onset_rate),
-        'spectral_centroid': centroid_mean,
-        'dynamic_complexity': float(dc),
-        'spectral_flux': flux_mean,
-        'low_band_share': low_band_share,
-        'lufs_drop': lufs_val,
-        'arousal': arousal_val,  # from mood table
-    }
+# Gate: median tau > 0.6 across all tracks with 4+ sections
 ```
 
-### 3.2 Library Normalization (TypeScript)
+### 5.4 Degradation Tests (Implementation Detail)
 
-After all tracks are analyzed, compute library-wide mean/std per feature
-and store as a frozen reference.
-
-**File:** `src/fulltags/analysis/energy-composite.ts`
-
-```typescript
-interface EnergyFeatures {
-  hfRatio: number;
-  onsetDensity: number;
-  spectralCentroid: number;
-  dynamicComplexity: number;
-  spectralFlux: number;
-  lowBandShare: number;
-  lufsDrop: number;
-  arousal: number;
+```python
+# Three degradations, each applied to the drop section:
+degradations = {
+    'lowpass_4k':  lambda audio: apply_lowpass(audio, 4000),    # remove brightness
+    'drums_minus9': lambda audio: attenuate_drums(audio, -9),   # reduce rhythmic energy
+    'bass_cut':    lambda audio: apply_highpass(audio, 150),    # remove physical bass
 }
 
-interface LibraryStats {
-  mean: Record<string, number>;
-  std: Record<string, number>;
-  frozenComposites: number[];  // all composite scores at freeze time
-  frozenAt: string;            // ISO timestamp
-}
-
-const WEIGHTS: Record<string, number> = {
-  hfRatio:           0.20,
-  onsetDensity:      0.15,
-  spectralCentroid:  0.12,
-  dynamicComplexity: 0.10,  // inverted
-  spectralFlux:      0.10,
-  lowBandShare:      0.10,
-  lufsDrop:          0.10,
-  arousal:           0.13,
-};
-
-function compositeEnergy(features: EnergyFeatures, stats: LibraryStats): number {
-  let sum = 0;
-  for (const [key, weight] of Object.entries(WEIGHTS)) {
-    const val = features[key as keyof EnergyFeatures];
-    const mean = stats.mean[key]!;
-    const std = stats.std[key]!;
-    const z = std < 1e-6 ? 0 : (val - mean) / std;
-    sum += (key === 'dynamicComplexity' ? -z : z) * weight;
-  }
-  return sum;
-}
+for name, degrade in degradations.items():
+    degraded_audio = degrade(drop_audio)
+    degraded_score = energy_pipeline(degraded_audio)
+    assert degraded_score < original_score  # must hold for ≥95% of tracks
 ```
 
-### 3.3 DB Schema
+### 5.5 Confidence Score (Free)
+
+If Tier A and Tier B percentiles for a track disagree by more than 30
+percentile points, store `energy_confidence = 'low'`. CrateDeck can
+display it, and `energy-why` shows which bloc caused the disagreement.
+
+### 5.6 Baseline Comparison
+
+Energy 2.0 and v3 rev 1 run through the **same gates** as baselines.
+**Ship v3.1 only if it wins.** This prevents regressions and makes the
+comparison honest.
+
+---
+
+## 6. Phase 0 — PCA + Correlation Matrix (Prerequisite)
+
+Before committing to ANY weights, run a correlation matrix and PCA on the
+extracted features across the library. This takes about an hour and
+prevents the "eight hand-picked weights that are really one hidden
+judgment" problem.
+
+### 6.1 What to check
+
+1. **Correlation matrix**: identify pairs with |r| > 0.7. Correlated
+   features go in the same bloc. If two features in different blocs
+   correlate > 0.7, merge the blocs.
+2. **PCA PC1**: if it explains ≥ 40% of variance and its loadings have
+   intuitive signs (positive for onsets, brightness, aggression; negative
+   for dynamic complexity), its loadings are a genuinely label-free
+   energy axis. Use PC1 loadings mapped to blocs as the fifth weight
+   preset.
+3. **Variance check on arousal**: the DEAM training set has almost no EDM.
+   If arousal variance on the library is IQR < 0.5, it may be as
+   saturated as danceability — auto-exclude via the dead-signal rule.
+
+### 6.2 What to output
+
+- Correlation heatmap (for docs)
+- PC1 loadings + variance explained
+- Dead-signal report (any feature with IQR below threshold)
+- Recommended bloc assignments (validated against the correlation matrix)
+
+---
+
+## 7. DB Schema
 
 ```sql
--- Per-track energy features (drop section)
+-- Per-track energy features (drop section, all tiers)
 CREATE TABLE energy_features (
   video_id             TEXT PRIMARY KEY,
-  hf_ratio             REAL,
-  onset_density        REAL,
-  spectral_centroid    REAL,
-  dynamic_complexity   REAL,
-  spectral_flux        REAL,
-  low_band_share       REAL,
-  lufs_drop            REAL,
-  arousal              REAL,
-  composite_z          REAL,   -- weighted z-score composite
+  -- Tier A: DSP
+  onsets_per_beat       REAL,    -- onsets/beat (tempo-independent)
+  bpm                  REAL,    -- from beats ledger
+  hf_energy_re_lufs    REAL,    -- 4–12 kHz dB above drop LUFS
+  low_energy_re_lufs   REAL,    -- 20–150 Hz dB above drop LUFS
+  crest_factor         REAL,    -- inverted dynamic complexity
+  spectral_flux        REAL,    -- mean frame-to-frame change
+  lufs_drop            REAL,    -- EBU R128 short-term, drop section
+  spectral_centroid    REAL,    -- tie-break within brightness bloc
+  -- Tier B: pretrained effnet heads (drop window)
+  aggressive           REAL,    -- mood_aggressive head on drop embedding
+  engagement           REAL,    -- engagement regression head
+  approachability      REAL,    -- approachability regression head (inverted)
+  arousal_drop         REAL,    -- emomusic arousal on drop window
+  -- Composite
+  composite_rank       REAL,    -- weighted mean of bloc percentiles
   energy_band          INTEGER, -- E1–E9
+  energy_confidence    TEXT,    -- 'high' or 'low' (tier disagreement)
+  -- Metadata
   drop_start_s         REAL,
   drop_end_s           REAL,
-  model_version        TEXT NOT NULL DEFAULT 'energy-v3',
+  drop_contrast_db     REAL,    -- drop mean LUFS − rest mean LUFS
+  low_drop_contrast    INTEGER DEFAULT 0,  -- flag: drop barely stands out
+  weight_preset        TEXT NOT NULL,       -- which preset was used
+  model_version        TEXT NOT NULL DEFAULT 'energy-v3.1',
   created_at           TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Library-wide normalization reference (frozen)
 CREATE TABLE energy_reference (
   id                   INTEGER PRIMARY KEY DEFAULT 1,
-  stats_json           TEXT NOT NULL,  -- {feature: {mean, std}}
-  frozen_composites    TEXT NOT NULL,  -- JSON array of all composite scores
+  -- Per-signal: sorted values for percentile lookup
+  signals_json         TEXT NOT NULL,  -- {signal_name: sorted_values[]}
+  -- Per-bloc: frozen sorted bloc percentiles
+  blocs_json           TEXT NOT NULL,  -- {bloc_name: sorted_bloc_means[]}
+  -- Composites
+  frozen_composites    TEXT NOT NULL,  -- sorted composite scores
+  -- Diagnostics
+  dead_signals         TEXT,           -- JSON array of excluded signal names
+  correlation_matrix   TEXT,           -- JSON {pair: r_value}
+  pc1_loadings         TEXT,           -- JSON {signal: loading}
+  pc1_variance_pct     REAL,           -- % variance explained by PC1
+  -- Identity
   track_count          INTEGER NOT NULL,
+  weight_preset        TEXT NOT NULL,
   frozen_at            TEXT NOT NULL,
   model_version        TEXT NOT NULL
 );
 ```
 
-### 3.4 CLI Command
+---
+
+## 8. CLI Commands
 
 ```bash
-# Extract features for all tracks (uses drop section from beats ledger)
+# Phase 0: correlation matrix + PCA (run before choosing weights)
+megadj energy --phase0
+
+# Phase 1: extract all features (Tier A + Tier B, drop section)
 megadj energy --extract --jobs 4
 
-# Compute library stats + freeze reference
-megadj energy --freeze
+# Phase 2: freeze reference + score all presets + run gates
+megadj energy --freeze --score
 
-# Compute composite scores + E1–E9 bands against frozen reference
-megadj energy --score
+# Phase 2 output: gate results for each preset
+megadj energy --gates
 
-# Full pipeline (extract → freeze → score)
+# Full pipeline (extract → phase0 → freeze → score → gates)
 megadj energy --full --jobs 4
 
-# Diagnostic: show feature breakdown for one track
+# Shadow mode: diff report of biggest movers vs Energy 2.0
+megadj energy --shadow --top 30
+
+# Diagnostic: show bloc breakdown for one track
 megadj energy-why <video_id>
 
-# Re-baseline: refreeze the reference (deliberate action)
+# Switch over (only after gates pass)
+megadj energy --apply
+
+# Re-baseline (deliberate action)
 megadj energy --refreeze
 ```
 
 ---
 
-## 4. Validation — No Manual Labels Needed
+## 9. Migration Path
 
-### 4.1 Distribution Gate (existing bench stage)
-
-The existing `bench/stages/energy.ts` already checks:
-- Each decile holds 8–12% of the library (spread gate)
-- Top band share < 15% (saturation gate)
-
-**Expected improvement:** Current Energy 2.0 has avg 8.5 with >15% in the
-top band (FAILS the saturation gate). Energy v3's z-score normalization
-guarantees spread because it is *defined* as a distribution-relative
-score.
-
-### 4.2 Automatic Validation (No Labels)
-
-| Check | What it tests | Gate |
-|-------|--------------|------|
-| **Decile spread** | Each band E1–E9 holds ~11% ± 3% | 8–12% per band |
-| **Genre-family separation** | High-energy genres (Hard Techno, D&B) should have higher mean energy than low-energy genres (Ambient, Downtempo) | Cohen's d > 0.5 between extreme families |
-| **Arousal correlation** | Energy should correlate with arousal (r ~ 0.3–0.6) but NOT be arousal (r < 0.8) | 0.3 < r < 0.8 |
-| **BPM independence** | Energy should NOT just be BPM (two house tracks at 124 BPM should differ in energy) | |r| < 0.3 with BPM |
-| **RMS independence** | Energy should NOT just be loudness | |r| < 0.5 with RMS |
-| **Feature contribution** | No single feature should dominate (max contribution < 50% of variance) | Max component loading < 0.50 |
-| **Known-outlier check** | A chill deep house track at 122 BPM should NOT be E8+ | Spot-check 10 manually verified edge cases |
-
-### 4.3 Cross-Validation Against Mixed In Key (Optional)
-
-If any tracks in the library have Mixed In Key energy tags (from TXXX or
-prior analysis), compare v3 bands against them:
-- Agreement ≥ 70% within ±1 band = passes
-- This is a bonus validation, not a requirement
-
----
-
-## 5. Migration Path
+### Phase 0: PCA + Correlation (30 min)
+- Extract raw Tier A + Tier B features for all tracks
+- Compute correlation matrix, PCA, dead-signal check
+- Output diagnostic report (correlation heatmap, PC1 loadings)
+- Validate bloc assignments against correlation matrix
+- Store Phase 0 results in `energy_reference`
 
 ### Phase 1: Feature Extraction (1 session)
-- Write the Python energy feature extractor
-- Run on all 3,800+ tracks via `--jobs 4` (~20 min)
+- Write the Python energy feature extractor with corrected essentia calls:
+  - `frame → Windowing → Spectrum → EnergyBand` (not raw audio)
+  - `AudioLoader` for stereo LUFS (not MonoLoader)
+  - HF band capped at 12 kHz
+  - LUFS-normalize drop section before spectral features
+  - Arousal re-run on drop window, not read from whole-track mood table
+- Download `engagement` and `approachability` ONNX heads (~500 KB each)
+- Run on all 3,800+ tracks via `--jobs 4`
 - Store in `energy_features` table
-- No writes to tracks.energy or comments yet
+- **No writes to tracks.energy or comments yet**
 
-### Phase 2: Library Freeze + Score (same session)
-- Compute library-wide mean/std per feature
+### Phase 2: Freeze + Score + Select (same session)
+- Compute library-wide sorted values per signal for percentile lookup
 - Freeze reference set
-- Compute composite z-scores + E1–E9 bands
-- Run all validation gates
-- Compare distribution against Energy 2.0
+- Score all five weight presets against all validation gates
+- Pick the preset that passes the most gates (ties: prefer Default)
+- Compare distribution against Energy 2.0 on the same gates
+- **Ship v3.1 only if it beats Energy 2.0 on every gate**
 
-### Phase 3: Switchover
-- Update `stageEnergy()` in pipeline-stages.ts to read from
-  `energy_features.composite_z` instead of `energyFromLufs()`
-- Update comment-sync.kit.py `resolve_data_v4()` to use the new
-  energy_band from `energy_features` table
+### Phase 3: Shadow Mode (brief)
+- Generate diff report: the 30 biggest band movers vs Energy 2.0
+- For each mover, show the bloc breakdown (which blocs pushed it up/down)
+- Listen to a few of the big movers (~10 min, discretionary, not required)
+- Sanity-check only — no labels collected
+
+### Phase 4: Switchover
+- Update `stageEnergy()` in `pipeline-stages.ts` to read from
+  `energy_features.composite_rank` instead of `energyFromLufs()`
+- Update `comment-sync.kit.py` `resolve_data_v4()` to use the new
+  `energy_band` from `energy_features` table
 - Update `tracks.energy` column to store the composite score
 - Re-run `rb-comment-sync` to update all E1–E9 bands in comments
-- Retire `energyFromLufs()`, `measureRms()`, and Formula 3 fallback
+- Retire `energyFromLufs()`, `measureRms()`, and the arousal-only
+  fallback in `comment-sync.kit.py`
 
-### Phase 4: Bench Verification
-- Run `megadj bench run energy` with the new data
-- Verify all gates pass (decile spread, saturation, correlations)
+### Phase 5: Bench Verification
+- Run `megadj bench run energy` with all new gates
+- Verify all gates pass
+- Record Energy 2.0 → v3.1 comparison as a bench baseline
 - Update docs with measured numbers
 
 ---
 
-## 6. What This Deletes
+## 10. What This Deletes
 
 - `energyFromLufs()` (pure RMS → 1–10 mapping) — replaced by composite
 - Energy 2.0 blend (`0.5·RMS + 0.3·dance + 0.2·arousal`) — replaced
-- `energy_from_mood` arousal-only fallback in comment-sync.kit.py — replaced
-- The entire "three formulas that disagree" problem — one formula
+- `energy_from_mood` arousal-only fallback in `comment-sync.kit.py` — replaced
+- `energy-model.ts` (Bradley-Terry pairwise model) — never used in
+  production, superseded by the label-free composite
+- The entire "three formulas that disagree" problem — one pipeline
 
 ---
 
-## 7. What This Keeps
+## 11. What This Keeps
 
 - `drop-energy.ts` / `computeDropEnergy()` — reused for drop-section
-  window identification
-- `bar_features` table — reused for per-bar spectral flux and LUFS
-- `energyBand()` / `energyBandFromScores()` — reused for percentile
-  banding (the math is identical, just the input values change)
-- `findDropSection()` — reused for drop timing
-- Bench harness energy stage — extended with new validation gates
+  window identification (extended with drop contrast calculation)
+- `bar_features` table — reused for per-bar LUFS, onset density,
+  low-band share, spectral flux
+- `energyBand()` / `energyBandFromScores()` in `comment-v4.ts` — reused
+  for E1–E9 percentile banding (input values change, banding math same)
+- PSSI phrase parsing (`anlz.ts`) — reused for section-ordering gate
+- `mood_aggressive` head in `models.ts` — reused as Tier B signal
+- Discogs-effnet embedding pipeline — reused for all Tier B heads
 - Track color mapping (E1–E9 → ColorID) — unchanged
+- Bench harness energy stage — extended with new gates
 
 ---
 
-## 8. Research Sources
+## 12. Scalability
+
+- **Per track:** one audio decode, one embedding pass (already run for
+  mood), DSP over a single 16-bar drop. Roughly 0.3 s plus the existing
+  mood cost, fully parallel with `--jobs N`.
+- **New tracks:** scored against the frozen percentile tables at negligible
+  cost, no recomputation for the rest of the library.
+- **Re-baselining:** sorts each signal once — trivial even at 50k+ tracks.
+- **Adding a new head later:** new column + inclusion in the Perceptual
+  bloc. Nothing else changes.
+
+---
+
+## 13. Fixes Carried Over From the v3 Critique
+
+| Fix | Detail |
+|-----|--------|
+| Cap HF at 12 kHz | YouTube codec cutoffs at 15–17 kHz don't masquerade as brightness |
+| LUFS-normalize drop before spectral features | Mastering loudness doesn't leak into every spectral ratio |
+| Energy relative to loudness, not shares | Bass and HF as dB above LUFS — they stop cancelling each other |
+| Arousal on drop window, not whole track | Drop-only arousal matches the measurement window of all other features |
+| Correct essentia calls | `EnergyBand` gets a spectrum (frame→window→spectrum→band); LUFS gets stereo via `AudioLoader` |
+| No-drop fallback | If drop contrast < 3 dB: 75% drop + 25% whole-track median, flag `low_drop_contrast` |
+| BPM as explicit signal | Controlled weight (0.05–0.08 within Rhythm bloc), not smuggled through onset density |
+| Onsets per beat | Tempo-independent rhythmic complexity — D&B at 174 doesn't auto-win |
+
+---
+
+## 14. Research Sources
 
 | Source | Key Contribution | Licence |
 |--------|-----------------|---------|
 | **Mixed In Key** (official docs) | High-frequency content is the primary energy signal, not loudness | Proprietary (observation only) |
 | **director-signals** (le-director/director-signals) | Deterministic tension = RMS + onset density + spectral features, no ML | MIT-adjacent |
-| **essentia** (MTG/essentia) | DynamicComplexity, EnergyBand, SpectralContrast, OnsetRate extractors | AGPL (already a dependency) |
+| **essentia** (MTG/essentia) | DynamicComplexity, EnergyBand, SpectralContrast, OnsetRate extractors + pretrained classification heads (engagement, approachability, mood_aggressive) | AGPL (already a dependency) |
 | **DynaMix** (makalin/dynamix) | RMS energy profiles + section detection for DJ transitions | Open source |
 | **dj-track-similarity** (MeteorBurn) | SONARA features: rhythm, dynamics, timbre, tonal, BPM, key, energy | Personal use |
 | **djkr8** (djkr8) | Energy flow management with E1–E5 range, constraint-based set ordering | Open source |
 | **Streich 2007** | DynamicComplexity algorithm: average absolute deviation from global loudness on dB scale | Academic |
-| **AcousticBrainz** | Z-score normalization of multi-feature composites across large libraries | CC0 |
-| **Huron, *Sweet Anticipation*** | ITPRA framework (Imagination–Tension–Prediction–Reaction–Appraisal) — theoretical grounding for tension/energy as a multi-factor composite | Academic |
+| **AcousticBrainz** | Rank normalization of multi-feature composites across large libraries | CC0 |
+| **Huron, *Sweet Anticipation*** | ITPRA framework — theoretical grounding for tension/energy as multi-factor composite | Academic |
 
 ---
 
-## 9. Weights Rationale
+## 15. Relationship to v3 Plan
 
-The weights are NOT arbitrary — they follow the consensus from the
-research:
-
-| Weight | Feature | Rationale |
-|--------|---------|-----------|
-| 0.20 | High-freq ratio | Mixed In Key's documented primary signal; the single biggest differentiator between "chill" and "banger" at the same BPM |
-| 0.15 | Onset density | Rhythmic drive is the second-most-cited energy factor in DJ literature; busy hi-hats and percussion = more energy |
-| 0.13 | Arousal | ONNX model already captures a broad "excitement" signal; positioned third to leverage model learning without over-relying on it |
-| 0.12 | Spectral centroid | Overall brightness — correlated with but distinct from high-freq ratio (centroid is the "center of mass" of the spectrum) |
-| 0.10 | Dynamic complexity | Compression level — heavily compressed club masters feel more relentless; inverted so low complexity = high energy |
-| 0.10 | Spectral flux | Timbral change rate — static loops feel less energetic than tracks with evolving timbres |
-| 0.10 | Low-band share | Sub-bass physical impact — critical for EDM but NOT the same as loudness (a quiet track with heavy sub-bass has physical energy) |
-| 0.10 | LUFS (drop) | Loudness still matters, just not at 50% weight — at 10% it contributes proportionally alongside 7 other signals |
-| **1.00** | **Total** | |
-
-### Weight Tuning Without Labels
-
-If the validation gates fail (e.g., genre separation too low), the weights
-can be adjusted mechanically:
-
-1. Compute feature-to-genre-family correlation for each feature
-2. Features with higher genre-family separation get higher weight
-3. Re-normalize to sum=1.0
-4. Re-run validation
-
-This is a principled alternative to pairwise training — it uses the
-*structure of the library itself* as the training signal.
-
----
-
-## 10. Relationship to v3 Plan
-
-This doc **replaces** v3 landscape §5 (the pairwise-calibrated model).
-Everything else in the v3 plan is unaffected:
+This doc **replaces** v3 landscape §5 (pairwise-calibrated model) and
+energy-v3-plan rev 1 (single formula). Everything else in the v3 plan is
+unaffected:
 - §3 BPM quantization fix — orthogonal
 - §4 Genre Dawid–Skene estimator — orthogonal
-- §6 Structure/cues — orthogonal
-- §7 Per-bar feature store — this plan USES bar_features
+- §6 Structure/cues — the section-ordering gate reuses PSSI infra
+- §7 Per-bar feature store — Tier A reuses `bar_features`
 
-The bench harness energy stage (`bench/stages/energy.ts`) should be
-updated to run the new validation gates from §4.2.
+WS7 in the rebench plan references this doc. The bench harness energy
+stage (`bench/stages/energy.ts`) should be updated to run the new gates
+from §5.2.
 
-**Effort estimate:** 2 sessions (1 for implementation, 1 for validation +
-switchover).
+**Effort estimate:** 3–4 sessions (1 for Phase 0 + extraction, 1 for
+scoring + gate evaluation, 1 for shadow mode + switchover, 1 for bench
+verification and docs).
