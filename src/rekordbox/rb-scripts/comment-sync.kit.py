@@ -385,10 +385,19 @@ def main() -> None:
         "downtempo": "Downtempo",
         "ambient": "Ambient",
         "r&b": "RnB",
+        "edm/bass": "EDMBass",
+        "alternative rock": "AltRock",
+        "contemporary r&b": "RnB",
+        "soulful house": "SoulHouse",
     }
 
     def abbreviate_subgenre(sub: str) -> str:
-        return SUBGENRE_ABBREV.get(sub.lower().strip(), sub.replace(" ", ""))
+        lower = sub.lower().strip()
+        if lower in SUBGENRE_ABBREV:
+            return SUBGENRE_ABBREV[lower]
+        import re as _re
+
+        return _re.sub(r"[\s/']+", "", sub)
 
     def resolve_data_v4(p: str, tags: dict | None, rb_key_id: str | None = None) -> dict:
         """Resolve all v4 comment tokens for a track.

@@ -166,6 +166,19 @@ describe("abbreviateSubgenre", () => {
   test("unknown subgenre strips spaces", () => {
     expect(abbreviateSubgenre("Future Funk")).toBe("FutureFunk");
   });
+
+  test("slashes and apostrophes are stripped", () => {
+    expect(abbreviateSubgenre("EDM/Bass")).toBe("EDMBass");
+    expect(abbreviateSubgenre("Funky/groove/jackin'house")).toBe(
+      "Funkygroovejackinhouse",
+    );
+  });
+
+  test("new map entries resolve correctly", () => {
+    expect(abbreviateSubgenre("Alternative Rock")).toBe("AltRock");
+    expect(abbreviateSubgenre("Contemporary R&B")).toBe("RnB");
+    expect(abbreviateSubgenre("Soulful House")).toBe("SoulHouse");
+  });
 });
 
 // ---------- buildCommentV4 ----------

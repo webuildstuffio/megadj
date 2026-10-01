@@ -122,12 +122,18 @@ export const SUBGENRE_ABBREV: ReadonlyMap<string, string> = new Map([
   ["downtempo", "Downtempo"],
   ["ambient", "Ambient"],
   ["r&b", "RnB"],
+  ["edm/bass", "EDMBass"],
+  ["alternative rock", "AltRock"],
+  ["contemporary r&b", "RnB"],
+  ["soulful house", "SoulHouse"],
 ]);
 
-/** Abbreviate a subgenre label. Returns the abbreviated token. */
+/** Abbreviate a subgenre label. Returns the abbreviated token.
+ *  Strips slashes, apostrophes, and whitespace from unrecognized genres
+ *  to keep the comment fleet-safe (ASCII + `·` only). */
 export function abbreviateSubgenre(subgenre: string): string {
   const lower = subgenre.toLowerCase().trim();
-  return SUBGENRE_ABBREV.get(lower) ?? subgenre.replace(/\s+/g, "");
+  return SUBGENRE_ABBREV.get(lower) ?? subgenre.replace(/[\s/']+/g, "");
 }
 
 export interface CommentV4Input {
