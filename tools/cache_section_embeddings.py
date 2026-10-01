@@ -34,7 +34,7 @@ def normalize(v: FloatArray) -> FloatArray:
 
 
 def frame_mel(audio: FloatArray, extractor: Any, frame_size: int, hop: int) -> FloatArray:
-    from essentia.standard import FrameGenerator
+    from essentia.standard import FrameGenerator  # type: ignore[import-not-found]
     return np.asarray(
         [extractor(f) for f in FrameGenerator(audio, frameSize=frame_size, hopSize=hop)],
         dtype=np.float32,
@@ -68,7 +68,7 @@ def load_audio_section(path: str, start: float, end: float) -> FloatArray | None
         section = audio[s:e]
         if len(section) < 16000:
             return None
-        return section.astype(np.float32)
+        return section.astype(np.float32)  # type: ignore[no-any-return]
     except Exception:
         return None
 
@@ -98,8 +98,8 @@ def find_drop_candidates(downbeats: list[float], n: int = 3) -> list[tuple[float
 
     candidates.sort(key=lambda x: -x[0])
 
-    result = []
-    for score, start, end in candidates:
+    result: list[tuple[float, float]] = []
+    for _score, start, end in candidates:
         overlap = False
         for rs, re in result:
             if start < re and end > rs:
@@ -162,7 +162,7 @@ def main() -> None:
         return
 
     # Load ONNX session
-    import onnxruntime as ort
+    import onnxruntime as ort  # type: ignore[import-not-found]
     sess = ort.InferenceSession(str(EFFNET_PATH), providers=["CPUExecutionProvider"])
 
     done = 0

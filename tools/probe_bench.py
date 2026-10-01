@@ -16,20 +16,20 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sqlite3
 import sys
-import re
 import unicodedata
 from collections import Counter, defaultdict
 from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import f1_score, accuracy_score, recall_score
-from sklearn.model_selection import GroupKFold
+from sklearn.linear_model import LogisticRegression  # type: ignore[import-not-found]
+from sklearn.metrics import accuracy_score, f1_score  # type: ignore[import-not-found]
+from sklearn.model_selection import GroupKFold  # type: ignore[import-not-found]
+from sklearn.neighbors import KNeighborsClassifier  # type: ignore[import-not-found]
+from sklearn.preprocessing import LabelEncoder  # type: ignore[import-not-found]
 
 # ── Genre family mapping (mirrors genre-vocab.ts FAMILIES) ──────────────
 
@@ -186,10 +186,10 @@ def run_probe(
         recall = float((y_p[mask] == i).sum() / n_cls)
         per_class[name] = {"recall": round(recall, 4), "n": n_cls}
 
-    f1_mean, f1_lo, f1_hi = bootstrap_ci(
+    _f1_mean, f1_lo, f1_hi = bootstrap_ci(
         y_t, y_p, lambda t, p: f1_score(t, p, average="macro"), n_bootstrap
     )
-    acc_mean, acc_lo, acc_hi = bootstrap_ci(
+    _acc_mean, acc_lo, acc_hi = bootstrap_ci(
         y_t, y_p, lambda t, p: accuracy_score(t, p), n_bootstrap
     )
 
@@ -226,15 +226,6 @@ def run_balanced_knn(
     all_pred: list[int] = []
 
     for train_idx, test_idx in gkf.split(X, y, groups):
-        knn = KNeighborsClassifier(
-            n_neighbors=k,
-            metric="cosine",
-            weights=lambda dists: np.array(
-                [[class_weights.get(y[train_idx][j], 1.0) for j in range(len(train_idx))]]
-            ) if False else "distance",
-        )
-        # Use sklearn's built-in distance-weighted kNN, then re-weight
-        # Actually, let's do it properly with a custom weight function
         knn_plain = KNeighborsClassifier(n_neighbors=k, metric="cosine")
         knn_plain.fit(X[train_idx], y[train_idx])
 
@@ -266,10 +257,10 @@ def run_balanced_knn(
         recall = float((y_p[mask] == i).sum() / n_cls)
         per_class[name] = {"recall": round(recall, 4), "n": n_cls}
 
-    f1_mean, f1_lo, f1_hi = bootstrap_ci(
+    _f1_mean, f1_lo, f1_hi = bootstrap_ci(
         y_t, y_p, lambda t, p: f1_score(t, p, average="macro"), n_bootstrap
     )
-    acc_mean, acc_lo, acc_hi = bootstrap_ci(
+    _acc_mean, acc_lo, acc_hi = bootstrap_ci(
         y_t, y_p, lambda t, p: accuracy_score(t, p), n_bootstrap
     )
 
@@ -323,10 +314,10 @@ def run_plain_knn(
         recall = float((y_p[mask] == i).sum() / n_cls)
         per_class[name] = {"recall": round(recall, 4), "n": n_cls}
 
-    f1_mean, f1_lo, f1_hi = bootstrap_ci(
+    _f1_mean, f1_lo, f1_hi = bootstrap_ci(
         y_t, y_p, lambda t, p: f1_score(t, p, average="macro"), n_bootstrap
     )
-    acc_mean, acc_lo, acc_hi = bootstrap_ci(
+    _acc_mean, acc_lo, acc_hi = bootstrap_ci(
         y_t, y_p, lambda t, p: accuracy_score(t, p), n_bootstrap
     )
 

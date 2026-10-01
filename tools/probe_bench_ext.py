@@ -8,21 +8,24 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import sys
-import re
 import unicodedata
-from collections import Counter, defaultdict
 from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
-from sklearn.model_selection import GroupKFold
+from sklearn.linear_model import LogisticRegression  # type: ignore[import-not-found]
+from sklearn.metrics import (  # type: ignore[import-not-found]
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+)
+from sklearn.model_selection import GroupKFold  # type: ignore[import-not-found]
+from sklearn.neighbors import KNeighborsClassifier  # type: ignore[import-not-found]
+from sklearn.preprocessing import LabelEncoder  # type: ignore[import-not-found]
+from sklearn.svm import SVC  # type: ignore[import-not-found]
 
 # ── Genre family mapping (mirrors genre-vocab.ts FAMILIES) ──────────────
 
@@ -99,7 +102,7 @@ def eval_cv(
     X: NDArray[np.float32],
     y: NDArray[np.int32],
     groups: NDArray[np.int32],
-    make_clf,
+    make_clf: Any,
     n_splits: int = 5,
 ) -> tuple[float, float, NDArray[np.int32], NDArray[np.int32]]:
     """5-fold artist-excluded CV. Returns (macro_f1, accuracy, y_true, y_pred)."""
@@ -234,7 +237,7 @@ def main() -> None:
             print(f"{cm[i].sum():>7}", file=sys.stderr)
 
         # Top confusions
-        print(f"\n  Top confusion pairs:", file=sys.stderr)
+        print("\n  Top confusion pairs:", file=sys.stderr)
         confusions = []
         for i in range(len(label_names)):
             for j in range(len(label_names)):
