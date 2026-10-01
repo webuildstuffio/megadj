@@ -188,8 +188,6 @@ def main() -> None:
             else:
                 break
         pct = rank / len(all_energies)
-        import math
-
         band = math.ceil(pct * 9)
         return max(1, min(9, band))
 
@@ -272,13 +270,16 @@ def main() -> None:
                 return step
         return 0
 
-    _MASK_OFFSETS = (0xCB, 0xE1, 0xEE, 0xFA, 0xE5, 0xEE, 0xAD, 0xEE, 0xE9,
-                     0xD2, 0xE9, 0xEB, 0xE1, 0xE9, 0xF3, 0xE8, 0xE9, 0xF4, 0xE1)
+    _MASK_BYTES = b"\xcb\xe1\xee\xfa\xe5\xee\xad\xee\xe9\xd2\xe9\xeb\xe1\xe9\xf3\xe8\xe9\xf4\xe1"
 
     def parse_pssi(data: bytes) -> tuple[int, int, bool, bool] | None:
         """Parse PSSI from .EXT file → (intro_bars, outro_bars, drop, roll) or None."""
-        if (len(data) < 44 or data[:4] != b"PMAI"
-                or struct.unpack_from(">I", data, 4)[0] != 28 or data[28:32] != b"PPTH"):
+        if (
+            len(data) < 44
+            or data[:4] != b"PMAI"
+            or struct.unpack_from(">I", data, 4)[0] != 28
+            or data[28:32] != b"PPTH"
+        ):
             return None
         off = 44 + struct.unpack_from(">I", data, 40)[0]
         pssi_off = -1
@@ -299,7 +300,7 @@ def main() -> None:
             return None
         body = bytearray(data[pssi_off + 18 : pssi_off + total])
         if struct.unpack_from(">H", data, pssi_off + 18)[0] > 20:  # masked
-            mask = [(o + num_entries) & 0xFF for o in _MASK_OFFSETS]
+            mask = bytes((b + num_entries) & 0xFF for b in _MASK_BYTES)
             for i in range(len(body)):
                 body[i] ^= mask[i % 19]
         mood = struct.unpack_from(">H", body, 0)[0]
@@ -311,8 +312,9 @@ def main() -> None:
             e = 14 + i * 24
             if e + 6 > len(body):
                 break
-            entries.append((struct.unpack_from(">H", body, e + 2)[0],
-                            struct.unpack_from(">H", body, e + 4)[0]))
+            entries.append(
+                (struct.unpack_from(">H", body, e + 2)[0], struct.unpack_from(">H", body, e + 4)[0])
+            )
 
         intro_kind = 1
         outro_kind = 6 if mood == 1 else 10
@@ -331,7 +333,7 @@ def main() -> None:
                 outro_bars = bars
             if kind == chorus_kind and bars >= 8:
                 has_drop = True
-            if kind not in (intro_kind, outro_kind, chorus_kind):
+            if kind not in (intro_kind, outro_kind):
                 body_count += 1
         has_roll = not has_drop and body_count >= 2
 
@@ -503,7 +505,7 @@ def main() -> None:
         return result
 
     def build_comment_v4(data: dict) -> str:
-        """v4 format: E8 Hard Dark · MelTechno"""
+        """v4 format: E8 IN:32 OUT:16 Drop Dark · MelTechno"""
         parts: list[str] = []
         eb = data.get("energy_band")
         if eb is not None:

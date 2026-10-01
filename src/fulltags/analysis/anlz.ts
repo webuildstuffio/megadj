@@ -101,13 +101,13 @@ export const PHRASE_KINDS = {
 /** Decoded PSSI phrase structure from an ANLZ .EXT file. */
 export interface AnlzPhrases {
   /** UTF-16BE path from PPTH — the device-relative audio path. */
-  path: string;
+  readonly path: string;
   /** Track mood (1=high, 2=mid, 3=low). */
-  mood: number;
+  readonly mood: number;
   /** Beat number at which the last recognized phrase ends. */
-  endBeat: number;
+  readonly endBeat: number;
   /** Ordered phrase entries. */
-  phrases: AnlzPhrase[];
+  readonly phrases: readonly AnlzPhrase[];
 }
 
 const dec = new TextDecoder("utf-16be");
@@ -231,13 +231,12 @@ export function parseAnlzPhrases(data: Uint8Array): AnlzPhrases | null {
 
   // The body from +18 onward may need unmasking
   const bodyStart = off + 18;
-  const bodyLen = total - 18;
-  const body = new Uint8Array(data.slice(bodyStart, bodyStart + bodyLen));
+  const body = new Uint8Array(data.slice(bodyStart, off + total));
 
   if (isMasked) {
     const mask = pssiMask(numEntries);
     for (let i = 0; i < body.length; i++) {
-      // eslint-disable-next-line operator-assignment -- ^= on indexed Uint8Array trips noUncheckedIndexedAccess
+      // oxlint-disable-next-line operator-assignment -- ^= on indexed Uint8Array trips noUncheckedIndexedAccess
       body[i] = body[i]! ^ mask[i % mask.length]!;
     }
   }
@@ -256,8 +255,8 @@ export function parseAnlzPhrases(data: Uint8Array): AnlzPhrases | null {
     const index = u16be(body, e);
     const beat = u16be(body, e + 2);
     const kind = u16be(body, e + 4);
-    // fill flag at entry byte 21, beatFill at entry bytes 22-23
-    const fill = body[e + 21] !== 0;
+    // fill flag at entry byte 21, beatFill at entry bytes 22-23 (bounds-safe: e+24 ≤ body.length)
+    const fill = body[e + 21]! !== 0;
     const beatFill = u16be(body, e + 22);
     phrases.push({ index, beat, kind, fill, beatFill });
   }
@@ -280,11 +279,13 @@ export function phraseInOutBars(p: AnlzPhrases): {
   let outroBars = 0;
 
   // First phrase with kind=INTRO
-  const intro = p.phrases.find((ph) => ph.kind === introKind);
-  if (intro) {
-    const idx = p.phrases.indexOf(intro);
+  const introIdx = p.phrases.findIndex((ph) => ph.kind === introKind);
+  if (introIdx !== -1) {
+    const intro = p.phrases[introIdx]!;
     const nextBeat =
-      idx + 1 < p.phrases.length ? p.phrases[idx + 1]!.beat : p.endBeat;
+      introIdx + 1 < p.phrases.length
+        ? p.phrases[introIdx + 1]!.beat
+        : p.endBeat;
     introBars = Math.floor((nextBeat - intro.beat) / 4);
   }
 
@@ -334,9 +335,9 @@ export function phraseDropRoll(p: AnlzPhrases): {
 
   // No qualifying drop — check for rolling structure
   // A roll needs at least 2 non-intro/outro phrases to be meaningful
+  // Small chorus sections (<8 bars) count as body content, not drops
   const bodyPhrases = p.phrases.filter(
-    (ph) =>
-      ph.kind !== introKind && ph.kind !== outroKind && ph.kind !== chorusKind,
+    (ph) => ph.kind !== introKind && ph.kind !== outroKind,
   );
   if (bodyPhrases.length >= 2) return { drop: false, roll: true };
 
