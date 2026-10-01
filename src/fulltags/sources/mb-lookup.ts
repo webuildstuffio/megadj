@@ -88,8 +88,9 @@ export async function mbLookupCached(
   artist: string | null,
   title: string,
 ): Promise<MbTruth | null> {
-  const key = `${artist ?? ""}::${title.toLowerCase()}`;
+  const key = `${(artist ?? "").normalize("NFC").toLowerCase()}::${title.normalize("NFC").toLowerCase()}`;
   if (mbCache.has(key)) return mbCache.get(key) ?? null;
+  await rateLimit();
   let out: MbTruth | null = null;
   try {
     const rec = (await mbFetchRecordings(artist, title))?.[0];
@@ -98,7 +99,6 @@ export async function mbLookupCached(
     console.error(`MusicBrainz lookup failed for ${key}`, e);
   }
   mbCache.set(key, out);
-  await rateLimit();
   return out;
 }
 
@@ -242,7 +242,7 @@ function resolveTags(
 
 /** Artist → canonical genre via MB folksonomy tags. Null on miss/error. */
 export async function mbGenreForArtist(artist: string): Promise<string | null> {
-  const key = artist.toLowerCase().trim();
+  const key = artist.normalize("NFC").toLowerCase().trim();
   if (artistCache.has(key)) return artistCache.get(key) ?? null;
   await rateLimit();
   const url = `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(`"${artist}"`)}&fmt=json&limit=1`;
@@ -268,6 +268,7 @@ export async function mbGenreForArtist(artist: string): Promise<string | null> {
     artistCache.set(key, result);
     return result;
   } catch {
+    // Network/timeout — degrade silently
     return null;
   }
 }
@@ -288,7 +289,7 @@ export async function mbGenreForRecording(
   artist: string | null,
   title: string,
 ): Promise<{ genre: string | null; mbid: string | null }> {
-  const key = `${(artist ?? "").toLowerCase()}::${title.toLowerCase()}`;
+  const key = `${(artist ?? "").normalize("NFC").toLowerCase()}::${title.normalize("NFC").toLowerCase()}`;
   if (recordingTagCache.has(key)) {
     return { genre: recordingTagCache.get(key) ?? null, mbid: null };
   }

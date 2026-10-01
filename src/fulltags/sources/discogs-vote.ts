@@ -33,6 +33,7 @@ function getDiscogsDb(): Database | null {
     cachedDb = new Database(dbPath, { readonly: true });
     return cachedDb;
   } catch {
+    // DB file corrupt or unreadable — degrade silently
     cachedDb = null;
     return null;
   }

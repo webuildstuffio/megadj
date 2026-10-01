@@ -15,6 +15,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -47,14 +48,14 @@ def audio_section(path: str, start: float, end: float, rate: int = 16000) -> Flo
 
 def frame_mel(
     a: FloatArray,
-    algo: object,
+    algo: Any,
     frame_size: int,
     hop: int,
 ) -> FloatArray:
-    from essentia.standard import FrameGenerator  # type: ignore[import-not-found]
+    from essentia.standard import FrameGenerator
 
     return np.asarray(
-        [algo(f) for f in FrameGenerator(a, frameSize=frame_size, hopSize=hop)],  # type: ignore[operator]
+        [algo(f) for f in FrameGenerator(a, frameSize=frame_size, hopSize=hop)],
         dtype=np.float32,
     )
 
@@ -66,36 +67,42 @@ def chunks(frames: FloatArray, size: int) -> FloatArray:
     return frames[:n].reshape(-1, size, frames.shape[1])
 
 
-def emb_effnet(a16k: FloatArray, sess: object) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN  # type: ignore[import-not-found]
+def emb_effnet(a16k: FloatArray, sess: Any) -> FloatArray:
+    from essentia.standard import TensorflowInputMusiCNN
 
     mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
     batch = chunks(mel, 128)
-    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]  # type: ignore[union-attr]
-    return normalize(np.asarray(out, dtype=np.float32).mean(axis=0))
+    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
+    return normalize(
+        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
+    )
 
 
-def emb_vggish(a16k: FloatArray, sess: object) -> FloatArray:
-    from essentia.standard import TensorflowInputVGGish  # type: ignore[import-not-found]
+def emb_vggish(a16k: FloatArray, sess: Any) -> FloatArray:
+    from essentia.standard import TensorflowInputVGGish
 
     mel = frame_mel(a16k, TensorflowInputVGGish(), 400, 200)
     batch = chunks(mel, 96).transpose(0, 2, 1)
-    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]  # type: ignore[union-attr]
-    return normalize(np.asarray(out, dtype=np.float32).mean(axis=0))
+    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
+    return normalize(
+        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
+    )
 
 
-def emb_musicnn(a16k: FloatArray, sess: object) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN  # type: ignore[import-not-found]
+def emb_musicnn(a16k: FloatArray, sess: Any) -> FloatArray:
+    from essentia.standard import TensorflowInputMusiCNN
 
     mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
     batch = chunks(mel, 187)
-    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]  # type: ignore[union-attr]
-    return normalize(np.asarray(out, dtype=np.float32).mean(axis=0))
+    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
+    return normalize(
+        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
+    )
 
 
-def emb_openl3(path: str, start: float, end: float, sess: object) -> FloatArray:
+def emb_openl3(path: str, start: float, end: float, sess: Any) -> FloatArray:
     """OpenL3 needs 48kHz audio — loads separately."""
-    from essentia.standard import (  # type: ignore[import-not-found]
+    from essentia.standard import (
         FrameGenerator,
         MelBands,
         MonoLoader,
@@ -152,13 +159,15 @@ def emb_openl3(path: str, start: float, end: float, sess: object) -> FloatArray:
             chunk = np.pad(chunk, ((0, x_size - chunk.shape[0]), (0, 0)))
         patches.append(chunk.T)
     arr = np.asarray(patches, dtype=np.float32)[..., np.newaxis]
-    out = sess.run(["embeddings"], {"melspectrogram": arr})[0]  # type: ignore[union-attr]
-    return normalize(np.asarray(out, dtype=np.float32).mean(axis=0))
+    out = sess.run(["embeddings"], {"melspectrogram": arr})[0]
+    return normalize(
+        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
+    )
 
 
-def emb_maest(a16k: FloatArray, sess: object) -> FloatArray:
+def emb_maest(a16k: FloatArray, sess: Any) -> FloatArray:
     """MAEST 10s: 626-frame mel spectrogram @ 16kHz, 768-d token embedding."""
-    from essentia.standard import TensorflowInputMusiCNN  # type: ignore[import-not-found]
+    from essentia.standard import TensorflowInputMusiCNN
 
     mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
     target_frames = 626
@@ -168,9 +177,9 @@ def emb_maest(a16k: FloatArray, sess: object) -> FloatArray:
     for i in range(0, max(1, mel.shape[0] - target_frames + 1), target_frames):
         batch_mels.append(mel[i : i + target_frames])
     batch = np.asarray(batch_mels, dtype=np.float32)
-    out = sess.run(["layer_11_tokens"], {"melspectrogram": batch})[0]  # type: ignore[union-attr]
+    out = sess.run(["layer_11_tokens"], {"melspectrogram": batch})[0]
     tokens = np.asarray(out, dtype=np.float32)
-    pooled = tokens.mean(axis=(0, 1))
+    pooled: FloatArray = tokens.mean(axis=(0, 1)).astype(np.float32)
     return normalize(pooled)
 
 

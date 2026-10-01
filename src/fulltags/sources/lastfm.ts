@@ -72,7 +72,7 @@ export async function fetchLastfmTags(
   track: string,
   apiKey: string,
 ): Promise<LastfmTrackResult | null> {
-  const cacheKey = `${artist.toLowerCase()}::${track.toLowerCase()}`;
+  const cacheKey = `${artist.normalize("NFC").toLowerCase()}::${track.normalize("NFC").toLowerCase()}`;
   if (lastfmCache.has(cacheKey)) return lastfmCache.get(cacheKey) ?? null;
 
   await lastfmDelay();
@@ -92,6 +92,7 @@ export async function fetchLastfmTags(
       signal: AbortSignal.timeout(LASTFM_TIMEOUT_MS),
     });
   } catch {
+    // Network error or timeout — degrade silently per track
     lastfmCache.set(cacheKey, null);
     return null;
   }
@@ -104,6 +105,7 @@ export async function fetchLastfmTags(
   try {
     data = (await response.json()) as LastfmApiResponse;
   } catch {
+    // Malformed JSON body — degrade silently
     lastfmCache.set(cacheKey, null);
     return null;
   }
