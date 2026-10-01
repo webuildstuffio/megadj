@@ -53,11 +53,19 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     description: "the file's own TCON (pool rips)",
   },
   {
+    id: "discogs",
+    name: "Discogs",
+    docRef: "W9",
+    weight: 0.55,
+    order: 3,
+    description: "CC0 dump — curated styles matched by artist+title",
+  },
+  {
     id: "bc",
     name: "Bandcamp",
     docRef: "W2b",
     weight: 0.5,
-    order: 3,
+    order: 4,
     description: "artist page tags — hard artist gate",
   },
   {
@@ -65,7 +73,7 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     name: "AI classifier",
     docRef: "W4",
     weight: 0.45,
-    order: 4,
+    order: 5,
     description: "closed vocab, conf ≥ 0.7, opt-in",
   },
   {
@@ -73,7 +81,7 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     name: "MusicBrainz",
     docRef: "W5",
     weight: 0.4,
-    order: 5,
+    order: 6,
     description: "community folksonomy",
   },
   {
@@ -81,7 +89,7 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     name: "SoundCloud",
     docRef: "W2",
     weight: 0.35,
-    order: 6,
+    order: 7,
     description: "uploader free-text — junk-gated, artist-gated",
   },
   {
@@ -89,7 +97,7 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     name: "Last.fm",
     docRef: "W8",
     weight: 0.3,
-    order: 7,
+    order: 8,
     description: "track folksonomy — count ≥ 25 gate, community-curated",
   },
   {
@@ -97,7 +105,7 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     name: "Sync category",
     docRef: "W1",
     weight: 0.2,
-    order: 8,
+    order: 9,
     description: "title/artist regex — a category, not a genre",
   },
   {
@@ -105,7 +113,7 @@ export const GENRE_VOTE_RUNG_DEFS: readonly GenreVoteRungDef[] = [
     name: "Imprint prior",
     docRef: "W7",
     weight: 0.15,
-    order: 9,
+    order: 10,
     description: "scene-family inference — abstains vs real votes",
   },
 ];

@@ -68,6 +68,8 @@ export interface Stats {
   genreLastfm: number;
   /** MB recording-level genre votes cast (deepened #D26). */
   genreMbRec: number;
+  /** W9 Discogs CC0 dump votes cast. */
+  genreDiscogs: number;
 }
 
 /** Per-task mutable state shared by the stage runners. */

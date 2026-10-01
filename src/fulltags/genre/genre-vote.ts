@@ -40,6 +40,9 @@ export const GENRE_VOTE_WEIGHTS = {
   /** W8 Last.fm folksonomy (track.getTopTags — community-curated;
    *  strong on pop/hip-hop/rock, weak underground; tag count ≥ 25 gate) */
   lastfm: 0.3,
+  /** W9 Discogs CC0 dump (offline — curated styles ≈ effnet taxonomy;
+   *  artist+title matched against local SQLite cache) */
+  discogs: 0.55,
 } as const;
 
 // All versioned rung weights have two decimal places. Tally their integer

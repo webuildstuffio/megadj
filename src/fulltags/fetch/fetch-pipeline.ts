@@ -66,6 +66,8 @@ import { stageArt } from "./fetch-art";
 import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre/genre-vote";
 import { lastfmGenreVote } from "../sources/lastfm";
 import { mbGenreForRecording } from "../sources/mb-lookup";
+import { discogsGenreVote } from "../sources/discogs-vote";
+import { routeArtistForGenre } from "../identity/remix-route";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import {
   emitFetchDone,
@@ -192,6 +194,7 @@ function emptyStats(): Stats {
     votesCast: 0,
     genreLastfm: 0,
     genreMbRec: 0,
+    genreDiscogs: 0,
   };
 }
 
@@ -286,39 +289,56 @@ async function processTask({
     );
   }
 
+  // ---- W9 Discogs vote (offline — local SQLite cache, instant) ----
+  if (t.needGenre && !dry && genreVotes !== undefined) {
+    const dgArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
+    const dgTitle = ctx.truth.title ?? r.title;
+    if (dgArtist && dgTitle) {
+      const dgVote = discogsGenreVote(dgArtist, dgTitle);
+      if (dgVote) {
+        genreVotes.push(dgVote);
+        stats.genreDiscogs++;
+        notes.push(`genre:${dgVote.genre} (discogs, vote)`);
+      }
+    }
+  }
+
+  // ---- Remix routing: artist-level sources use the remixer when present ----
+  const rawArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
+  const rawTitle = ctx.truth.title ?? r.title;
+  const routed =
+    rawArtist && rawTitle ? routeArtistForGenre(rawArtist, rawTitle) : null;
+  const genreArtist = routed?.artist ?? rawArtist;
+
   // ---- W8 Last.fm vote (opt-in, needs LASTFM_API_KEY env) ----
   if (t.needGenre && !dry && genreVotes !== undefined) {
     const lastfmKey = nonEmptyEnv("LASTFM_API_KEY");
-    if (lastfmKey) {
-      const lfmArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
-      const lfmTitle = ctx.truth.title ?? r.title;
-      if (lfmArtist && lfmTitle) {
-        const lfmVote = await lastfmGenreVote(lfmArtist, lfmTitle, lastfmKey);
-        if (lfmVote) {
-          genreVotes.push(lfmVote);
-          stats.genreLastfm++;
-          notes.push(`genre:${lfmVote.genre} (lastfm, vote)`);
-        }
+    if (lastfmKey && genreArtist && rawTitle) {
+      const lfmVote = await lastfmGenreVote(genreArtist, rawTitle, lastfmKey);
+      if (lfmVote) {
+        genreVotes.push(lfmVote);
+        stats.genreLastfm++;
+        notes.push(
+          `genre:${lfmVote.genre} (lastfm${routed?.isRemix ? ` via remixer ${genreArtist}` : ""}, vote)`,
+        );
       }
     }
   }
 
   // ---- MB recording-level genre vote (deepened from artist-only) ----
-  if (t.needGenre && !dry && genreVotes !== undefined) {
-    const mbArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
-    const mbTitle = ctx.truth.title ?? r.title;
-    if (mbTitle) {
-      const mbRec = await mbGenreForRecording(mbArtist, mbTitle);
-      if (mbRec.genre) {
-        genreVotes.push({
-          rung: "mb",
-          genre: mbRec.genre,
-          weight: GENRE_VOTE_WEIGHTS.mb,
-          detail: mbRec.mbid ? `mbid:${mbRec.mbid}` : undefined,
-        });
-        stats.genreMbRec++;
-        notes.push(`genre:${mbRec.genre} (mb-rec, vote)`);
-      }
+  if (t.needGenre && !dry && genreVotes !== undefined && rawTitle) {
+    const mbRec = await mbGenreForRecording(genreArtist, rawTitle);
+    if (mbRec.genre) {
+      genreVotes.push({
+        rung: "mb",
+        genre: mbRec.genre,
+        weight: GENRE_VOTE_WEIGHTS.mb,
+        detail: mbRec.mbid ? `mbid:${mbRec.mbid}` : undefined,
+      });
+      stats.genreMbRec++;
+      notes.push(
+        `genre:${mbRec.genre} (mb-rec${routed?.isRemix ? ` via remixer ${genreArtist}` : ""}, vote)`,
+      );
     }
   }
 
@@ -330,6 +350,16 @@ async function processTask({
         "UPDATE tracks SET genre = COALESCE(?, genre), genre_votes = ? WHERE video_id = ?",
       ).run(genre, serialized, vid);
     });
+    // Bridge votes → evidence store (populates Dawid-Skene data)
+    if (genreVotes.length > 0) {
+      try {
+        const { bridgeVotesToEvidence } =
+          await import("../evidence/vote-evidence-bridge");
+        bridgeVotesToEvidence(db, r.video_id, genreVotes);
+      } catch {
+        // Evidence store not yet migrated — degrade silently
+      }
+    }
   }
 
   // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----
@@ -504,6 +534,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     genreElected: stats.genreElected,
     genreLastfm: stats.genreLastfm,
     genreMbRec: stats.genreMbRec,
+    genreDiscogs: stats.genreDiscogs,
   };
   if (jsonOut) {
     // structured stderr channel: the ladder feed's footer
@@ -512,7 +543,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     await writeJson(summary);
   } else {
     progress?.close(
-      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + LFM ${stats.genreLastfm} + MB-rec ${stats.genreMbRec} + AI ${stats.genreAi} | vote ladder: ${stats.votesCast} votes → ${stats.genreElected} elected | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
+      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + DG ${stats.genreDiscogs} + LFM ${stats.genreLastfm} + MB-rec ${stats.genreMbRec} + AI ${stats.genreAi} | vote ladder: ${stats.votesCast} votes → ${stats.genreElected} elected | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
 }
