@@ -241,6 +241,23 @@ def main() -> None:
                 break
         return rank / len(pool)
 
+    # ---- v4: VAR (variable tempo) from bpm_residual_std ----
+    VAR_THRESHOLD = 15.0  # ~5.2% fire rate at 15.0
+    var_by_path: dict[str, bool] = {}
+    if os.path.exists(ledger_path):
+        con_var = sqlite3.connect(ledger_path)
+        for row_var in con_var.execute(
+            "SELECT b.source_path, b.bpm_residual_std "
+            "FROM beats b WHERE b.bpm_residual_std IS NOT NULL AND b.source_path IS NOT NULL"
+        ):
+            fp = nfc_casefold(row_var[0] or "")
+            try:
+                residual = float(row_var[1])
+                var_by_path[fp] = residual > VAR_THRESHOLD
+            except (TypeError, ValueError):
+                pass
+        con_var.close()
+
     # ---- v4: subgenre abbreviation map ----
     SUBGENRE_ABBREV: dict[str, str] = {
         "tech house": "TechHouse",
@@ -288,8 +305,8 @@ def main() -> None:
     def resolve_data_v4(p: str, tags: dict | None, rb_key_id: str | None = None) -> dict:
         """Resolve all v4 comment tokens for a track.
 
-        Returns dict with keys: energy_band, hard, soft, dark, euph, subgenre.
-        IN/OUT, VOX/HOOK, Drop/Roll, VAR need analysis pipelines not yet built.
+        Returns dict with keys: energy_band, hard, soft, dark, euph, var_tempo, subgenre.
+        IN/OUT, VOX/HOOK, Drop/Roll need analysis pipelines not yet built.
         """
         result: dict = {
             "energy_band": None,
@@ -297,6 +314,7 @@ def main() -> None:
             "soft": False,
             "dark": False,
             "euph": False,
+            "var_tempo": False,
             "subgenre": "",
         }
         fp_key = nfc_casefold(p)
@@ -351,6 +369,9 @@ def main() -> None:
                 if ter and ter.lower() != primary.lower():
                     result["subgenre"] = abbreviate_subgenre(ter)
 
+        # VAR (variable tempo) from bpm_residual_std
+        result["var_tempo"] = var_by_path.get(fp_key, False)
+
         return result
 
     def build_comment_v4(data: dict) -> str:
@@ -368,6 +389,8 @@ def main() -> None:
             parts.append("Dark")
         elif data.get("euph"):
             parts.append("Euph")
+        if data.get("var_tempo"):
+            parts.append("VAR")
         sub = data.get("subgenre", "")
         # Guard against URL/metadata junk in subgenre
         if sub and ".com" not in sub.lower() and "http" not in sub.lower() and "=" not in sub:
@@ -514,6 +537,204 @@ def main() -> None:
 
     out["genre_written"] = genre_written
     out["genre_skipped"] = genre_skipped
+
+    # ---- Track Color: energy band → ColorID ----
+    # Blue(7)=E1-E2, Aqua(6)=E3, Green(5)=E4-E5, Yellow(4)=E6, Orange(3)=E7-E8, Red(2)=E9
+    # Pink(1) and Purple(8) are manual — never overwrite.
+    ENERGY_TO_COLOR: dict[int, int] = {
+        1: 7,
+        2: 7,
+        3: 6,
+        4: 5,
+        5: 5,
+        6: 4,
+        7: 3,
+        8: 3,
+        9: 2,
+    }
+    MANUAL_COLORS = {1, 8}  # Pink, Purple — user-managed
+    color_written = 0
+    color_skipped = 0
+    for c, cid, comment in pending:
+        v4d = resolve_data_v4(c.FolderPath or "", None, str(c.KeyID) if c.KeyID else None)
+        eb = v4d.get("energy_band")
+        if eb is None:
+            continue
+        target_color = ENERGY_TO_COLOR.get(eb, 0)
+        current_color = int(c.ColorID or 0)
+        if current_color in MANUAL_COLORS:
+            color_skipped += 1
+            continue
+        if current_color != target_color:
+            if apply:
+                c.ColorID = target_color
+            color_written += 1
+    # Also color tracks not in pending (already had matching comment)
+    for c in rows:
+        p = c.FolderPath or ""
+        if not os.path.exists(p):
+            continue
+        fp_key = nfc_casefold(p)
+        eb_raw = energy_by_path.get(fp_key)
+        if eb_raw is None:
+            continue
+        eb = energy_band(eb_raw)
+        target_color = ENERGY_TO_COLOR.get(eb, 0)
+        current_color = int(c.ColorID or 0)
+        if current_color in MANUAL_COLORS:
+            color_skipped += 1
+            continue
+        if current_color != target_color:
+            if apply:
+                c.ColorID = target_color
+            color_written += 1
+    if apply and color_written > 0:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            out["errors"].append(["color-sync", repr(e)[:200]])
+    out["color_written"] = color_written
+    out["color_skipped"] = color_skipped
+
+    # ---- My Tags: mood/structure/genre tags for Track Filter ----
+    from pyrekordbox.db6.tables import DjmdMyTag, DjmdSongMyTag  # type: ignore[import-not-found]
+
+    # Load existing tags and categories
+    existing_tags: dict[str, object] = {}
+    for mt in db.query(DjmdMyTag).all():
+        existing_tags[mt.Name] = mt
+
+    # Our v4 categories and their tags
+    V4_CATEGORIES: dict[str, list[str]] = {
+        "Energy": ["Hard", "Soft", "Mid"],
+        "Mood": ["Dark", "Euph", "Neutral"],
+        "Tempo": ["VAR"],
+    }
+
+    # Create missing categories and tags
+    import uuid as _uuid
+
+    max_cat_seq = max(
+        (int(mt.Seq or 0) for mt in db.query(DjmdMyTag).filter(DjmdMyTag.ParentID == "root").all()),
+        default=4,
+    )
+    for cat_name, tag_names in V4_CATEGORIES.items():
+        if cat_name not in existing_tags:
+            max_cat_seq += 1
+            cat_id = str(abs(hash(f"v4cat-{cat_name}")) % (2**31))
+            new_cat = DjmdMyTag(
+                ID=cat_id,
+                Name=cat_name,
+                ParentID="root",
+                Seq=max_cat_seq,
+                Attribute=1,
+                UUID=str(_uuid.uuid4()),
+            )
+            if apply:
+                db.session.add(new_cat)
+            existing_tags[cat_name] = new_cat
+        cat_obj = existing_tags[cat_name]
+        cat_id_str = str(cat_obj.ID)
+        max_tag_seq = max(
+            (
+                int(mt.Seq or 0)
+                for mt in db.query(DjmdMyTag).filter(DjmdMyTag.ParentID == cat_id_str).all()
+            ),
+            default=0,
+        )
+        for tag_name in tag_names:
+            if tag_name not in existing_tags:
+                max_tag_seq += 1
+                tag_id = str(abs(hash(f"v4tag-{cat_name}-{tag_name}")) % (2**31))
+                new_tag = DjmdMyTag(
+                    ID=tag_id,
+                    Name=tag_name,
+                    ParentID=cat_id_str,
+                    Seq=max_tag_seq,
+                    Attribute=0,
+                    UUID=str(_uuid.uuid4()),
+                )
+                if apply:
+                    db.session.add(new_tag)
+                existing_tags[tag_name] = new_tag
+
+    if apply:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            out["errors"].append(["mytag-categories", repr(e)[:200]])
+
+    # Assign tags to tracks
+    # Build a set of existing assignments to avoid duplicates
+    existing_assignments: set[tuple[str, str]] = set()
+    for smt in db.query(DjmdSongMyTag).all():
+        existing_assignments.add((str(smt.MyTagID), str(smt.ContentID)))
+
+    mytag_written = 0
+    for c in rows:
+        p = c.FolderPath or ""
+        if not os.path.exists(p):
+            continue
+        fp_key = nfc_casefold(p)
+        content_id = str(c.ID)
+
+        # Determine which tags this track should have
+        track_tags: list[str] = []
+        agg_val = agg_by_path.get(fp_key)
+        hap_val = hap_by_path.get(fp_key)
+        gfam = genre_by_path.get(fp_key, "")
+        if agg_val is not None and gfam:
+            fam_agg = family_aggressive.get(gfam, [])
+            pct = family_percentile(agg_val, fam_agg, all_aggressive)
+            if pct >= 0.80:
+                track_tags.append("Hard")
+            elif pct <= 0.20:
+                track_tags.append("Soft")
+            else:
+                track_tags.append("Mid")
+        if hap_val is not None and gfam:
+            fam_hap = family_happy.get(gfam, [])
+            pct = family_percentile(hap_val, fam_hap, all_happy)
+            if pct <= 0.20:
+                track_tags.append("Dark")
+            elif pct >= 0.80:
+                track_tags.append("Euph")
+            else:
+                track_tags.append("Neutral")
+        if var_by_path.get(fp_key, False):
+            track_tags.append("VAR")
+
+        # Write assignments
+        for tag_name in track_tags:
+            tag_obj = existing_tags.get(tag_name)
+            if tag_obj is None:
+                continue
+            tag_id = str(tag_obj.ID)
+            if (tag_id, content_id) in existing_assignments:
+                continue
+            if apply:
+                smt_id = str(abs(hash(f"smt-{tag_id}-{content_id}")) % (2**31))
+                new_smt = DjmdSongMyTag(
+                    ID=smt_id,
+                    MyTagID=tag_id,
+                    ContentID=content_id,
+                    TrackNo=0,
+                    UUID=str(_uuid.uuid4()),
+                )
+                db.session.add(new_smt)
+            existing_assignments.add((tag_id, content_id))
+            mytag_written += 1
+
+    if apply and mytag_written > 0:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            out["errors"].append(["mytag-assign", repr(e)[:200]])
+
+    out["mytag_written"] = mytag_written
 
     print(json.dumps(out))
     # Checkpoint WAL before closing — a leftover WAL file crashes rekordbox.

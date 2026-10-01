@@ -75,6 +75,11 @@ describe("rb-comment-sync", () => {
     const s = commentSyncScript();
     expect(s).toContain("build_comment_v4");
     expect(s).toContain("energy_band");
+    expect(s).toContain("var_tempo");
+    expect(s).toContain("VAR_THRESHOLD");
+    expect(s).toContain("ENERGY_TO_COLOR");
+    expect(s).toContain("DjmdMyTag");
+    expect(s).toContain("DjmdSongMyTag");
     expect(s).not.toContain("BPM"); // BPM has its own RB column (AGENTS.md)
   });
 
@@ -135,6 +140,9 @@ describe("rb-comment-sync", () => {
     );
     expect(out.genreWritten).toBe(0);
     expect(out.genreSkipped).toBe(0);
+    expect(out.colorWritten).toBe(0);
+    expect(out.colorSkipped).toBe(0);
+    expect(out.mytagWritten).toBe(0);
   });
 
   test("exact verification rejects missing or mismatched intended comments", () => {
