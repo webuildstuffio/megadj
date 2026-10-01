@@ -68,6 +68,7 @@ import { lastfmGenreVote } from "../sources/lastfm";
 import { mbGenreForRecording } from "../sources/mb-lookup";
 import { discogsGenreVote } from "../sources/discogs-vote";
 import { routeArtistForGenre } from "../identity/remix-route";
+import { errMessage } from "../../shared/leaf/fmt";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import {
   emitFetchDone,
@@ -356,8 +357,9 @@ async function processTask({
         const { bridgeVotesToEvidence } =
           await import("../evidence/vote-evidence-bridge");
         bridgeVotesToEvidence(db, r.video_id, genreVotes);
-      } catch {
-        // Evidence store not yet migrated — degrade silently
+      } catch (bridgeErr: unknown) {
+        // Evidence store not yet migrated — degrade silently; log once
+        notes.push(`evidence-bridge: ${errMessage(bridgeErr)}`);
       }
     }
   }

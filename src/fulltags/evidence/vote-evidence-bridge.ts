@@ -46,6 +46,8 @@ const RUNG_CONFIDENCE: Record<GenreVoteRung, number> = {
   imprint: 0.4,
 };
 
+const migratedDbs = new WeakSet<Database>();
+
 /**
  * Convert genre votes to evidence rows and persist them.
  * Idempotent — UPSERT on (track_id, annotator_id, scope, genre_family).
@@ -57,7 +59,10 @@ export function bridgeVotesToEvidence(
 ): number {
   if (votes.length === 0) return 0;
 
-  migrateEvidenceTable(db);
+  if (!migratedDbs.has(db)) {
+    migrateEvidenceTable(db);
+    migratedDbs.add(db);
+  }
 
   const rows: GenreEvidence[] = [];
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
