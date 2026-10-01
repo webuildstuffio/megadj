@@ -398,8 +398,11 @@ def main() -> None:
         if lower in SUBGENRE_ABBREV:
             return SUBGENRE_ABBREV[lower]
         import re as _re
+        import unicodedata
 
-        return _re.sub(r"[\s/']+", "", sub)
+        nfkd = unicodedata.normalize("NFKD", sub)
+        ascii_only = nfkd.encode("ascii", "ignore").decode("ascii")
+        return _re.sub(r"[\s/']+", "", ascii_only)
 
     def resolve_data_v4(p: str, tags: dict | None, rb_key_id: str | None = None) -> dict:
         """Resolve all v4 comment tokens for a track.

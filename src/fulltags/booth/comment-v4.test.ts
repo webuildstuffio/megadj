@@ -174,6 +174,12 @@ describe("abbreviateSubgenre", () => {
     );
   });
 
+  test("accented characters transliterated to ASCII", () => {
+    expect(abbreviateSubgenre("Electrónica")).toBe("Electronica");
+    expect(abbreviateSubgenre("Eletrônica")).toBe("Eletronica");
+    expect(abbreviateSubgenre("Matveï")).toBe("Matvei");
+  });
+
   test("new map entries resolve correctly", () => {
     expect(abbreviateSubgenre("Alternative Rock")).toBe("AltRock");
     expect(abbreviateSubgenre("Contemporary R&B")).toBe("RnB");

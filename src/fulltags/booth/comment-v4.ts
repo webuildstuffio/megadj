@@ -135,7 +135,9 @@ export const SUBGENRE_ABBREV: ReadonlyMap<string, string> = new Map([
  *  to keep the comment fleet-safe (ASCII + `·` only). */
 export function abbreviateSubgenre(subgenre: string): string {
   const lower = subgenre.toLowerCase().trim();
-  return SUBGENRE_ABBREV.get(lower) ?? subgenre.replace(/[\s/']+/g, "");
+  if (SUBGENRE_ABBREV.has(lower)) return SUBGENRE_ABBREV.get(lower)!;
+  const ascii = subgenre.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  return ascii.replace(/[\s/']+/g, "");
 }
 
 export interface CommentV4Input {
