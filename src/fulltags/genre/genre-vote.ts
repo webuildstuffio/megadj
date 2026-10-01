@@ -79,10 +79,30 @@ export interface GenreVoteResult {
   secondaryGenre: string | null;
 }
 
+/** Umbrella genre strings that should NEVER win an election.
+ *  Sources may vote them (BP returns "EDM" as a top-level category),
+ *  but they carry no information — the election demotes them and lets
+ *  a more specific vote win. They still appear in the vote breakdown. */
+const ELECTION_UMBRELLA = new Set([
+  "edm",
+  "electronic",
+  "dance",
+  "electronica",
+  "club",
+  "music",
+  "other",
+  "unknown",
+  "various",
+  "dance/electronic",
+  "electronic/dance",
+]);
+
 /** Elect the winning genre from collected votes. Highest total weight
  *  wins; ties break toward the rung with the HIGHER single weight (the
  *  harder gate — e.g. a bp vote beats two sync votes at equal mass).
- *  Deterministic: same votes, same winner, no randomness. */
+ *  Deterministic: same votes, same winner, no randomness.
+ *  Umbrella genres (EDM/Electronic/Dance) are demoted — they can only
+ *  win if they're the ONLY genre on the ballot. */
 export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
   if (votes.length === 0)
     return {
@@ -124,6 +144,11 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
       });
     }
   }
+  // Separate umbrellas from specific genres — umbrellas only win as last resort
+  const hasSpecific = [...tally.keys()].some(
+    (g) => !ELECTION_UMBRELLA.has(g.toLowerCase()),
+  );
+
   let best: {
     genre: string;
     total: number;
@@ -133,6 +158,8 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
     familyOnly: boolean;
   } | null = null;
   for (const [genre, t] of tally) {
+    // Skip umbrellas when a specific genre is available
+    if (hasSpecific && ELECTION_UMBRELLA.has(genre.toLowerCase())) continue;
     if (
       best === null ||
       t.totalBasisPoints > best.totalBasisPoints ||
