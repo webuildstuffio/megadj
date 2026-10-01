@@ -10,6 +10,7 @@
  *   --full     All of the above in sequence
  *   --extract  Feature extraction (requires audio + essentia, run separately)
  */
+import type { Database } from "bun:sqlite";
 import type { ArchiveState } from "../../core/state";
 import { writeJson } from "../../shared/cli-output";
 import {
@@ -18,7 +19,12 @@ import {
   energyModelsPresent,
   energyModelsEnsure,
   getEnergyScript,
+  parseExtractLine,
+  extractResultToRow,
+  upsertEnergyFeatures,
+  energyFeatureCount,
 } from "./energy-features";
+import { lineReader } from "../utils/stdio";
 import {
   WEIGHT_PRESETS,
   BLOC_NAMES,
@@ -47,6 +53,148 @@ export interface EnergyCommandOpts {
   readonly json: boolean;
 }
 
+interface ExtractTrack {
+  readonly videoId: string;
+  readonly path: string;
+  readonly bpm: number;
+  readonly dropStart: number;
+  readonly dropEnd: number;
+}
+
+/** Build the extraction queue: downloaded tracks with BPM and a file path. */
+function buildExtractionQueue(db: Database): ExtractTrack[] {
+  interface Row {
+    video_id: string;
+    file_path: string;
+    duration_s: number | null;
+    bpm_folded: number | null;
+  }
+  const rows = db
+    .query(
+      `SELECT t.video_id, t.file_path, t.duration_s, b.bpm_folded
+       FROM tracks t
+       JOIN beats b ON t.video_id = b.video_id
+       WHERE t.status = 'downloaded'
+         AND t.file_path IS NOT NULL AND t.file_path != ''
+         AND b.bpm_folded IS NOT NULL AND b.bpm_folded > 0`,
+    )
+    .all() as Row[];
+
+  const existing = new Set(
+    (
+      db.query("SELECT video_id FROM energy_features").all() as {
+        video_id: string;
+      }[]
+    ).map((r) => r.video_id),
+  );
+
+  const queue: ExtractTrack[] = [];
+  for (const r of rows) {
+    if (existing.has(r.video_id)) continue;
+    const dur = r.duration_s ?? 300;
+    const dropStart = dur * 0.3;
+    const dropEnd = Math.min(dur * 0.6, dropStart + 60);
+    if (dropEnd - dropStart < 4) continue;
+    queue.push({
+      videoId: r.video_id,
+      path: r.file_path,
+      bpm: r.bpm_folded!,
+      dropStart,
+      dropEnd,
+    });
+  }
+  return queue;
+}
+
+/** Run the Python energy extractor over all queued tracks. */
+async function runEnergyExtraction(db: Database): Promise<void> {
+  const queue = buildExtractionQueue(db);
+  if (queue.length === 0) {
+    const existing = energyFeatureCount(db);
+    console.log(
+      `energy --extract: nothing to extract (${existing} features already stored)`,
+    );
+    return;
+  }
+  console.log(`energy --extract: ${queue.length} tracks to extract`);
+
+  const script = getEnergyScript();
+  const { writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const scriptPath = join(
+    (await import("node:os")).tmpdir(),
+    `megadj-energy-extract-${process.pid}.py`,
+  );
+  writeFileSync(scriptPath, script);
+  const proc = Bun.spawn(
+    ["uv", "run", "--with", "essentia,onnxruntime,numpy", "python", scriptPath],
+    { stdin: "pipe", stdout: "pipe", stderr: "pipe" },
+  );
+  const enc = new TextEncoder();
+  const lr = lineReader(proc.stdout as ReadableStream);
+  const readLine = (timeoutMs: number) => lr.next(timeoutMs);
+
+  let extracted = 0;
+  let failed = 0;
+  const startMs = Date.now();
+
+  const videoIdByPath = new Map(queue.map((q) => [q.path, q.videoId]));
+
+  try {
+    for (const t of queue) {
+      const msg = JSON.stringify({
+        path: t.path,
+        drop_start: t.dropStart,
+        drop_end: t.dropEnd,
+        bpm: t.bpm,
+      });
+      proc.stdin.write(enc.encode(`${msg}\n`));
+      await proc.stdin.flush();
+
+      const line = await readLine(300_000);
+      if (line === null) {
+        console.error(
+          `energy --extract: timeout/EOF after ${extracted} extracted, ${failed} failed`,
+        );
+        break;
+      }
+      const parsed = parseExtractLine(line);
+      if (parsed === null) continue;
+      if (parsed.error !== undefined) {
+        failed++;
+        if (failed <= 10) {
+          console.error(`  ✗ ${parsed.path.slice(-60)}: ${parsed.error}`);
+        }
+        continue;
+      }
+      if (parsed.features === undefined) continue;
+      const vid = videoIdByPath.get(parsed.path);
+      if (vid === undefined) continue;
+      const row = extractResultToRow(vid, parsed.features);
+      upsertEnergyFeatures(db, row);
+      extracted++;
+      if (extracted % 100 === 0) {
+        const elapsedS = ((Date.now() - startMs) / 1000).toFixed(0);
+        console.log(
+          `  ${extracted}/${queue.length} extracted (${failed} failed, ${elapsedS}s)`,
+        );
+      }
+    }
+    proc.stdin.end();
+  } finally {
+    try {
+      proc.kill();
+    } catch {
+      // Process exit can race cleanup
+    }
+  }
+
+  const elapsedS = ((Date.now() - startMs) / 1000).toFixed(1);
+  console.log(
+    `energy --extract: done — ${extracted} extracted, ${failed} failed (${elapsedS}s)`,
+  );
+}
+
 export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
   const db = opts.state.db;
   migrateEnergyTables(db);
@@ -65,13 +213,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
         `  fetched ${fetched.length} model(s): ${fetched.join(", ")}`,
       );
     }
-    const script = getEnergyScript();
-    console.log(
-      "energy --extract: models ready. Run the Python extractor:\n" +
-        "  uv run --with essentia,onnxruntime,numpy python -c '<script>' < input.jsonl\n" +
-        `  Script length: ${script.length} chars\n` +
-        "  See docs/fulltags/energy-v3-plan-2026-10-01.md §8.",
-    );
+    await runEnergyExtraction(db);
     return;
   }
 

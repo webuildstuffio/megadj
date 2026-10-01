@@ -220,7 +220,7 @@ MODEL_DIR = ${JSON.stringify(MODEL_DIR)}
 
 from essentia.standard import (
     MonoLoader, AudioLoader, FrameGenerator, Windowing, Spectrum,
-    EnergyBand, DynamicComplexity, OnsetRate, SpectralCentroid,
+    EnergyBand, DynamicComplexity, OnsetRate, Centroid,
     Flux, LoudnessEBUR128, TensorflowInputMusiCNN
 )
 
@@ -280,24 +280,20 @@ def extract_features(path, drop_start, drop_end, bpm):
     spectrum_algo = Spectrum(size=frame_size)
     hf_band = EnergyBand(startCutoffFrequency=4000, stopCutoffFrequency=12000, sampleRate=sr)
     low_band = EnergyBand(startCutoffFrequency=20, stopCutoffFrequency=150, sampleRate=sr)
-    centroid_algo = SpectralCentroid(sampleRate=sr)
+    centroid_algo = Centroid(range=sr / 2)
     flux_algo = Flux()
 
     hf_energies = []
     low_energies = []
     centroids = []
     fluxes = []
-    prev_spectrum = None
-
     for frame in FrameGenerator(norm_audio, frameSize=frame_size, hopSize=hop_size):
         windowed = windowing(frame)
         spec = spectrum_algo(windowed)
         hf_energies.append(float(hf_band(spec)))
         low_energies.append(float(low_band(spec)))
         centroids.append(float(centroid_algo(spec)))
-        if prev_spectrum is not None:
-            fluxes.append(float(flux_algo(spec, prev_spectrum)))
-        prev_spectrum = spec
+        fluxes.append(float(flux_algo(spec)))
 
     mean_hf = np.mean(hf_energies) if hf_energies else 0
     mean_low = np.mean(low_energies) if low_energies else 0
