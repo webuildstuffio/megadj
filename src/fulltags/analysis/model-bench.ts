@@ -15,7 +15,12 @@
  */
 
 import { Database } from "bun:sqlite";
-import { existsSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  writeFileSync,
+  readFileSync,
+  appendFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { genreFamily } from "../../core/similar";
 import { findDropCandidates } from "./drop-finder";
@@ -23,6 +28,8 @@ import { round2 } from "../../shared/leaf/fmt";
 
 const DB_PATH =
   process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
+
+const CHECKPOINT_PATH = "/tmp/model-bench-checkpoint.jsonl";
 
 const ALL_MODELS = [
   "effnet-discogs-1280",
@@ -394,6 +401,44 @@ function normalCdf(x: number): number {
   return 0.5 * (1.0 + sign * y);
 }
 
+// ── Checkpoint/streaming helpers ──────────────────────────────────────
+
+interface CheckpointEntry {
+  model: string;
+  embeddings: Record<string, (number[] | null)[]>;
+  timestamp: string;
+}
+
+function loadCheckpoint(): Map<string, Record<string, (number[] | null)[]>> {
+  const loaded = new Map<string, Record<string, (number[] | null)[]>>();
+  if (!existsSync(CHECKPOINT_PATH)) return loaded;
+  try {
+    const lines = readFileSync(CHECKPOINT_PATH, "utf8")
+      .split("\n")
+      .filter((l) => l.trim());
+    for (const line of lines) {
+      const entry = JSON.parse(line) as CheckpointEntry;
+      loaded.set(entry.model, entry.embeddings);
+    }
+    process.stderr.write(`  Loaded ${loaded.size} model(s) from checkpoint\n`);
+  } catch {
+    /* corrupt checkpoint — start fresh */
+  }
+  return loaded;
+}
+
+function writeCheckpointEntry(
+  model: string,
+  embeddings: Record<string, (number[] | null)[]>,
+): void {
+  const entry: CheckpointEntry = {
+    model,
+    embeddings,
+    timestamp: new Date().toISOString(),
+  };
+  appendFileSync(CHECKPOINT_PATH, `${JSON.stringify(entry)}\n`);
+}
+
 // ── Python bridge ──────────────────────────────────────────────────────
 
 interface ManifestTrack {
@@ -413,9 +458,25 @@ async function computeModelEmbeddings(
     };
   });
 
+  const checkpoint = loadCheckpoint();
   const result = new Map<string, (number[] | null)[][]>();
 
   for (const model of models) {
+    // Check if already computed (kill resilience)
+    const cached = checkpoint.get(model);
+    if (cached) {
+      process.stderr.write(`  [${model}] restored from checkpoint\n`);
+      const trackEmbs: (number[] | null)[][] = tracks.map((t) => {
+        const embs = cached[t.filePath];
+        if (!embs) return [null, null, null];
+        return embs.map((e) =>
+          e !== null && !e.every((v) => v === 0) ? e : null,
+        );
+      });
+      result.set(model, trackEmbs);
+      continue;
+    }
+
     const manifestJson = JSON.stringify({
       tracks: manifest,
       models: [model],
@@ -465,6 +526,10 @@ async function computeModelEmbeddings(
     >;
     const modelData = raw[model];
     if (!modelData) continue;
+
+    // Stream result to checkpoint file (kill resilience)
+    writeCheckpointEntry(model, modelData);
+
     const trackEmbs: (number[] | null)[][] = tracks.map((t) => {
       const embs = modelData[t.filePath];
       if (!embs) return [null, null, null];

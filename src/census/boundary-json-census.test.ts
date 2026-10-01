@@ -90,6 +90,8 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "Model bench: downbeats JSON from self-written DB column; try/catch returns [] on corrupt rows — bench skips the track, never throws.",
   "src/fulltags/analysis/model-bench.ts::loadSample::JSON.parse(r.genre_votes)":
     "Model bench: genre_votes JSON from self-written DB column; nested try/catch defaults to 0 on corrupt JSON — vote count is advisory, never a throw.",
+  "src/fulltags/analysis/model-bench.ts::loadCheckpoint::JSON.parse(line)":
+    "Model bench: reads own checkpoint file (JSONL written by writeCheckpointEntry); outer try/catch discards corrupt checkpoint and starts fresh.",
   "src/fulltags/analysis/model-bench.ts::computeModelEmbeddings::JSON.parse(output)":
     "Model bench: parses Python subprocess stdout (own protocol); throws on corrupt output — bench cannot continue without embeddings, failure is visible.",
 };
@@ -235,10 +237,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 29 (M6 #330): sessions.ts sessionResultStable adds one
     // sanctioned JSON.parse (determinism check — catch returns false,
     // not a recognized visible failure shape); audited +1, sanctioned +1.
-    audited: 87,
+    audited: 88,
     guarded: 56,
-    sanctioned: 31,
-    digest: "57bf913bd4a027fb4bc94172efe82397d46596465488219ff2c6ff649af5f923",
+    sanctioned: 32,
+    digest: "a833465385c06b7c43ba30b2db3622a2d130b696b00e1710627b046b263cad8d",
   });
 });
 
