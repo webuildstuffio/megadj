@@ -18,7 +18,7 @@ import numpy as np
 import torch
 
 # MAEST model from HuggingFace
-MODEL_ID = "mtg-upf/discogs-maest-30s-pw-73.6-swa"
+MODEL_ID = "mtg-upf/discogs-maest-30s-pw-129e"
 
 
 def load_model() -> tuple:
@@ -27,8 +27,8 @@ def load_model() -> tuple:
 
     print("Loading MAEST model...", file=sys.stderr)
     t0 = time.time()
-    feature_extractor = AutoFeatureExtractor.from_pretrained(MODEL_ID)
-    model = AutoModel.from_pretrained(MODEL_ID, output_hidden_states=True)
+    feature_extractor = AutoFeatureExtractor.from_pretrained(MODEL_ID, trust_remote_code=True)
+    model = AutoModel.from_pretrained(MODEL_ID, output_hidden_states=True, trust_remote_code=True)
     model.eval()
     print(f"  loaded in {time.time() - t0:.1f}s", file=sys.stderr)
     return model, feature_extractor
