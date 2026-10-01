@@ -207,8 +207,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 30 (comment-v4): parseCommentV4 adds 3 Number.isFinite-gated
     // Number() calls (energy eVal, introBars iVal, outroBars oVal) —
     // audited 60→63, guarded 42→45, sanctioned unchanged.
-    audited: 64,
-    guarded: 45,
+    // Oct 1 (discogs-api): parseDiscogsApiYear adds 1 Number() call
+    // with isFinite+range guard — audited 64→65, guarded 45→46.
+    audited: 65,
+    guarded: 46,
     sanctioned: 19,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -239,7 +241,8 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // digest shifted.
     // Genre source expansion: discogs-ingest.ts adds 1 Number() site
     // (digits-only regex capture, sanctioned), audited 63→64, sanctioned 18→19.
-    digest: "b227da6de50b8407e52de071d6ce3a6993ae6a420a4f8ad34edce52710b99ad3",
+    // Oct 1 (discogs-api): parseDiscogsApiYear adds 1 guarded Number() call.
+    digest: "63679371652199cd278baf3969e7d1ba042babf845f1be90eb642db651206d49",
   });
 });
 

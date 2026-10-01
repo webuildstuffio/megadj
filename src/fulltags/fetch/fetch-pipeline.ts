@@ -69,6 +69,7 @@ import { mbGenreForRecording } from "../sources/mb-lookup";
 import { discogsGenreVote } from "../sources/discogs-vote";
 import { bridgeVotesToEvidence } from "../evidence/vote-evidence-bridge";
 import { routeArtistForGenre } from "../identity/remix-route";
+import { estimatorEnabled, runEstimatorBatch } from "./fetch-estimator";
 import { errMessage } from "../../shared/leaf/fmt";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import {
@@ -295,10 +296,10 @@ async function processTask({
   const rawArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
   const rawTitle = ctx.truth.title ?? r.title;
 
-  // ---- W9 Discogs vote (offline — local SQLite cache, instant) ----
+  // ---- W9 Discogs vote (offline DB → API fallback, 1 rps) ----
   if (t.needGenre && !dry && genreVotes !== undefined) {
     if (rawArtist && rawTitle) {
-      const dgVote = discogsGenreVote(rawArtist, rawTitle);
+      const dgVote = await discogsGenreVote(rawArtist, rawTitle);
       if (dgVote) {
         genreVotes.push(dgVote);
         stats.genreDiscogs++;
@@ -493,6 +494,17 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   await aiGenreFallback(aiGenreBatch, stats, dry, jsonOut);
   await aiYearFallback(aiYearBatch, stats, dry, jsonOut);
   await queueArtless(artless, dry);
+
+  // ---- Dawid-Skene estimator batch (flag-gated) ----
+  if (estimatorEnabled() && !dry && stats.votesCast > 0) {
+    try {
+      runEstimatorBatch(db);
+    } catch (estimatorErr: unknown) {
+      if (!jsonOut) {
+        console.error(`  estimator error: ${errMessage(estimatorErr)}`);
+      }
+    }
+  }
 
   // ---- summary ----
   const summary = {

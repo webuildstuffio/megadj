@@ -13,6 +13,7 @@
  * We match by artist+title against the archive ledger.
  */
 import { mapToFamily } from "../genre/taxonomy-v3";
+import { familyOf } from "../genre/genre-vocab";
 
 /** A Discogs release's genre information. */
 export interface DiscogsRelease {
@@ -52,7 +53,7 @@ export function mapDiscogsRelease(release: DiscogsRelease): DiscogsGenreResult {
 
   // Styles first (more specific = better L3 signal)
   for (const style of release.styles) {
-    const family = mapToFamily(style);
+    const family = mapToFamily(style) ?? familyOf(style) ?? null;
     if (family !== null) {
       families.push(family);
       if (bestFamily === null) {
@@ -67,7 +68,7 @@ export function mapDiscogsRelease(release: DiscogsRelease): DiscogsGenreResult {
   // Fall back to genres if no styles mapped
   if (families.length === 0) {
     for (const genre of release.genres) {
-      const family = mapToFamily(genre);
+      const family = mapToFamily(genre) ?? familyOf(genre) ?? null;
       if (family !== null) {
         families.push(family);
         if (bestFamily === null) bestFamily = family;

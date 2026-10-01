@@ -41,6 +41,9 @@ describe("discogsGenreVote", () => {
     db.close();
 
     process.env["MEGADJ_DISCOGS_DB"] = dbPath;
+    // Ensure API path is disabled for DB tests
+    delete process.env["MEGADJ_DISCOGS_KEY"];
+    delete process.env["MEGADJ_DISCOGS_SECRET"];
   });
 
   afterEach(() => {
@@ -48,8 +51,8 @@ describe("discogsGenreVote", () => {
     delete process.env["MEGADJ_DISCOGS_DB"];
   });
 
-  it("returns a vote for a matching release", () => {
-    const vote = discogsGenreVote("Phuture", "Acid Trax");
+  it("returns a vote for a matching release", async () => {
+    const vote = await discogsGenreVote("Phuture", "Acid Trax");
     expect(vote).not.toBeNull();
     expect(vote?.rung).toBe("discogs");
     expect(vote?.weight).toBe(GENRE_VOTE_WEIGHTS.discogs);
@@ -57,33 +60,33 @@ describe("discogsGenreVote", () => {
     expect(vote?.detail).toContain("discogs:42");
   });
 
-  it("returns null for non-matching artist+title", () => {
-    const vote = discogsGenreVote("Unknown Artist", "Unknown Track");
+  it("returns null for non-matching artist+title", async () => {
+    const vote = await discogsGenreVote("Unknown Artist", "Unknown Track");
     expect(vote).toBeNull();
   });
 
-  it("returns null when MEGADJ_DISCOGS_DB is unset", () => {
+  it("returns null when MEGADJ_DISCOGS_DB is unset", async () => {
     discogsDbClose();
     delete process.env["MEGADJ_DISCOGS_DB"];
-    const vote = discogsGenreVote("Phuture", "Acid Trax");
+    const vote = await discogsGenreVote("Phuture", "Acid Trax");
     expect(vote).toBeNull();
   });
 
-  it("returns null when DB path does not exist", () => {
+  it("returns null when DB path does not exist", async () => {
     discogsDbClose();
     process.env["MEGADJ_DISCOGS_DB"] = "/tmp/nonexistent-db-path.db";
-    const vote = discogsGenreVote("Phuture", "Acid Trax");
+    const vote = await discogsGenreVote("Phuture", "Acid Trax");
     expect(vote).toBeNull();
   });
 
-  it("caches the DB handle — repeated calls reuse the same DB", () => {
-    const v1 = discogsGenreVote("Phuture", "Acid Trax");
-    const v2 = discogsGenreVote("Phuture", "Acid Trax");
+  it("caches the DB handle — repeated calls reuse the same DB", async () => {
+    const v1 = await discogsGenreVote("Phuture", "Acid Trax");
+    const v2 = await discogsGenreVote("Phuture", "Acid Trax");
     expect(v1?.genre).toBe(v2?.genre);
   });
 
-  it("vote detail includes release ID and style", () => {
-    const vote = discogsGenreVote("Phuture", "Acid Trax");
+  it("vote detail includes release ID and style", async () => {
+    const vote = await discogsGenreVote("Phuture", "Acid Trax");
     expect(vote?.detail).toContain("discogs:42");
     expect(vote?.detail).toContain("style:");
   });

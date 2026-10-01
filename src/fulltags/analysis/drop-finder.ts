@@ -69,8 +69,7 @@ function scoreWindows(
   const sectionBars = Math.min(TARGET_BARS, totalBars);
   const scored: { start: number; score: number; sectionBars: number }[] = [];
 
-  const hasRms =
-    rmsPerBar !== undefined && rmsPerBar.length >= totalBars;
+  const hasRms = rmsPerBar !== undefined && rmsPerBar.length >= totalBars;
 
   // Pre-compute raw window means for each signal, then min-max normalize.
   const rawPos: number[] = [];
