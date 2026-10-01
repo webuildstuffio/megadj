@@ -90,30 +90,97 @@ def main() -> None:
             continue
         rows.append(c)
 
-    # ledger fallback data (video_id keyed)
-    led = {}
+    # ---- Single ledger connection for ALL archive.db reads ----
+    led: dict[str, dict] = {}
     moods_by_path: dict[str, dict] = {}
     energy_from_mood: dict[str, str] = {}
+    genres_secondary: dict[str, str] = {}
+    genres_tertiary: dict[str, str] = {}
+    all_energies: list[float] = []
+    energy_by_path: dict[str, float] = {}
+    family_aggressive: dict[str, list[float]] = {}
+    family_happy: dict[str, list[float]] = {}
+    all_aggressive: list[float] = []
+    all_happy: list[float] = []
+    agg_by_path: dict[str, float] = {}
+    hap_by_path: dict[str, float] = {}
+    genre_by_path: dict[str, str] = {}
+    var_by_path: dict[str, bool] = {}
+    genres_by_path_archive: dict[str, str] = {}
+    VAR_THRESHOLD = 15.0
     if os.path.exists(ledger_path):
         con = sqlite3.connect(ledger_path)
         con.row_factory = sqlite3.Row
         for t in con.execute(
-            "select video_id, energy, genre, year, album, title, artist, file_path from tracks"
+            "select video_id, energy, genre, genre_secondary, genre_votes,"
+            " year, album, title, artist, file_path from tracks"
+            " WHERE file_path IS NOT NULL"
         ):
-            led.setdefault("path:" + nfc_casefold(t["file_path"] or ""), dict(t))
+            fp_key = nfc_casefold(t["file_path"] or "")
+            led.setdefault("path:" + fp_key, dict(t))
             led.setdefault("id:" + t["video_id"], dict(t))
+            # Energy
+            try:
+                e = float(t["energy"])
+                all_energies.append(e)
+                energy_by_path[fp_key] = e
+            except (TypeError, ValueError):
+                pass
+            # Genre for genre sync
+            g = t["genre"] or ""
+            if g:
+                genres_by_path_archive[fp_key] = g
+                genre_by_path[fp_key] = g.strip()
+            # Secondary/tertiary genre
+            if t["genre_secondary"]:
+                genres_secondary[fp_key] = t["genre_secondary"]
+            if t["genre_votes"]:
+                try:
+                    votes = json.loads(t["genre_votes"])
+                    primary = g
+                    secondary = t["genre_secondary"] or ""
+                    for v in votes:
+                        vg = v.get("genre", "")
+                        if vg and vg != primary and vg != secondary:
+                            genres_tertiary[fp_key] = vg
+                            break
+                except (json.JSONDecodeError, TypeError):
+                    pass
         for m in con.execute(
             "select m.video_id, m.dance, m.aggressive, m.happy, m.electronic, m.party,"
-            " m.arousal, t.file_path from mood m join tracks t on t.video_id = m.video_id"
+            " m.arousal, t.file_path, t.genre from mood m"
+            " join tracks t on t.video_id = m.video_id"
+            " WHERE t.file_path IS NOT NULL"
         ):
             fp_key = nfc_casefold(m["file_path"] or "")
             moods_by_path[fp_key] = dict(m)
-            # Derive energy from arousal (1-9 scale -> 1-10 DJ energy)
             try:
                 ar = float(m["arousal"] or 0)
                 if ar > 0:
                     e_val = max(1.0, min(10.0, round(1 + (ar - 1) * (9 / 8), 1)))
                     energy_from_mood[fp_key] = str(e_val)
+            except (TypeError, ValueError):
+                pass
+            genre_fam = (m["genre"] or "").strip()
+            try:
+                agg = float(m["aggressive"])
+                hap = float(m["happy"])
+            except (TypeError, ValueError):
+                continue
+            agg_by_path[fp_key] = agg
+            hap_by_path[fp_key] = hap
+            all_aggressive.append(agg)
+            all_happy.append(hap)
+            if genre_fam:
+                family_aggressive.setdefault(genre_fam, []).append(agg)
+                family_happy.setdefault(genre_fam, []).append(hap)
+        for row_var in con.execute(
+            "SELECT source_path, bpm_residual_std FROM beats"
+            " WHERE bpm_residual_std IS NOT NULL AND source_path IS NOT NULL"
+        ):
+            fp = nfc_casefold(row_var[0] or "")
+            try:
+                var_by_path[fp] = float(row_var[1]) > VAR_THRESHOLD
             except (TypeError, ValueError):
                 pass
         con.close()
@@ -131,96 +198,19 @@ def main() -> None:
         "errors": [],
     }
 
-    # ---- v3 genre lookup: secondary + tertiary from archive.db ----
-    genres_secondary: dict[str, str] = {}
-    genres_tertiary: dict[str, str] = {}
-    if os.path.exists(ledger_path):
-        con_g = sqlite3.connect(ledger_path)
-        con_g.row_factory = sqlite3.Row
-        for g in con_g.execute(
-            "SELECT video_id, genre, genre_secondary, genre_votes, file_path"
-            " FROM tracks WHERE file_path IS NOT NULL"
-        ):
-            fp_key = nfc_casefold(g["file_path"] or "")
-            if g["genre_secondary"]:
-                genres_secondary[fp_key] = g["genre_secondary"]
-            # Parse 3rd genre from genre_votes JSON
-            if g["genre_votes"]:
-                try:
-                    votes = json.loads(g["genre_votes"])
-                    primary = g["genre"] or ""
-                    secondary = g["genre_secondary"] or ""
-                    for v in votes:
-                        vg = v.get("genre", "")
-                        if vg and vg != primary and vg != secondary:
-                            genres_tertiary[fp_key] = vg
-                            break
-                except (json.JSONDecodeError, TypeError):
-                    pass
-        con_g.close()
-
-    # ---- v4: library-relative energy bands ----
-    all_energies: list[float] = []
-    energy_by_path: dict[str, float] = {}
-    if os.path.exists(ledger_path):
-        con_e = sqlite3.connect(ledger_path)
-        for row_e in con_e.execute(
-            "SELECT file_path, energy FROM tracks WHERE energy IS NOT NULL AND file_path IS NOT NULL"
-        ):
-            fp = nfc_casefold(row_e[0] or "")
-            try:
-                e = float(row_e[1])
-                all_energies.append(e)
-                energy_by_path[fp] = e
-            except (TypeError, ValueError):
-                pass
-        con_e.close()
+    # Pre-sort arrays once (populated in the single-connection block above)
     all_energies.sort()
 
+    from bisect import bisect_right
+
     def energy_band(track_energy: float) -> int:
-        """Library-relative energy band E1-E9."""
+        """Library-relative energy band E1-E9 (bisect — O(log n))."""
         if not all_energies:
             return 5
-        rank = 0
-        for e in all_energies:
-            if e <= track_energy:
-                rank += 1
-            else:
-                break
+        rank = bisect_right(all_energies, track_energy)
         pct = rank / len(all_energies)
-        band = math.ceil(pct * 9)
-        return max(1, min(9, band))
+        return max(1, min(9, math.ceil(pct * 9)))
 
-    # ---- v4: within-family mood percentiles ----
-    family_aggressive: dict[str, list[float]] = {}
-    family_happy: dict[str, list[float]] = {}
-    all_aggressive: list[float] = []
-    all_happy: list[float] = []
-    agg_by_path: dict[str, float] = {}
-    hap_by_path: dict[str, float] = {}
-    genre_by_path: dict[str, str] = {}
-    if os.path.exists(ledger_path):
-        con_fm = sqlite3.connect(ledger_path)
-        for row_fm in con_fm.execute(
-            "SELECT t.file_path, t.genre, m.aggressive, m.happy "
-            "FROM tracks t JOIN mood m ON t.video_id = m.video_id "
-            "WHERE t.file_path IS NOT NULL AND t.genre IS NOT NULL"
-        ):
-            fp = nfc_casefold(row_fm[0] or "")
-            genre_fam = (row_fm[1] or "").strip()
-            try:
-                agg = float(row_fm[2])
-                hap = float(row_fm[3])
-            except (TypeError, ValueError):
-                continue
-            agg_by_path[fp] = agg
-            hap_by_path[fp] = hap
-            genre_by_path[fp] = genre_fam
-            all_aggressive.append(agg)
-            all_happy.append(hap)
-            family_aggressive.setdefault(genre_fam, []).append(agg)
-            family_happy.setdefault(genre_fam, []).append(hap)
-        con_fm.close()
     all_aggressive.sort()
     all_happy.sort()
     for fam_vals in family_aggressive.values():
@@ -231,34 +221,11 @@ def main() -> None:
     FAMILY_MIN_SIZE = 300
 
     def family_percentile(value: float, family_vals: list[float], all_vals: list[float]) -> float:
-        """Within-family percentile. Falls back to global for small families."""
+        """Within-family percentile (bisect — O(log n))."""
         pool = family_vals if len(family_vals) >= FAMILY_MIN_SIZE else all_vals
         if not pool:
             return 0.5
-        rank = 0
-        for v in pool:
-            if v <= value:
-                rank += 1
-            else:
-                break
-        return rank / len(pool)
-
-    # ---- v4: VAR (variable tempo) from bpm_residual_std ----
-    VAR_THRESHOLD = 15.0  # ~5.2% fire rate at 15.0
-    var_by_path: dict[str, bool] = {}
-    if os.path.exists(ledger_path):
-        con_var = sqlite3.connect(ledger_path)
-        for row_var in con_var.execute(
-            "SELECT b.source_path, b.bpm_residual_std "
-            "FROM beats b WHERE b.bpm_residual_std IS NOT NULL AND b.source_path IS NOT NULL"
-        ):
-            fp = nfc_casefold(row_var[0] or "")
-            try:
-                residual = float(row_var[1])
-                var_by_path[fp] = residual > VAR_THRESHOLD
-            except (TypeError, ValueError):
-                pass
-        con_var.close()
+        return bisect_right(pool, value) / len(pool)
 
     # ---- v4: IN/OUT bars from ANLZ .EXT PSSI phrase data ----
     MIX_WINDOW_STEPS = (0, 8, 16, 32, 64)
@@ -612,17 +579,7 @@ def main() -> None:
             out["errors"].append(["transaction", repr(e)[:200]])
 
     # ---- Genre sync: push archive.db vote-winner genres to master.db ----
-    # Bug fix: scope to the same batch-filtered `rows` as the comment sync
-    # — the old `db.query(DjmdContent).all()` ignored --batch and synced
-    # genres for ALL tracks when comments were batch-scoped.
-    genres_by_path: dict[str, str] = {}
-    if os.path.exists(ledger_path):
-        con2 = sqlite3.connect(ledger_path)
-        for row2 in con2.execute(
-            "SELECT file_path, genre FROM tracks WHERE genre IS NOT NULL AND genre != '' AND file_path IS NOT NULL"
-        ):
-            genres_by_path[nfc_casefold(row2[0])] = row2[1]
-        con2.close()
+    # genres_by_path_archive was populated in the single-connection block above
 
     from pyrekordbox.db6.tables import DjmdGenre  # type: ignore[import-not-found]
 
@@ -637,7 +594,7 @@ def main() -> None:
         p = nfc_casefold(c.FolderPath or "")
         if not p:
             continue
-        archive_genre = genres_by_path.get(p)
+        archive_genre = genres_by_path_archive.get(p)
         if not archive_genre:
             genre_skipped += 1
             continue
@@ -698,26 +655,9 @@ def main() -> None:
     MANUAL_COLORS = {1, 8}  # Pink, Purple — user-managed
     color_written = 0
     color_skipped = 0
-    for c, cid, comment in pending:
-        v4d = resolve_data_v4(c.FolderPath or "", None, str(c.KeyID) if c.KeyID else None)
-        eb = v4d.get("energy_band")
-        if eb is None:
-            continue
-        target_color = ENERGY_TO_COLOR.get(eb, 0)
-        current_color = int(c.ColorID or 0)
-        if current_color in MANUAL_COLORS:
-            color_skipped += 1
-            continue
-        if current_color != target_color:
-            if apply:
-                c.ColorID = target_color
-            color_written += 1
-    # Also color tracks not in pending (already had matching comment)
+    # Color ALL rows from energy_by_path — no redundant resolve_data_v4 calls
     for c in rows:
-        p = c.FolderPath or ""
-        if not os.path.exists(p):
-            continue
-        fp_key = nfc_casefold(p)
+        fp_key = nfc_casefold(c.FolderPath or "")
         eb_raw = energy_by_path.get(fp_key)
         if eb_raw is None:
             continue
