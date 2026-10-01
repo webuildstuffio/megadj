@@ -221,6 +221,17 @@ const STYLE_MAP = new Map<string, GenreFamily>([
   ["funk", "funk"],
   ["boogie", "disco"],
   ["pop", "pop"],
+  ["rock", "pop"],
+  ["indie", "pop"],
+  ["alternative", "pop"],
+  ["punk", "pop"],
+  ["metal", "pop"],
+  ["folk", "pop"],
+  ["country", "pop"],
+  ["hip-hop", "hip hop"],
+  ["hip-hop & rap", "hip hop"],
+  ["hiphop", "hip hop"],
+  ["rap", "hip hop"],
   ["indie dance", "disco"],
 ]);
 

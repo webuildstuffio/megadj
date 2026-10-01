@@ -110,6 +110,20 @@ describe("bridgeVotesToEvidence", () => {
     }
   });
 
+  it("normalizes familyOf output to taxonomy-v3 family names", () => {
+    const votes: GenreVote[] = [
+      { rung: "bp", genre: "Hip-Hop", weight: 0.6 },
+      { rung: "bp", genre: "EDM", weight: 0.6 },
+      { rung: "sc", genre: "Funk", weight: 0.35 },
+    ];
+    bridgeVotesToEvidence(db, "track-norm", votes);
+    const rows = loadEvidence(db, "track-norm");
+    const families = rows.map((r) => r.genreFamily);
+    expect(families).toContain("hip hop");
+    expect(families).toContain("electro");
+    expect(families).toContain("funk");
+  });
+
   it("WeakSet cache prevents repeated migration", () => {
     // First call migrates
     bridgeVotesToEvidence(db, "track-8", [

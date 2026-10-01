@@ -13,6 +13,7 @@
 import type { Database } from "bun:sqlite";
 import type { GenreVote, GenreVoteRung } from "../genre/genre-vote";
 import { mapToFamily } from "../genre/taxonomy-v3";
+import { familyOf } from "../genre/genre-vocab";
 import {
   migrateEvidenceTable,
   upsertEvidence,
@@ -46,6 +47,14 @@ const RUNG_CONFIDENCE: Record<GenreVoteRung, number> = {
   imprint: 0.4,
 };
 
+/** Normalize familyOf (genre-vocab) returns to taxonomy-v3 family names. */
+const FAMILY_NORMALIZE = new Map<string, string>([
+  ["hiphop", "hip hop"],
+  ["groove", "funk"],
+  ["mood", "ambient"],
+  ["edm", "electro"],
+]);
+
 const migratedDbs = new WeakSet<Database>();
 
 /**
@@ -68,8 +77,13 @@ export function bridgeVotesToEvidence(
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
 
   for (const v of votes) {
-    const family = mapToFamily(v.genre);
-    if (!family) continue;
+    // mapToFamily (taxonomy-v3) is strict — umbrellas abstain (EDM/Dance/
+    // Electronic → null). familyOf (genre-vocab) maps them to a family
+    // for scoring. Evidence needs the broader mapping: a Beatport vote for
+    // "EDM" is still evidence the track is in the edm family.
+    const rawFamily = mapToFamily(v.genre) ?? familyOf(v.genre);
+    if (!rawFamily) continue;
+    const family = FAMILY_NORMALIZE.get(rawFamily) ?? rawFamily;
 
     rows.push({
       trackId,

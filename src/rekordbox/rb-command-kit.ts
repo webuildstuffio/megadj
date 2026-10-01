@@ -297,7 +297,7 @@ export function makeFail<T>(template: (msg: string) => T): (msg: string) => T {
  *  One helper; the body callback keeps each command's layout. The
  *  `--json` path is untouched (these are human-mode printers only).
  *  Output bytes are identical to the inlined form. */
-export function printResult<T extends { error?: string }>(
+export function printResult<T extends { error?: string | undefined }>(
   log: (s: string) => void,
   r: T,
   body: (r: T) => void,
