@@ -124,7 +124,7 @@ def main() -> None:
         "written": 0,
         "enriched": 0,
         "alreadyHad": 0,
-        "anlz_loaded": len(inout_by_path),
+        "anlz_loaded": 0,
         "skipped": [],
         "samples": [],
         "writes": [],
@@ -377,6 +377,7 @@ def main() -> None:
                     inout_by_path[nfc_casefold(full_path)] = bars
                 except (OSError, struct.error):
                     pass
+    out["anlz_loaded"] = len(inout_by_path)
 
     # ---- v4: subgenre abbreviation map ----
     SUBGENRE_ABBREV: dict[str, str] = {
