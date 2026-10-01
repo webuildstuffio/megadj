@@ -655,15 +655,16 @@ def main() -> None:
     out["genre_skipped"] = genre_skipped
 
     # ---- Track Color: energy band → ColorID ----
-    # Blue(7)=E1-E2, Aqua(6)=E3, Green(5)=E4-E5, Yellow(4)=E6, Orange(3)=E7-E8, Red(2)=E9
+    # Matches colour-energy.ts energyToColour (SSOT).
+    # Blue(7)=E1-E2, Aqua(6)=E3-E4, Green(5)=E5-E6, Orange(3)=E7-E8, Red(2)=E9
     # Pink(1) and Purple(8) are manual — never overwrite.
     ENERGY_TO_COLOR: dict[int, int] = {
         1: 7,
         2: 7,
         3: 6,
-        4: 5,
+        4: 6,
         5: 5,
-        6: 4,
+        6: 5,
         7: 3,
         8: 3,
         9: 2,

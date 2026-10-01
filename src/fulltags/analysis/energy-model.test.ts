@@ -45,7 +45,7 @@ describe("fitEnergyModel", () => {
     expect(Math.abs(a.score - b.score)).toBeLessThan(0.1);
   });
 
-  test("scores produce valid energy bands (1–10)", () => {
+  test("scores produce valid energy bands (E1–E9)", () => {
     const pairs: EnergyPair[] = [
       { winnerId: "A", loserId: "B" },
       { winnerId: "A", loserId: "C" },

@@ -5,7 +5,7 @@
  * energetic than track B") using the Bradley-Terry model.
  *
  * The model produces a continuous energy score per track, which is then
- * binned into the 1–10 energy band for the comment string.
+ * binned into the 1–9 energy band (E1–E9) for the comment string.
  */
 import { round3 } from "../../shared/leaf/fmt";
 
@@ -100,7 +100,7 @@ export function fitEnergyModel(
     if (maxDelta < epsilon) break;
   }
 
-  // Convert to energy bands (1–10)
+  // Convert to energy bands E1–E9
   return trackIds.map((trackId, i) => ({
     trackId,
     score: round3(scores[i]!),

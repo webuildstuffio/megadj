@@ -13,8 +13,9 @@ describe("energyToColour", () => {
   test("band 6 → green (5)", () => expect(energyToColour(6)).toBe(5));
   test("band 7 → orange (3)", () => expect(energyToColour(7)).toBe(3));
   test("band 8 → orange (3)", () => expect(energyToColour(8)).toBe(3));
-  test("band 9 → red (2)", () => expect(energyToColour(9)).toBe(2));
-  test("band 10 → red (2)", () => expect(energyToColour(10)).toBe(2));
+  test("band 9 (E9) → red (2)", () => expect(energyToColour(9)).toBe(2));
+  test("band 10 (defensive, above E9) → red (2)", () =>
+    expect(energyToColour(10)).toBe(2));
 });
 
 describe("colourName", () => {

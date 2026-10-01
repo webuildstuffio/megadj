@@ -1,7 +1,7 @@
 /**
  * colour-energy.ts — RB colour = energy band; My Tag = L2/L3 (B10.2).
  *
- * Maps energy bands (1–10) to rekordbox colour IDs and
+ * Maps energy bands (E1–E9) to rekordbox colour IDs and
  * builds the My Tag string from genre family + L3 subgenre.
  *
  * Rekordbox colour codes (djmdContent.ColorID):
@@ -9,16 +9,16 @@
  *   6=aqua, 7=blue, 8=purple
  *
  * Energy-to-colour: cold→hot gradient:
- *   1–2=blue(7), 3–4=aqua(6), 5–6=green(5), 7–8=orange(3), 9–10=red(2)
+ *   E1–E2=blue(7), E3–E4=aqua(6), E5–E6=green(5), E7–E8=orange(3), E9=red(2)
  */
 
-/** Map energy band (1–10) to rekordbox ColorID. */
+/** Map energy band E1–E9 to rekordbox ColorID. */
 export function energyToColour(band: number): number {
   if (band <= 2) return 7; // blue — low energy
   if (band <= 4) return 6; // aqua
   if (band <= 6) return 5; // green — mid energy
   if (band <= 8) return 3; // orange
-  return 2; // red — high energy
+  return 2; // red — high energy (E9)
 }
 
 /** Human-readable colour name for display. */
