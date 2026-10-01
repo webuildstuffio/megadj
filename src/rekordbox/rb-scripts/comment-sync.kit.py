@@ -386,6 +386,8 @@ def main() -> None:
         "ambient": "Ambient",
         "r&b": "RnB",
         "edm/bass": "EDMBass",
+        "hip-hop & rap": "HipHop",
+        "hip-hop&rap": "HipHop",
         "alternative rock": "AltRock",
         "contemporary r&b": "RnB",
         "soulful house": "SoulHouse",
