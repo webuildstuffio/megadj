@@ -75,6 +75,7 @@ export interface SyncOutput {
   colorWritten: number;
   colorSkipped: number;
   mytagWritten: number;
+  anlzLoaded: number;
 }
 
 export interface CommentVerifyOutput {
@@ -124,6 +125,7 @@ function requireSyncShape(value: Record<string, unknown>): SyncOutput {
     colorWritten: optInt("color_written"),
     colorSkipped: optInt("color_skipped"),
     mytagWritten: optInt("mytag_written"),
+    anlzLoaded: optInt("anlz_loaded"),
   };
 }
 

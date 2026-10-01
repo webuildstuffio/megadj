@@ -9,11 +9,14 @@ One spawn writes the batch behind the RB-closed guard (kit fragment).
 """
 
 import json
+import math
 import os
 import sqlite3
+import struct
 import subprocess
 import sys
 import unicodedata
+from pathlib import Path
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
@@ -121,6 +124,7 @@ def main() -> None:
         "written": 0,
         "enriched": 0,
         "alreadyHad": 0,
+        "anlz_loaded": len(inout_by_path),
         "skipped": [],
         "samples": [],
         "writes": [],
@@ -258,6 +262,129 @@ def main() -> None:
                 pass
         con_var.close()
 
+    # ---- v4: IN/OUT bars from ANLZ .EXT PSSI phrase data ----
+    MIX_WINDOW_STEPS = (0, 8, 16, 32, 64)
+
+    def round_bars_down(bars: int) -> int:
+        """Round bar count DOWN to nearest valid step {0,8,16,32,64}."""
+        for step in reversed(MIX_WINDOW_STEPS):
+            if bars >= step:
+                return step
+        return 0
+
+    def parse_pssi(data: bytes) -> tuple[int, int] | None:
+        """Parse PSSI section from an .EXT file → (intro_bars, outro_bars) or None."""
+        if len(data) < 44 or data[:4] != b"PMAI":
+            return None
+        if struct.unpack_from(">I", data, 4)[0] != 28:
+            return None
+        if data[28:32] != b"PPTH":
+            return None
+        path_len = struct.unpack_from(">I", data, 40)[0]
+        off = 44 + path_len
+
+        pssi_off = -1
+        while off < len(data):
+            if off + 12 > len(data):
+                break
+            sec_tag = data[off : off + 4]
+            sec_total = struct.unpack_from(">I", data, off + 8)[0]
+            if sec_total < 12 or off + sec_total > len(data):
+                break
+            if sec_tag == b"PSSI":
+                pssi_off = off
+                break
+            off += sec_total
+        if pssi_off < 0:
+            return None
+
+        hdr_len = struct.unpack_from(">I", data, pssi_off + 4)[0]
+        total = struct.unpack_from(">I", data, pssi_off + 8)[0]
+        if hdr_len != 32:
+            return None
+        entry_bytes = struct.unpack_from(">I", data, pssi_off + 12)[0]
+        if entry_bytes != 24:
+            return None
+        num_entries = struct.unpack_from(">H", data, pssi_off + 16)[0]
+        if num_entries == 0:
+            return None
+        raw_mood = struct.unpack_from(">H", data, pssi_off + 18)[0]
+        is_masked = raw_mood > 20
+
+        body = bytearray(data[pssi_off + 18 : pssi_off + total])
+        if is_masked:
+            c = num_entries
+            _OFFSETS = (0xCB, 0xE1, 0xEE, 0xFA, 0xE5, 0xEE, 0xAD, 0xEE, 0xE9,
+                        0xD2, 0xE9, 0xEB, 0xE1, 0xE9, 0xF3, 0xE8, 0xE9, 0xF4, 0xE1)
+            mask = [(o + c) & 0xFF for o in _OFFSETS]
+            for i in range(len(body)):
+                body[i] ^= mask[i % 19]
+        mood = struct.unpack_from(">H", body, 0)[0]
+        if mood < 1 or mood > 3:
+            return None
+        end_beat = struct.unpack_from(">H", body, 8)[0]
+
+        entries = []
+        entry_base = 14
+        for i in range(num_entries):
+            e = entry_base + i * entry_bytes
+            if e + 6 > len(body):
+                break
+            p_beat = struct.unpack_from(">H", body, e + 2)[0]
+            p_kind = struct.unpack_from(">H", body, e + 4)[0]
+            entries.append((p_beat, p_kind))
+
+        intro_kind = 1
+        outro_kind = 6 if mood == 1 else 10
+
+        intro_bars = 0
+        outro_bars = 0
+        for idx, (beat, kind) in enumerate(entries):
+            if kind == intro_kind and intro_bars == 0:
+                next_beat = entries[idx + 1][0] if idx + 1 < len(entries) else end_beat
+                intro_bars = (next_beat - beat) // 4
+            if kind == outro_kind:
+                next_beat = entries[idx + 1][0] if idx + 1 < len(entries) else end_beat
+                outro_bars = (next_beat - beat) // 4
+
+        return (intro_bars, outro_bars)
+
+    def parse_anlz_path(data: bytes) -> str | None:
+        """Extract the device-relative audio path from ANLZ PPTH section."""
+        if len(data) < 44 or data[:4] != b"PMAI" or data[28:32] != b"PPTH":
+            return None
+        path_len = struct.unpack_from(">I", data, 40)[0]
+        if path_len == 0 or 44 + path_len > len(data):
+            return None
+        raw = data[44 : 44 + path_len].decode("utf-16-be", errors="replace")
+        return raw.rstrip("\x00")
+
+    inout_by_path: dict[str, tuple[int, int]] = {}
+    db_path_str = sys.argv[1] if len(sys.argv) > 1 else ""
+    shelf_mount = os.path.dirname(os.path.dirname(db_path_str))
+    anlz_base = os.path.join(shelf_mount, "USBANLZ") if shelf_mount else ""
+    if anlz_base and os.path.isdir(anlz_base):
+        for top_dir in sorted(os.listdir(anlz_base)):
+            top_path = os.path.join(anlz_base, top_dir)
+            if not top_dir.startswith("P0") or not os.path.isdir(top_path):
+                continue
+            for sub_dir in os.listdir(top_path):
+                ext_file = os.path.join(top_path, sub_dir, "ANLZ0000.EXT")
+                if not os.path.isfile(ext_file):
+                    continue
+                try:
+                    ext_data = Path(ext_file).read_bytes()
+                    anlz_path = parse_anlz_path(ext_data)
+                    if not anlz_path:
+                        continue
+                    bars = parse_pssi(ext_data)
+                    if bars is None:
+                        continue
+                    full_path = os.path.join(shelf_mount, anlz_path.lstrip("/"))
+                    inout_by_path[nfc_casefold(full_path)] = bars
+                except (OSError, struct.error):
+                    pass
+
     # ---- v4: subgenre abbreviation map ----
     SUBGENRE_ABBREV: dict[str, str] = {
         "tech house": "TechHouse",
@@ -305,11 +432,14 @@ def main() -> None:
     def resolve_data_v4(p: str, tags: dict | None, rb_key_id: str | None = None) -> dict:
         """Resolve all v4 comment tokens for a track.
 
-        Returns dict with keys: energy_band, hard, soft, dark, euph, var_tempo, subgenre.
-        IN/OUT, VOX/HOOK, Drop/Roll need analysis pipelines not yet built.
+        Returns dict with keys: energy_band, intro_bars, outro_bars,
+        hard, soft, dark, euph, var_tempo, subgenre.
+        VOX/HOOK and Drop/Roll need analysis pipelines not yet built.
         """
         result: dict = {
             "energy_band": None,
+            "intro_bars": None,
+            "outro_bars": None,
             "hard": False,
             "soft": False,
             "dark": False,
@@ -336,6 +466,12 @@ def main() -> None:
                     pass
         if raw_energy is not None:
             result["energy_band"] = energy_band(raw_energy)
+
+        # IN/OUT bars from ANLZ phrase data
+        inout = inout_by_path.get(fp_key)
+        if inout is not None:
+            result["intro_bars"] = round_bars_down(inout[0])
+            result["outro_bars"] = round_bars_down(inout[1])
 
         # Within-family mood percentiles
         agg = agg_by_path.get(fp_key)
@@ -380,7 +516,12 @@ def main() -> None:
         eb = data.get("energy_band")
         if eb is not None:
             parts.append(f"E{eb}")
-        # IN/OUT, VOX/HOOK, Drop/Roll not yet available — omit
+        ib = data.get("intro_bars")
+        ob = data.get("outro_bars")
+        if ib is not None and ob is not None:
+            parts.append(f"IN:{ib}")
+            parts.append(f"OUT:{ob}")
+        # VOX/HOOK, Drop/Roll not yet available — omit
         if data.get("hard"):
             parts.append("Hard")
         elif data.get("soft"):

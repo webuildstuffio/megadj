@@ -44,6 +44,72 @@ export interface AnlzInventory {
   sections: { tag: string; bytes: number }[];
 }
 
+/** One PSSI phrase entry from the song structure section. */
+export interface AnlzPhrase {
+  /** Phrase number, 1-based. */
+  index: number;
+  /** Beat at which this phrase starts. */
+  beat: number;
+  /** Phrase kind (mood-specific enum — see PHRASE_KINDS). */
+  kind: number;
+  /** Fill-in present at end of phrase? */
+  fill: boolean;
+  /** Beat at which fill-in starts (meaningful only when fill is true). */
+  beatFill: number;
+}
+
+/**
+ * Track mood assigned during phrase analysis.
+ * Determines how phrase `kind` codes are labeled.
+ */
+export const TRACK_MOOD = {
+  HIGH: 1, // up/down style (white label text in RB)
+  MID: 2, // bridge-verse style (black label text in RB)
+  LOW: 3, // bridge-verse variant with verse1/verse2 split
+} as const;
+
+/**
+ * Phrase kind enums per mood type.
+ * HIGH mood: INTRO=1, UP=2, DOWN=3, CHORUS=5, OUTRO=6
+ * MID mood: INTRO=1, VERSE1-6=2-7, BRIDGE=8, CHORUS=9, OUTRO=10
+ * LOW mood: same as MID but verses split into 1a-c / 2a-c
+ */
+export const PHRASE_KINDS = {
+  /** Phrase kinds for HIGH mood (up-down style). */
+  HIGH: {
+    INTRO: 1,
+    UP: 2,
+    DOWN: 3,
+    CHORUS: 5,
+    OUTRO: 6,
+  },
+  /** Phrase kinds for MID/LOW mood (bridge-verse style). */
+  MID: {
+    INTRO: 1,
+    VERSE1: 2,
+    VERSE2: 3,
+    VERSE3: 4,
+    VERSE4: 5,
+    VERSE5: 6,
+    VERSE6: 7,
+    BRIDGE: 8,
+    CHORUS: 9,
+    OUTRO: 10,
+  },
+} as const;
+
+/** Decoded PSSI phrase structure from an ANLZ .EXT file. */
+export interface AnlzPhrases {
+  /** UTF-16BE path from PPTH — the device-relative audio path. */
+  path: string;
+  /** Track mood (1=high, 2=mid, 3=low). */
+  mood: number;
+  /** Beat number at which the last recognized phrase ends. */
+  endBeat: number;
+  /** Ordered phrase entries. */
+  phrases: AnlzPhrase[];
+}
+
 const dec = new TextDecoder("utf-16be");
 
 function u32be(b: Uint8Array, off: number): number {
@@ -90,11 +156,150 @@ function walkContainer(data: Uint8Array): {
     if (off + 12 > data.length) return null;
     const t = tag(data, off);
     const total = u32be(data, off + 8);
-    if (total < 24 || off + total > data.length) return null;
+    if (total < 12 || off + total > data.length) return null;
     sections.push({ tag: t, off, total });
     off += total;
   }
   return { path, sections };
+}
+
+/**
+ * XOR mask for RB6 PSSI obfuscation.
+ * The mask repeats every 19 bytes and is derived from the phrase count `c`.
+ */
+function pssiMask(c: number): Uint8Array {
+  return new Uint8Array([
+    (0xcb + c) & 0xff,
+    (0xe1 + c) & 0xff,
+    (0xee + c) & 0xff,
+    (0xfa + c) & 0xff,
+    (0xe5 + c) & 0xff,
+    (0xee + c) & 0xff,
+    (0xad + c) & 0xff,
+    (0xee + c) & 0xff,
+    (0xe9 + c) & 0xff,
+    (0xd2 + c) & 0xff,
+    (0xe9 + c) & 0xff,
+    (0xeb + c) & 0xff,
+    (0xe1 + c) & 0xff,
+    (0xe9 + c) & 0xff,
+    (0xf3 + c) & 0xff,
+    (0xe8 + c) & 0xff,
+    (0xe9 + c) & 0xff,
+    (0xf4 + c) & 0xff,
+    (0xe1 + c) & 0xff,
+  ]);
+}
+
+/**
+ * Decode the PSSI phrase structure from ANLZ .EXT bytes.
+ * Null when the file is malformed or has no phrase section.
+ *
+ * Handles RB6's XOR obfuscation: when `raw_mood > 20` the body
+ * bytes after `num_entries` are masked with a 19-byte repeating key
+ * derived from the entry count — obfuscation, not encryption.
+ *
+ * Layout (offsets relative to PSSI section start):
+ *   +00 tag "PSSI"  +04 len_header (32)  +08 len_total
+ *   +12 len_entry_bytes (u32, always 24)
+ *   +16 num_entries (u16)
+ *   +18 raw_mood (u16) — if >20, body is masked
+ *   +20..25 unknown  +26 end_beat (u16)  +28..31 unknown
+ *   +32 entries[] (each 24 bytes)
+ */
+export function parseAnlzPhrases(data: Uint8Array): AnlzPhrases | null {
+  const c = walkContainer(data);
+  if (!c) return null;
+  const ps = c.sections.find((s) => s.tag === "PSSI");
+  if (!ps) return null;
+  const { off, total } = ps;
+
+  // Verify header length
+  const hdrLen = u32be(data, off + 4);
+  if (hdrLen !== 32) return null;
+
+  const lenEntryBytes = u32be(data, off + 12);
+  if (lenEntryBytes !== 24) return null;
+
+  const numEntries = u16be(data, off + 16);
+  if (numEntries === 0) return null;
+  if (hdrLen + numEntries * lenEntryBytes > total) return null;
+
+  // Check masking via raw_mood — a real mood is 1-3
+  const rawMood = u16be(data, off + 18);
+  const isMasked = rawMood > 20;
+
+  // The body from +18 onward may need unmasking
+  const bodyStart = off + 18;
+  const bodyLen = total - 18;
+  const body = new Uint8Array(data.slice(bodyStart, bodyStart + bodyLen));
+
+  if (isMasked) {
+    const mask = pssiMask(numEntries);
+    for (let i = 0; i < body.length; i++) {
+      // eslint-disable-next-line operator-assignment -- ^= on indexed Uint8Array trips noUncheckedIndexedAccess
+      body[i] = body[i]! ^ mask[i % mask.length]!;
+    }
+  }
+
+  // Now read from the unmasked body (offsets relative to body start = +18)
+  const mood = u16be(body, 0);
+  if (mood < 1 || mood > 3) return null;
+
+  const endBeat = u16be(body, 8); // at +26 in section = +8 in body
+
+  const phrases: AnlzPhrase[] = [];
+  const entryBase = 14; // entries at +32 in section = +14 in body
+  for (let i = 0; i < numEntries; i++) {
+    const e = entryBase + i * lenEntryBytes;
+    if (e + lenEntryBytes > body.length) break;
+    const index = u16be(body, e);
+    const beat = u16be(body, e + 2);
+    const kind = u16be(body, e + 4);
+    // fill flag at entry byte 21, beatFill at entry bytes 22-23
+    const fill = body[e + 21] !== 0;
+    const beatFill = u16be(body, e + 22);
+    phrases.push({ index, beat, kind, fill, beatFill });
+  }
+
+  return { path: c.path, mood, endBeat, phrases };
+}
+
+/**
+ * Compute intro/outro bar counts from PSSI phrases.
+ * Returns { introBars, outroBars } with raw bar counts (not yet rounded).
+ */
+export function phraseInOutBars(p: AnlzPhrases): {
+  introBars: number;
+  outroBars: number;
+} {
+  const introKind = 1; // INTRO is always kind=1 in all moods
+  const outroKind = p.mood === TRACK_MOOD.HIGH ? 6 : 10;
+
+  let introBars = 0;
+  let outroBars = 0;
+
+  // First phrase with kind=INTRO
+  const intro = p.phrases.find((ph) => ph.kind === introKind);
+  if (intro) {
+    const idx = p.phrases.indexOf(intro);
+    const nextBeat =
+      idx + 1 < p.phrases.length ? p.phrases[idx + 1]!.beat : p.endBeat;
+    introBars = Math.floor((nextBeat - intro.beat) / 4);
+  }
+
+  // Last phrase with kind=OUTRO
+  const outroIdx = p.phrases.findLastIndex((ph) => ph.kind === outroKind);
+  if (outroIdx !== -1) {
+    const outro = p.phrases[outroIdx]!;
+    const nextBeat =
+      outroIdx + 1 < p.phrases.length
+        ? p.phrases[outroIdx + 1]!.beat
+        : p.endBeat;
+    outroBars = Math.floor((nextBeat - outro.beat) / 4);
+  }
+
+  return { introBars, outroBars };
 }
 
 /**
@@ -196,14 +401,22 @@ export function rewriteAnlzGrid(
   return out;
 }
 
+/** Input for building a PSSI test fixture. */
+export interface BuildPssiInput {
+  mood: number;
+  endBeat: number;
+  entries: { index: number; beat: number; kind: number }[];
+}
+
 /**
  * Build ANLZ bytes from parts — the test-fixture seam AND the spike
  * tooling's writer if it ever needs one. Deterministic; round-trips
- * through `parseAnlzGrid`/`parseAnlzInventory`.
+ * through `parseAnlzGrid`/`parseAnlzInventory`/`parseAnlzPhrases`.
  */
 export function buildAnlz(opts: {
   path: string;
   beats?: AnlzBeat[];
+  phrases?: BuildPssiInput;
   extraSections?: { tag: string; bytes: number }[];
 }): Uint8Array {
   const pathBytes = utf16be(opts.path);
@@ -234,6 +447,30 @@ export function buildAnlz(opts: {
     sdv.setUint32(4, 24, false);
     sdv.setUint32(8, s.bytes, false);
     out.push(b);
+  }
+  if (opts.phrases) {
+    // Build an UNMASKED PSSI section (mood ≤ 3 → parser skips unmasking)
+    const { mood, endBeat, entries } = opts.phrases;
+    const entrySize = 24;
+    const hdr = 32;
+    const pssiTotal = hdr + entries.length * entrySize;
+    const pssi = new Uint8Array(pssiTotal);
+    const pdv = new DataView(pssi.buffer);
+    pssi.set([0x50, 0x53, 0x53, 0x49], 0); // PSSI
+    pdv.setUint32(4, hdr, false); // len_header
+    pdv.setUint32(8, pssiTotal, false); // len_total
+    pdv.setUint32(12, entrySize, false); // len_entry_bytes
+    pdv.setUint16(16, entries.length, false); // num_entries
+    pdv.setUint16(18, mood, false); // mood (unmasked)
+    pdv.setUint16(26, endBeat, false); // end_beat
+    for (let i = 0; i < entries.length; i++) {
+      const e = hdr + i * entrySize;
+      const en = entries[i]!;
+      pdv.setUint16(e, en.index, false);
+      pdv.setUint16(e + 2, en.beat, false);
+      pdv.setUint16(e + 4, en.kind, false);
+    }
+    out.push(pssi);
   }
   if (opts.beats && opts.beats.length > 0) {
     const total = 24 + opts.beats.length * 8;

@@ -143,6 +143,7 @@ describe("rb-comment-sync", () => {
     expect(out.colorWritten).toBe(0);
     expect(out.colorSkipped).toBe(0);
     expect(out.mytagWritten).toBe(0);
+    expect(out.anlzLoaded).toBe(0);
   });
 
   test("exact verification rejects missing or mismatched intended comments", () => {
