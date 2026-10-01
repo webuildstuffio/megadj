@@ -163,10 +163,12 @@ function looKnn(
   correct: number;
   total: number;
   outcomes: boolean[];
+  predictions: (string | null)[];
   perFamily: Map<string, { correct: number; total: number }>;
 } {
   let correct = 0;
   const outcomes: boolean[] = [];
+  const predictions: (string | null)[] = [];
   const perFamily = new Map<string, { correct: number; total: number }>();
 
   for (let i = 0; i < tracks.length; i++) {
@@ -180,6 +182,7 @@ function looKnn(
 
     if (heldEmbs.length === 0) {
       outcomes.push(false);
+      predictions.push(null);
       perFamily.set(held.family, fam);
       continue;
     }
@@ -226,10 +229,11 @@ function looKnn(
       fam.correct++;
     }
     outcomes.push(isCorrect);
+    predictions.push(bestPrediction);
     perFamily.set(held.family, fam);
   }
 
-  return { correct, total: tracks.length, outcomes, perFamily };
+  return { correct, total: tracks.length, outcomes, predictions, perFamily };
 }
 
 /** Retrieval precision@k: for each track, what fraction of k nearest
@@ -369,6 +373,34 @@ function silhouetteScore(
     : 0;
 }
 
+// ── Macro-F1 ──────────────────────────────────────────────────────────
+
+function macroF1(
+  trueFamilies: string[],
+  predictions: (string | null)[],
+): number {
+  const classes = [...new Set(trueFamilies)];
+  let f1Sum = 0;
+  for (const cls of classes) {
+    let tp = 0;
+    let fp = 0;
+    let fn = 0;
+    for (let i = 0; i < trueFamilies.length; i++) {
+      if (predictions[i] === cls && trueFamilies[i] === cls) tp++;
+      else if (predictions[i] === cls && trueFamilies[i] !== cls) fp++;
+      else if (predictions[i] !== cls && trueFamilies[i] === cls) fn++;
+    }
+    const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
+    const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
+    const f1 =
+      precision + recall > 0
+        ? (2 * precision * recall) / (precision + recall)
+        : 0;
+    f1Sum += f1;
+  }
+  return classes.length > 0 ? f1Sum / classes.length : 0;
+}
+
 // ── McNemar ────────────────────────────────────────────────────────────
 
 function mcnemar(
@@ -389,16 +421,16 @@ function mcnemar(
 }
 
 function normalCdf(x: number): number {
-  const sign = x < 0 ? -1 : 1;
-  const t = 1.0 / (1.0 + 0.3275911 * Math.abs(x));
+  const z = Math.abs(x) / Math.SQRT2;
+  const t = 1.0 / (1.0 + 0.3275911 * z);
   const y =
     1.0 -
     ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
       t +
       0.254829592) *
       t *
-      Math.exp(-x * x);
-  return 0.5 * (1.0 + sign * y);
+      Math.exp(-z * z);
+  return x < 0 ? 0.5 * (1 - y) : 0.5 * (1 + y);
 }
 
 // ── Checkpoint/streaming helpers ──────────────────────────────────────
@@ -575,13 +607,14 @@ async function main(): Promise<void> {
     `\n━━ Results: LOO kNN + Retrieval Precision (k=5, best-of-3) ━━\n`,
   );
   console.log(
-    `  ${"Model".padEnd(22)} ${"kNN".padStart(5)} ${"P@5".padStart(5)} ${"Gap".padStart(6)} ${"Silh".padStart(6)} ${"Dim".padStart(5)}`,
+    `  ${"Model".padEnd(22)} ${"kNN".padStart(5)} ${"mF1".padStart(5)} ${"P@5".padStart(5)} ${"Gap".padStart(6)} ${"Silh".padStart(6)} ${"Dim".padStart(5)}`,
   );
-  console.log(`  ${"─".repeat(55)}`);
+  console.log(`  ${"─".repeat(61)}`);
 
   const modelResults: {
     model: string;
     accuracy: number;
+    macroF1: number;
     precision: number;
     gap: number;
     silhouette: number;
@@ -597,25 +630,29 @@ async function main(): Promise<void> {
       continue;
     }
 
-    const { correct, total, outcomes, perFamily } = looKnn(
-      sample,
-      embs,
-      5,
-      0.6,
-    );
+    const {
+      correct,
+      total,
+      outcomes,
+      predictions: preds,
+      perFamily,
+    } = looKnn(sample, embs, 5, 0.6);
     const accuracy = total > 0 ? correct / total : 0;
+    const trueFamilies = sample.map((s) => s.family);
+    const mf1 = macroF1(trueFamilies, preds);
     const precision = retrievalPrecision(sample, embs, 5);
     const gapData = cosineGap(sample, embs);
     const sil = silhouetteScore(sample, embs);
     const dim = MODEL_DIMS[model as ModelName];
 
     console.log(
-      `  ${model.padEnd(22)} ${(accuracy * 100).toFixed(0).padStart(4)}% ${(precision * 100).toFixed(0).padStart(4)}% ${gapData.gap.toFixed(3).padStart(6)} ${sil.toFixed(3).padStart(6)} ${String(dim).padStart(5)}`,
+      `  ${model.padEnd(22)} ${(accuracy * 100).toFixed(0).padStart(4)}% ${(mf1 * 100).toFixed(0).padStart(4)}% ${(precision * 100).toFixed(0).padStart(4)}% ${gapData.gap.toFixed(3).padStart(6)} ${sil.toFixed(3).padStart(6)} ${String(dim).padStart(5)}`,
     );
 
     modelResults.push({
       model,
       accuracy,
+      macroF1: mf1,
       precision,
       gap: gapData.gap,
       silhouette: sil,
@@ -625,17 +662,35 @@ async function main(): Promise<void> {
     });
   }
 
-  // McNemar pairwise vs incumbent (effnet)
+  // McNemar pairwise vs incumbent (effnet) with Holm correction
   const incumbent = modelResults.find((m) => m.model === "effnet-discogs-1280");
   if (incumbent) {
-    console.log(`\n━━ McNemar vs Incumbent (effnet-discogs-1280) ━━\n`);
+    console.log(
+      `\n━━ McNemar vs Incumbent (effnet-discogs-1280) — Holm-corrected ━━\n`,
+    );
+    const pairs: {
+      model: string;
+      mc: ReturnType<typeof mcnemar>;
+      delta: number;
+    }[] = [];
     for (const challenger of modelResults) {
       if (challenger.model === incumbent.model) continue;
       const mc = mcnemar(incumbent.outcomes, challenger.outcomes);
-      const delta = round2(challenger.accuracy - incumbent.accuracy);
-      const sign = delta >= 0 ? "+" : "";
+      pairs.push({
+        model: challenger.model,
+        mc,
+        delta: round2(challenger.accuracy - incumbent.accuracy),
+      });
+    }
+    const m = pairs.length;
+    const sorted = pairs.toSorted((a, b) => a.mc.p - b.mc.p);
+    for (let i = 0; i < sorted.length; i++) {
+      const pair = sorted[i]!;
+      const holmThreshold = 0.05 / (m - i);
+      const sig = pair.mc.p < holmThreshold;
+      const sign = pair.delta >= 0 ? "+" : "";
       console.log(
-        `  ${challenger.model.padEnd(22)} ${sign}${(delta * 100).toFixed(1)}pp  χ²=${mc.chi2} p=${mc.p.toFixed(4)} ${mc.sig ? "✓" : "✗"}`,
+        `  ${pair.model.padEnd(22)} ${sign}${(pair.delta * 100).toFixed(1)}pp  χ²=${pair.mc.chi2} p=${pair.mc.p.toFixed(4)} holm<${holmThreshold.toFixed(3)} ${sig ? "✓" : "✗"}`,
       );
     }
   }
@@ -661,19 +716,19 @@ async function main(): Promise<void> {
     );
   }
 
-  // Final ranking by composite score (P@5 primary, cosine gap secondary)
-  console.log(`\n━━ FINAL RANKING (by P@5, then cosine gap) ━━\n`);
+  // Final ranking by macro-F1 (primary), P@5 (secondary)
+  console.log(`\n━━ FINAL RANKING (by macro-F1, then P@5) ━━\n`);
   const ranked = modelResults.toSorted((a, b) => {
-    const pDiff = b.precision - a.precision;
-    if (Math.abs(pDiff) > 0.01) return pDiff;
-    return b.gap - a.gap;
+    const f1Diff = b.macroF1 - a.macroF1;
+    if (Math.abs(f1Diff) > 0.01) return f1Diff;
+    return b.precision - a.precision;
   });
   for (let i = 0; i < ranked.length; i++) {
     const m = ranked[i]!;
     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "  ";
-    const bar = "█".repeat(Math.round(m.precision * 30));
+    const bar = "█".repeat(Math.round(m.macroF1 * 30));
     console.log(
-      `  ${medal} ${m.model.padEnd(22)} P@5=${(m.precision * 100).toFixed(1)}% kNN=${(m.accuracy * 100).toFixed(0)}% gap=${m.gap.toFixed(3)} ${m.dim}d  ${bar}`,
+      `  ${medal} ${m.model.padEnd(22)} mF1=${(m.macroF1 * 100).toFixed(1)}% kNN=${(m.accuracy * 100).toFixed(0)}% P@5=${(m.precision * 100).toFixed(0)}% gap=${m.gap.toFixed(3)} ${m.dim}d  ${bar}`,
     );
   }
 

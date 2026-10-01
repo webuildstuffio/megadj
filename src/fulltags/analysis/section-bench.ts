@@ -74,31 +74,6 @@ function mcnemar(a: boolean[], b: boolean[]): { chi2: number; p: number } {
   return { chi2: round2(chi2), p };
 }
 
-/** Wilcoxon signed-rank test approximation for paired binary differences.
- * Uses normal approximation for n > 20. Returns z-score and p-value. */
-function wilcoxonSignedRank(
-  a: boolean[],
-  b: boolean[],
-): { z: number; p: number } {
-  const diffs: number[] = [];
-  for (let i = 0; i < a.length; i++) {
-    const d = (b[i] ? 1 : 0) - (a[i] ? 1 : 0);
-    if (d !== 0) diffs.push(d);
-  }
-  if (diffs.length === 0) return { z: 0, p: 1 };
-  const n = diffs.length;
-  const wPlus = diffs.filter((d) => d > 0).length;
-  const wMinus = diffs.filter((d) => d < 0).length;
-  const w = Math.min(wPlus, wMinus);
-  // Normal approximation
-  const mean = (n * (n + 1)) / 4;
-  const std = Math.sqrt((n * (n + 1) * (2 * n + 1)) / 24);
-  if (std === 0) return { z: 0, p: 1 };
-  const z = (w - mean) / std;
-  const p = 2 * (1 - normalCdf(Math.abs(z)));
-  return { z: round2(z), p };
-}
-
 /** Bootstrap confidence interval for accuracy difference. */
 function bootstrapCI(
   aCorrect: boolean[],
@@ -134,19 +109,18 @@ function cohensH(p1: number, p2: number): number {
   return round2(2 * Math.asin(Math.sqrt(p2)) - 2 * Math.asin(Math.sqrt(p1)));
 }
 
-// Helpers for stats
+// Helpers for stats — Φ(x) via Abramowitz & Stegun erf approximation
 function normalCdf(x: number): number {
-  const a1 = 0.254829592;
-  const a2 = -0.284496736;
-  const a3 = 1.421413741;
-  const a4 = -1.453152027;
-  const a5 = 1.061405429;
-  const p = 0.3275911;
-  const sign = x < 0 ? -1 : 1;
-  const t = 1.0 / (1.0 + p * Math.abs(x));
+  const z = Math.abs(x) / Math.SQRT2;
+  const t = 1.0 / (1.0 + 0.3275911 * z);
   const y =
-    1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-  return 0.5 * (1.0 + sign * y);
+    1.0 -
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
+      t +
+      0.254829592) *
+      t *
+      Math.exp(-z * z);
+  return x < 0 ? 0.5 * (1 - y) : 0.5 * (1 + y);
 }
 
 function chi2cdf(x: number): number {
@@ -563,12 +537,11 @@ function printStats(
   bAcc: number,
 ): void {
   const mc = mcnemar(aCorrect, bCorrect);
-  const wil = wilcoxonSignedRank(aCorrect, bCorrect);
   const ci = bootstrapCI(aCorrect, bCorrect);
   const h = cohensH(aAcc, bAcc);
   const sig = mc.p < 0.05 ? "✓" : "✗";
   console.log(
-    `    McNemar χ²=${mc.chi2} p=${mc.p.toFixed(4)} ${sig}  Wilcoxon z=${wil.z} p=${wil.p.toFixed(4)}  Cohen's h=${h}`,
+    `    McNemar χ²=${mc.chi2} p=${mc.p.toFixed(4)} ${sig}  Cohen's h=${h}`,
   );
   console.log(
     `    Bootstrap 95% CI for Δ: [${(ci.low * 100).toFixed(1)}%, ${(ci.high * 100).toFixed(1)}%]  mean=${(ci.mean * 100).toFixed(1)}%`,
