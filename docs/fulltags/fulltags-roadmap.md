@@ -1,6 +1,18 @@
-# FullTags — Prioritized Roadmap (rev 8.0)
+# FullTags — Prioritized Roadmap (rev 8.1)
 
-**Status:** 🧭 ACTIVE — **v3 plan of record proposed Sep 29.**
+**Status:** 🧭 ACTIVE — **10-rung genre ladder fully wired (Oct 1).**
+
+_Rev 8.1, 2026-10-01: **Genre-source expansion shipped.** The 10-rung vote
+ladder is fully built: Last.fm W8 (0.30, tag count ≥ 25), Discogs W9
+(0.55, offline SQLite cache), MusicBrainz deepened to recording-level,
+remix routing (`remix-route.ts` — 6 version types routed to remixer),
+evidence bridge (`vote-evidence-bridge.ts` — votes → `genre_evidence` rows),
+Dawid-Skene estimator built + flag-gated (`MEGADJ_GENRE_ESTIMATOR=1`),
+SC tag sanitizer built (unwired, needs `--print-json` fetch arm). See
+[genre-system.md](genre-system.md) §2 for the full 10-rung table.
+All cache keys NFC-normalized, prepared statement reuse for Discogs lookups.
+2949 tests pass, 0 fail. 4 commits on main (f1ae93de, 9f2abe2b, a04b9458,
+c4e47da0). +27 new tests this session._
 
 _Rev 8.0, 2026-09-29: **FullTags v3 — rebench & build plan proposed.**
 The v2 pipeline is SHIPPED and running (rev 7.14 state below). The v3

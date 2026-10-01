@@ -3,6 +3,13 @@
 **Status:** 🧭 PROPOSAL (the "why"; execution plan: `fulltags-v3-rebench-and-build-plan-2026-09-29.md`) — written 2026-09-28 against `analysis-pipeline-2026-09-29`, roadmap rev 7.14, `embedding-models` (v2 rerun), `genre-taxonomy` (Sep 14) and the Sep 28–29 session logs.
 **Rule used throughout:** nothing here counts as *measured* unless it says so. Every proposal ends in a gate you can run.
 
+> **Oct 1 update:** Several v3 building blocks from §4 are now SHIPPED into the
+> v2 pipeline: Discogs W9 rung (offline SQLite, `discogs-vote.ts`), Last.fm W8
+> rung (`lastfm.ts`), MB recording-level deepening, remix routing
+> (`remix-route.ts`), evidence bridge (`vote-evidence-bridge.ts` → `genre_evidence`
+> table), Dawid-Skene estimator built + flag-gated. See
+> [genre-system.md](genre-system.md) §16 for the current shipped/remaining split.
+
 ---
 
 ## 0. TL;DR — the seven things that matter

@@ -8,13 +8,14 @@ music, and which external sources can feed the FullTags / MegaSet pipeline.
 Written Oct 1 2026 against a ~3,800 track house/techno/EDM library on
 rekordbox + XDJ-XZ.
 
-**Analysis verdict:** ~60% of what this report proposes is already shipped
-in megadj (the vote ladder, most external sources, entity resolution, audio
-models). The remaining 40% contains 3–4 genuinely high-value ideas worth
-tracking: the 1001Tracklists co-play graph, Last.fm as a new vote rung,
-the Discogs monthly dump (already proposed in v3), and the Dawid–Skene
-label model (already the v3 plan of record). The "what DJs do" taxonomy
-is useful reference material for booth/comment/set design.
+**Analysis verdict (updated Oct 1):** ~80% shipped. The Oct 1 genre-source
+expansion session wired Last.fm W8, Discogs W9, MB recording-level, remix
+routing, and the evidence bridge → the 10-rung ladder is fully built. The
+Dawid–Skene estimator is built and flag-gated. Remaining genuinely new ideas:
+the 1001Tracklists co-play graph (high value for MegaSet transitions),
+rekordbox play history mining, and the SC per-track tag arm (sanitizer built,
+needs `--print-json` fetch). The "what DJs do" taxonomy remains useful
+reference material for booth/comment/set design.
 
 ---
 
@@ -27,7 +28,7 @@ is useful reference material for booth/comment/set design.
 | --- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1   | "Mine rekordbox playlists, history, cues first"                         | **Partly done.** Cues are ledgered (22 avg/track), energy uses analysis data, play history is in master.db but NOT YET mined as a signal for MegaSet transitions or genre evidence. Playlist-name-as-voter is not wired.                                                                   |
 | 2   | "DJ co-play graph from 1001Tracklists is highest-value external signal" | **Genuinely new.** Not in the codebase, not in any issue. The social-embedding idea (node2vec over co-play edges) is architecturally sound and would give MegaSet a transition signal that audio embeddings fundamentally cannot provide. Worth a GitHub issue.                            |
-| 3   | "Discogs + Beatport best labelers, Last.fm + MB as supporting"          | **Mostly shipped.** Beatport (W3, weight 0.60), Bandcamp (W2b, 0.50), MusicBrainz (W5, 0.40), SoundCloud (W2, 0.35) are all live rungs. Discogs is NOT a current rung — the Discogs monthly dump is proposed in v3 (§4 of the landscape doc). Last.fm is not wired at all — genuinely new. |
+| 3   | "Discogs + Beatport best labelers, Last.fm + MB as supporting"          | **SHIPPED (Oct 1).** 10-rung ladder: bp(0.60) > file(0.55) ≥ discogs(0.55) > bc(0.50) > ai(0.45) > mb(0.40) > sc(0.35) > lastfm(0.30) > sync(0.20) > imprint(0.15). Discogs W9 (offline SQLite cache), Last.fm W8 (tag folksonomy), MB deepened to recording-level, remix routing for artist-level sources, evidence bridge populates Dawid-Skene. |
 | 4   | "Use Dawid–Skene instead of hand-labeled gold"                          | **Already the v3 plan of record.** The v3 landscape doc (Sep 28) proposes exactly this: `crowd-kit` Dawid–Skene over family-level evidence, replacing the fixed W-table. See `fulltags-v3-landscape-and-redesign-2026-09-28.md` §4.                                                        |
 | 5   | "SoundCloud/Bandcamp/LLM are second-wave"                               | **Outdated.** SoundCloud is a first-class download AND genre source (shipped Sep 19, W2 rung). Bandcamp is live as W2b (shipped Sep 15). LLM genre (W4 AI rung) is opt-in, off by default. These are not second-wave — they are production.                                                |
 | 6   | "Spotify is out"                                                        | **Correct and irrelevant.** Audio features API removed Nov 2024. megadj has never used Spotify.                                                                                                                                                                                            |
@@ -148,9 +149,9 @@ co-play graph, play history mining).
 
 | Source             | Report says                         | Real status                                                                                                                                                                                                                                                      | Gap                         |
 | ------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| **Discogs API**    | "Do — 60/min, medium-high coverage" | **NOT wired as a vote rung.** The Discogs monthly dump (CC0, offline) is proposed in v3 landscape §2.6 as a new evidence arm. The dump is better than per-track API queries — same data, no rate limits, exact vocabulary match with effnet's training taxonomy. | **v3 WS5** — worth tracking |
+| **Discogs API**    | "Do — 60/min, medium-high coverage" | ✅ **SHIPPED (Oct 1)** as W9 rung (weight 0.55). Offline SQLite cache via `discogs-ingest.ts` → `discogs-vote.ts`. NFC-casefolded matching, prepared statement reuse. | None |
 | **Beatport**       | "Do — high coverage"                | ✅ **SHIPPED** as W3 rung (weight 0.60, highest). v4 catalog API via client-credentials. Also fills label/mix name/remixer/ISRC.                                                                                                                                  | None                        |
-| **Last.fm**        | "Do (weak voter)"                   | ❌ **NOT INTEGRATED.** Genuinely new. Free API, `track.getTopTags` returns folksonomy with counts. Useful for hip-hop/pop where SC/BP are weak. The v3 landscape doc mentions it (§2.6) but no code exists.                                                       | **New issue candidate**     |
+| **Last.fm**        | "Do (weak voter)"                   | ✅ **SHIPPED (Oct 1)** as W8 rung (weight 0.30). `lastfm.ts` — `LASTFM_API_KEY` env, 4 req/sec rate limit, tag count ≥ 25 gate, NFC-normalized cache. | None |
 | **MusicBrainz**    | "Do for entity resolution"          | ✅ **SHIPPED** as W5 rung (weight 0.40). Artist folksonomy harvest via `mb-lookup.ts`.                                                                                                                                                                            | None                        |
 | **1001Tracklists** | "Do carefully — co-play graph"      | ❌ **NOT BUILT.** Genuinely new idea. See §6.3 analysis below.                                                                                                                                                                                                    | **New issue candidate**     |
 | **SoundCloud**     | "Phase 2"                           | ✅ **SHIPPED** — first-class download source AND W2 genre rung (weight 0.35). HLS AAC 256k with Plus auth.                                                                                                                                                        | None                        |
@@ -463,7 +464,7 @@ existing issues are cross-referenced, not duplicated.
 | #   | Item                                                                                                                                                     | Effort | Value            | Cross-ref                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ---------------- | ------------------------------------------ |
 | A   | **Mine rekordbox play history** — extract real transitions from `djmdHistory`/`djmdSongHistory`, store in archive.db, use as MegaSet transition evidence | S      | Very high        | MegaSet v2 §4a                             |
-| B   | **Last.fm vote rung (W8)** — `track.getTopTags` + `artist.getTopTags`, map through `canonGenre`, weight ≤ 0.30                                           | S      | Medium           | v3 landscape §2.6 (mentioned, not tracked) |
+| B   | ~~**Last.fm vote rung (W8)**~~ — ✅ **SHIPPED Oct 1.** `lastfm.ts` W8 rung (weight 0.30), tag count ≥ 25 gate, 4 rps rate limit                         | —      | —                | Closed                                     |
 | C   | **1001Tracklists co-play exploration** — personal-use bounded crawl for library tracks, co-play edge table, social embedding (node2vec)                  | L      | High for MegaSet | Novel                                      |
 | D   | **Playlist-name audit** — are your rekordbox playlist names usable as genre voters? One-time audit.                                                      | XS     | Gate for item E  | —                                          |
 | E   | **Playlist-name vote rung** (if D passes) — inject playlist membership as evidence into the vote ladder or v3 estimator                                  | S      | Medium           | —                                          |
@@ -477,10 +478,10 @@ existing issues are cross-referenced, not duplicated.
 
 | Item                                   | Where tracked        |
 | -------------------------------------- | -------------------- |
-| Discogs monthly dump as evidence arm   | v3 WS5               |
-| Dawid–Skene label model                | v3 WS4, epic #346    |
+| ~~Discogs monthly dump as evidence arm~~ | ✅ **SHIPPED Oct 1** — `discogs-vote.ts` W9 (0.55), offline SQLite cache via `discogs-ingest.ts` |
+| Dawid–Skene label model                | ✅ **BUILT Oct 1** — `estimator.ts`, flag-gated `MEGADJ_GENRE_ESTIMATOR=1`, not yet live |
 | Independent answer keys                | v3 WS4 §4.5          |
-| Remix routing for artist-level sources | v3 §4                |
+| ~~Remix routing for artist-level sources~~ | ✅ **SHIPPED Oct 1** — `remix-route.ts`, 6 version types routed to remixer |
 | VOX/HOOK vocal detection               | v4-remaining-plan §1 |
 | Energy recalibration                   | v3 landscape §5      |
 | Cluster-proposed labels                | #62                  |

@@ -1,9 +1,14 @@
 # FullTags v3 — Rebench & Build Plan
 
-**Status:** 🧭 PLAN OF RECORD — 2026-09-29
+**Status:** 🧭 PLAN OF RECORD — 2026-09-29 (updated Oct 1)
 **Companion to:** `fulltags-v3-landscape-and-redesign-2026-09-28.md` (the "why"). This doc is the "how": answer keys, one bench harness, 12 workstreams, tickets with acceptance tests, gates, and agent kickoff prompts.
 **Supersedes:** v3 doc §4.5 (personal gold set) → replaced by §2 here. **Adds:** version identity (§4, WS3).
 **Tracked:** GitHub issues with `fulltags-v3` label; epic [#346](https://github.com/webuildstuffio/megadj/issues/346).
+
+> **Oct 1 shipped:** WS5 Discogs dump (offline SQLite cache + W9 vote rung),
+> Last.fm W8, MB recording-level, remix routing (WS3 partial), evidence bridge
+> + Dawid-Skene estimator (WS4 partial, flag-gated). SC tag sanitizer built
+> but unwired. See [genre-system.md](genre-system.md) §16.
 
 ---
 
