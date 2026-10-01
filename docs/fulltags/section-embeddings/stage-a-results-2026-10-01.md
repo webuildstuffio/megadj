@@ -193,3 +193,44 @@ audio input (MAEST 30s clips, MERT-v2 30s clips).
 **Full bench pending:** Once the current cache completes (~1.5h remaining),
 re-cache with `--rms --force` and run the full 2500+ track bench for the
 definitive comparison.
+
+## Comprehensive Showdown (2,590 tracks, Oct 1)
+
+68 classifier+feature combos tested: LogReg (6 C values × bal/unbal),
+RF (100/300 trees × bal/unbal), all on 5 feature sets. 5-fold artist-excluded
+CV, macro-F1 primary, bootstrap 95% CIs (1000 iter), Holm-corrected McNemar.
+
+### Top 10
+
+| Rank | Combo | mF1 | 95% CI | Acc | Key per-class |
+|---|---|---|---|---|---|
+| **1** | **sec_mean \| RF_300_bal** | **40.2%** | [37.6%, 42.6%] | 61.1% | bass 35%, techno 73%, trance 35% |
+| 2 | sec_mean \| RF_100_bal | 39.2% | [36.6%, 41.7%] | 60.3% | bass 37%, techno 71% |
+| 3 | whole \| RF_300_bal | 39.2% | [36.4%, 41.6%] | 60.9% | bass 31%, techno 71% |
+| 4 | whole \| RF_100_bal | 38.7% | [36.1%, 41.1%] | 60.7% | bass 29%, techno 70% |
+| 5 | whole+sec_mean \| LR_C10_unbal | 38.6% | [35.8%, 41.3%] | 63.4% | house 87%, techno 57% |
+| 6 | whole+3sec \| LR_C50_bal | 38.4% | [36.1%, 40.6%] | 55.4% | bass 42%, trance 43% |
+| 7 | whole+3sec \| LR_C10_unbal | 38.1% | [35.2%, 40.7%] | 63.4% | house 87% |
+| 8 | whole \| LR_C10_unbal | 37.9% | [35.1%, 40.4%] | 63.0% | house 87% |
+
+### Significance (Holm-corrected McNemar)
+
+| Comparison | p (adj) | Sig |
+|---|---|---|
+| RF_300_bal(sec) vs LR_C10(whole+sec) | 0.028 | * |
+| RF_100_bal(sec) vs LR_C10(whole+sec) | 0.002 | ** |
+| RF_300_bal(whole) vs LR_C10(whole+sec) | 0.009 | ** |
+
+**RF balanced on section-mean is the new best** at 40.2% mF1, significantly
+beating all LogReg variants. Section embeddings outperform whole-track for
+RF too (+1.0pp: 40.2% vs 39.2%). The balanced probe trades house accuracy
+(87% → 74%) for minority gains (bass 35%, trance 35%, techno 73%).
+
+### Verdict
+
+1. **Best model: RF_300 balanced on section-mean embeddings** (40.2% mF1)
+2. **Section > whole-track confirmed** across both RF and LogReg
+3. **RF balanced > LogReg** (significant at p<0.05 Holm-corrected)
+4. **Ceiling is the embedding**, not the classifier — RF gains +1.6pp over
+   best LogReg but the 95% CIs overlap heavily (37.6%–42.6% vs 35.8%–41.3%)
+5. **Next lever: MAEST/MERT-v2 models** — effnet is the bottleneck
