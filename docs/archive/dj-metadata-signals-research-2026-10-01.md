@@ -849,100 +849,660 @@ a transition — a high-space outro blends with anything.
 
 ---
 
-## 18. The ranked list — every signal scored for three purposes
+## 18. The ranked list — every signal, with implementation and examples
 
-Every signal in this document, rated 1–10 for three distinct consumers:
+Every signal in this document scored once (1–10 combined impact across
+set building, DJ readability, and genre classification), with concrete
+implementation detail and expected output.
 
-**🎛 SET** = value for MegaSet AI set building (transition quality,
-sequencing logic, energy arcs)
+---
 
-**👁 BOOTH** = value as a human-readable annotation for DJs (v4 comment,
-CrateDeck UI, My Tags, track color)
+### #1 · Energy trajectory — **Impact 10** · Not built
 
-**🏷 GENRE** = value for multi-level genre classification (family,
-display label, sub-genre, probability vector)
+**Why it matters:** A single energy number (E8) tells you how hard a
+track is, but not what the track DOES. A DJ set is a narrative: build
+tension, hold a peak, release into a breakdown. Two tracks at E8 might
+be completely different — one builds from E3→E8 over 32 bars, the other
+sits flat at E8 the whole time. The builder is an opener, the sustainer
+is a peak-time workhorse. The trajectory IS the set-building logic.
 
-### Tier 1 — Highest impact (score ≥ 8 in at least one axis)
+**How we'll do it:** Split each track into 8-bar windows using the
+existing PSSI phrase data. Compute the §15.5 energy composite per
+window. Classify the shape:
 
-| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why it ranks |
-|---|---|---|---|---|---|---|
-| 1 | **Energy trajectory** (§17.1) | **10** | **9** | 3 | Not built | THE missing MegaSet signal — encodes what a track DOES, not what it IS. "Ramp into Sustain into Release" is the entire logic of a DJ set. Comment token: `BUILD`/`HOLD`/`COOL`. |
-| 2 | **Rekordbox play history** (§6.3) | **10** | 4 | 2 | Not mined | YOUR real transitions are the highest-quality training data for YOUR set builder. Free, zero-risk, already in master.db. |
-| 3 | **Drop-section energy recalibration** (§15.5) | 7 | **10** | 2 | Not built (S effort) | Fixes the "everything is E8" loudness meter. Comment E1–E9 becomes musically meaningful. Per-family percentile. |
-| 4 | **Dawid–Skene label model** (§7, v3 WS4) | 3 | 4 | **10** | v3 plan | Replaces hand-set vote weights with learned per-source × per-family reliability. The honest answer to "what genre is this?" |
-| 5 | **Discogs monthly dump** (§4.2, v3 WS5) | 2 | 3 | **10** | v3 plan | CC0, offline, exact effnet training vocabulary. 400 styles → multi-level genre depth. Release year. Label. |
-| 6 | **VOX/HOOK vocal detection** (§3.3) | 6 | **10** | 2 | Planned, last v4 token | Last gap in the v4 comment. DJs need to know vocal position for clean mix zones. |
-| 7 | **1001TL co-play graph** (§6.1) | **10** | 2 | 5 | Not built | The only signal that encodes "real DJs mix these together" — social information audio cannot capture. |
-| 8 | **Intro/outro spectral compatibility** (§17.5) | **9** | 3 | 1 | Not built | Scores the ACTUAL transition sections, not whole-track similarity. The difference between a smooth and jarring mix. |
-| 9 | **Genre probability vector** (§17.4) | 7 | 7 | **9** | Dawid–Skene output | `{tech_house: 0.42, deep_house: 0.28, ...}` is more honest and useful than a single label. Jensen-Shannon for set diversity. |
-| 10 | **EDM production features** (§15.1, §16 G) | 4 | 3 | **9** | Not built | H/P ratio, crest factor, sub-bass ratio, sidechain proxy — genre-diagnostic features effnet embeddings miss. Breaks house↔techno. |
+```
+Track: "Innellea - Vigilans"
+Windows: [E3, E4, E5, E6, E7, E8, E8, E8, E7, E5]
+Shape: RAMP (monotonic rise then sustain)
+Set role: builder, warm-up closer
+```
 
-### Tier 2 — High impact (score 6–8 in at least one axis)
+```
+Track: "ANNA - Hidden Beauties"
+Windows: [E8, E8, E9, E9, E8, E9, E9, E8]
+Shape: SUSTAIN (high plateau with minor oscillation)
+Set role: peak-time workhorse
+```
 
-| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why |
-|---|---|---|---|---|---|---|
-| 11 | **TIV harmonic compatibility** (§15.6) | **8** | 2 | 1 | Not built | Better than Camelot for transition quality — captures pitch-class overlap and dissonance, not just key distance. |
-| 12 | **Drum pattern transcription** (§15.3) | 5 | **7** | **8** | Not built | 4-on-floor vs. breakbeat is a genre family gate. Hi-hat density separates trap/house/techno. Drop/Roll accuracy improvement. |
-| 13 | **Swing/groove estimation** (§15.4) | **7** | **7** | 5 | Not built | Blendability signal (similar groove = smoother mix). Potential comment token: `SWING`/`GRID`. Genre-confirmatory. |
-| 14 | **Last.fm vote rung** (§6.2) | 2 | 2 | **7** | Not built (S effort) | Fills the hip-hop/pop coverage gap. Era and scene words. Natural Dawid–Skene voter. Cheapest new evidence source. |
-| 15 | **Drop spectral signature** (§17.3) | 4 | 4 | **8** | Not built | 7-number spectral contrast vector at the drop. Genre-fingerprint that complements the whole-track embedding. |
-| 16 | **Remix routing** (v3 §4) | 2 | 2 | **8** | v3 plan | Artist-level sources query remixer, not original artist. Single highest-value entity resolution fix for genre accuracy. |
-| 17 | **Label network graph** (§17.2) | 3 | 4 | **7** | Not built | Labels are curators. Drumcode = peak techno, not "techno." The graph gives sub-genre precision the imprint prior lacks. |
-| 18 | **Space/silence density** (§17.6) | **6** | **6** | 4 | Not built | Minimal techno vs. bigroom wall-of-sound. Mix headroom signal. Trivially computable (`count(RMS < thresh) / total`). |
-| 19 | **LLM metadata imputation** (§15.7) | 2 | 5 | **7** | Not built | Audio + partial metadata → fill gaps. 21% improvement from partial context. Natural upgrade for the AI rung (W4). |
-| 20 | **Playlist-name voter** (§6.4) | 2 | 2 | **6** | Needs audit | Free silver labels if naming is consistent. Natural Dawid–Skene input. |
+```
+Track: "Bicep - Glue"
+Windows: [E4, E6, E8, E8, E7, E5, E3, E2]
+Shape: ARC (rise-and-fall, self-contained journey)
+Set role: standalone moment, set centerpiece
+```
 
-### Tier 3 — Moderate impact (score 4–6)
+**Expected output in v4 comment:** `E8 BUILD IN:32 OUT:16 Drop Dark · MelTechno`
 
-| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why |
-|---|---|---|---|---|---|---|
-| 21 | **Cue color/naming audit** (§2) | 3 | **5** | 3 | Not done | Free structure training data if naming is consistent. |
-| 22 | **Version stability test** (§7) | 2 | 2 | **5** | Not built | Extended/radio edit must match genre. Correctness invariant. |
-| 23 | **Whisper lyrics → explicit flag** (§3.15) | 2 | **5** | 1 | Not built | Gig suitability ("wedding safe"). Niche value. |
-| 24 | **Function tags (tool/filler)** (§3.7) | **5** | **5** | 2 | Not built | Structural detection: no drop = tool, long loops = filler. Low priority but useful for set pacing. |
-| 25 | **Era/release year** (§3.9) | 3 | **5** | 4 | Partial | Discogs dump completes coverage. Display value ("90s classic"). |
-| 26 | **Crowd status / popularity** (§3.8) | **5** | **4** | 2 | Not built | 1001TL support counts + Last.fm listener counts. "Anthem" vs. "deep cut." |
+**Expected DB column:** `tracks.energy_trajectory = 'RAMP'` (one of
+RAMP / SUSTAIN / ARC / RELEASE / PULSE)
 
-### Tier 4 — Low priority or already solved
+**Why it's #1:** MegaSet currently sequences by energy LEVEL. With
+trajectory, it sequences by NARRATIVE. "Ramp → Sustain → Sustain →
+Release" is a classic peak-hour arc that a single number can't encode.
+The set builder would know a RAMP track precedes a SUSTAIN track without
+needing play-history data. This is the missing dimension.
 
-| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why |
-|---|---|---|---|---|---|---|
-| 27 | BPM / tempo | 8 | 8 | 3 | ✅ Shipped | Already the top MegaSet scoring term (0.45 weight). |
-| 28 | Key / Camelot | 7 | 8 | 1 | ✅ Shipped | OpenKeyScan 80.7%, TKEY written. |
-| 29 | Primary genre | 3 | 6 | 8 | ✅ Shipped | 98.3% coverage, 8-rung vote ladder. |
-| 30 | Energy level | 5 | 8 | 1 | ✅ Shipped (broken) | Works but is a loudness meter. #3 above fixes it. |
-| 31 | Mood (Dark/Euph/Hard/Soft) | 4 | 7 | 4 | ✅ Shipped | ONNX mood heads, within-family percentile. |
-| 32 | IN/OUT bars | 6 | 8 | 1 | ✅ Shipped | PSSI decode, 74.7% coverage. |
-| 33 | Drop/Roll | 3 | 7 | 2 | ✅ Shipped | 97.5%/2.5% from PSSI. |
-| 34 | VAR (tempo instability) | 3 | 5 | 2 | ✅ Shipped | 3.6% of tracks. |
-| 35 | Track color | 2 | 7 | 1 | ✅ Shipped | Energy→ColorID, 100%. |
-| 36 | Sub-genre display | 3 | 7 | 6 | ✅ Shipped | 64.4% coverage, `· TechHouse+DeepHouse`. |
-| 37 | Effnet embeddings | 8 | 1 | 6 | ✅ Shipped | 1280-d, MegaSet scoring (0.25 weight), kNN. |
-| 38 | Instrumentation detection | 2 | 3 | 3 | ❌ Skip | Redundant with sub-genre. |
-| 39 | Personal taste | 1 | 2 | 1 | N/A | Only you know. |
+---
 
-### Summary: top priorities by axis
+### #2 · Rekordbox play history — **Impact 9** · Not mined
 
-**🎛 For MegaSet set building (top 5):**
-1. Energy trajectory (BUILD/HOLD/COOL) — §17.1
-2. Rekordbox play history as transition training data — §6.3
-3. 1001TL co-play graph as social embedding — §6.1
-4. Intro/outro spectral compatibility — §17.5
-5. TIV harmonic compatibility replacing Camelot — §15.6
+**Why it matters:** Every transition you've ever played is already
+recorded in `master.db`. This is YOUR data about YOUR preferences — the
+single highest-quality training signal for YOUR set builder. No external
+API, no cost, no rate limits. Just a SQL query away.
 
-**👁 For booth / human-readable DJ annotations (top 5):**
-1. Drop-section energy recalibration (fix E8.5 → meaningful E1–E9) — §15.5
-2. VOX/HOOK vocal detection — v4 remaining plan
-3. Energy trajectory token (BUILD/HOLD/COOL) — §17.1
-4. Swing/groove estimation (SWING/GRID token) — §15.4
-5. Drum pattern density (hi-hat, kick) — §15.3
+**How we'll do it:** `djmdSongHistory` in master.db has timestamps +
+content IDs. Pair consecutive plays within 30 minutes = one transition.
+Extract BPM delta, key delta, energy delta, genre match/mismatch for
+each pair.
 
-**🏷 For multi-level genre classification (top 5):**
-1. Dawid–Skene label model (probability vectors) — v3 WS4
-2. Discogs monthly dump (400 Discogs styles in effnet vocabulary) — v3 WS5
-3. Genre probability vector as the display format — §17.4
-4. EDM production features (H/P ratio, sub-bass, sidechain) — §15.1
-5. Remix routing for artist-level sources — v3 §4
+```sql
+-- Example query from master.db
+SELECT h1.ContentID, h2.ContentID,
+       c1.BPM, c2.BPM,
+       abs(c1.BPM - c2.BPM) as bpm_delta
+FROM djmdSongHistory h1
+JOIN djmdSongHistory h2 ON h2.created_at BETWEEN h1.created_at AND datetime(h1.created_at, '+30 minutes')
+  AND h2.ContentID != h1.ContentID
+JOIN djmdContent c1 ON c1.ID = h1.ContentID
+JOIN djmdContent c2 ON c2.ID = h2.ContentID
+ORDER BY h1.created_at;
+```
+
+**Expected output:** A transition graph of ~500–2,000 real pairs.
+MegaSet uses these as gold-standard positive examples — "you actually
+played A→B, so tracks like A→B should score high."
+
+**Why it's #2:** This is free supervised training data. Every other
+signal is a PROXY for "do these tracks go together" — this one is the
+direct answer. The co-play graph from 1001TL tells you what OTHER DJs
+play together; play history tells you what YOU play together.
+
+---
+
+### #3 · Drop-section energy recalibration — **Impact 9** · Not built
+
+**Why it matters:** The current energy is a loudness meter. The whole
+library averages E8.5. The v4 comment writes `E8` for almost everything,
+so the token is wasted — a DJ can't scan their library by energy level
+if everything is the same level. Energy should mean "how intense does
+this track FEEL relative to its genre family."
+
+**How we'll do it:** Per the v3 plan: extract 8 features from the drop
+section (onset density, spectral centroid, spectral contrast, sub-bass
+ratio, LUFS, crest factor, H/P ratio, RMS kurtosis). Blend them into a
+composite with LUFS capped at ~10% weight. Then percentile-rank within
+each genre family (house tracks ranked against house, techno against
+techno).
+
+```
+Before (loudness meter):
+  "Afterlife melodic track" → E8 (it's mastered loud)
+  "Drumcode peak-time techno" → E9 (it's mastered louder)
+  "Deep house groove" → E7 (slightly quieter master)
+
+After (calibrated):
+  "Afterlife melodic track" → E5 (calm within melodic techno family)
+  "Drumcode peak-time techno" → E9 (truly intense within techno family)
+  "Deep house groove" → E4 (laid-back within house family)
+```
+
+**Expected v4 comment change:** `E5 IN:32 OUT:16 Drop Euph · MelTechno`
+— now E5 actually means something different from E9.
+
+**Why it's #3:** This makes the EXISTING comment token useful. Every
+other signal adds new information; this one fixes the information that's
+already there but broken. A DJ scanning `E3→E5→E7→E9` can now trust
+the progression.
+
+---
+
+### #4 · Dawid–Skene label model — **Impact 9** · v3 plan (WS4)
+
+**Why it matters:** The current 8-rung vote ladder uses hand-tuned
+weights (Beatport W3=0.60, SoundCloud W2=0.35). But Beatport isn't
+equally reliable for every genre — it's great for EDM but weak for
+hip-hop. SoundCloud is great for bass music but noisy for house. The
+weights should be LEARNED per source × per genre family, not guessed.
+
+**How we'll do it:** `crowd-kit` Dawid–Skene expects a dataframe of
+(annotator, item, label). We already have this: each rung is an
+annotator, each track is an item, each genre vote is a label. Feed the
+existing `genre_votes` table into Dawid–Skene and get back per-source
+reliability matrices + per-track probability vectors.
+
+```
+Input (existing genre_votes rows):
+  track_id=42, source="beatport",    genre="Tech House",    weight=0.60
+  track_id=42, source="soundcloud",  genre="House",         weight=0.35
+  track_id=42, source="musicbrainz", genre="Deep House",    weight=0.40
+  track_id=42, source="ai_fallback", genre="Tech House",    weight=0.45
+
+Output (Dawid–Skene posterior):
+  track_id=42, genre_vector={tech_house: 0.52, deep_house: 0.24, house: 0.18, minimal: 0.06}
+  winner: "Tech House" (52% confidence)
+  learned: beatport reliability for tech_house = 0.83 (high)
+  learned: soundcloud reliability for tech_house = 0.41 (low — it often says "House" for tech house)
+```
+
+**Why it's #4:** This replaces hand-tuning with math. The model TELLS
+you which sources are reliable for which genres. When you add a new
+source (Last.fm, Discogs), it automatically learns that source's
+reliability without manual weight assignment.
+
+---
+
+### #5 · Discogs monthly dump — **Impact 9** · v3 plan (WS5)
+
+**Why it matters:** Discogs has 400 styles in a hierarchical taxonomy
+that is the EXACT vocabulary the effnet model was trained on. It's CC0
+(free, no rate limits), 600M+ releases, and includes release year, label,
+and format. This is the deepest genre vocabulary available anywhere.
+
+**How we'll do it:** Download the monthly XML dump (~9 GB compressed).
+Build a local SQLite lookup: artist+title → Discogs styles + label +
+year. Match against the archive via artist+title fuzzy match (reusing
+the existing `scoreNameMatch` from `name-match.ts`). Each matched style
+becomes a Dawid–Skene voter.
+
+```
+Track: "Maceo Plex - Conjure Superstar"
+Discogs match: release_id=7654321
+  styles: ["Techno", "Minimal", "Acid"]
+  label: "Ellum Audio"
+  year: 2019
+  format: "12\" Vinyl"
+
+→ genre_votes row: source="discogs", genre="Techno", sub_genres=["Minimal","Acid"]
+→ tracks.release_year = 2019
+→ tracks.label = "Ellum Audio"
+```
+
+**Expected coverage lift:** Discogs covers vinyl-heavy back catalogs
+that Beatport/SoundCloud miss. Estimated +15–25% coverage for tracks
+with no existing genre votes. Multi-style labels give sub-genre depth
+the vote ladder currently lacks.
+
+**Why it's #5:** Volume × precision × zero cost. The monthly dump is
+the only source where one download gives genre evidence for the ENTIRE
+library at once.
+
+---
+
+### #6 · VOX/HOOK vocal detection — **Impact 8** · Planned (last v4 token)
+
+**Why it matters:** DJs need to know WHERE the vocals are so they don't
+layer two vocal tracks on top of each other. A vocal clash (two singers
+at once) is one of the most obvious DJ mistakes. The v4 comment has 8/9
+tokens shipped — VOX is the last gap.
+
+**How we'll do it:** Per the v4 remaining plan: Demucs vocal stem
+separation (already proven in the mood pipeline) → energy detection on
+the vocal stem → classify as VOX (has vocals) / HOOK (vocal hook in
+drop only) / instrumental (no token). Position detection marks intro-vox
+vs. drop-vox vs. throughout.
+
+```
+Track: "CamelPhat & Elderbrook - Cola"
+Demucs vocal stem energy: [low, low, HIGH, HIGH, low, HIGH, HIGH, low]
+Classification: VOX (vocals in drops and breakdowns)
+Position: "drop+breakdown" (avoid mixing into ANOTHER vocal track's drop)
+
+v4 comment: E7 IN:16 OUT:16 VOX Drop Dark · TechHouse
+```
+
+```
+Track: "Amelie Lens - Exhale"
+Demucs vocal stem energy: [low, low, low, low, low, low, low, low]
+Classification: (no token — instrumental)
+
+v4 comment: E9 IN:32 OUT:16 Drop Hard · Techno
+```
+
+**Why it's #6:** This completes the v4 comment — every slot filled. The
+XDJ-XZ Track Filter can then filter by VOX / instrumental, which is the
+single most requested filter after genre and energy.
+
+---
+
+### #7 · 1001Tracklists co-play graph — **Impact 8** · Not built
+
+**Why it matters:** 1001TL has millions of real set tracklists from real
+DJs. If track A appears next to track B in 50 different sets, those
+tracks are proven compatible. This is SOCIAL information that no amount
+of audio analysis can capture — it encodes taste, culture, scene
+conventions, crowd response patterns.
+
+**How we'll do it:** Query the 1001TL community API for each track in
+the library. Build a co-occurrence matrix: for every pair (A, B) that
+appear within ±3 positions in a tracklist, increment the co-play count.
+Normalize by total appearances.
+
+```
+Track: "Charlotte de Witte - Doppler"
+1001TL appearances: 847 sets
+Top co-play neighbors:
+  1. "ANNA - Hidden Beauties" (co-play: 0.34, appeared together 287 times)
+  2. "Enrico Sangiuliano - Moon Rocks" (co-play: 0.29)
+  3. "Amelie Lens - Exhale" (co-play: 0.24)
+  4. "AIROD - Sigma" (co-play: 0.21)
+
+→ MegaSet neighbor bonus: +0.34 when sequencing Doppler → Hidden Beauties
+```
+
+**Expected impact on MegaSet:** The current scoring uses audio features
+only: `0.45·tempo + 0.30·key + 0.25·embedding`. Adding co-play as a
+fourth term gives the set builder real-world DJ knowledge. Tracks that
+SOUND similar but nobody plays together get downranked; tracks that
+sound different but DJs bridge regularly get a boost.
+
+**Why it's #7:** This is the only signal in the entire list that comes
+from human DJ behavior, not audio or metadata. It's irreplaceable.
+
+---
+
+### #8 · Intro/outro spectral compatibility — **Impact 8** · Not built
+
+**Why it matters:** MegaSet scores whole-track similarity. But a DJ
+transition only involves 16–64 bars of overlap between two tracks. Two
+tracks with identical OVERALL timbre can have completely different
+intro/outro textures — the intro might be a minimal hi-hat loop while
+the outro is a bass-heavy breakdown. The transition quality depends on
+the SPECIFIC sections that overlap.
+
+**How we'll do it:** We already have PSSI-decoded intro/outro sections
+for 74.7% of tracks. Compute three features on each section: TIV
+harmonic profile, onset density, Bark-band spectral centroid. Store as a
+compact per-track profile.
+
+```
+Track A outro profile: {tiv: [0.2, 0.8, ...], onsets: 12.3/bar, centroid: 2400 Hz}
+Track B intro profile: {tiv: [0.3, 0.7, ...], onsets: 8.1/bar, centroid: 1800 Hz}
+
+Compatibility score:
+  tiv_cosine = 0.94 (harmonically compatible ✓)
+  onset_ratio = 0.66 (A is busier, B has room ✓)
+  centroid_delta = 600 Hz (different frequency range, no clash ✓)
+  → transition_score = 0.87 (smooth transition predicted)
+
+Track C intro profile: {tiv: [0.9, 0.1, ...], onsets: 15.7/bar, centroid: 2500 Hz}
+
+Compatibility with Track A outro:
+  tiv_cosine = 0.31 (harmonically clashing ✗)
+  onset_ratio = 1.28 (both busy, will be muddy ✗)
+  → transition_score = 0.29 (jarring transition predicted)
+```
+
+**Why it's #8:** This replaces guessing with measurement. MegaSet could
+rank the next 10 candidate tracks by actual transition quality, not
+just by "they sound vaguely similar overall."
+
+---
+
+### #9 · Genre probability vector — **Impact 8** · Dawid–Skene output
+
+**Why it matters:** Saying a track is "Tech House" throws away
+information. The track might be 42% tech house, 28% deep house, 18%
+minimal, 12% progressive. That distribution IS the track's identity.
+Two tracks with the same winner label can be very different:
+`{tech_house: 0.90}` is a straightforward tech house banger.
+`{tech_house: 0.42, deep_house: 0.28}` is a crossover track that fits
+in EITHER set.
+
+**How we'll do it:** This is the natural output of Dawid–Skene (#4).
+Store the full posterior as `tracks.genre_vector` (JSON). Display the
+top-2 in the v4 comment. Use Jensen-Shannon divergence between vectors
+for set diversity scoring.
+
+```
+v4 comment (already works): E7 IN:16 OUT:16 Drop Dark · TechHouse+DeepHouse
+
+CrateDeck genre chip: "Tech House" (opacity 0.9) + "Deep House" (opacity 0.6)
+
+MegaSet set diversity:
+  Track 1: {tech_house: 0.80, minimal: 0.15, ...}
+  Track 2: {tech_house: 0.75, house: 0.20, ...}
+  Track 3: {deep_house: 0.60, tech_house: 0.25, ...}
+  Set JSD = 0.18 (too homogeneous — suggest a genre shift)
+
+  After inserting Track 4: {melodic_techno: 0.70, progressive: 0.20}
+  Set JSD = 0.42 (healthy genre arc ✓)
+```
+
+**Why it's #9:** This makes genre HONEST. Every classification system
+pretends tracks belong to exactly one genre. They don't. The probability
+vector acknowledges uncertainty and cross-genre identity. And the
+Jensen-Shannon diversity metric gives MegaSet a way to build sets that
+travel through genres intentionally.
+
+---
+
+### #10 · EDM production features — **Impact 8** · Not built
+
+**Why it matters:** The effnet embedding captures "this sounds like
+techno" but can't tell you WHY. The Xu et al. 194-feature study showed
+that specific production characteristics are what separate genres: the
+harmonic-to-percussive ratio, the crest factor (dynamic range), the
+sub-bass ratio, the sidechain pumping depth. These are the features that
+a PRODUCER would use to describe the difference between house and techno.
+
+**How we'll do it:** Compute 6 key production features per track using
+essentia (most are single-function calls):
+
+```
+Track: "Fisher - Losing It"
+  h_p_ratio: 0.35 (percussion-heavy ✓ house)
+  crest_factor: 4.2 (moderate dynamics)
+  sub_bass_ratio: 0.28 (strong sub ✓ house)
+  sidechain_depth: 0.71 (deep pump ✓ house)
+  spectral_contrast_bands: [12, 8, 15, 22, 18, 11, 9]
+  rms_kurtosis: 2.1 (even energy distribution)
+
+Track: "Amelie Lens - Exhale"
+  h_p_ratio: 0.22 (very percussion-heavy ✓ techno)
+  crest_factor: 2.8 (compressed, driving)
+  sub_bass_ratio: 0.18 (less sub, more mid ✓ techno)
+  sidechain_depth: 0.32 (light pump ✓ techno)
+  spectral_contrast_bands: [8, 14, 20, 25, 22, 16, 12]
+  rms_kurtosis: 3.8 (peaky energy = builds/drops)
+```
+
+**Expected genre classification lift:** The Xu et al. study found these
+features improved genre separation by 5–10% over spectral-only. For the
+house↔techno boundary specifically — which is our biggest confusion pair
+— sub-bass ratio + sidechain depth alone achieve ~85% separation.
+
+**Why it's #10:** These features fill the gap between "sounds like X"
+(embedding) and "is produced like X" (explicit features). They're
+especially valuable for the Dawid–Skene model as an additional voter
+that has zero correlation with the tag-based sources.
+
+---
+
+### #11 · TIV harmonic compatibility — **Impact 7** · Not built
+
+**Why it matters:** Camelot matching (the current key compatibility
+system) says "7A is compatible with 7A, 8A, and 7B." But this is a
+coarse approximation. Two tracks in the same key can be harmonically
+incompatible if their chord voicings clash. TIV (Tonal Interval Vectors)
+captures the actual harmonic content — which pitch classes are present
+and how they relate to each other.
+
+**How:** Compute 6 TIV coefficients per beat using essentia's
+`TonalExtractor`. Cosine similarity between TIV vectors = harmonic
+compatibility.
+
+```
+Camelot says: Track A (7A) → Track B (7A) = compatible ✓
+TIV says:     cosine(A_tiv, B_tiv) = 0.41 — actually clashing (different chord extensions)
+
+Camelot says: Track A (7A) → Track C (5B) = incompatible ✗
+TIV says:     cosine(A_tiv, C_tiv) = 0.89 — actually smooth (shared pitch classes)
+```
+
+---
+
+### #12 · Drum pattern transcription — **Impact 7** · Not built
+
+**Why it matters:** The kick pattern IS the genre family. 4-on-floor =
+house/techno. Breakbeat = DnB/jungle. Half-time = trap/dubstep. The
+hi-hat pattern separates within families: straight 16ths = techno, swung
+8ths = house, rapid 32nds = trap. Drum transcription makes genre
+classification PHYSICAL rather than cultural.
+
+**How:** STAR Drums (18-class, pre-trained) or N2N (diffusion, 7
+components) on the percussive stem from Demucs. Output: onset grid per
+instrument class.
+
+```
+Track: "Patrick Topping - Be Sharp Say Nowt"
+Kick:   [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]  → 4-on-floor
+Hi-hat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]  → offbeat (house)
+Snare:  [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]  → backbeat
+
+Genre evidence: house family (4-on-floor + offbeat hi-hat) = +0.85 confidence
+Drop/Roll: Drop (hi-hat density increases in drop section)
+```
+
+---
+
+### #13 · Swing/groove estimation — **Impact 7** · Not built
+
+**Why it matters:** Two tracks at the same BPM can feel completely
+different if one is gridded (quantized, robotic) and the other swings
+(humanized, groovy). Mixing a swung track into a gridded one creates
+rhythmic tension — sometimes intentional, often jarring. The groove is
+an invisible blendability gate.
+
+**How:** LLACF (Log-Lag Autocorrelation Function) on the onset times.
+Swing ratio = delay of off-beats relative to the grid. 50% = straight.
+55–67% = light to heavy swing.
+
+```
+Track: "Green Velvet - Flash" → swing_ratio: 50.2% → GRID (straight quantized)
+Track: "Kerri Chandler - Rain" → swing_ratio: 61.4% → SWING (heavy groove)
+
+Mixing Flash → Rain: groove mismatch 11.2% → blendability penalty
+Mixing Rain → "Lil Louis - French Kiss" (swing: 58.7%): groove match 2.7% → smooth ✓
+```
+
+**Expected comment token:** `SWING` appears when ratio > 55%, `GRID`
+when < 52%. Most tracks (~70%) are gridded, so SWING is the informative
+token.
+
+---
+
+### #14 · Last.fm vote rung — **Impact 7** · Not built (S effort)
+
+**Why it matters:** The genre vote ladder has a gap: hip-hop, pop,
+R&B, and indie tracks get weak or missing votes because Beatport and
+SoundCloud are EDM-focused. Last.fm's folksonomy tags cover ALL genres
+equally and include era/scene words ("2010s," "Nu Disco," "Balearic")
+that structured sources miss.
+
+**How:** API call: `track.getTopTags(artist, title)` → top 20 tags with
+counts. Filter through `canonGenre` (already built). Feed as a
+Dawid–Skene voter.
+
+```
+Track: "Flume - Never Be Like You"
+Last.fm tags: [electronic: 100, future bass: 87, chillwave: 45, australian: 30, 2016: 22]
+After canonGenre: genre="Future Bass", sub_tags=["Chillwave"], era=2016
+→ genre_votes row: source="lastfm", genre="Future Bass"
+```
+
+**Why it's #14:** Cheapest new source to add (~2 hours). Free API, no
+auth, already has `lastfm.ts` module. Natural Dawid–Skene input.
+
+---
+
+### #15 · Drop spectral signature — **Impact 7** · Not built
+
+**Why it matters:** The spectral shape at the drop section is a genre
+FINGERPRINT. Dubstep has a sub-bass wall with a mid-range gap. Bigroom
+is flat full-spectrum. Tech house grooves in the 200 Hz–2 kHz range.
+This 7-number vector captures genre identity from a single section.
+
+**How:** Segment track using PSSI → extract drop → compute 7-band
+spectral contrast (already available in essentia).
+
+```
+Track: "Skrillex - Bangarang"
+Drop spectral contrast: [28, 4, 8, 6, 3, 12, 9]
+  ↑ massive sub    ↑ hollow mid    ↑ sparkly high
+Pattern match: Dubstep (sub-dominant, mid-gap) → confidence 0.91
+```
+
+---
+
+### #16 · Remix routing — **Impact 7** · v3 plan
+
+**Why it matters:** "Depeche Mode - Enjoy the Silence (Timo Maas Remix)"
+should query Beatport for Timo Maas's genre, not Depeche Mode's. The
+remix artist determines the genre. Currently the fetch pipeline queries
+the ORIGINAL artist, gets "Synth Pop," and the genre vote is wrong.
+
+**How:** Parse remix credits from title (already have `parseRemixer`).
+Route the Beatport/SoundCloud/Bandcamp searches to the remixer. The
+original artist stays for metadata display; the remixer drives genre.
+
+```
+Before: "Enjoy the Silence (Timo Maas Remix)" → queries "Depeche Mode" → "Synth Pop"
+After:  "Enjoy the Silence (Timo Maas Remix)" → queries "Timo Maas" → "Techno"
+```
+
+**Expected accuracy lift:** ~8–12% of the library are remixes. This
+fixes genre for most of them in one pass.
+
+---
+
+### #17 · Label network graph — **Impact 6** · Not built
+
+**Why it matters:** Record labels in EDM function as genre curators.
+"Drumcode" isn't just techno — it's specifically peak-time, driving
+techno. "Anjunadeep" is melodic/progressive. A label tells you the
+sub-genre with higher precision than any tag.
+
+**How:** From the Discogs dump (#5), build a label→artist→label bipartite
+graph. Labels sharing many artists are "genre neighbors." Cluster the
+graph → emergent sub-genre taxonomy.
+
+```
+Cluster: {Drumcode, MORD, Soma, Suara} → "Peak-time Techno"
+Cluster: {Afterlife, Innervisions, Cercle} → "Melodic Techno"
+Cluster: {Defected, Toolroom, Cr2} → "House / Tech House"
+
+Track on "Afterlife" label → sub-genre: "Melodic Techno" (not just "Techno")
+```
+
+---
+
+### #18 · Space/silence density — **Impact 6** · Not built
+
+**Why it matters:** How much "air" is in a track. Minimal techno
+breathes; bigroom is a wall of sound. This is trivially computable and
+correlates with both genre and mix compatibility (high-space outros have
+room for the next track's elements).
+
+**How:** `space_density = count(RMS_frames < threshold) / total_frames`
+
+```
+"Ricardo Villalobos - Dexter" → space_density: 0.41 (sparse, breathing) → minimal/deep
+"Martin Garrix - Animals" → space_density: 0.03 (wall of sound) → bigroom
+```
+
+---
+
+### #19 · LLM metadata imputation — **Impact 6** · Not built
+
+**Why it matters:** Audio + partial metadata together are better than
+either alone. A track with "label: Drumcode" + audio features gets a
+21% more accurate genre classification than audio alone. LLMs can
+synthesize heterogeneous partial signals.
+
+**How:** Feed the existing metadata (artist, title, label, partial tags,
+audio features) into a fine-tuned LLM that outputs genre + era + mood
++ description. Natural upgrade for the AI rung (W4, currently 0.45).
+
+---
+
+### #20 · Playlist-name voter — **Impact 5** · Needs audit
+
+Free silver labels from user playlist naming conventions. "My Techno
+Playlist" → every track gets a "Techno" vote at low weight.
+
+---
+
+### #21 · Cue color/naming audit — **Impact 4** · Not done
+
+If hot cue naming is consistent, cue positions become free structure
+training data for section detection.
+
+---
+
+### #22 · Version stability test — **Impact 4** · Not built
+
+Extended and radio edit of the same track must agree on genre. Catches
+errors and validates the vote system's consistency.
+
+---
+
+### #23 · Whisper lyrics → explicit flag — **Impact 4** · Not built
+
+Run Whisper on vocal stem → detect profanity → `EXPLICIT` tag. Niche
+but important for gig suitability ("is this wedding-safe?").
+
+---
+
+### #24 · Function tags — **Impact 4** · Not built
+
+Structural detection: track with no drop = "tool track" (DJ utility).
+Track with 4+ minute loops = "filler." Useful for set pacing.
+
+---
+
+### #25 · Era/release year — **Impact 4** · Partial
+
+Discogs (#5) completes coverage. Display value for the DJ: "90s
+classic," "2024 release."
+
+---
+
+### #26 · Crowd status/popularity — **Impact 4** · Not built
+
+1001TL appearance counts + Last.fm listener counts → "anthem" vs. "deep
+cut." Helps set building for crowd-reading.
+
+---
+
+### Already shipped (no action needed)
+
+| Signal | Impact | Status |
+|---|---|---|
+| BPM / tempo | 8 | ✅ MegaSet's top scoring term (0.45 weight) |
+| Key / Camelot | 7 | ✅ OpenKeyScan 80.7%, TKEY written |
+| Primary genre | 7 | ✅ 98.3% coverage, 8-rung vote ladder |
+| Energy level | 6 | ✅ Shipped (broken — #3 fixes it) |
+| Mood (Dark/Euph/Hard/Soft) | 6 | ✅ ONNX mood heads, percentile-ranked |
+| IN/OUT bars | 6 | ✅ PSSI decode, 74.7% coverage |
+| Drop/Roll | 5 | ✅ 97.5%/2.5% from PSSI |
+| VAR (tempo instability) | 4 | ✅ 3.6% of tracks |
+| Track color | 4 | ✅ Energy→ColorID, 100% |
+| Sub-genre display | 5 | ✅ 64.4% coverage via `· TechHouse+DeepHouse` |
+| Effnet embeddings | 7 | ✅ 1280-d, MegaSet scoring (0.25 weight) |
+
+### Top 10 build order
+
+1. **Energy trajectory** (Impact 10) — the missing MegaSet dimension
+2. **Rekordbox play history** (Impact 9) — free gold training data
+3. **Energy recalibration** (Impact 9) — fix the broken E token
+4. **Dawid–Skene** (Impact 9) — learn source reliability from data
+5. **Discogs dump** (Impact 9) — 400-style vocabulary, one download
+6. **VOX/HOOK** (Impact 8) — complete the v4 comment
+7. **1001TL co-play** (Impact 8) — social transition data
+8. **Intro/outro compatibility** (Impact 8) — score real transitions
+9. **Genre probability vector** (Impact 8) — honest genre identity
+10. **EDM production features** (Impact 8) — explain WHY genres differ
 
 ---
 
