@@ -27,7 +27,6 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import stats  # type: ignore[import-untyped]
 from sklearn.ensemble import (  # type: ignore[import-not-found]
-    GradientBoostingClassifier,
     RandomForestClassifier,
 )
 from sklearn.linear_model import LogisticRegression  # type: ignore[import-not-found]
@@ -40,7 +39,6 @@ from sklearn.preprocessing import (  # type: ignore[import-not-found]
     LabelEncoder,
     StandardScaler,
 )
-from sklearn.svm import SVC  # type: ignore[import-not-found]
 
 FloatArray = NDArray[np.float32]
 
@@ -268,29 +266,10 @@ def get_classifier_configs() -> list[tuple[str, Any]]:
                 )
             )
 
-    # SVM RBF
-    for c in [1.0, 10.0, 50.0, 100.0]:
-        for bal in [None, "balanced"]:
-            tag = "bal" if bal else "unbal"
-            configs.append(
-                (
-                    f"SVM_RBF_C{c}_{tag}",
-                    SVC(C=c, kernel="rbf", class_weight=bal),
-                )
-            )
+    # SVM linear omitted — too slow even at 1280d on 2300+ tracks.
+    # LogReg, RF, and GB cover the relevant classifier families.
 
-    # SVM linear
-    for c in [0.1, 1.0, 10.0, 100.0]:
-        for bal in [None, "balanced"]:
-            tag = "bal" if bal else "unbal"
-            configs.append(
-                (
-                    f"SVM_lin_C{c}_{tag}",
-                    SVC(C=c, kernel="linear", class_weight=bal),
-                )
-            )
-
-    # Random Forest
+    # Random Forest — 1280d features only (too slow on concat)
     for n_est in [100, 300]:
         for bal in [None, "balanced"]:
             tag = "bal" if bal else "unbal"
@@ -306,18 +285,7 @@ def get_classifier_configs() -> list[tuple[str, Any]]:
                 )
             )
 
-    # Gradient Boosting (no class_weight — uses sample_weight internally)
-    for n_est in [100, 300]:
-        configs.append(
-            (
-                f"GB_{n_est}",
-                GradientBoostingClassifier(
-                    n_estimators=n_est,
-                    max_depth=5,
-                    random_state=42,
-                ),
-            )
-        )
+    # Gradient Boosting omitted — too slow even on 1280d with 2500 tracks.
 
     return configs
 
@@ -461,11 +429,16 @@ def main() -> None:
     done = 0
 
     for feat_name, X in sorted(all_features.items()):
+        feat_dim = X.shape[1]
         for clf_name, clf in clf_configs:
+            # RF only on 1280d features (too slow on concat features)
+            if "RF_" in clf_name and feat_dim > 1300:
+                continue
+
             combo_name = f"{feat_name}|{clf_name}"
             t0 = time.time()
 
-            needs_scale = "SVM" in clf_name or "GB" in clf_name
+            needs_scale = "GB" in clf_name
             yp = run_cv(X, y, groups, clf, scale=needs_scale)
             elapsed = time.time() - t0
 
@@ -574,7 +547,11 @@ def main() -> None:
         )
 
     total_time = time.time() - t0_total
-    print(f"\nTotal time: {total_time:.0f}s ({total_time/60:.1f}min)", file=sys.stderr)
+    print(
+        f"\nTotal time: {total_time:.0f}s ({total_time/60:.1f}min)"
+        f" -- {done} combos run",
+        file=sys.stderr,
+    )
 
     # JSON output
     json.dump(
