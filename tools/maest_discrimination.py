@@ -9,6 +9,7 @@ Usage:
       --with numpy --with librosa --with soundfile \
       python tools/maest_discrimination.py
 """
+
 from __future__ import annotations
 
 import json
@@ -51,11 +52,14 @@ def extract_stacked(model: torch.nn.Module, fe: object, audio_path: str) -> Any:
     with torch.no_grad():
         outputs = model(**inputs)
     hs = outputs.hidden_states
-    stacked = torch.cat([
-        hs[6][:, 1:, :].mean(dim=1),
-        hs[8][:, 1:, :].mean(dim=1),
-        hs[10][:, 1:, :].mean(dim=1),
-    ], dim=-1)
+    stacked = torch.cat(
+        [
+            hs[6][:, 1:, :].mean(dim=1),
+            hs[8][:, 1:, :].mean(dim=1),
+            hs[10][:, 1:, :].mean(dim=1),
+        ],
+        dim=-1,
+    )
     vec = stacked.squeeze().numpy()
     return vec / (np.linalg.norm(vec) + 1e-8)
 
@@ -116,15 +120,24 @@ def main() -> None:
             effnet_vec = np.array(effnet_vec, dtype=np.float32)
             effnet_vec = effnet_vec / (np.linalg.norm(effnet_vec) + 1e-8)
 
-            tracks.append({
-                "vid": vid, "path": fp, "genre": genre, "title": title,
-                "artist": artist, "family": fam, "effnet": effnet_vec,
-            })
+            tracks.append(
+                {
+                    "vid": vid,
+                    "path": fp,
+                    "genre": genre,
+                    "title": title,
+                    "artist": artist,
+                    "family": fam,
+                    "effnet": effnet_vec,
+                }
+            )
             count += 1
 
     conn.close()
 
-    print(f"\nSelected {len(tracks)} tracks across {len(TARGET_FAMILIES)} families", file=sys.stderr)
+    print(
+        f"\nSelected {len(tracks)} tracks across {len(TARGET_FAMILIES)} families", file=sys.stderr
+    )
     for t in tracks:
         print(f"  {t['family']:>8} | {t['artist']} - {t['title'][:40]}", file=sys.stderr)
 
@@ -159,16 +172,25 @@ def main() -> None:
                 between_effnet.append(e_sim)
                 between_maest.append(m_sim)
 
-            print(f"  {tag:>4} {ti['family']:>8}-{tj['family']:<8} "
-                  f"{ti['title'][:15]:>15} vs {tj['title'][:15]:<15} "
-                  f"{e_sim:>7.3f}  {m_sim:>7.3f}", file=sys.stderr)
+            print(
+                f"  {tag:>4} {ti['family']:>8}-{tj['family']:<8} "
+                f"{ti['title'][:15]:>15} vs {tj['title'][:15]:<15} "
+                f"{e_sim:>7.3f}  {m_sim:>7.3f}",
+                file=sys.stderr,
+            )
 
     print(f"\n{'Summary':>25} {'effnet':>8} {'maest':>8}", file=sys.stderr)
     print("-" * 45, file=sys.stderr)
     if within_effnet:
-        print(f"  Within-family mean cos:  {np.mean(within_effnet):>7.3f}  {np.mean(within_maest):>7.3f}", file=sys.stderr)
+        print(
+            f"  Within-family mean cos:  {np.mean(within_effnet):>7.3f}  {np.mean(within_maest):>7.3f}",
+            file=sys.stderr,
+        )
     if between_effnet:
-        print(f"  Between-family mean cos: {np.mean(between_effnet):>7.3f}  {np.mean(between_maest):>7.3f}", file=sys.stderr)
+        print(
+            f"  Between-family mean cos: {np.mean(between_effnet):>7.3f}  {np.mean(between_maest):>7.3f}",
+            file=sys.stderr,
+        )
     if within_effnet and between_effnet:
         e_gap = np.mean(within_effnet) - np.mean(between_effnet)
         m_gap = np.mean(within_maest) - np.mean(between_maest)

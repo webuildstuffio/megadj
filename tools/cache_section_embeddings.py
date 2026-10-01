@@ -35,6 +35,7 @@ def normalize(v: FloatArray) -> FloatArray:
 
 def frame_mel(audio: FloatArray, extractor: Any, frame_size: int, hop: int) -> FloatArray:
     from essentia.standard import FrameGenerator  # type: ignore[import-not-found]
+
     return np.asarray(
         [extractor(f) for f in FrameGenerator(audio, frameSize=frame_size, hopSize=hop)],
         dtype=np.float32,
@@ -50,6 +51,7 @@ def chunks(frames: FloatArray, size: int) -> FloatArray:
 
 def emb_effnet(a16k: FloatArray, sess: Any) -> FloatArray:
     from essentia.standard import TensorflowInputMusiCNN
+
     mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
     batch = chunks(mel, 128)
     out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
@@ -62,6 +64,7 @@ def load_audio_section(path: str, start: float, end: float) -> FloatArray | None
     """Load audio section at 16kHz mono."""
     try:
         from essentia.standard import MonoLoader
+
         audio = MonoLoader(filename=path, sampleRate=16000)()
         s = int(start * 16000)
         e = int(end * 16000)
@@ -77,6 +80,7 @@ def load_full_audio(path: str) -> FloatArray | None:
     """Load full track at 16kHz mono (for RMS computation)."""
     try:
         from essentia.standard import MonoLoader
+
         return MonoLoader(filename=path, sampleRate=16000)().astype(np.float32)  # type: ignore[no-any-return]
     except Exception:
         return None
@@ -88,7 +92,11 @@ def rms_per_bar(audio: FloatArray, downbeats: list[float]) -> list[float]:
     rms: list[float] = []
     for i in range(len(downbeats)):
         s = int(downbeats[i] * sr)
-        e = int(downbeats[i + 1] * sr) if i + 1 < len(downbeats) else min(s + int(2.0 * sr), len(audio))
+        e = (
+            int(downbeats[i + 1] * sr)
+            if i + 1 < len(downbeats)
+            else min(s + int(2.0 * sr), len(audio))
+        )
         segment = audio[s:e]
         if len(segment) < 100:
             rms.append(0.0)
@@ -222,7 +230,8 @@ def main() -> None:
     existing_ids: set[str] = set()
     if not args.force:
         existing_ids = {
-            r[0] for r in conn.execute(
+            r[0]
+            for r in conn.execute(
                 "SELECT DISTINCT video_id FROM section_embeddings WHERE model LIKE 'effnet-discogs-1280-section-%'"
             ).fetchall()
         }
@@ -255,6 +264,7 @@ def main() -> None:
 
     # Load ONNX session
     import onnxruntime as ort  # type: ignore[import-not-found]
+
     sess = ort.InferenceSession(str(EFFNET_PATH), providers=["CPUExecutionProvider"])
 
     done = 0
@@ -313,7 +323,16 @@ def main() -> None:
                 """INSERT OR REPLACE INTO section_embeddings
                    (video_id, model, dim, vec_json, source_path, analyzed_at, section_start, section_end)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (video_id, model_tag, len(vec), json.dumps(vec.tolist()), file_path, now, start, end),
+                (
+                    video_id,
+                    model_tag,
+                    len(vec),
+                    json.dumps(vec.tolist()),
+                    file_path,
+                    now,
+                    start,
+                    end,
+                ),
             )
             stored += 1
 
@@ -336,11 +355,16 @@ def main() -> None:
     print(f"\nDone: {done} tracks, {failed} failed, {elapsed:.0f}s", file=sys.stderr)
 
     # Verify
-    total = conn.execute("SELECT count(*) FROM section_embeddings WHERE model LIKE 'effnet-discogs-1280-section-%'").fetchone()[0]
+    total = conn.execute(
+        "SELECT count(*) FROM section_embeddings WHERE model LIKE 'effnet-discogs-1280-section-%'"
+    ).fetchone()[0]
     print(f"Total section embeddings in DB: {total}", file=sys.stderr)
     conn.close()
 
-    json.dump({"done": done, "failed": failed, "elapsed_s": round(elapsed), "total_in_db": total}, sys.stdout)
+    json.dump(
+        {"done": done, "failed": failed, "elapsed_s": round(elapsed), "total_in_db": total},
+        sys.stdout,
+    )
     print(file=sys.stdout)
 
 

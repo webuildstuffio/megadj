@@ -8,6 +8,7 @@ Usage:
     uv run --python python3.12 --with torch --with transformers --with numpy \
       --with librosa python tools/maest_sanity.py [audio_file]
 """
+
 from __future__ import annotations
 
 import os
@@ -41,7 +42,7 @@ def load_audio(path: str, sr: int = 16000, duration: float = 30.0) -> Any:
 
     print(f"Loading audio: {path}", file=sys.stderr)
     y, _ = librosa.load(path, sr=sr, duration=duration, mono=True)
-    print(f"  {len(y)} samples, {len(y)/sr:.1f}s at {sr}Hz", file=sys.stderr)
+    print(f"  {len(y)} samples, {len(y) / sr:.1f}s at {sr}Hz", file=sys.stderr)
     return y
 
 
@@ -78,11 +79,14 @@ def extract_features(
 
     # Stacked middle layers (concatenate layers 6+8+10)
     if all(i < n_layers for i in [6, 8, 10]):
-        stacked = torch.cat([
-            hidden_states[6][:, 1:, :].mean(dim=1),
-            hidden_states[8][:, 1:, :].mean(dim=1),
-            hidden_states[10][:, 1:, :].mean(dim=1),
-        ], dim=-1)
+        stacked = torch.cat(
+            [
+                hidden_states[6][:, 1:, :].mean(dim=1),
+                hidden_states[8][:, 1:, :].mean(dim=1),
+                hidden_states[10][:, 1:, :].mean(dim=1),
+            ],
+            dim=-1,
+        )
         results["stacked_6_8_10"] = stacked.squeeze().numpy()
 
     # CLS token from middle layer
@@ -100,7 +104,9 @@ def main() -> None:
         # Try to find a track from the library
         import sqlite3
 
-        db_path = os.environ.get("MEGADJ_DB", os.path.expanduser("~/.local/state/megadj/archive.db"))
+        db_path = os.environ.get(
+            "MEGADJ_DB", os.path.expanduser("~/.local/state/megadj/archive.db")
+        )
         conn = sqlite3.connect(db_path)
         row = conn.execute("""
             SELECT t.file_path FROM tracks t
@@ -126,8 +132,11 @@ def main() -> None:
     print("\nFeature summary:", file=sys.stderr)
     for name, vec in features.items():
         norm = float(np.linalg.norm(vec))
-        print(f"  {name:>20}: dim={vec.shape[0]:>5}, norm={norm:.3f}, "
-              f"mean={vec.mean():.4f}, std={vec.std():.4f}", file=sys.stderr)
+        print(
+            f"  {name:>20}: dim={vec.shape[0]:>5}, norm={norm:.3f}, "
+            f"mean={vec.mean():.4f}, std={vec.std():.4f}",
+            file=sys.stderr,
+        )
 
     # Verify features are non-trivial
     for name, vec in features.items():
@@ -146,6 +155,7 @@ def main() -> None:
 
     # Output summary JSON
     import json
+
     summary = {
         "audio_path": audio_path,
         "model": MODEL_ID,

@@ -9,6 +9,7 @@ Usage:
       --with numpy --with librosa --with soundfile --with scikit-learn \
       python tools/maest_probe_compare.py [--limit N]
 """
+
 from __future__ import annotations
 
 import json
@@ -41,14 +42,43 @@ JUNK_RE = re.compile(
     re.IGNORECASE,
 )
 FAMILIES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers", re.I), "bass"),
-    (re.compile(r"(?<!bass )(?<!afro )house|disco|garage|boogie|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore", re.I), "house"),
+    (
+        re.compile(
+            r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers",
+            re.I,
+        ),
+        "bass",
+    ),
+    (
+        re.compile(
+            r"(?<!bass )(?<!afro )house|disco|garage|boogie|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore",
+            re.I,
+        ),
+        "house",
+    ),
     (re.compile(r"techno|melodic|minimal(?! \/)|deep tech|hardtekk|softtekk|tekk", re.I), "techno"),
     (re.compile(r"trance|psy(?![a-z])", re.I), "trance"),
     (re.compile(r"hip ?[- ]?hop|rap|trap", re.I), "hiphop"),
-    (re.compile(r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I), "pop"),
-    (re.compile(r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae", re.I), "groove"),
-    (re.compile(r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial", re.I), "mood"),
+    (
+        re.compile(
+            r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I
+        ),
+        "pop",
+    ),
+    (
+        re.compile(
+            r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae",
+            re.I,
+        ),
+        "groove",
+    ),
+    (
+        re.compile(
+            r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial",
+            re.I,
+        ),
+        "mood",
+    ),
     (re.compile(r"\bgroove\b", re.I), "groove"),
     (re.compile(r"\bdance\b|mainstream club|edm", re.I), "house"),
 ]
@@ -101,15 +131,23 @@ def main() -> None:
         effnet_vec = json.loads(vj)
         if not isinstance(effnet_vec, list) or len(effnet_vec) < 10:
             continue
-        corpus.append({
-            "vid": vid, "path": fp, "genre": genre, "artist": artist or "UNKNOWN",
-            "family": fam,
-            "effnet": np.array(effnet_vec, dtype=np.float32),
-        })
+        corpus.append(
+            {
+                "vid": vid,
+                "path": fp,
+                "genre": genre,
+                "artist": artist or "UNKNOWN",
+                "family": fam,
+                "effnet": np.array(effnet_vec, dtype=np.float32),
+            }
+        )
         if len(corpus) >= limit:
             break
 
-    print(f"Corpus: {len(corpus)} tracks, {len(set(c['family'] for c in corpus))} families", file=sys.stderr)
+    print(
+        f"Corpus: {len(corpus)} tracks, {len(set(c['family'] for c in corpus))} families",
+        file=sys.stderr,
+    )
     print(f"  {dict(Counter(c['family'] for c in corpus).most_common())}", file=sys.stderr)
 
     # Load MAEST
@@ -130,11 +168,18 @@ def main() -> None:
                 outputs = model(**inputs)
             hs = outputs.hidden_states
             # Stacked middle layers 6+8+10 (2304d)
-            stacked = torch.cat([
-                hs[6][:, 1:, :].mean(dim=1),
-                hs[8][:, 1:, :].mean(dim=1),
-                hs[10][:, 1:, :].mean(dim=1),
-            ], dim=-1).squeeze().numpy()
+            stacked = (
+                torch.cat(
+                    [
+                        hs[6][:, 1:, :].mean(dim=1),
+                        hs[8][:, 1:, :].mean(dim=1),
+                        hs[10][:, 1:, :].mean(dim=1),
+                    ],
+                    dim=-1,
+                )
+                .squeeze()
+                .numpy()
+            )
             c["maest"] = stacked
             # Also extract layer 8 mean (768d)
             c["maest_l8"] = hs[8][:, 1:, :].mean(dim=1).squeeze().numpy()
@@ -148,11 +193,14 @@ def main() -> None:
             elapsed = time.time() - t0
             rate = (i + 1) / elapsed
             eta = (len(corpus) - i - 1) / rate
-            print(f"  [{i+1}/{len(corpus)}] {rate:.1f} tracks/s, ETA {eta:.0f}s", file=sys.stderr)
+            print(f"  [{i + 1}/{len(corpus)}] {rate:.1f} tracks/s, ETA {eta:.0f}s", file=sys.stderr)
 
     # Filter out failures
     corpus = [c for c in corpus if c.get("maest") is not None]
-    print(f"\nExtracted {len(corpus)} tracks ({failed} failed), {time.time() - t0:.0f}s total", file=sys.stderr)
+    print(
+        f"\nExtracted {len(corpus)} tracks ({failed} failed), {time.time() - t0:.0f}s total",
+        file=sys.stderr,
+    )
 
     # Prepare feature matrices
     families = [c["family"] for c in corpus]

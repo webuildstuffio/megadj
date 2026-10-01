@@ -36,15 +36,44 @@ JUNK_RE = re.compile(
 )
 
 FAMILIES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers", re.I), "bass"),
+    (
+        re.compile(
+            r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers",
+            re.I,
+        ),
+        "bass",
+    ),
     (re.compile(r"(?<!bass )(?<!afro )house|disco|garage|boogie", re.I), "house"),
     (re.compile(r"techno|melodic|minimal(?! \/)|deep tech|hardtekk|softtekk|tekk", re.I), "techno"),
     (re.compile(r"trance|psy(?![a-z])", re.I), "trance"),
     (re.compile(r"hip ?[- ]?hop|rap|trap", re.I), "hiphop"),
-    (re.compile(r"edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore", re.I), "edm"),
-    (re.compile(r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I), "pop"),
-    (re.compile(r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae", re.I), "groove"),
-    (re.compile(r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial", re.I), "mood"),
+    (
+        re.compile(
+            r"edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore",
+            re.I,
+        ),
+        "edm",
+    ),
+    (
+        re.compile(
+            r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I
+        ),
+        "pop",
+    ),
+    (
+        re.compile(
+            r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae",
+            re.I,
+        ),
+        "groove",
+    ),
+    (
+        re.compile(
+            r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial",
+            re.I,
+        ),
+        "mood",
+    ),
     (re.compile(r"\bgroove\b", re.I), "groove"),
     (re.compile(r"\bdance\b|mainstream club", re.I), "edm"),
 ]
@@ -133,7 +162,10 @@ def main() -> None:
     artist_le = LabelEncoder()
     groups = artist_le.fit_transform(artists).astype(np.int32)
 
-    print(f"Corpus: {len(families)} tracks, {len(label_names)} families, {len(set(artists))} artists\n", file=sys.stderr)
+    print(
+        f"Corpus: {len(families)} tracks, {len(label_names)} families, {len(set(artists))} artists\n",
+        file=sys.stderr,
+    )
 
     results: list[dict[str, Any]] = []
 
@@ -142,8 +174,12 @@ def main() -> None:
     best_c, best_f1 = 1.0, 0.0
     for c in [0.001, 0.01, 0.1, 0.5, 1.0, 5.0, 10.0, 50.0]:
         f1, acc, _, _ = eval_cv(
-            X, y, groups,
-            lambda c=c: LogisticRegression(max_iter=2000, class_weight="balanced", C=c, solver="lbfgs"),
+            X,
+            y,
+            groups,
+            lambda c=c: LogisticRegression(
+                max_iter=2000, class_weight="balanced", C=c, solver="lbfgs"
+            ),
         )
         marker = ""
         if f1 > best_f1:
@@ -158,7 +194,9 @@ def main() -> None:
     best_k, best_knn_f1 = 5, 0.0
     for k in [3, 5, 7, 11, 15, 21, 31]:
         f1, acc, _, _ = eval_cv(
-            X, y, groups,
+            X,
+            y,
+            groups,
             lambda k=k: KNeighborsClassifier(n_neighbors=k, metric="cosine"),
         )
         marker = ""
@@ -173,7 +211,9 @@ def main() -> None:
     print("━━ SVM RBF (balanced) ━━\n", file=sys.stderr)
     for c in [0.1, 1.0, 10.0]:
         f1, acc, _, _ = eval_cv(
-            X, y, groups,
+            X,
+            y,
+            groups,
             lambda c=c: SVC(kernel="rbf", C=c, class_weight="balanced", gamma="scale"),
         )
         print(f"  C={c:<6} mF1={f1:.1%}  acc={acc:.1%}", file=sys.stderr)
@@ -182,10 +222,14 @@ def main() -> None:
     print("\n━━ FINAL COMPARISON ━━\n", file=sys.stderr)
 
     classifiers = {
-        f"probe_C{best_c}": lambda: LogisticRegression(max_iter=2000, class_weight="balanced", C=best_c, solver="lbfgs"),
+        f"probe_C{best_c}": lambda: LogisticRegression(
+            max_iter=2000, class_weight="balanced", C=best_c, solver="lbfgs"
+        ),
         "probe_unbalanced": lambda: LogisticRegression(max_iter=2000, C=best_c, solver="lbfgs"),
         f"knn_k{best_k}": lambda: KNeighborsClassifier(n_neighbors=best_k, metric="cosine"),
-        "svm_rbf_balanced": lambda: SVC(kernel="rbf", C=1.0, class_weight="balanced", gamma="scale"),
+        "svm_rbf_balanced": lambda: SVC(
+            kernel="rbf", C=1.0, class_weight="balanced", gamma="scale"
+        ),
     }
 
     best_method, best_yt, best_yp = "", None, None
@@ -214,7 +258,9 @@ def main() -> None:
 
     # ── Confusion matrix for best method ──
     if best_yt is not None and best_yp is not None:
-        print(f"\n━━ Confusion Matrix ({best_method}, mF1={best_final_f1:.1%}) ━━\n", file=sys.stderr)
+        print(
+            f"\n━━ Confusion Matrix ({best_method}, mF1={best_final_f1:.1%}) ━━\n", file=sys.stderr
+        )
         cm = confusion_matrix(best_yt, best_yp)
         # Header
         print(f"  {'true↓ pred→':<10}", end="", file=sys.stderr)
@@ -249,7 +295,9 @@ def main() -> None:
             print(f"    {true:>8} → {pred:<8}: {count:>4} ({pct:.0f}%)", file=sys.stderr)
 
     # JSON summary
-    json.dump({"results": results, "best": best_method, "best_f1": best_final_f1}, sys.stdout, indent=2)
+    json.dump(
+        {"results": results, "best": best_method, "best_f1": best_final_f1}, sys.stdout, indent=2
+    )
     print(file=sys.stdout)
 
 

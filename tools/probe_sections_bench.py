@@ -37,15 +37,44 @@ JUNK_RE = re.compile(
 )
 
 FAMILIES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers", re.I), "bass"),
+    (
+        re.compile(
+            r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers",
+            re.I,
+        ),
+        "bass",
+    ),
     (re.compile(r"(?<!bass )(?<!afro )house|disco|garage|boogie", re.I), "house"),
     (re.compile(r"techno|melodic|minimal(?! \/)|deep tech|hardtekk|softtekk|tekk", re.I), "techno"),
     (re.compile(r"trance|psy(?![a-z])", re.I), "trance"),
     (re.compile(r"hip ?[- ]?hop|rap|trap", re.I), "hiphop"),
-    (re.compile(r"edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore", re.I), "edm"),
-    (re.compile(r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I), "pop"),
-    (re.compile(r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae", re.I), "groove"),
-    (re.compile(r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial", re.I), "mood"),
+    (
+        re.compile(
+            r"edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore",
+            re.I,
+        ),
+        "edm",
+    ),
+    (
+        re.compile(
+            r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I
+        ),
+        "pop",
+    ),
+    (
+        re.compile(
+            r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae",
+            re.I,
+        ),
+        "groove",
+    ),
+    (
+        re.compile(
+            r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial",
+            re.I,
+        ),
+        "mood",
+    ),
     (re.compile(r"\bgroove\b", re.I), "groove"),
     (re.compile(r"\bdance\b|mainstream club", re.I), "edm"),
 ]
@@ -183,7 +212,10 @@ def main() -> None:
 
     n = len(data["ids"])
     if n == 0:
-        print("No tracks with both whole-track and section embeddings. Run cache_section_embeddings.py first.", file=sys.stderr)
+        print(
+            "No tracks with both whole-track and section embeddings. Run cache_section_embeddings.py first.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     le = LabelEncoder()
@@ -259,7 +291,11 @@ def main() -> None:
     for name in ["whole+sec_mean (concat)", "whole+3sec (concat 5120d)"]:
         X = strategies[name]
         r = eval_probe(X, y, groups, label_names, C=10.0, balanced=True)
-        print(f"{name + ' [bal]':<30} {r['macro_f1']:>5.1%} {r['accuracy']:>5.1%}  ", end="", file=sys.stderr)
+        print(
+            f"{name + ' [bal]':<30} {r['macro_f1']:>5.1%} {r['accuracy']:>5.1%}  ",
+            end="",
+            file=sys.stderr,
+        )
         for ln in label_names:
             pc = r["per_class"].get(ln, {"recall": 0.0})
             print(f"{pc['recall']:>6.0%}", end=" ", file=sys.stderr)

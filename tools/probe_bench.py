@@ -40,15 +40,44 @@ JUNK_RE = re.compile(
 )
 
 FAMILIES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers", re.I), "bass"),
+    (
+        re.compile(
+            r"drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers",
+            re.I,
+        ),
+        "bass",
+    ),
     (re.compile(r"(?<!bass )(?<!afro )house|disco|garage|boogie", re.I), "house"),
     (re.compile(r"techno|melodic|minimal(?! \/)|deep tech|hardtekk|softtekk|tekk", re.I), "techno"),
     (re.compile(r"trance|psy(?![a-z])", re.I), "trance"),
     (re.compile(r"hip ?[- ]?hop|rap|trap", re.I), "hiphop"),
-    (re.compile(r"edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore", re.I), "edm"),
-    (re.compile(r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I), "pop"),
-    (re.compile(r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae", re.I), "groove"),
-    (re.compile(r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial", re.I), "mood"),
+    (
+        re.compile(
+            r"edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore",
+            re.I,
+        ),
+        "edm",
+    ),
+    (
+        re.compile(
+            r"pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson", re.I
+        ),
+        "pop",
+    ),
+    (
+        re.compile(
+            r"r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae",
+            re.I,
+        ),
+        "groove",
+    ),
+    (
+        re.compile(
+            r"jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial",
+            re.I,
+        ),
+        "mood",
+    ),
     (re.compile(r"\bgroove\b", re.I), "groove"),
     (re.compile(r"\bdance\b|mainstream club", re.I), "edm"),
 ]
@@ -69,6 +98,7 @@ def family_of(genre: str) -> str | None:
 
 
 # ── Data loading ────────────────────────────────────────────────────────
+
 
 def load_corpus(db_path: str) -> tuple[NDArray[np.float32], list[str], list[str]]:
     """Load effnet embeddings, families, and artist groups from archive.db."""
@@ -111,6 +141,7 @@ def load_corpus(db_path: str) -> tuple[NDArray[np.float32], list[str], list[str]
 
 # ── Evaluation helpers ──────────────────────────────────────────────────
 
+
 def bootstrap_ci(
     y_true: NDArray[np.int32],
     y_pred: NDArray[np.int32],
@@ -127,7 +158,11 @@ def bootstrap_ci(
         scores.append(metric_fn(y_true[idx], y_pred[idx]))
     scores_arr = np.array(scores)
     alpha = (1 - ci) / 2
-    return float(np.mean(scores_arr)), float(np.percentile(scores_arr, alpha * 100)), float(np.percentile(scores_arr, (1 - alpha) * 100))
+    return (
+        float(np.mean(scores_arr)),
+        float(np.percentile(scores_arr, alpha * 100)),
+        float(np.percentile(scores_arr, (1 - alpha) * 100)),
+    )
 
 
 def holm_correct(p_values: list[float], alpha: float = 0.05) -> list[tuple[float, float, bool]]:
@@ -146,6 +181,7 @@ def holm_correct(p_values: list[float], alpha: float = 0.05) -> list[tuple[float
 
 
 # ── Experiment A1: Logistic Probe ───────────────────────────────────────
+
 
 def run_probe(
     X: NDArray[np.float32],
@@ -206,6 +242,7 @@ def run_probe(
 
 
 # ── Experiment A2: Class-balanced kNN ───────────────────────────────────
+
 
 def run_balanced_knn(
     X: NDArray[np.float32],
@@ -278,6 +315,7 @@ def run_balanced_knn(
 
 # ── Experiment A2b: Plain kNN baseline ──────────────────────────────────
 
+
 def run_plain_knn(
     X: NDArray[np.float32],
     y: NDArray[np.int32],
@@ -335,6 +373,7 @@ def run_plain_knn(
 
 # ── Main ────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Stage A classifier experiments")
     parser.add_argument("--db", default=os.path.expanduser("~/.local/state/megadj/archive.db"))
@@ -355,7 +394,9 @@ def main() -> None:
     artist_le = LabelEncoder()
     groups = artist_le.fit_transform(artists).astype(np.int32)
 
-    print(f"  {len(label_names)} families: {dict(Counter(families).most_common())}", file=sys.stderr)
+    print(
+        f"  {len(label_names)} families: {dict(Counter(families).most_common())}", file=sys.stderr
+    )
     print(f"  {len(set(artists))} unique artists", file=sys.stderr)
 
     results: list[dict[str, Any]] = []
@@ -379,7 +420,10 @@ def main() -> None:
     print(f"  macro-F1: {r_bknn['macro_f1']:.1%}  acc: {r_bknn['accuracy']:.1%}", file=sys.stderr)
 
     # Holm correction across all methods (pairwise vs probe)
-    print("\n[Holm] Pairwise McNemar not applicable here (different fold assignments).", file=sys.stderr)
+    print(
+        "\n[Holm] Pairwise McNemar not applicable here (different fold assignments).",
+        file=sys.stderr,
+    )
     print("  Using bootstrap CIs for comparison instead.", file=sys.stderr)
 
     # Summary table

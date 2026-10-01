@@ -8,6 +8,7 @@ Usage:
     uv run --python python3.12 --with essentia-tensorflow --with onnxruntime --with numpy \
       --with scikit-learn python tools/probe_rms_ab.py [--db PATH] [--limit N]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -51,19 +52,47 @@ def _load_family_map(conn: sqlite3.Connection) -> None:
         "SELECT DISTINCT genre FROM tracks WHERE genre IS NOT NULL AND genre != ''"
     ).fetchall()
     kw_families = {
-        "house": "house", "techno": "techno", "tech house": "house",
-        "deep house": "house", "progressive house": "house", "minimal": "techno",
-        "trance": "trance", "psytrance": "trance",
-        "drum and bass": "bass", "dnb": "bass", "dubstep": "bass",
-        "trap": "bass", "garage": "bass", "jungle": "bass", "breakbeat": "bass",
-        "hip hop": "hiphop", "hip-hop": "hiphop", "rap": "hiphop", "r&b": "hiphop",
-        "pop": "pop", "indie": "pop", "rock": "pop", "alternative": "pop",
-        "funk": "groove", "disco": "groove", "soul": "groove", "nu-disco": "groove",
-        "afro": "groove", "latin": "groove", "reggaeton": "groove",
-        "ambient": "mood", "downtempo": "mood", "chill": "mood",
-        "hardstyle": "trance", "hard dance": "trance",
-        "electro": "house", "electronica": "house",
-        "dance": "edm", "electronic": "edm", "edm": "edm", "mainstage": "edm",
+        "house": "house",
+        "techno": "techno",
+        "tech house": "house",
+        "deep house": "house",
+        "progressive house": "house",
+        "minimal": "techno",
+        "trance": "trance",
+        "psytrance": "trance",
+        "drum and bass": "bass",
+        "dnb": "bass",
+        "dubstep": "bass",
+        "trap": "bass",
+        "garage": "bass",
+        "jungle": "bass",
+        "breakbeat": "bass",
+        "hip hop": "hiphop",
+        "hip-hop": "hiphop",
+        "rap": "hiphop",
+        "r&b": "hiphop",
+        "pop": "pop",
+        "indie": "pop",
+        "rock": "pop",
+        "alternative": "pop",
+        "funk": "groove",
+        "disco": "groove",
+        "soul": "groove",
+        "nu-disco": "groove",
+        "afro": "groove",
+        "latin": "groove",
+        "reggaeton": "groove",
+        "ambient": "mood",
+        "downtempo": "mood",
+        "chill": "mood",
+        "hardstyle": "trance",
+        "hard dance": "trance",
+        "electro": "house",
+        "electronica": "house",
+        "dance": "edm",
+        "electronic": "edm",
+        "edm": "edm",
+        "mainstage": "edm",
     }
     for (g,) in rows:
         ng = normalize_genre(g)
@@ -87,9 +116,11 @@ def classifier_family(genre: str) -> str | None:
 
 # ── Audio + embedding helpers ──
 
+
 def load_mono(path: str) -> FloatArray | None:
     try:
         from essentia.standard import MonoLoader  # type: ignore[import-not-found]
+
         return MonoLoader(filename=path, sampleRate=SR)().astype(np.float32)  # type: ignore[no-any-return]
     except Exception:
         return None
@@ -99,7 +130,11 @@ def rms_per_bar(audio: FloatArray, downbeats: list[float]) -> list[float]:
     rms: list[float] = []
     for i in range(len(downbeats)):
         s = int(downbeats[i] * SR)
-        e = int(downbeats[i + 1] * SR) if i + 1 < len(downbeats) else min(s + int(2.0 * SR), len(audio))
+        e = (
+            int(downbeats[i + 1] * SR)
+            if i + 1 < len(downbeats)
+            else min(s + int(2.0 * SR), len(audio))
+        )
         seg = audio[s:e]
         rms.append(float(np.sqrt(np.mean(seg**2))) if len(seg) >= 100 else 0.0)
     return rms
@@ -130,7 +165,9 @@ def find_drop_position(downbeats: list[float], n: int = 3) -> list[tuple[float, 
     return result
 
 
-def find_drop_rms(downbeats: list[float], bar_rms: list[float], n: int = 3) -> list[tuple[float, float]]:
+def find_drop_rms(
+    downbeats: list[float], bar_rms: list[float], n: int = 3
+) -> list[tuple[float, float]]:
     total_bars = len(downbeats)
     sb = min(32, total_bars)
     if total_bars < 33 or len(bar_rms) < total_bars:
@@ -139,7 +176,11 @@ def find_drop_rms(downbeats: list[float], bar_rms: list[float], n: int = 3) -> l
     for i in range(total_bars - sb + 1):
         mbar = i + sb / 2
         raw_p.append(1.0 - 4.0 * (mbar / total_bars - 0.5) ** 2)
-        ivs = [downbeats[j + 1] - downbeats[j] for j in range(i, i + sb - 1) if downbeats[j + 1] - downbeats[j] > 0]
+        ivs = [
+            downbeats[j + 1] - downbeats[j]
+            for j in range(i, i + sb - 1)
+            if downbeats[j + 1] - downbeats[j] > 0
+        ]
         raw_d.append(2.0 / max(0.5, sum(ivs) / len(ivs) if ivs else 2.0))
         raw_r.append(sum(bar_rms[j] for j in range(i, i + sb)) / sb)
 
@@ -149,7 +190,9 @@ def find_drop_rms(downbeats: list[float], bar_rms: list[float], n: int = 3) -> l
         return [0.0] * len(v) if r < 1e-12 else [(x - lo) / r for x in v]
 
     np_, nd, nr = mm(raw_p), mm(raw_d), mm(raw_r)
-    scored = sorted(((nr[i] * 0.5 + np_[i] * 0.35 + nd[i] * 0.15, i) for i in range(len(raw_p))), reverse=True)
+    scored = sorted(
+        ((nr[i] * 0.5 + np_[i] * 0.35 + nd[i] * 0.15, i) for i in range(len(raw_p))), reverse=True
+    )
     result: list[tuple[float, float]] = []
     for _sc, idx in scored:
         s = downbeats[idx]
@@ -164,6 +207,7 @@ def find_drop_rms(downbeats: list[float], bar_rms: list[float], n: int = 3) -> l
 
 def emb_section(audio: FloatArray, start: float, end: float, sess: object) -> FloatArray | None:
     from essentia.standard import TensorflowInputMusiCNN
+
     s, e = int(start * SR), int(end * SR)
     seg = audio[s:e]
     if len(seg) < SR:
@@ -171,7 +215,10 @@ def emb_section(audio: FloatArray, start: float, end: float, sess: object) -> Fl
     seg = seg.astype(np.float32)
     mel_ext = TensorflowInputMusiCNN()
     from essentia.standard import FrameGenerator
-    frames = np.asarray([mel_ext(f) for f in FrameGenerator(seg, frameSize=512, hopSize=256)], dtype=np.float32)
+
+    frames = np.asarray(
+        [mel_ext(f) for f in FrameGenerator(seg, frameSize=512, hopSize=256)], dtype=np.float32
+    )
     n_chunks = (frames.shape[0] // 128) * 128
     if n_chunks == 0:
         return None
@@ -183,6 +230,7 @@ def emb_section(audio: FloatArray, start: float, end: float, sess: object) -> Fl
 
 
 # ── Main ──
+
 
 def main() -> None:
     from pathlib import Path
@@ -202,7 +250,8 @@ def main() -> None:
     conn = sqlite3.connect(args.db)
     _load_family_map(conn)
 
-    rows = conn.execute("""
+    rows = conn.execute(
+        """
         SELECT t.video_id, t.file_path, t.genre, t.artist,
                e.vec_json, b.downbeats_json
         FROM tracks t
@@ -214,7 +263,9 @@ def main() -> None:
           AND b.downbeats_json IS NOT NULL
         ORDER BY RANDOM()
         LIMIT ?
-    """, (args.limit,)).fetchall()
+    """,
+        (args.limit,),
+    ).fetchall()
     conn.close()
 
     # Build corpus
@@ -234,12 +285,17 @@ def main() -> None:
             continue
         if not os.path.exists(fpath):
             continue
-        corpus.append({
-            "vid": vid, "path": fpath, "genre": genre,
-            "artist": artist or "UNKNOWN", "family": fam,
-            "whole": np.array(whole_vec, dtype=np.float32),
-            "downbeats": downbeats,
-        })
+        corpus.append(
+            {
+                "vid": vid,
+                "path": fpath,
+                "genre": genre,
+                "artist": artist or "UNKNOWN",
+                "family": fam,
+                "whole": np.array(whole_vec, dtype=np.float32),
+                "downbeats": downbeats,
+            }
+        )
 
     print(f"Corpus: {len(corpus)} tracks", file=sys.stderr)
     fam_counts = Counter(c["family"] for c in corpus)
@@ -282,9 +338,9 @@ def main() -> None:
 
         if (i + 1) % 20 == 0:
             elapsed = time.time() - t0
-            print(f"  [{i+1}/{len(corpus)}] {success} ok, {elapsed:.0f}s", file=sys.stderr)
+            print(f"  [{i + 1}/{len(corpus)}] {success} ok, {elapsed:.0f}s", file=sys.stderr)
 
-    print(f"Extracted: {success}/{len(corpus)} tracks, {time.time()-t0:.0f}s", file=sys.stderr)
+    print(f"Extracted: {success}/{len(corpus)} tracks, {time.time() - t0:.0f}s", file=sys.stderr)
 
     # Filter to tracks with both
     valid = [c for c in corpus if c["pos_sec"] is not None and c["rms_sec"] is not None]
@@ -315,34 +371,45 @@ def main() -> None:
     strategies["whole_track_only"] = l2(np.array([c["whole"] for c in valid], dtype=np.float32))
 
     # 2. position_section_mean
-    strategies["pos_section_mean"] = l2(np.array([
-        np.mean(np.array(c["pos_sec"]), axis=0) for c in valid
-    ], dtype=np.float32))
+    strategies["pos_section_mean"] = l2(
+        np.array([np.mean(np.array(c["pos_sec"]), axis=0) for c in valid], dtype=np.float32)
+    )
 
     # 3. rms_section_mean
-    strategies["rms_section_mean"] = l2(np.array([
-        np.mean(np.array(c["rms_sec"]), axis=0) for c in valid
-    ], dtype=np.float32))
+    strategies["rms_section_mean"] = l2(
+        np.array([np.mean(np.array(c["rms_sec"]), axis=0) for c in valid], dtype=np.float32)
+    )
 
     # 4. whole + pos_section_mean
     pos_means = np.array([np.mean(np.array(c["pos_sec"]), axis=0) for c in valid], dtype=np.float32)
-    strategies["whole+pos_sec"] = l2(np.hstack([
-        np.array([c["whole"] for c in valid], dtype=np.float32),
-        pos_means,
-    ]))
+    strategies["whole+pos_sec"] = l2(
+        np.hstack(
+            [
+                np.array([c["whole"] for c in valid], dtype=np.float32),
+                pos_means,
+            ]
+        )
+    )
 
     # 5. whole + rms_section_mean
     rms_means = np.array([np.mean(np.array(c["rms_sec"]), axis=0) for c in valid], dtype=np.float32)
-    strategies["whole+rms_sec"] = l2(np.hstack([
-        np.array([c["whole"] for c in valid], dtype=np.float32),
-        rms_means,
-    ]))
+    strategies["whole+rms_sec"] = l2(
+        np.hstack(
+            [
+                np.array([c["whole"] for c in valid], dtype=np.float32),
+                rms_means,
+            ]
+        )
+    )
 
     # Run 5-fold artist-excluded CV
     gkf = GroupKFold(n_splits=5)
     results: list[dict[str, object]] = []
 
-    print(f"\n{'Strategy':<30} {'mF1':>6} {'Acc':>6}   " + " ".join(f"{f:>7}" for f in ln), file=sys.stderr)
+    print(
+        f"\n{'Strategy':<30} {'mF1':>6} {'Acc':>6}   " + " ".join(f"{f:>7}" for f in ln),
+        file=sys.stderr,
+    )
     print("─" * (40 + 8 * len(ln)), file=sys.stderr)
 
     for name, X in sorted(strategies.items()):
@@ -361,7 +428,14 @@ def main() -> None:
             recall = float(np.mean(yp_all[mask] == ci)) if mask.sum() > 0 else 0.0
             per_class[cn] = {"recall": round(recall, 4), "n": int(mask.sum())}
 
-        results.append({"strategy": name, "macro_f1": round(mf1, 4), "accuracy": round(acc, 4), "per_class": per_class})
+        results.append(
+            {
+                "strategy": name,
+                "macro_f1": round(mf1, 4),
+                "accuracy": round(acc, 4),
+                "per_class": per_class,
+            }
+        )
 
         cls_str = " ".join(f"{per_class[f]['recall']:>6.0%}" for f in ln)
         print(f"{name:<30} {mf1:>5.1%} {acc:>5.1%}   {cls_str}", file=sys.stderr)
@@ -370,11 +444,15 @@ def main() -> None:
     pos_mf1 = next(r["macro_f1"] for r in results if r["strategy"] == "whole+pos_sec")
     rms_mf1 = next(r["macro_f1"] for r in results if r["strategy"] == "whole+rms_sec")
     delta = float(rms_mf1) - float(pos_mf1)  # type: ignore[arg-type]
-    print(f"\n{'='*60}", file=sys.stderr)
+    print(f"\n{'=' * 60}", file=sys.stderr)
     print(f"Delta(whole+rms_sec - whole+pos_sec) = {delta:+.1%}", file=sys.stderr)
-    print(f"{'='*60}", file=sys.stderr)
+    print(f"{'=' * 60}", file=sys.stderr)
 
-    json.dump({"n": len(valid), "results": results, "delta_rms_vs_pos": round(delta, 4)}, sys.stdout, indent=2)
+    json.dump(
+        {"n": len(valid), "results": results, "delta_rms_vs_pos": round(delta, 4)},
+        sys.stdout,
+        indent=2,
+    )
     print(file=sys.stdout)
 
 

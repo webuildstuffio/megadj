@@ -8,6 +8,7 @@ Usage:
     uv run --python python3.12 --with essentia-tensorflow --with numpy \
       python tools/probe_drop_finder.py [--db PATH] [--limit N]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -51,9 +52,7 @@ def rms_per_bar(audio: FloatArray, downbeats: list[float]) -> list[float]:
     return rms
 
 
-def find_drop_position_only(
-    downbeats: list[float], n: int = 3
-) -> list[tuple[float, float, float]]:
+def find_drop_position_only(downbeats: list[float], n: int = 3) -> list[tuple[float, float, float]]:
     """Port of the ORIGINAL (position+density only) drop finder."""
     if len(downbeats) < 33:
         return []
@@ -164,7 +163,8 @@ def main() -> None:
     args = parser.parse_args()
 
     conn = sqlite3.connect(args.db)
-    rows = conn.execute("""
+    rows = conn.execute(
+        """
         SELECT t.video_id, t.file_path, b.downbeats_json
         FROM tracks t
         JOIN beats b ON b.video_id = t.video_id
@@ -174,7 +174,9 @@ def main() -> None:
           AND b.downbeats_json IS NOT NULL
         ORDER BY RANDOM()
         LIMIT ?
-    """, (args.limit,)).fetchall()
+    """,
+        (args.limit,),
+    ).fetchall()
     conn.close()
 
     print(f"Loaded {len(rows)} tracks", file=sys.stderr)
@@ -223,7 +225,7 @@ def main() -> None:
         if (i + 1) % 20 == 0:
             elapsed = time.time() - t0
             print(
-                f"  [{i+1}/{len(rows)}] {total} valid, {moved} moved, "
+                f"  [{i + 1}/{len(rows)}] {total} valid, {moved} moved, "
                 f"rms_wins={rms_wins} rms_loses={rms_loses} "
                 f"({elapsed:.0f}s)",
                 file=sys.stderr,
@@ -241,15 +243,18 @@ def main() -> None:
     print(f"Same loudness: {moved - rms_wins - rms_loses}/{moved}", file=sys.stderr)
     print(f"Time: {elapsed:.0f}s", file=sys.stderr)
 
-    json.dump({
-        "total": total,
-        "moved": moved,
-        "rms_wins": rms_wins,
-        "rms_loses": rms_loses,
-        "pct_moved": round(pct_moved, 1),
-        "pct_wins": round(pct_wins, 1),
-        "elapsed_s": round(elapsed),
-    }, sys.stdout)
+    json.dump(
+        {
+            "total": total,
+            "moved": moved,
+            "rms_wins": rms_wins,
+            "rms_loses": rms_loses,
+            "pct_moved": round(pct_moved, 1),
+            "pct_wins": round(pct_wins, 1),
+            "elapsed_s": round(elapsed),
+        },
+        sys.stdout,
+    )
     print(file=sys.stdout)
 
 
