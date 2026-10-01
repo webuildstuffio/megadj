@@ -63,6 +63,24 @@ against thin labels can't distinguish a wrong prediction from a wrong label.
 | P5 | MAEST sanity check: middle blocks, stacked tokens | TODO |
 | P6 | Fix drop finder: use RMS loudness or PSSI phrases | TODO |
 
+### Stage A: ✅ COMPLETE (Oct 1)
+
+**Results:** [stage-a-results-2026-10-01.md](stage-a-results-2026-10-01.md)
+
+3,123 tracks, 5-fold artist-excluded CV. **Real baseline is ~34-37% macro-F1**
+(not 58% from biased small-sample LOO).
+
+| Method | Macro-F1 | Accuracy |
+|---|---|---|
+| kNN k=5 (current prod) | 33.5% | 45.6% |
+| **Probe unbalanced C=10** | **37.3%** | **51.7%** |
+| SVM RBF balanced C=10 | 37.1% | 49.0% |
+
+Probe fixes minorities (bass 13→53%, trance 22→52%) but the **embedding
+ceiling is the bottleneck** — EDM→House confusion is 33%.
+
+**Section embedding cache in progress** (~3,094 tracks, ~4.5h compute).
+
 ---
 
 ## The Three-Model Showdown

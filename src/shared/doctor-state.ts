@@ -60,9 +60,16 @@ content_paths = {str(content.ID): content.FolderPath or "" for content in db.que
 ${incidentCuePredicatePython()}
 incident_kind_zero = sum(1 for cue in db.query(DjmdCue).filter(DjmdCue.Kind == 0).all() if is_incident_cue(cue))
 
-# dupe classifier: same NFC-casefold title, distinct paths, +/-2s len
+# dupe classifier: same NFC-casefold title AND artist, distinct paths, +/-2s len
+# Artist check eliminates false positives like two different songs both named
+# "Nevada" (Vicetone vs YoungBoy) — the old title-only heuristic flagged them.
+def _artist_name(c):
+    try:
+        return str(c.ArtistID.Name) if c.ArtistID else ""
+    except Exception:
+        return ""
 contents = [
-    {"id": str(c.ID), "title": c.Title or "", "path": c.FolderPath or "", "len": c.Length or 0}
+    {"id": str(c.ID), "title": c.Title or "", "artist": _artist_name(c), "path": c.FolderPath or "", "len": c.Length or 0}
     for c in db.query(DjmdContent).all()
 ]
 def norm(s):
@@ -79,10 +86,20 @@ for key, group in by_title.items():
     for i in range(len(group)):
         for j in range(i + 1, len(group)):
             a, b = group[i], group[j]
+            # Same-path always dupes (regardless of artist metadata)
             if a["path"] == b["path"] or norm(a["path"]) == norm(b["path"]):
                 dupe_pairs += 1
             elif a["len"] and b["len"] and abs(a["len"] - b["len"]) <= 2:
-                dupe_pairs += 1
+                # Duration match needs artist agreement: both empty, or
+                # same NFC-casefolded name. Different artists with the
+                # same title and similar duration are different songs.
+                a_art, b_art = norm(a["artist"]), norm(b["artist"])
+                if not a_art and not b_art:
+                    dupe_pairs += 1
+                elif a_art and b_art and a_art == b_art:
+                    dupe_pairs += 1
+                elif not a_art or not b_art:
+                    dupe_pairs += 1
 
 playlists = db.query(DjmdPlaylist).count()
 db.close()

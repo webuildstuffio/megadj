@@ -37,6 +37,7 @@ const FORMER_MAINTENANCE_VERBS = [
   "rb-cues",
   "rb-dedup",
   "rb-comment-sync",
+  "rb-title-repair",
   "rb-anlz-spike",
   "rb-grid-triage",
 ] as const;
