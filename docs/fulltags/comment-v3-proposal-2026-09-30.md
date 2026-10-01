@@ -1,6 +1,6 @@
 # FullTags Booth Metadata v4 — Comment, Color & My Tag Spec
 
-**Sep 30 2026** · Status: **SHIPPED** — v4 comment live on 3,807 tracks; reserved tokens below
+**Oct 1 2026** · Status: **SHIPPED** — v4 comment live on 3,658 tracks; IN/OUT + Drop/Roll on 2,731; reserved tokens below
 
 ## Summary
 
@@ -293,8 +293,8 @@ All 3,807 master.db tracks carry v4 comments. Re-run via
 | **VAR** | ✅ shipped | `beats.bpm_residual_std > 15.0` (~5.2% fire rate) | 100% of tracks with beats data |
 | **Track color** | ✅ shipped | Energy band → ColorID map; manual Pink/Purple preserved | 100% |
 | **My Tags** | ✅ shipped | Energy/Mood/Tempo categories with per-track assignments | 100% |
-| **IN/OUT** | ✅ shipped | PSSI phrase decode from `.EXT` files (XOR-unmasked) | 85.8% (3,613/4,211 EXT files have PSSI) |
-| **Drop/Roll** | ✅ shipped | PSSI phrase structure: CHORUS ≥8 bars = Drop, else Roll | Drop 97.5%, Roll 2.5% |
+| **IN/OUT** | ✅ shipped | PSSI phrase decode from `.EXT` files (XOR-unmasked) | 74.7% (2,731/3,658 tracks have ANLZ phrase data) |
+| **Drop/Roll** | ✅ shipped | PSSI phrase structure: CHORUS ≥8 bars = Drop, else Roll | Drop 97.5% (2,662), Roll 2.5% (69) |
 | **VOX/HOOK** | ⏳ reserved | needs vocal stem separation — see plan below | 0% |
 
 ### Code
