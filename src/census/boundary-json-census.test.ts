@@ -94,6 +94,8 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "Model bench: reads own checkpoint file (JSONL written by writeCheckpointEntry); outer try/catch discards corrupt checkpoint and starts fresh.",
   "src/fulltags/analysis/model-bench.ts::computeModelEmbeddings::JSON.parse(output)":
     "Model bench: parses Python subprocess stdout (own protocol); throws on corrupt output — bench cannot continue without embeddings, failure is visible.",
+  "src/fulltags/analysis/energy-features.ts::parseExtractLine::JSON.parse(line)":
+    "Energy extractor: parses one JSON line from Python DSP+ONNX subprocess; try/catch returns null on corrupt lines — caller skips, never throws.",
 };
 
 test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => {
@@ -237,10 +239,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 29 (M6 #330): sessions.ts sessionResultStable adds one
     // sanctioned JSON.parse (determinism check — catch returns false,
     // not a recognized visible failure shape); audited +1, sanctioned +1.
-    audited: 88,
+    // Oct 1 (energy v3.1): energy-features.ts parseExtractLine adds one
+    // sanctioned JSON.parse (Python extractor JSONL protocol, try/catch
+    // returns null on corrupt lines — caller skips, never throws);
+    // audited 88→89, sanctioned 32→33, guarded unchanged.
+    audited: 89,
     guarded: 56,
-    sanctioned: 32,
-    digest: "a833465385c06b7c43ba30b2db3622a2d130b696b00e1710627b046b263cad8d",
+    sanctioned: 33,
+    digest: "affb081bb6b7fd92c31e292e196074300d7391a05d99d1a3a1ee10d7198ecea8",
   });
 });
 

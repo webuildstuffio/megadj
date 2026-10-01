@@ -834,6 +834,42 @@ const bench: CliCommandHandler = async (rest, { state }) => {
   }
 };
 
+const energy: CliCommandHandler = async (rest, { state }) => {
+  const flags = parseFlags(
+    rest,
+    [],
+    ["phase0", "extract", "freeze", "score", "gates", "full", "shadow", "json"],
+  );
+  const json = flags.bools.has("json");
+  const { runEnergy } = await import("../analysis/energy-command");
+  await runEnergy({
+    state,
+    phase0: flags.bools.has("phase0"),
+    extract: flags.bools.has("extract"),
+    freeze: flags.bools.has("freeze"),
+    score: flags.bools.has("score"),
+    gates: flags.bools.has("gates"),
+    full: flags.bools.has("full"),
+    shadow: flags.bools.has("shadow"),
+    json,
+  });
+};
+
+const energyWhy: CliCommandHandler = async (rest, { state }) => {
+  const videoId = firstPositional(rest, "energy-why", []);
+  if (!videoId) {
+    await finishCommandError({
+      command: "energy-why",
+      json: false,
+      error: "usage: megadj energy-why <video_id>",
+      exitCode: 2,
+    });
+    return;
+  }
+  const { energyWhy: showWhy } = await import("../analysis/energy-command");
+  await showWhy(state, videoId);
+};
+
 export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "booth-fix": boothFix,
   drop,
@@ -851,6 +887,8 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "megaset-cohorts": megasetCohorts,
   genre,
   "genre-why": genreWhy,
+  energy,
+  "energy-why": energyWhy,
   cues,
   "gold-report": goldReport,
   regate,

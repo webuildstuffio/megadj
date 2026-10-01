@@ -128,9 +128,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   },
   "docs/fulltags/energy-v3-plan-2026-10-01.md": {
     "src/fulltags/analysis/energy-features.py":
-      "planned module (energy v3 feature extractor, not yet built)",
-    "src/fulltags/analysis/energy-composite.ts":
-      "planned module (energy v3 composite scorer, not yet built)",
+      "planned module (energy v3 feature extractor — inline Python in energy-features.ts, not a separate file)",
   },
 };
 
