@@ -22,7 +22,7 @@ export interface EnergyScore {
   readonly trackId: string;
   /** Continuous score (higher = more energetic). */
   readonly score: number;
-  /** Energy band 1–10. */
+  /** Energy band 1–9 (E1–E9). */
   readonly band: number;
 }
 
@@ -109,10 +109,10 @@ export function fitEnergyModel(
 }
 
 /**
- * Convert a continuous 0–1 score to a 1–10 energy band.
- * Uses equal-width binning.
+ * Convert a continuous 0–1 score to a 1–9 energy band (E1–E9).
+ * Uses equal-width binning. Capped at 9 per plan spec.
  */
 export function scoreToBand(score: number): number {
-  const band = Math.ceil(score * 10);
-  return Math.max(1, Math.min(10, band));
+  const band = Math.ceil(score * 9);
+  return Math.max(1, Math.min(9, band));
 }

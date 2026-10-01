@@ -54,7 +54,7 @@ describe("fitEnergyModel", () => {
     const scores = fitEnergyModel(pairs);
     for (const s of scores) {
       expect(s.band).toBeGreaterThanOrEqual(1);
-      expect(s.band).toBeLessThanOrEqual(10);
+      expect(s.band).toBeLessThanOrEqual(9);
     }
   });
 });
@@ -64,8 +64,13 @@ describe("scoreToBand", () => {
     expect(scoreToBand(0)).toBe(1);
   });
 
-  test("1.0 → 10 (maximum band)", () => {
-    expect(scoreToBand(1.0)).toBe(10);
+  test("1.0 → 9 (maximum band, E9 cap)", () => {
+    expect(scoreToBand(1.0)).toBe(9);
+  });
+
+  test("band never exceeds 9", () => {
+    expect(scoreToBand(0.99)).toBe(9);
+    expect(scoreToBand(1.5)).toBe(9);
   });
 
   test("0.5 → 5", () => {

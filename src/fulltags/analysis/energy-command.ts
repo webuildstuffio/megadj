@@ -25,9 +25,11 @@ import {
   freezeSignals,
   scoreAll,
   bandDistribution,
+  type ScoredTrack,
 } from "./energy-composite";
 import {
   gateBlocDominance,
+  gateNotBpm,
   gateTierAgreement,
   collectGates,
   type GateResult,
@@ -108,6 +110,8 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
   if (doFreeze || doScore) {
     console.log(`freeze: ${Object.keys(frozen.values).length} live signals`);
 
+    const bpms = rows.map((r) => r.bpm ?? 0);
+    const scoredCache = new Map<string, ScoredTrack[]>();
     const presetResults: {
       name: string;
       gatesPassed: number;
@@ -116,10 +120,12 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 
     for (const preset of WEIGHT_PRESETS) {
       const scored = scoreAll(rows, frozen, preset);
+      scoredCache.set(preset.name, scored);
       const dist = bandDistribution(scored);
 
       const gateResults: GateResult[] = [
         gateBlocDominance(scored),
+        gateNotBpm(scored, bpms),
         gateTierAgreement(scored),
       ];
       const coll = collectGates(gateResults);
@@ -169,11 +175,16 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
       });
     }
 
-    // Write scores back to energy_features for the best preset
+    // Write scores + persist frozen reference for the best preset
     if (doScore && best !== undefined) {
-      const bestPreset =
-        WEIGHT_PRESETS.find((p) => p.name === best.name) ?? WEIGHT_PRESETS[1]!;
-      const scored = scoreAll(rows, frozen, bestPreset);
+      const scored =
+        scoredCache.get(best.name) ??
+        scoreAll(
+          rows,
+          frozen,
+          WEIGHT_PRESETS.find((p) => p.name === best.name) ??
+            WEIGHT_PRESETS[1]!,
+        );
       const updateStmt = db.prepare(
         `UPDATE energy_features
          SET composite_rank = ?, energy_band = ?, energy_confidence = ?,
@@ -191,6 +202,31 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
             t.videoId,
           );
         }
+        // Persist the frozen reference so future scores are stable
+        const composites = scored.map((t) => t.composite);
+        db.run(
+          `INSERT OR REPLACE INTO energy_reference
+             (id, signals_json, blocs_json, frozen_composites,
+              dead_signals, track_count, weight_preset, frozen_at)
+           VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+          [
+            JSON.stringify(frozen.values),
+            JSON.stringify(
+              Object.fromEntries(
+                BLOC_NAMES.map((b) => [
+                  b,
+                  WEIGHT_PRESETS.find((p) => p.name === best.name)?.weights[
+                    b
+                  ] ?? 0.2,
+                ]),
+              ),
+            ),
+            JSON.stringify(composites),
+            JSON.stringify(frozen.deadSignals),
+            n,
+            best.name,
+          ],
+        );
         db.exec("COMMIT");
       } catch (e) {
         db.exec("ROLLBACK");
@@ -199,6 +235,9 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
       console.log(
         `score: updated ${scored.length} tracks with preset ${best.name}`,
       );
+      console.log(
+        `freeze: persisted reference (${n} tracks, preset ${best.name})`,
+      );
     }
   }
 
@@ -206,8 +245,10 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
   if (doGates && !doFreeze && !doScore) {
     const preset = WEIGHT_PRESETS[1]!;
     const scored = scoreAll(rows, frozen, preset);
+    const bpmsStandalone = rows.map((r) => r.bpm ?? 0);
     const gateResults: GateResult[] = [
       gateBlocDominance(scored),
+      gateNotBpm(scored, bpmsStandalone),
       gateTierAgreement(scored),
     ];
     const coll = collectGates(gateResults);

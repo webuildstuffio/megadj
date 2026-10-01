@@ -57,11 +57,11 @@ export const BLOC_NAMES = [
 ] as const;
 export type BlocName = (typeof BLOC_NAMES)[number];
 
-/** Signals that are INVERTED (lower raw = higher energy). */
-const INVERTED_SIGNALS = new Set<SignalName>([
-  "crestFactor",
-  "approachability",
-]);
+/** Signals that are INVERTED (lower raw = higher energy).
+ *  crestFactor is NOT listed: the Python extractor already negates
+ *  DynamicComplexity (float(-dc)), so higher stored values = higher energy.
+ *  Listing it here would double-invert. */
+const INVERTED_SIGNALS = new Set<SignalName>(["approachability"]);
 
 // --------------- weight presets ---------------
 
