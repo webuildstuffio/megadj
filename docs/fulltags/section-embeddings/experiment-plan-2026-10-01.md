@@ -60,7 +60,7 @@ against thin labels can't distinguish a wrong prediction from a wrong label.
 | P2 | Fix McNemar CDF bug | ✅ Done — normalCdf was erf(x) not Φ(x) |
 | P3 | Add Holm correction | ✅ Done — model-bench pairwise |
 | P4 | Report macro-F1 and per-class recall | ✅ Done — added to model-bench |
-| P5 | MAEST sanity check: middle blocks, stacked tokens | TODO |
+| P5 | MAEST sanity check: middle blocks, stacked tokens | ✅ Done — cos(last,layer8)=0.48 → significant info gap; 2304d stacked, 3.2 tracks/s |
 | P6 | Fix drop finder: use RMS loudness or PSSI phrases | TODO |
 
 ### Stage A: ✅ COMPLETE (Oct 1)
