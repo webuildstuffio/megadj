@@ -228,6 +228,23 @@ const rbCommentSyncCmd: CliCommandHandler = async (rest) => {
   if (!r.ok) setExit(1);
 };
 
+const rbTitleRepairCmd: CliCommandHandler = async (rest) => {
+  const flags = parseFlags(rest, [], ["apply", "yes", "json"]);
+  const args = positionalArgs(rest, []);
+  const mount = mountFrom(args[0]);
+  const json = jsonFlag(flags);
+  const { rbTitleRepair, printRbTitleRepairReport } =
+    await import("./rb-title-repair");
+  const r = await rbTitleRepair({
+    mount,
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    ...jsonOpts(json),
+  });
+  await emitResult(json, r, printRbTitleRepairReport);
+  if (!r.ok) setExit(1);
+};
+
 const rbPlaylistCmd: CliCommandHandler = async (rest) => {
   // `megadj rb-playlist reconcile` — XML-twin healer (F7): diff
   // djmdPlaylist rows vs masterPlaylists6.xml NODEs; apply adds
@@ -498,6 +515,23 @@ const rbGridTriageCmd: CliCommandHandler = async (rest) => {
   }
 };
 
+const rbPlayHistoryCmd: CliCommandHandler = async (rest) => {
+  // Read-only — no pgrep guard needed.
+  const flags = parseFlags(rest, ["limit"], ["json"]);
+  const limit = nonNegOpt(flags, "limit", "rb-play-history");
+  if (flags.strings.has("limit") && limit === undefined) return;
+  const mount = mountFrom(positionalArgs(rest, ["limit"])[0]);
+  const json = jsonFlag(flags);
+  const { minePlayHistory, printPlayHistoryReport } =
+    await import("./play-history");
+  const r = minePlayHistory(
+    (await import("./master-path")).masterDbPath(mount),
+    limit !== undefined ? { limit } : undefined,
+  );
+  await emitResult(json, r, printPlayHistoryReport);
+  if (!r.ok) setExit(1);
+};
+
 export const REKORDBOX_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "rb-fix-paths": rbFixPathsCmd,
   "rb-unmatched": rbUnmatchedCmd,
@@ -506,7 +540,9 @@ export const REKORDBOX_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "rb-cues": rbCuesCmd,
   "rb-dedup": rbDedupCmd,
   "rb-comment-sync": rbCommentSyncCmd,
+  "rb-title-repair": rbTitleRepairCmd,
   "rb-playlist": rbPlaylistCmd,
   "rb-anlz-spike": rbAnlzSpikeCmd,
   "rb-grid-triage": rbGridTriageCmd,
+  "rb-play-history": rbPlayHistoryCmd,
 };

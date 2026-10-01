@@ -103,6 +103,19 @@ export const REKORDBOX_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "rb-title-repair",
+    group: "fulltags",
+    block: [
+      "  megadj rb-title-repair [drive] [--apply --yes] [--json]",
+      "                                               fix truncated + contaminated titles",
+      "                                               in master.db by reading the correct",
+      "                                               title from each file's embedded tags;",
+      "                                               three classes: 44-char stem truncation,",
+      "                                               'Artist - Title' contamination, unbalanced",
+      "                                               parens (dry first)",
+    ],
+  },
+  {
     name: "rb-playlist",
     group: "fulltags",
     block: [
@@ -160,6 +173,17 @@ export const REKORDBOX_COMMAND_DOCS: readonly CommandDocEntry[] = [
       "                                               experiment; set-grid = Q4's direct PQTZ",
       "                                               rewrite (dry-run default, backup +",
       "                                               re-verify on --apply --yes)",
+    ],
+  },
+  {
+    name: "rb-play-history",
+    group: "fulltags",
+    block: [
+      "  megadj rb-play-history [drive] [--limit N] [--json]",
+      "                                               mine djmdSongHistory for transition",
+      "                                               pairs: consecutive plays within 30min →",
+      "                                               BPM/key/genre deltas. Gold training data",
+      "                                               for MegaSet set building — read-only",
     ],
   },
 ];
