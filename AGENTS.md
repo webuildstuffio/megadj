@@ -246,6 +246,12 @@ a.prop !== null`), one strict check does NOT imply the other.
   the `sc_genre_ids` cache was dropped (#108) — never resurrect without owning
   its writer. ID3 genre frames are unreliable: curated genres live in the
   archive ledger, never the tag frame.
+- **Umbrella genres** (EDM/Electronic/Dance/Electronica and file-tag
+  equivalents) must never win elections or satisfy `genreOk` — they blocked
+  re-fetch and inflated hundreds of false EDM rows (Oct 1). Defense in depth:
+  `ELECTION_UMBRELLA` demotion in `electGenre()`, `UMBRELLA_STRINGS` at every
+  vote ingress (SC/BP/BC/MB/Discogs/Last.fm/file), and `buildTasks()` treats
+  umbrella file tags as not genreOk so fetch re-runs.
 - FullTags booth comment **v4 is plan of record** (owner spec Sep 30,
   `docs/fulltags/comment-v3-proposal-2026-09-30.md` — filename legacy):
   mix-first string `E8 IN:32 OUT:16 VOX Drop Dark · MelTechno` — library-relative
@@ -364,6 +370,10 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
   "Expected > 100, Received 0"; both git-spawning censuses (`test-placement`,
   `issue-198-ccn`) now throw the git error instead of returning an empty
   inventory. An EMPTY scan must never read as a passing census.
+- `boundary-json-census` / `boundary-number-census` scan the **worktree
+  filesystem** via `productionSources()` (`readdirSync` under `src/`, not
+  `git ls-files`) — untracked concurrent-agent files on disk change digest
+  counts and can fail `check:full` until guarded or sanctioned (Oct 1).
 - The pre-push leg is the repo's OWN `.githooks/pre-push` chaining
   `$HOME/.githooks/pre-push` + `bun run test` (landed 13e43e8, Sep 17 — until
   then the AGENTS-documented full-suite-at-pre-push never ran; `core.hooksPath`
@@ -440,6 +450,10 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
   results accumulate in a `Map` and write ONLY after the full batch — a
   crash loses everything (4 failed force runs lost ~2,800 files each before
   the streaming fix). Never revert to batch-accumulate architecture.
+- Section embeddings for genre/megaset work target **cue- or drop-guided
+  slices**, not whole noisy tracks (owner policy, Sep 30–Oct 1). Stage-A:
+  effnet whole-track beat naive fixed-position sections; RMS drop-finder (P6)
+  is the planned fix — measured write-up in `docs/fulltags/section-embeddings/`.
 - Booth compatibility is data-driven (`[booth].fleet` / `MEGADJ_FLEET`);
   `player-compat.ts` + `booth-text.ts` enforce it. `megadj booth-fix` proposes
   by default.
@@ -526,5 +540,5 @@ NULL`) — `sync` now closes its run row in a `finally`. macOS `lsof` exits 1
 - RB "missing artwork" is often embedded in the file — RB does not re-read tags after initial import; fix by extracting embedded art to `PIONEER/Artwork/<uuid-prefix>/<uuid-rest>/artwork.jpg` and setting `ImagePath` on the content row. `artwork-extract.kit.py` (pipeline stage 6, Sep 30) automates this: reads master.db ImagePath, checks disk existence (device-relative paths need mount prefix!), extracts APIC/covr from audio via mutagen, writes JPEG to disk. Disk-only writes, safe while RB is open. Trap: `ImagePath` is device-relative (`/PIONEER/Artwork/...`), not absolute — prepend the mount point for `os.path.exists()` (the first audit false-alarmed 2,525 "missing" because it checked the bare device-relative path). Sep 30: extracted 2,464 → 100% coverage (3,649/3,650).
 - `mbGenreForArtist` must run each MusicBrainz folksonomy tag through `canonGenre` individually — joining all tags into one space-separated string was tag-soup (89 tracks, fixed Sep 28); `guessFromFreeText` per tag is the fallback.
 - Title contamination root cause chain (#321, hardened Sep 30 after two fix rounds): yt-dlp/SC filenames are `Artist - Track.ext`; the contamination flowed through THREE layers before the fix: (1) `buildMetadata` kept the full "Artist - Track" as the title in archive.db and file tags, (2) `rb-import-probe.ts` used a " · " (middle-dot) parser that treated the ENTIRE stem as both title AND artist for " - " files (parts.length === 1 → artist = title = stem, so the strip never fired), (3) `import-write.kit.py` received the same-string artist/title and its strip also couldn't fire. Three-layer fix: `buildMetadata` now strips the artist prefix from the title when `splitArtistFromTitle` extracts the same artist, `rb-import-probe.ts` uses `splitArtistFromTitle` for non-" · " stems (no more `parts[0]` = whole stem as artist), `import-write.kit.py` handles `artist == title` as a fallback. Test-pinned in `metadata-build.test.ts` (8 cases) and `rb-import-probe.test.ts` (4 stem-parsing cases). The filename parser `parseFilename` in `media-probe.ts` (used by `ingest`) already split on " - " correctly — only `rb-import-probe` was wrong. When adding a new title-reading path, use `splitArtistFromTitle` or `parseFilename`, never hand-parse.
-- Production `tracks.energy` is still Energy 2.0 (`measureRms` → `energyFromLufs` blended with danceability + arousal in `pipeline-stages.ts`); docs calling it a loudness meter describe shipped behavior and explain EDM library saturation (~8.5/10 avg). Energy v3.1 core pipeline SHIPPED (Oct 1): `energy-features.ts` (DB schema + inline Python extractor, 12 signals across Tiers A+B, 6 ONNX models), `energy-composite.ts` (5 blocs, 4 weight presets, rank normalization, E1–E9 banding, dead-signal auto-exclusion IQR<0.02), `energy-validate.ts` (6 non-circular gates: bloc-dominance, not-BPM, tier-agreement, genre-direction, gain-invariance, duplicate-consistency), CLI `megadj energy --phase0|--extract|--freeze|--score|--gates|--full|--shadow|--json` + `megadj energy-why <video_id>`. 80 tests, 1527 assertions. NOT yet switched over: Phase 4 (pipeline-stages.ts swap, comment-sync update, `--apply`) + Phase 5 (bench verification) — `docs/fulltags/energy-v3-plan-2026-10-01.md`.
+- Production `tracks.energy` is still Energy 2.0 (`measureRms` → `energyFromLufs` blended with danceability + arousal in `pipeline-stages.ts`); docs calling it a loudness meter describe shipped behavior and explain EDM library saturation (~8.5/10 avg). Energy v3.1 core pipeline SHIPPED (Oct 1): `energy-features.ts` (DB schema + inline Python extractor, 12 signals across Tiers A+B, 6 ONNX models), `energy-composite.ts` (5 blocs, 4 weight presets, rank normalization, E1–E9 banding, dead-signal auto-exclusion IQR<0.02), `energy-validate.ts` (6 non-circular gates: bloc-dominance, not-BPM, tier-agreement, genre-direction, gain-invariance, duplicate-consistency), CLI `megadj energy --phase0|--extract|--freeze|--score|--gates|--full|--shadow|--json` + `megadj energy-why <video_id>`. 80 tests, 1527 assertions. Extract spawn trap: line-feeding stdin without concurrently draining stdout wedges on the pipe buffer (~64KB) — parallel worker processes or interleaved read/write. NOT yet switched over: Phase 4 (pipeline-stages.ts swap, comment-sync update, `--apply`) + Phase 5 (bench verification) — `docs/fulltags/energy-v3-plan-2026-10-01.md`.
 - DJ metadata signals research (Oct 1, `docs/archive/dj-metadata-signals-research-2026-10-01.md`): 1001Tracklists co-play graph is the main genuinely unwired external signal for MegaSet transitions; Last.fm WIRED as W8 (Oct 1); MusicBrainz deepened to recording-level (Oct 1); Discogs WIRED as W9 (Oct 1, offline SQLite cache); evidence bridge populates `genre_evidence` table for Dawid-Skene; remix routing (`remix-route.ts`) directs artist-level genre queries to the remixer. 10-rung ladder: bp(0.60) > file(0.55) ≥ discogs(0.55) > bc(0.50) > ai(0.45) > mb(0.40) > sc(0.35) > lastfm(0.30) > sync(0.20) > imprint(0.15). Remaining unwired: 1001Tracklists co-play graph, rekordbox play history, SC per-track tags (needs `--print-json` fetch arm).
