@@ -222,11 +222,11 @@ describe("bpGenre", () => {
     expect(
       bpGenre(hit({ genre: "Techno (Peak Time / Driving)", subGenre: null })),
     ).toBe("Techno");
-    // Greedy first CANON segment: "Melodic House" is not a canon value,
-    // "Techno" is — the genre's own namesake wins.
+    // "Melodic House & Techno" maps through the canon to "Melodic Techno"
+    // (compound form added to SC_GENRE_CANON).
     expect(
       bpGenre(hit({ genre: "Melodic House & Techno", subGenre: null })),
-    ).toBe("Techno");
+    ).toBe("Melodic Techno");
     expect(bpGenre(hit({ genre: "Drum & Bass", subGenre: null }))).toBe(
       "Drum & Bass",
     );
@@ -238,12 +238,14 @@ describe("bpGenre", () => {
     ).toBe("Progressive House");
   });
 
-  test("store junk (Electronica, Latin) is refused by the vocabulary gate", () => {
+  test("umbrella genres (Electronica) refused; Latin accepted as canon", () => {
     expect(bpGenre(hit({ genre: "Electronica", subGenre: null }))).toBeNull();
     expect(
       bpGenre(hit({ genre: "Electronica", subGenre: "Weird Beards" })),
     ).toBeNull();
-    expect(bpGenre(hit({ genre: "Latin", subGenre: "Salsa" }))).toBeNull();
+    // "Latin" is now a valid canon genre — test the subgenre preference:
+    // if the subGenre is unknown, the genre wins.
+    expect(bpGenre(hit({ genre: "Latin", subGenre: "Salsa" }))).toBe("Latin");
   });
 
   test("null genre row → null", () => {
