@@ -303,6 +303,47 @@ export function phraseInOutBars(p: AnlzPhrases): {
 }
 
 /**
+ * Classify whether a track has a drop or a rolling groove from PSSI.
+ *
+ * HIGH mood: CHORUS (kind=5) sections are drops.
+ * MID/LOW mood: CHORUS (kind=9) sections are drops.
+ *
+ * "Drop" = the track has at least one CHORUS section whose bar length
+ * is ≥ 8 bars (a real structural drop, not a brief fill).
+ * "Roll" = no qualifying drop sections — the track rolls without a
+ * big structural contrast (verse/bridge/up/down only).
+ */
+export function phraseDropRoll(p: AnlzPhrases): {
+  drop: boolean;
+  roll: boolean;
+} {
+  const chorusKind = p.mood === TRACK_MOOD.HIGH ? 5 : 9;
+  const introKind = 1;
+  const outroKind = p.mood === TRACK_MOOD.HIGH ? 6 : 10;
+
+  // Find CHORUS sections with ≥ 8 bars (real drops, not fills)
+  for (let i = 0; i < p.phrases.length; i++) {
+    const ph = p.phrases[i]!;
+    if (ph.kind !== chorusKind) continue;
+    // Skip if this is the only phrase type (weak signal)
+    const nextBeat =
+      i + 1 < p.phrases.length ? p.phrases[i + 1]!.beat : p.endBeat;
+    const bars = Math.floor((nextBeat - ph.beat) / 4);
+    if (bars >= 8) return { drop: true, roll: false };
+  }
+
+  // No qualifying drop — check for rolling structure
+  // A roll needs at least 2 non-intro/outro phrases to be meaningful
+  const bodyPhrases = p.phrases.filter(
+    (ph) =>
+      ph.kind !== introKind && ph.kind !== outroKind && ph.kind !== chorusKind,
+  );
+  if (bodyPhrases.length >= 2) return { drop: false, roll: true };
+
+  return { drop: false, roll: false };
+}
+
+/**
  * Decode the PQTZ beat grid from ANLZ bytes. Null when the file is
  * malformed or carries no grid (older/waveform-only sidecars).
  */
