@@ -38,7 +38,7 @@
 | Key | 80.7% exact vs RB (88 tracks) | Exact %, MIREX weighted score | GiantSteps Key / GiantSteps+ (external), rekordbox (reference) | `bench run key` |
 | Genre L2 (family) | 57.0 / 66.6% agreement vs ladder | Accuracy @ coverage curve; coverage @ 90% precision; macro-F1; confusion | Verified-store silver (leave-source-out), agent silver, your binary disputes | `bench run genre-l2` |
 | Genre L3 (subgenre) | *(not measured)* | Top-1 / top-3; calibration error (ECE) | Verified-store subgenres, agent silver | `bench run genre-l3` |
-| Energy | avg 8.5 (saturated) | Pairwise agreement; decile spread | Your pairwise judgments | `bench run energy` |
+| Energy | avg 8.5 (saturated) | Decile spread; genre-family separation; arousal/BPM/RMS independence | Multi-feature composite (z-score normalized, 8 signals, no manual labels — see `energy-v3-plan-2026-10-01.md`) | `bench run energy` |
 | Mood heads | 5 heads, ≥0.5 fires | Fire rate per head; information (entropy) | Distribution check (no key needed) | `bench run mood` |
 | Structure / cues | Coverage only | Boundary F-measure ±1 bar; first-drop hit rate | EDM-98, rekordbox PSSI (weak), your drop checks | `bench run structure` |
 | Similarity | Coherence 0.362 (vs noisy labels) | Triplet accuracy; hubness skew; family coherence | Your triplets, verified-store silver | `bench run similarity` |
@@ -272,13 +272,18 @@ Effort: S < 1 day · M 1–3 days · L > 3 days. IDs are proposed GitHub issue t
 | **[B6.4](https://github.com/webuildstuffio/megadj/issues/382)** AK4 agent silver | Agent job with web search, schema'd packet (claims + URLs + confidence), cached; 20-row spot-check UI | 300 rows; spot-check agreement recorded |
 | **[B6.5](https://github.com/webuildstuffio/megadj/issues/383)** AK5 CrateDeck modes | Dispute / triplet / energy-pair pages; keyboard-driven; drop-start playback | 10-min sessions work on the XDJ-free laptop flow |
 
-### WS7 — Energy v3 (S–M)
+### WS7 — Energy v3 (S–M) · *see `energy-v3-plan-2026-10-01.md`*
+
+**Superseded:** the pairwise-label approach (B7.2 Bradley–Terry) is replaced
+by a multi-feature composite with z-score normalization that needs NO manual
+labels. Full design in `docs/fulltags/energy-v3-plan-2026-10-01.md`.
+
 | Ticket | Scope | Acceptance |
 |---|---|---|
-| **[B7.1](https://github.com/webuildstuffio/megadj/issues/384)** Drop-section features from `bar_features` | Loudest-16-bars window until WS8 gives real drops | Fixture test |
-| **[B7.2](https://github.com/webuildstuffio/megadj/issues/385)** Pairwise model | Bradley–Terry / pairwise logistic on AK5 energy pairs | Held-out pair agreement |
-| **[B7.3](https://github.com/webuildstuffio/megadj/issues/386)** Percentile bands vs frozen reference | 1–10 integer bands; reference versioned | Decile spread gate |
-| **[B7.4](https://github.com/webuildstuffio/megadj/issues/387)** Per-bar energy curve | Same model on per-bar features → Set arc input | Set arc renders from curve |
+| **[B7.1](https://github.com/webuildstuffio/megadj/issues/384)** Energy feature extraction (8 features, drop-section) | Python essentia extractor: hf_ratio, onset_density, spectral_centroid, dynamic_complexity, spectral_flux, low_band_share, lufs_drop + arousal from mood table; `energy_features` table; runs on drop section from beats ledger | Fixture test; all 8 features populated for 10-track sample |
+| **[B7.2](https://github.com/webuildstuffio/megadj/issues/385)** Library z-score freeze + composite scoring | Compute library-wide mean/std per feature → `energy_reference` table; weighted composite z-scores → E1–E9 percentile bands | Decile spread gate (8–12% per band); saturation gate (<15% top band) |
+| **[B7.3](https://github.com/webuildstuffio/megadj/issues/386)** Automatic validation gates | Genre-family separation (Cohen's d > 0.5), arousal correlation (0.3 < r < 0.8), BPM independence (|r| < 0.3), RMS independence (|r| < 0.5), feature contribution balance | All gates pass |
+| **[B7.4](https://github.com/webuildstuffio/megadj/issues/387)** Per-bar energy curve | Composite model on per-bar features → Set arc input | Set arc renders from curve |
 
 ### WS8 — Structure & cues v2 (M–L)
 | Ticket | Scope | Acceptance |
@@ -326,7 +331,7 @@ Initial gates. Where a baseline doesn't exist yet, the gate is **"baseline + mar
 | Genre L2 | ≥90% precision at ≥80% coverage **and** ≥ ladder +5 pts at equal coverage | AK3 (leave-source-out) + AK4 |
 | Genre L2 disputes | System sides with you on ≥80% of house/techno disputes | AK5 |
 | Genre L3 | Top-3 ≥75%; ECE ≤ 0.05 | AK3 + AK4 |
-| Energy | ≥75% held-out pair agreement; each decile 8–12% of library | AK5 |
+| Energy | Each decile 8–12%; genre-family Cohen's d > 0.5; 0.3 < r(arousal) < 0.8; \|r(BPM)\| < 0.3; \|r(RMS)\| < 0.5 | Automatic (no AK5 needed — see `energy-v3-plan-2026-10-01.md`) |
 | Structure | Boundary F ±1 bar ≥0.70; first drop ≥90% | AK1 EDM-98 + AK5 |
 | Similarity | Triplet accuracy ≥ baseline +5 pts | AK5 |
 | Sync | 100% round-trip; 0 manual cues modified | scratch copy |
@@ -423,5 +428,5 @@ Your time across all five weeks: ~40 min of AK5 sessions, ~20 min spot-checking 
 
 - The W-table, tie-break rule, downgrade rule, `imprintStands`, and dispute-flag special cases (replaced by the estimator + τ).
 - Median-based tempo readout and the bar-lag autocorrelation readout.
-- Energy 2.0 blend.
+- Energy 2.0 blend (replaced by 8-feature z-score composite — `energy-v3-plan-2026-10-01.md`).
 - "Coverage %" as a headline metric in status docs — coverage stays as a secondary column next to accuracy.

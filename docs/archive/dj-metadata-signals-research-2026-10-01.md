@@ -727,7 +727,226 @@ stay fine-grained for cultural utility.
 
 ---
 
-## 17. Sources (original, preserved + new research)
+## 17. Creative frontier — signals the doc still misses
+
+Ideas not found in any section above, not in the v3 plan, not in any
+megadj issue. Each is grounded in what the §15 research makes computable.
+
+### 17.1 Energy trajectory, not energy level
+
+The v4 comment writes `E8` — a single number. But a DJ doesn't just
+need "how hard is this track" — they need "what does this track DO over
+time." A track that builds E3→E8 over 32 bars is a ramp. A track that
+opens at E8 and holds is a sustain. A track that peaks E9 then drops
+to E2 is a release. The trajectory is what makes a track an opener,
+a peak-time sustain, or a cooldown.
+
+**How to compute it:** split the track into 8-bar windows, compute the
+§15.5 energy composite per window, then classify the trajectory shape:
+
+| Shape | Pattern | Set role |
+|---|---|---|
+| **Ramp** | E3→E8 monotonic rise | Builder, warm-up closer |
+| **Sustain** | E7–E9 flat | Peak-time workhorse |
+| **Arc** | E4→E8→E4 rise-and-fall | Self-contained journey |
+| **Release** | E8→E3 drop | Cooldown, breakdown filler |
+| **Pulse** | E6↔E8 oscillating | Drop-breakdown-drop cycle |
+
+**Value for MegaSet:** the set builder currently chains by energy LEVEL
+(the preset energy arc). With trajectory shapes, it can sequence for
+narrative: ramp→sustain→sustain→release is a classic peak-hour arc that
+a single E number can't encode. MegaSet would know a "Ramp" track
+naturally precedes a "Sustain" track without needing play-history data.
+
+### 17.2 The label-as-curator signal
+
+Record labels in EDM are de facto genre curators. A Drumcode release is
+techno. An Anjunadeep release is melodic/progressive. A Defected release
+is house. The label is a stronger genre signal than any folksonomy tag.
+
+megadj already stores label via Beatport (TPUB) and the imprint prior
+rung (W7, weight 0.15). But the imprint prior maps labels to families
+via a hand-curated table. What's missing:
+
+- **Label network graph:** labels that share artists form clusters.
+  If Artist X releases on both Drumcode and MORD, those labels are
+  "techno neighbors." The graph structure IS a genre taxonomy learned
+  from release data, not hand-curated.
+- **Label→sub-genre precision:** "Drumcode" isn't just "techno" — it's
+  specifically peak-time, driving techno. "Afterlife" is melodic techno.
+  The label carries sub-genre resolution the family-level imprint
+  prior currently throws away.
+
+**Source:** the Discogs monthly dump (v3 WS5) contains the full
+label→release→artist graph. Building the label network is a natural
+extension of that ingest work.
+
+### 17.3 Drop spectral signature as genre fingerprint
+
+The §15.1 research says genre is best determined from the **drop**
+section — the most representative segment of style. The spectral shape
+AT the drop is diagnostic:
+
+| Genre | Drop spectral shape |
+|---|---|
+| Dubstep | Sub-bass wall (< 100 Hz dominates), mid-range gap |
+| Bigroom | Full-spectrum slam, near-flat from 60 Hz to 8 kHz |
+| Tech House | Mid-range groove (200 Hz – 2 kHz), sparse highs |
+| Melodic Techno | High pad energy (2–8 kHz), moderate sub, no slam |
+| Trap | 808 sub peak + hi-hat sparkle (8–16 kHz), hollow mid |
+
+**How to compute:** segment the track using PSSI phrase data (already
+decoded), extract the drop section, compute the 7-band spectral contrast
+from §15.1. Store as a compact 7-number vector per track. Use as an
+additional genre-evidence dimension alongside the effnet embedding.
+
+### 17.4 Genre as probability vector, not label
+
+Every track should carry not just "Tech House" but
+`{tech_house: 0.42, deep_house: 0.28, minimal: 0.18, progressive: 0.12}`.
+This IS the Dawid–Skene posterior output from v3. But the display
+implications are underexplored:
+
+- **v4 comment:** already shows `· TechHouse+DeepHouse` — the
+  probability vector decides which two to show and in what order
+- **CrateDeck UI:** genre chips could show confidence (opacity or size)
+- **MegaSet:** transition scoring could use Jensen-Shannon divergence
+  between genre probability vectors — tracks with similar distributions
+  blend culturally, even if their display labels differ
+- **ID3 tag:** TCON gets the winner. But TXXX:GENRE_VECTOR could store
+  the full distribution for round-tripping through tools
+
+### 17.5 Intro/outro spectral compatibility score
+
+MegaSet currently scores whole-track similarity. But what matters for a
+transition is specifically how the **outro of track A** sounds against
+the **intro of track B**. Two tracks with identical overall timbres but
+different intro/outro textures will have a jarring transition.
+
+**How to compute:** using the PSSI-decoded intro/outro sections (already
+available for 74.7% of tracks), compute TIV + onset density + spectral
+centroid on those specific sections. Store intro/outro compatibility
+profiles per track. MegaSet then scores intro↔outro directly.
+
+This is the per-section version of §15.6's blendability math — applied
+to the exact sections that overlap in a real DJ transition.
+
+### 17.6 Silence/space density as a production aesthetic signal
+
+How much "air" is in a track — the ratio of low-energy frames to total
+frames. Minimal techno has high space density (sparse, breathing).
+Bigroom has near-zero (wall of sound). This is trivially computable:
+
+```
+space_density = count(RMS_frames < threshold) / total_frames
+```
+
+**Genre signal:** high space → minimal/deep/ambient. Low space →
+bigroom/hardstyle/trance. **Mood signal:** high space → contemplative,
+introspective. Low space → intense, overwhelming. **Mix signal:** high
+space density means more room for the incoming track's elements during
+a transition — a high-space outro blends with anything.
+
+---
+
+## 18. The ranked list — every signal scored for three purposes
+
+Every signal in this document, rated 1–10 for three distinct consumers:
+
+**🎛 SET** = value for MegaSet AI set building (transition quality,
+sequencing logic, energy arcs)
+
+**👁 BOOTH** = value as a human-readable annotation for DJs (v4 comment,
+CrateDeck UI, My Tags, track color)
+
+**🏷 GENRE** = value for multi-level genre classification (family,
+display label, sub-genre, probability vector)
+
+### Tier 1 — Highest impact (score ≥ 8 in at least one axis)
+
+| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why it ranks |
+|---|---|---|---|---|---|---|
+| 1 | **Energy trajectory** (§17.1) | **10** | **9** | 3 | Not built | THE missing MegaSet signal — encodes what a track DOES, not what it IS. "Ramp into Sustain into Release" is the entire logic of a DJ set. Comment token: `BUILD`/`HOLD`/`COOL`. |
+| 2 | **Rekordbox play history** (§6.3) | **10** | 4 | 2 | Not mined | YOUR real transitions are the highest-quality training data for YOUR set builder. Free, zero-risk, already in master.db. |
+| 3 | **Drop-section energy recalibration** (§15.5) | 7 | **10** | 2 | Not built (S effort) | Fixes the "everything is E8" loudness meter. Comment E1–E9 becomes musically meaningful. Per-family percentile. |
+| 4 | **Dawid–Skene label model** (§7, v3 WS4) | 3 | 4 | **10** | v3 plan | Replaces hand-set vote weights with learned per-source × per-family reliability. The honest answer to "what genre is this?" |
+| 5 | **Discogs monthly dump** (§4.2, v3 WS5) | 2 | 3 | **10** | v3 plan | CC0, offline, exact effnet training vocabulary. 400 styles → multi-level genre depth. Release year. Label. |
+| 6 | **VOX/HOOK vocal detection** (§3.3) | 6 | **10** | 2 | Planned, last v4 token | Last gap in the v4 comment. DJs need to know vocal position for clean mix zones. |
+| 7 | **1001TL co-play graph** (§6.1) | **10** | 2 | 5 | Not built | The only signal that encodes "real DJs mix these together" — social information audio cannot capture. |
+| 8 | **Intro/outro spectral compatibility** (§17.5) | **9** | 3 | 1 | Not built | Scores the ACTUAL transition sections, not whole-track similarity. The difference between a smooth and jarring mix. |
+| 9 | **Genre probability vector** (§17.4) | 7 | 7 | **9** | Dawid–Skene output | `{tech_house: 0.42, deep_house: 0.28, ...}` is more honest and useful than a single label. Jensen-Shannon for set diversity. |
+| 10 | **EDM production features** (§15.1, §16 G) | 4 | 3 | **9** | Not built | H/P ratio, crest factor, sub-bass ratio, sidechain proxy — genre-diagnostic features effnet embeddings miss. Breaks house↔techno. |
+
+### Tier 2 — High impact (score 6–8 in at least one axis)
+
+| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why |
+|---|---|---|---|---|---|---|
+| 11 | **TIV harmonic compatibility** (§15.6) | **8** | 2 | 1 | Not built | Better than Camelot for transition quality — captures pitch-class overlap and dissonance, not just key distance. |
+| 12 | **Drum pattern transcription** (§15.3) | 5 | **7** | **8** | Not built | 4-on-floor vs. breakbeat is a genre family gate. Hi-hat density separates trap/house/techno. Drop/Roll accuracy improvement. |
+| 13 | **Swing/groove estimation** (§15.4) | **7** | **7** | 5 | Not built | Blendability signal (similar groove = smoother mix). Potential comment token: `SWING`/`GRID`. Genre-confirmatory. |
+| 14 | **Last.fm vote rung** (§6.2) | 2 | 2 | **7** | Not built (S effort) | Fills the hip-hop/pop coverage gap. Era and scene words. Natural Dawid–Skene voter. Cheapest new evidence source. |
+| 15 | **Drop spectral signature** (§17.3) | 4 | 4 | **8** | Not built | 7-number spectral contrast vector at the drop. Genre-fingerprint that complements the whole-track embedding. |
+| 16 | **Remix routing** (v3 §4) | 2 | 2 | **8** | v3 plan | Artist-level sources query remixer, not original artist. Single highest-value entity resolution fix for genre accuracy. |
+| 17 | **Label network graph** (§17.2) | 3 | 4 | **7** | Not built | Labels are curators. Drumcode = peak techno, not "techno." The graph gives sub-genre precision the imprint prior lacks. |
+| 18 | **Space/silence density** (§17.6) | **6** | **6** | 4 | Not built | Minimal techno vs. bigroom wall-of-sound. Mix headroom signal. Trivially computable (`count(RMS < thresh) / total`). |
+| 19 | **LLM metadata imputation** (§15.7) | 2 | 5 | **7** | Not built | Audio + partial metadata → fill gaps. 21% improvement from partial context. Natural upgrade for the AI rung (W4). |
+| 20 | **Playlist-name voter** (§6.4) | 2 | 2 | **6** | Needs audit | Free silver labels if naming is consistent. Natural Dawid–Skene input. |
+
+### Tier 3 — Moderate impact (score 4–6)
+
+| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why |
+|---|---|---|---|---|---|---|
+| 21 | **Cue color/naming audit** (§2) | 3 | **5** | 3 | Not done | Free structure training data if naming is consistent. |
+| 22 | **Version stability test** (§7) | 2 | 2 | **5** | Not built | Extended/radio edit must match genre. Correctness invariant. |
+| 23 | **Whisper lyrics → explicit flag** (§3.15) | 2 | **5** | 1 | Not built | Gig suitability ("wedding safe"). Niche value. |
+| 24 | **Function tags (tool/filler)** (§3.7) | **5** | **5** | 2 | Not built | Structural detection: no drop = tool, long loops = filler. Low priority but useful for set pacing. |
+| 25 | **Era/release year** (§3.9) | 3 | **5** | 4 | Partial | Discogs dump completes coverage. Display value ("90s classic"). |
+| 26 | **Crowd status / popularity** (§3.8) | **5** | **4** | 2 | Not built | 1001TL support counts + Last.fm listener counts. "Anthem" vs. "deep cut." |
+
+### Tier 4 — Low priority or already solved
+
+| # | Signal | 🎛 SET | 👁 BOOTH | 🏷 GENRE | Status | Why |
+|---|---|---|---|---|---|---|
+| 27 | BPM / tempo | 8 | 8 | 3 | ✅ Shipped | Already the top MegaSet scoring term (0.45 weight). |
+| 28 | Key / Camelot | 7 | 8 | 1 | ✅ Shipped | OpenKeyScan 80.7%, TKEY written. |
+| 29 | Primary genre | 3 | 6 | 8 | ✅ Shipped | 98.3% coverage, 8-rung vote ladder. |
+| 30 | Energy level | 5 | 8 | 1 | ✅ Shipped (broken) | Works but is a loudness meter. #3 above fixes it. |
+| 31 | Mood (Dark/Euph/Hard/Soft) | 4 | 7 | 4 | ✅ Shipped | ONNX mood heads, within-family percentile. |
+| 32 | IN/OUT bars | 6 | 8 | 1 | ✅ Shipped | PSSI decode, 74.7% coverage. |
+| 33 | Drop/Roll | 3 | 7 | 2 | ✅ Shipped | 97.5%/2.5% from PSSI. |
+| 34 | VAR (tempo instability) | 3 | 5 | 2 | ✅ Shipped | 3.6% of tracks. |
+| 35 | Track color | 2 | 7 | 1 | ✅ Shipped | Energy→ColorID, 100%. |
+| 36 | Sub-genre display | 3 | 7 | 6 | ✅ Shipped | 64.4% coverage, `· TechHouse+DeepHouse`. |
+| 37 | Effnet embeddings | 8 | 1 | 6 | ✅ Shipped | 1280-d, MegaSet scoring (0.25 weight), kNN. |
+| 38 | Instrumentation detection | 2 | 3 | 3 | ❌ Skip | Redundant with sub-genre. |
+| 39 | Personal taste | 1 | 2 | 1 | N/A | Only you know. |
+
+### Summary: top priorities by axis
+
+**🎛 For MegaSet set building (top 5):**
+1. Energy trajectory (BUILD/HOLD/COOL) — §17.1
+2. Rekordbox play history as transition training data — §6.3
+3. 1001TL co-play graph as social embedding — §6.1
+4. Intro/outro spectral compatibility — §17.5
+5. TIV harmonic compatibility replacing Camelot — §15.6
+
+**👁 For booth / human-readable DJ annotations (top 5):**
+1. Drop-section energy recalibration (fix E8.5 → meaningful E1–E9) — §15.5
+2. VOX/HOOK vocal detection — v4 remaining plan
+3. Energy trajectory token (BUILD/HOLD/COOL) — §17.1
+4. Swing/groove estimation (SWING/GRID token) — §15.4
+5. Drum pattern density (hi-hat, kick) — §15.3
+
+**🏷 For multi-level genre classification (top 5):**
+1. Dawid–Skene label model (probability vectors) — v3 WS4
+2. Discogs monthly dump (400 Discogs styles in effnet vocabulary) — v3 WS5
+3. Genre probability vector as the display format — §17.4
+4. EDM production features (H/P ratio, sub-bass, sidechain) — §15.1
+5. Remix routing for artist-level sources — v3 §4
+
+---
+
+## 19. Sources (original, preserved + new research)
 
 - [DJ Will Gill — How to organize DJ music](https://djwillgill.com/how-to-organize-dj-music/)
 - [DJ Will Gill — Organize curated songs for faster mixing](https://djwillgill.com/how-to-organize-your-curated-songs-for-faster-mixing/)
