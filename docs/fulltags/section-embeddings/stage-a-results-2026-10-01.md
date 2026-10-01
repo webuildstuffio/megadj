@@ -150,3 +150,29 @@ density 0.15. Without: backward-compatible original behavior (0.70/0.30).
 
 **Next:** Re-cache section embeddings with `--rms --force` and re-run the
 section probe bench to measure the classification impact.
+
+## P6b Results: RMS vs Position Section A/B Probe (Oct 1)
+
+**216 tracks**, fresh section embeddings computed on the fly for both methods:
+
+| Strategy | mF1 | Acc | Notes |
+|---|---|---|---|
+| pos_section_mean | 36.0% | 64.4% | Position-only sections |
+| **rms_section_mean** | **37.1%** | **67.1%** | RMS-guided sections (+1.1pp mF1) |
+| whole_track_only | 38.1% | 66.7% | No sections at all |
+| whole+pos_sec | 38.1% | 66.7% | Whole + position sections |
+| **whole+rms_sec** | **38.4%** | **67.1%** | **Whole + RMS sections (+0.3pp)** |
+
+**Δ(whole+rms − whole+pos) = +0.3pp.** RMS sections improve both standalone
+and combined classification, but the delta is small at n=216. The bottleneck
+is the effnet embedding itself — whole-track already captures most genre info.
+
+**Interpretation:** The RMS finder is validated (86.5% pick louder sections,
++1.1pp section-only gain). But effnet's Discogs-trained whole-track embedding
+is strong enough that sections are incremental, not transformative. The real
+payoff from better section selection will come with models that need focused
+audio input (MAEST 30s clips, MERT-v2 30s clips).
+
+**Full bench pending:** Once the current cache completes (~1.5h remaining),
+re-cache with `--rms --force` and run the full 2500+ track bench for the
+definitive comparison.
