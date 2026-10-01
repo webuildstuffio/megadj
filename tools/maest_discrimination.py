@@ -16,10 +16,11 @@ import os
 import sqlite3
 import sys
 import time
+from typing import Any
 
 import librosa  # type: ignore[import-not-found]
 import numpy as np
-import torch
+import torch  # type: ignore[import-not-found]
 from transformers import AutoFeatureExtractor, AutoModel  # type: ignore[import-not-found]
 
 MODEL_ID = "mtg-upf/discogs-maest-30s-pw-129e"
@@ -29,7 +30,7 @@ N_PER_FAMILY = 2
 TARGET_FAMILIES = ["house", "techno", "hiphop", "groove", "trance"]
 
 
-def load_model() -> tuple:
+def load_model() -> tuple[object, object]:
     print("Loading MAEST...", file=sys.stderr)
     t0 = time.time()
     fe = AutoFeatureExtractor.from_pretrained(MODEL_ID, trust_remote_code=True)
@@ -39,7 +40,7 @@ def load_model() -> tuple:
     return model, fe
 
 
-def extract_stacked(model: torch.nn.Module, fe: object, audio_path: str) -> np.ndarray | None:
+def extract_stacked(model: torch.nn.Module, fe: object, audio_path: str) -> Any:
     """Extract stacked layers 6+8+10 mean-pooled (2304d)."""
     try:
         y, _ = librosa.load(audio_path, sr=SR, duration=DURATION, mono=True)
@@ -68,10 +69,10 @@ def main() -> None:
     conn = sqlite3.connect(db_path)
 
     # Load effnet vecs + pick tracks per family
-    classifier_merges = {"edm": "house"}
+    classifier_merges = {"edm": "house"}  # noqa: F841 — reference for consistency
     umbrella = {"edm", "dance", "electronic", "mainstage edm"}
 
-    tracks: list[dict] = []
+    tracks: list[dict[str, Any]] = []
     for fam in TARGET_FAMILIES:
         rows = conn.execute("""
             SELECT t.video_id, t.file_path, t.genre, t.title, t.artist, e.vec_json
@@ -172,7 +173,7 @@ def main() -> None:
         e_gap = np.mean(within_effnet) - np.mean(between_effnet)
         m_gap = np.mean(within_maest) - np.mean(between_maest)
         print(f"  Discrimination gap:      {e_gap:>7.3f}  {m_gap:>7.3f}", file=sys.stderr)
-        print(f"  (higher gap = better genre separation)", file=sys.stderr)
+        print("  (higher gap = better genre separation)", file=sys.stderr)
 
 
 if __name__ == "__main__":

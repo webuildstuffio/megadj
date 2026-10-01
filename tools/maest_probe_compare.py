@@ -1,4 +1,4 @@
-"""P5c: MAEST probe comparison — extract features for all tracks, run same 
+"""P5c: MAEST probe comparison — extract features for all tracks, run same
 5-fold artist-excluded probe as effnet baseline.
 
 This is the FAIR test: same classifier, same evaluation, same corpus.
@@ -19,10 +19,11 @@ import sys
 import time
 import unicodedata
 from collections import Counter
+from typing import Any
 
 import librosa  # type: ignore[import-not-found]
 import numpy as np
-import torch
+import torch  # type: ignore[import-not-found]
 from sklearn.linear_model import LogisticRegression  # type: ignore[import-not-found]
 from sklearn.metrics import accuracy_score, f1_score  # type: ignore[import-not-found]
 from sklearn.model_selection import GroupKFold  # type: ignore[import-not-found]
@@ -90,7 +91,7 @@ def main() -> None:
     conn.close()
 
     # Filter to classifier-clean corpus
-    corpus: list[dict] = []
+    corpus: list[dict[str, Any]] = []
     for vid, vj, genre, artist, fp in rows:
         fam = classifier_family(genre)
         if fam is None:
@@ -124,7 +125,7 @@ def main() -> None:
     for i, c in enumerate(corpus):
         try:
             y, _ = librosa.load(c["path"], sr=SR, duration=DURATION, mono=True)
-            inputs = fe(y, sampling_rate=SR, return_tensors="pt")  # type: ignore[operator]
+            inputs = fe(y, sampling_rate=SR, return_tensors="pt")
             with torch.no_grad():
                 outputs = model(**inputs)
             hs = outputs.hidden_states
@@ -162,7 +163,7 @@ def main() -> None:
     ale = LabelEncoder()
     groups = ale.fit_transform(artists).astype(np.int32)
 
-    def l2_norm(X: np.ndarray) -> np.ndarray:
+    def l2_norm(X: np.ndarray) -> Any:
         norms = np.linalg.norm(X, axis=1, keepdims=True)
         norms[norms == 0] = 1.0
         return X / norms
@@ -197,7 +198,7 @@ def main() -> None:
         mf1 = f1_score(yt, yp, average="macro")
         acc = accuracy_score(yt, yp)
         print(f"{name:<25} {mf1:>5.1%} {acc:>5.1%}  ", end="", file=sys.stderr)
-        for i, n in enumerate(ln):
+        for i, _n in enumerate(ln):
             mask = yt == i
             nc = int(mask.sum())
             recall = float((yp[mask] == i).sum() / nc) if nc > 0 else 0

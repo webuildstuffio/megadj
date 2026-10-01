@@ -13,17 +13,18 @@ from __future__ import annotations
 import os
 import sys
 import time
+from typing import Any
 
 import numpy as np
-import torch
+import torch  # type: ignore[import-not-found]
 
 # MAEST model from HuggingFace
 MODEL_ID = "mtg-upf/discogs-maest-30s-pw-129e"
 
 
-def load_model() -> tuple:
+def load_model() -> tuple[object, object]:
     """Load MAEST model and processor from HuggingFace."""
-    from transformers import AutoModel, AutoFeatureExtractor  # type: ignore[import-not-found]
+    from transformers import AutoFeatureExtractor, AutoModel  # type: ignore[import-not-found]
 
     print("Loading MAEST model...", file=sys.stderr)
     t0 = time.time()
@@ -34,7 +35,7 @@ def load_model() -> tuple:
     return model, feature_extractor
 
 
-def load_audio(path: str, sr: int = 16000, duration: float = 30.0) -> np.ndarray:
+def load_audio(path: str, sr: int = 16000, duration: float = 30.0) -> Any:
     """Load audio file, resample to target SR, trim to duration."""
     import librosa  # type: ignore[import-not-found]
 
@@ -141,7 +142,7 @@ def main() -> None:
     if "last_mean" in features and "layer8_mean" in features:
         sim = cos_sim(features["last_mean"], features["layer8_mean"])
         print(f"\n  cos(last_mean, layer8_mean) = {sim:.4f}", file=sys.stderr)
-        print(f"  (low similarity = different information = good)", file=sys.stderr)
+        print("  (low similarity = different information = good)", file=sys.stderr)
 
     # Output summary JSON
     import json
