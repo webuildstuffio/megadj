@@ -206,4 +206,60 @@ describe("mbGenreForRecording (recording-level tags)", () => {
     // Should still return the mbid from search, just no genre
     expect(result.genre).toBeNull();
   });
+
+  test("caches recording results — second call does not fetch", async () => {
+    let fetchCount = 0;
+    responder = () => {
+      fetchCount++;
+      return okJson({ recordings: [] });
+    };
+
+    await mbGenreForRecording("CacheTest", "CacheTitle");
+    await mbGenreForRecording("CacheTest", "CacheTitle");
+    // Should only have fetched once (second call is cached)
+    expect(fetchCount).toBe(1);
+  });
+
+  test("merges artist-credit tags at 0.5x weight", async () => {
+    let callIndex = 0;
+    responder = () => {
+      callIndex++;
+      if (callIndex === 1) {
+        return okJson({
+          recordings: [
+            {
+              title: "Credit Merge",
+              id: "rec-789",
+              "artist-credit": [
+                {
+                  artist: {
+                    name: "GenreArtist",
+                    tags: [{ name: "techno", count: 100 }],
+                  },
+                },
+              ],
+              releases: [{ title: "Album", date: "2024-01-01" }],
+            },
+          ],
+        });
+      }
+      // Recording detail with no tags — credit tags are the only signal
+      return okJson({
+        id: "rec-789",
+        tags: [],
+        "release-groups": [],
+      });
+    };
+
+    const result = await mbGenreForRecording("GenreArtist", "Credit Merge");
+    // Artist-credit tags should resolve a genre
+    expect(result.genre).toBeTruthy();
+    expect(result.mbid).toBe("rec-789");
+  });
+
+  test("returns null genre when title is empty", async () => {
+    responder = () => okJson({ recordings: [] });
+    const result = await mbGenreForRecording(null, "");
+    expect(result.genre).toBeNull();
+  });
 });

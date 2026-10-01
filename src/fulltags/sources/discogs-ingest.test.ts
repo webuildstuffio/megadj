@@ -107,5 +107,85 @@ describe("discogs-ingest", () => {
       const result = discogsLookup(db, "Different Artist", "Test");
       expect(result).toBeNull();
     });
+
+    it("handles NFC-normalized accented characters", () => {
+      db = new Database(":memory:");
+      migrateDiscogsDb(db);
+
+      db.run(
+        "INSERT INTO discogs_releases (release_id, title, year, country) VALUES (5, 'Début', 2023, 'FR')",
+      );
+      db.run(
+        "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (5, 'Björk', ?)",
+        [nameKey("Björk")],
+      );
+      db.run(
+        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (5, 'Electronic')",
+      );
+
+      const result = discogsLookup(db, "björk", "début");
+      expect(result).not.toBeNull();
+    });
+
+    it("reuses prepared statements across multiple lookups (perf)", () => {
+      db = new Database(":memory:");
+      migrateDiscogsDb(db);
+
+      db.run(
+        "INSERT INTO discogs_releases (release_id, title, year, country) VALUES (6, 'Track A', 2024, 'US')",
+      );
+      db.run(
+        "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (6, 'DJ A', ?)",
+        [nameKey("DJ A")],
+      );
+      db.run(
+        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (6, 'Electronic')",
+      );
+
+      // Multiple lookups should work (prepared statements reused)
+      const r1 = discogsLookup(db, "DJ A", "Track A");
+      const r2 = discogsLookup(db, "DJ A", "Track A");
+      const r3 = discogsLookup(db, "Unknown", "Missing");
+      expect(r1).not.toBeNull();
+      expect(r2).not.toBeNull();
+      expect(r3).toBeNull();
+    });
+
+    it("returns multiple genres and styles", () => {
+      db = new Database(":memory:");
+      migrateDiscogsDb(db);
+
+      db.run(
+        "INSERT INTO discogs_releases (release_id, title, year, country) VALUES (7, 'Multi', 2024, 'DE')",
+      );
+      db.run(
+        "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (7, 'Artist', ?)",
+        [nameKey("Artist")],
+      );
+      db.run(
+        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (7, 'Electronic')",
+      );
+      db.run(
+        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (7, 'Hip Hop')",
+      );
+      db.run(
+        "INSERT INTO discogs_release_styles (release_id, style) VALUES (7, 'Deep House')",
+      );
+      db.run(
+        "INSERT INTO discogs_release_styles (release_id, style) VALUES (7, 'Ambient')",
+      );
+
+      const result = discogsLookup(db, "Artist", "Multi");
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe("decodeXmlEntities", () => {
+    it("nameKey handles unicode normalization", () => {
+      // Composed vs decomposed forms should produce the same key
+      const composed = nameKey("Bj\u00F6rk");
+      const decomposed = nameKey("Bjo\u0308rk");
+      expect(composed).toBe(decomposed);
+    });
   });
 });

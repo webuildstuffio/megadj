@@ -67,6 +67,7 @@ import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre/genre-vote";
 import { lastfmGenreVote } from "../sources/lastfm";
 import { mbGenreForRecording } from "../sources/mb-lookup";
 import { discogsGenreVote } from "../sources/discogs-vote";
+import { bridgeVotesToEvidence } from "../evidence/vote-evidence-bridge";
 import { routeArtistForGenre } from "../identity/remix-route";
 import { errMessage } from "../../shared/leaf/fmt";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
@@ -290,12 +291,14 @@ async function processTask({
     );
   }
 
+  // ---- shared artist/title for genre sources ----
+  const rawArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
+  const rawTitle = ctx.truth.title ?? r.title;
+
   // ---- W9 Discogs vote (offline — local SQLite cache, instant) ----
   if (t.needGenre && !dry && genreVotes !== undefined) {
-    const dgArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
-    const dgTitle = ctx.truth.title ?? r.title;
-    if (dgArtist && dgTitle) {
-      const dgVote = discogsGenreVote(dgArtist, dgTitle);
+    if (rawArtist && rawTitle) {
+      const dgVote = discogsGenreVote(rawArtist, rawTitle);
       if (dgVote) {
         genreVotes.push(dgVote);
         stats.genreDiscogs++;
@@ -305,8 +308,6 @@ async function processTask({
   }
 
   // ---- Remix routing: artist-level sources use the remixer when present ----
-  const rawArtist = cleanArtist(ctx.truth.artist) ?? cleanArtist(r.artist);
-  const rawTitle = ctx.truth.title ?? r.title;
   const routed =
     rawArtist && rawTitle ? routeArtistForGenre(rawArtist, rawTitle) : null;
   const genreArtist = routed?.artist ?? rawArtist;
@@ -354,8 +355,6 @@ async function processTask({
     // Bridge votes → evidence store (populates Dawid-Skene data)
     if (genreVotes.length > 0) {
       try {
-        const { bridgeVotesToEvidence } =
-          await import("../evidence/vote-evidence-bridge");
         bridgeVotesToEvidence(db, r.video_id, genreVotes);
       } catch (bridgeErr: unknown) {
         // Evidence store not yet migrated — degrade silently; log once

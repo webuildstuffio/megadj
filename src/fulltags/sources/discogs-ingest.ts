@@ -68,6 +68,18 @@ export function migrateDiscogsDb(db: Database): void {
     ON discogs_release_artists(name_key)
   `);
   db.run(`
+    CREATE INDEX IF NOT EXISTS idx_discogs_artists_release
+    ON discogs_release_artists(release_id)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_discogs_genres_release
+    ON discogs_release_genres(release_id)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_discogs_styles_release
+    ON discogs_release_styles(release_id)
+  `);
+  db.run(`
     CREATE INDEX IF NOT EXISTS idx_discogs_releases_title
     ON discogs_releases(title COLLATE NOCASE)
   `);
@@ -247,7 +259,7 @@ export async function ingestDiscogsXml(
       inStyles = false;
       continue;
     }
-    if (/<artist>/.test(trimmed)) {
+    if (trimmed === "<artist>" || trimmed.startsWith("<artist>")) {
       inArtist = true;
       continue;
     }
@@ -287,6 +299,39 @@ export async function ingestDiscogsXml(
   return { releases, skipped };
 }
 
+/** Prepared statement cache for discogsLookup — one set per DB instance. */
+const lookupStmts = new WeakMap<
+  Database,
+  {
+    findRelease: ReturnType<Database["prepare"]>;
+    findGenres: ReturnType<Database["prepare"]>;
+    findStyles: ReturnType<Database["prepare"]>;
+  }
+>();
+
+function getLookupStmts(db: Database) {
+  let s = lookupStmts.get(db);
+  if (!s) {
+    s = {
+      findRelease: db.prepare(
+        `SELECT r.release_id, r.title, r.year, r.country
+         FROM discogs_releases r
+         JOIN discogs_release_artists a ON a.release_id = r.release_id
+         WHERE a.name_key = ? AND LOWER(r.title) = ?
+         LIMIT 5`,
+      ),
+      findGenres: db.prepare(
+        "SELECT genre FROM discogs_release_genres WHERE release_id = ?",
+      ),
+      findStyles: db.prepare(
+        "SELECT style FROM discogs_release_styles WHERE release_id = ?",
+      ),
+    };
+    lookupStmts.set(db, s);
+  }
+  return s;
+}
+
 /** Look up a track in the Discogs cache by artist + title.
  *  Returns the best match's genre result, or null. */
 export function discogsLookup(
@@ -296,19 +341,9 @@ export function discogsLookup(
 ): DiscogsGenreResult | null {
   const artistKey = nameKey(artist);
   const titleKey = nameKey(title);
+  const stmts = getLookupStmts(db);
 
-  // Join: releases that have this artist AND match the title.
-  // LOWER() in SQLite doesn't NFC-normalize, but nameKey() does — use
-  // COLLATE NOCASE on the indexed column and pass the NFC-casefolded key.
-  const rows = db
-    .prepare(
-      `SELECT r.release_id, r.title, r.year, r.country
-       FROM discogs_releases r
-       JOIN discogs_release_artists a ON a.release_id = r.release_id
-       WHERE a.name_key = ? AND LOWER(r.title) = ?
-       LIMIT 5`,
-    )
-    .all(artistKey, titleKey) as {
+  const rows = stmts.findRelease.all(artistKey, titleKey) as {
     release_id: number;
     title: string;
     year: number | null;
@@ -318,13 +353,12 @@ export function discogsLookup(
   const best = rows[0];
   if (best === undefined) return null;
 
-  // Fetch genres/styles for the best match
-  const genreRows = db
-    .prepare("SELECT genre FROM discogs_release_genres WHERE release_id = ?")
-    .all(best.release_id) as { genre: string }[];
-  const styleRows = db
-    .prepare("SELECT style FROM discogs_release_styles WHERE release_id = ?")
-    .all(best.release_id) as { style: string }[];
+  const genreRows = stmts.findGenres.all(best.release_id) as {
+    genre: string;
+  }[];
+  const styleRows = stmts.findStyles.all(best.release_id) as {
+    style: string;
+  }[];
 
   const release: DiscogsRelease = {
     releaseId: best.release_id,

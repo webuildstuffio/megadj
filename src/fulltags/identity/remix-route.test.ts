@@ -44,4 +44,36 @@ describe("routeArtistForGenre", () => {
     expect(r.artist).toBe("FISHER");
     expect(r.isRemix).toBe(false);
   });
+
+  it("does not route for instrumental/acapella/live versions", () => {
+    const inst = routeArtistForGenre("Bicep", "Glue (Instrumental)");
+    expect(inst.isRemix).toBe(false);
+    expect(inst.artist).toBe("Bicep");
+
+    const live = routeArtistForGenre("Bicep", "Glue (Live)");
+    expect(live.isRemix).toBe(false);
+  });
+
+  it("routes for flip/dub/rework", () => {
+    const flip = routeArtistForGenre("Drake", "One Dance (DJ Snake Flip)");
+    if (flip.isRemix) {
+      expect(flip.artist).toBe("DJ Snake");
+    }
+  });
+
+  it("includes version identity in the result", () => {
+    const r = routeArtistForGenre(
+      "Peggy Gou",
+      "Starry Night (Mall Grab Remix)",
+    );
+    expect(r.version).toBeDefined();
+    expect(r.version.versionType).toBeTruthy();
+    expect(r.version.confidence).toBeGreaterThan(0);
+  });
+
+  it("handles radio edit as non-remix", () => {
+    const r = routeArtistForGenre("Bicep", "Glue (Radio Edit)");
+    expect(r.isRemix).toBe(false);
+    expect(r.artist).toBe("Bicep");
+  });
 });

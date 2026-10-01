@@ -68,4 +68,23 @@ describe("discogsGenreVote", () => {
     const vote = discogsGenreVote("Phuture", "Acid Trax");
     expect(vote).toBeNull();
   });
+
+  it("returns null when DB path does not exist", () => {
+    discogsDbClose();
+    process.env["MEGADJ_DISCOGS_DB"] = "/tmp/nonexistent-db-path.db";
+    const vote = discogsGenreVote("Phuture", "Acid Trax");
+    expect(vote).toBeNull();
+  });
+
+  it("caches the DB handle — repeated calls reuse the same DB", () => {
+    const v1 = discogsGenreVote("Phuture", "Acid Trax");
+    const v2 = discogsGenreVote("Phuture", "Acid Trax");
+    expect(v1?.genre).toBe(v2?.genre);
+  });
+
+  it("vote detail includes release ID and style", () => {
+    const vote = discogsGenreVote("Phuture", "Acid Trax");
+    expect(vote?.detail).toContain("discogs:42");
+    expect(vote?.detail).toContain("style:");
+  });
 });

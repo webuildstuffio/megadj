@@ -73,4 +73,55 @@ describe("bridgeVotesToEvidence", () => {
     expect(dg?.genreFamily.toLowerCase()).toBe("house");
     expect(dg?.genreSubgenre).toBe("Acid House");
   });
+
+  it("sets null subgenre when genre equals family", () => {
+    const votes: GenreVote[] = [{ rung: "bp", genre: "techno", weight: 0.6 }];
+    bridgeVotesToEvidence(db, "track-6", votes);
+    const rows = loadEvidence(db, "track-6");
+    expect(rows[0]?.genreSubgenre).toBeNull();
+  });
+
+  it("maps all rung types to valid scopes", () => {
+    const allRungs: GenreVote[] = [
+      { rung: "bp", genre: "Techno", weight: 0.6 },
+      { rung: "file", genre: "House", weight: 0.55 },
+      { rung: "bc", genre: "Techno", weight: 0.5 },
+      { rung: "ai", genre: "Techno", weight: 0.45 },
+      { rung: "mb", genre: "House", weight: 0.4 },
+      { rung: "sc", genre: "Techno", weight: 0.35 },
+      { rung: "lastfm", genre: "House", weight: 0.3 },
+      { rung: "discogs", genre: "Techno", weight: 0.55 },
+    ];
+    const count = bridgeVotesToEvidence(db, "track-7", allRungs);
+    expect(count).toBeGreaterThan(0);
+    const rows = loadEvidence(db, "track-7");
+    for (const r of rows) {
+      expect(
+        [
+          "exact_recording",
+          "artist",
+          "user",
+          "label",
+          "same_song_other_version",
+          "remixer",
+          "uploader",
+        ].includes(r.scope),
+      ).toBe(true);
+    }
+  });
+
+  it("WeakSet cache prevents repeated migration", () => {
+    // First call migrates
+    bridgeVotesToEvidence(db, "track-8", [
+      { rung: "bp", genre: "Techno", weight: 0.6 },
+    ]);
+    // Second call should not throw even though the table exists
+    bridgeVotesToEvidence(db, "track-9", [
+      { rung: "sc", genre: "House", weight: 0.35 },
+    ]);
+    const r8 = loadEvidence(db, "track-8");
+    const r9 = loadEvidence(db, "track-9");
+    expect(r8.length).toBe(1);
+    expect(r9.length).toBe(1);
+  });
 });

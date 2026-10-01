@@ -130,4 +130,87 @@ describe("lastfmGenreVote", () => {
       globalThis.fetch = origFetch;
     }
   });
+
+  test("caches results — second call does not fetch", async () => {
+    const { fetchLastfmTags } = await import("./lastfm");
+    const origFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = mock(() => {
+      fetchCount++;
+      return Promise.resolve(
+        Response.json({
+          track: {
+            name: "CacheTest",
+            artist: { name: "CacheArtist" },
+            toptags: {
+              tag: [{ name: "techno", count: 100 }],
+            },
+          },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    try {
+      await fetchLastfmTags("CacheArtist", "CacheTest", "key");
+      await fetchLastfmTags("CacheArtist", "CacheTest", "key");
+      expect(fetchCount).toBe(1);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test("vote detail includes tag names and counts", async () => {
+    const { lastfmGenreVote } = await import("./lastfm");
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        Response.json({
+          track: {
+            name: "DetailTest",
+            artist: { name: "DetailArtist" },
+            toptags: {
+              tag: [
+                { name: "house", count: 80 },
+                { name: "deep house", count: 60 },
+              ],
+            },
+          },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+    try {
+      const vote = await lastfmGenreVote("DetailArtist", "DetailTest", "key");
+      expect(vote?.detail).toContain("lastfm:");
+      expect(vote?.detail).toContain("house");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test("returns null when no track in response", async () => {
+    const { fetchLastfmTags } = await import("./lastfm");
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = mock(() =>
+      Promise.resolve(Response.json({})),
+    ) as unknown as typeof fetch;
+    try {
+      const result = await fetchLastfmTags("NoTrack", "NoTrack", "key");
+      expect(result).toBeNull();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test("returns null on malformed JSON response", async () => {
+    const { fetchLastfmTags } = await import("./lastfm");
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response("not json", { status: 200 })),
+    ) as unknown as typeof fetch;
+    try {
+      const result = await fetchLastfmTags("BadJSON", "BadJSON", "key");
+      expect(result).toBeNull();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });

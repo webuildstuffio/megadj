@@ -12,7 +12,7 @@
  */
 import type { Database } from "bun:sqlite";
 import type { GenreVote, GenreVoteRung } from "../genre/genre-vote";
-import { familyOf } from "../genre/genre-vocab";
+import { mapToFamily } from "../genre/taxonomy-v3";
 import {
   migrateEvidenceTable,
   upsertEvidence,
@@ -26,7 +26,7 @@ const RUNG_SCOPE: Record<GenreVoteRung, EvidenceScope> = {
   discogs: "exact_recording",
   bc: "exact_recording",
   ai: "artist",
-  mb: "exact_recording",
+  mb: "same_song_other_version",
   sc: "artist",
   lastfm: "user",
   sync: "user",
@@ -68,7 +68,7 @@ export function bridgeVotesToEvidence(
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
 
   for (const v of votes) {
-    const family = familyOf(v.genre);
+    const family = mapToFamily(v.genre);
     if (!family) continue;
 
     rows.push({
