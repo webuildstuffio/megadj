@@ -496,7 +496,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   await queueArtless(artless, dry);
 
   // ---- Dawid-Skene estimator batch (flag-gated) ----
-  if (estimatorEnabled() && !dry && stats.votesCast > 0) {
+  if (estimatorEnabled() && !dry) {
     try {
       runEstimatorBatch(db);
     } catch (estimatorErr: unknown) {
