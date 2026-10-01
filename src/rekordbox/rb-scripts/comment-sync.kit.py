@@ -351,8 +351,11 @@ def main() -> None:
 
     inout_by_path: dict[str, tuple[int, int, bool, bool]] = {}
     db_path_str = sys.argv[1] if len(sys.argv) > 1 else ""
-    shelf_mount = os.path.dirname(os.path.dirname(db_path_str))
-    anlz_base = os.path.join(shelf_mount, "USBANLZ") if shelf_mount else ""
+    # master.db lives at <mount>/PIONEER/Master/master.db
+    # USBANLZ lives at <mount>/PIONEER/USBANLZ/
+    pioneer_dir = os.path.dirname(os.path.dirname(db_path_str))
+    shelf_mount = os.path.dirname(pioneer_dir) if pioneer_dir else ""
+    anlz_base = os.path.join(pioneer_dir, "USBANLZ") if pioneer_dir else ""
     if anlz_base and os.path.isdir(anlz_base):
         for top_dir in sorted(os.listdir(anlz_base)):
             top_path = os.path.join(anlz_base, top_dir)
