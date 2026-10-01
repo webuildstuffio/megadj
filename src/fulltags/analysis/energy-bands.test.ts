@@ -29,11 +29,11 @@ describe("bandFromReference", () => {
     expect(bandFromReference(0.01, ref)).toBe(1);
   });
 
-  test("highest score → band 10", () => {
+  test("highest score → band 9 (E1–E9 cap)", () => {
     const ref = buildEnergyReference(
       Array.from({ length: 100 }, (_, i) => i / 100),
     );
-    expect(bandFromReference(0.99, ref)).toBe(10);
+    expect(bandFromReference(0.99, ref)).toBe(9);
   });
 
   test("mid score → mid band", () => {

@@ -377,14 +377,14 @@ describe("energyConfidence", () => {
 // --------------- scoreAll ---------------
 
 describe("scoreAll", () => {
-  test("produces valid bands for all tracks", () => {
+  test("produces valid bands for all tracks (E1–E9)", () => {
     const rows = diverseRows(100);
     const frozen = freezeSignals(rows);
     const scored = scoreAll(rows, frozen, WEIGHT_PRESETS[1]!);
     expect(scored).toHaveLength(100);
     for (const t of scored) {
       expect(t.band).toBeGreaterThanOrEqual(1);
-      expect(t.band).toBeLessThanOrEqual(10);
+      expect(t.band).toBeLessThanOrEqual(9);
       expect(t.confidence === "high" || t.confidence === "low").toBe(true);
     }
   });
@@ -427,15 +427,16 @@ describe("scoreAll", () => {
 // --------------- bandDistribution ---------------
 
 describe("bandDistribution", () => {
-  test("all 10 bands present", () => {
+  test("all 9 bands present (E1–E9)", () => {
     const rows = diverseRows(100);
     const frozen = freezeSignals(rows);
     const scored = scoreAll(rows, frozen, WEIGHT_PRESETS[1]!);
     const dist = bandDistribution(scored);
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 9; i++) {
       expect(dist[i]).toBeDefined();
       expect(dist[i]).toBeGreaterThanOrEqual(0);
     }
+    expect(dist[10]).toBeUndefined();
   });
 
   test("shares sum to ~1.0", () => {
@@ -447,9 +448,9 @@ describe("bandDistribution", () => {
     expect(total).toBeCloseTo(1.0, 1);
   });
 
-  test("empty tracks → all zeros", () => {
+  test("empty tracks → all zeros (E1–E9)", () => {
     const dist = bandDistribution([]);
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 9; i++) {
       expect(dist[i]).toBe(0);
     }
   });

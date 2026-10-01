@@ -54,7 +54,7 @@ export function buildEnergyReference(
  *
  * @param score - Energy score (0–1)
  * @param reference - Frozen reference
- * @returns Band 1–10
+ * @returns Band 1–9 (E1–E9 per plan spec; above p90 → E9)
  */
 export function bandFromReference(
   score: number,
@@ -67,5 +67,5 @@ export function bandFromReference(
       return i + 1;
     }
   }
-  return 10;
+  return 9;
 }

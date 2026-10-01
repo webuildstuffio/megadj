@@ -291,18 +291,18 @@ export function scoreAll(
   }));
 }
 
-/** Compute band distribution as share per band (1–10). */
+/** Compute band distribution as share per band (E1–E9). */
 export function bandDistribution(
   tracks: readonly ScoredTrack[],
 ): Record<number, number> {
   const counts: Record<number, number> = {};
-  for (let i = 1; i <= 10; i++) counts[i] = 0;
+  for (let i = 1; i <= 9; i++) counts[i] = 0;
   for (const t of tracks) {
     counts[t.band] = (counts[t.band] ?? 0) + 1;
   }
   const n = tracks.length || 1;
   const shares: Record<number, number> = {};
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= 9; i++) {
     shares[i] = round3((counts[i] ?? 0) / n);
   }
   return shares;
