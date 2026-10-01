@@ -8,7 +8,11 @@
  * and prefers the section starting ~25–75% into the track (where drops
  * live in standard EDM structure).
  *
- * Pure — no DB, no IO; the caller supplies downbeats.
+ * When optional per-bar RMS values are supplied (P6), loudness peaks
+ * dominate the scoring — picking actual energy peaks instead of relying
+ * on position heuristics alone.
+ *
+ * Pure — no DB, no IO; the caller supplies downbeats (and optionally RMS).
  */
 
 /** The drop/peak section of a track. */
@@ -35,20 +39,48 @@ const MIN_BARS = 16;
  * overlapping windows from dominating the top-N. */
 const MIN_CANDIDATE_GAP_BARS = 8;
 
+/** Normalize an array to [0, 1] by its min–max range. Returns zeros when
+ * the range is effectively zero (all values equal). */
+function minMaxNorm(values: number[]): number[] {
+  if (values.length === 0) return [];
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of values) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const range = hi - lo;
+  if (range < 1e-12) return values.map(() => 0);
+  return values.map((v) => (v - lo) / range);
+}
+
 /** Score every non-overlapping 32-bar window. Internal — used by both
- * `findDropSection` and `findDropCandidates`. */
+ * `findDropSection` and `findDropCandidates`.
+ *
+ * When `rmsPerBar` is supplied, RMS-loudness becomes the primary signal
+ * (weight 0.50) and position drops to 0.35, density to 0.15.
+ * Without RMS: position 0.70, density 0.30 (original behavior). */
 function scoreWindows(
   downbeats: number[],
   _trackDurationS: number,
+  rmsPerBar?: number[],
 ): { start: number; score: number; sectionBars: number }[] {
   const totalBars = downbeats.length;
   const sectionBars = Math.min(TARGET_BARS, totalBars);
   const scored: { start: number; score: number; sectionBars: number }[] = [];
 
+  const hasRms =
+    rmsPerBar !== undefined && rmsPerBar.length >= totalBars;
+
+  // Pre-compute raw window means for each signal, then min-max normalize.
+  const rawPos: number[] = [];
+  const rawDensity: number[] = [];
+  const rawRms: number[] = [];
+
   for (let start = 0; start + sectionBars <= totalBars; start++) {
     const midBar = start + sectionBars / 2;
     const posFraction = midBar / totalBars;
-    const posScore = 1 - 4 * (posFraction - 0.5) ** 2;
+    rawPos.push(1 - 4 * (posFraction - 0.5) ** 2);
 
     let intervalSum = 0;
     let intervalCount = 0;
@@ -60,9 +92,36 @@ function scoreWindows(
       }
     }
     const meanInterval = intervalCount > 0 ? intervalSum / intervalCount : 2;
-    const densityScore = 2.0 / Math.max(0.5, meanInterval);
-    const score = posScore * 0.7 + densityScore * 0.3;
-    scored.push({ start, score, sectionBars });
+    rawDensity.push(2.0 / Math.max(0.5, meanInterval));
+
+    if (hasRms) {
+      let rmsSum = 0;
+      for (let i = start; i < start + sectionBars; i++) {
+        rmsSum += rmsPerBar[i]!;
+      }
+      rawRms.push(rmsSum / sectionBars);
+    }
+  }
+
+  if (hasRms) {
+    const normPos = minMaxNorm(rawPos);
+    const normDens = minMaxNorm(rawDensity);
+    const normRms = minMaxNorm(rawRms);
+    for (let i = 0; i < rawPos.length; i++) {
+      scored.push({
+        start: i,
+        score: normRms[i]! * 0.5 + normPos[i]! * 0.35 + normDens[i]! * 0.15,
+        sectionBars,
+      });
+    }
+  } else {
+    for (let i = 0; i < rawPos.length; i++) {
+      scored.push({
+        start: i,
+        score: rawPos[i]! * 0.7 + rawDensity[i]! * 0.3,
+        sectionBars,
+      });
+    }
   }
   return scored;
 }
@@ -92,15 +151,17 @@ function buildSection(
  *
  * @param downbeats - Array of downbeat timestamps in seconds (1 per bar)
  * @param trackDurationS - Total track duration in seconds (optional)
+ * @param rmsPerBar - Per-bar RMS loudness values (optional, P6)
  * @returns The peak section, or null if the track is too short
  */
 export function findDropSection(
   downbeats: number[],
   trackDurationS?: number | null,
+  rmsPerBar?: number[],
 ): DropSection | null {
   if (downbeats.length < MIN_BARS) return null;
   const dur = trackDurationS ?? downbeats[downbeats.length - 1]! + 2;
-  const windows = scoreWindows(downbeats, dur);
+  const windows = scoreWindows(downbeats, dur, rmsPerBar);
   if (windows.length === 0) return null;
   const best = windows.reduce((a, b) => (b.score > a.score ? b : a));
   return buildSection(downbeats, best, dur);
@@ -114,16 +175,18 @@ export function findDropSection(
  * @param downbeats - Array of downbeat timestamps in seconds (1 per bar)
  * @param n - Number of candidates to return (default 3)
  * @param trackDurationS - Total track duration in seconds (optional)
+ * @param rmsPerBar - Per-bar RMS loudness values (optional, P6)
  * @returns Array of up to N non-overlapping sections, score-descending
  */
 export function findDropCandidates(
   downbeats: number[],
   n = 3,
   trackDurationS?: number | null,
+  rmsPerBar?: number[],
 ): DropSection[] {
   if (downbeats.length < MIN_BARS) return [];
   const dur = trackDurationS ?? downbeats[downbeats.length - 1]! + 2;
-  const windows = scoreWindows(downbeats, dur);
+  const windows = scoreWindows(downbeats, dur, rmsPerBar);
   if (windows.length === 0) return [];
 
   // Greedy non-overlapping selection: pick the highest-scored window,
