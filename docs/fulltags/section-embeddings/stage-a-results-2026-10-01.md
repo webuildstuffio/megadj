@@ -92,3 +92,37 @@ Sections should help here (drops in EDM vs house sound different).
 4. **Mood (19 tracks) is dead** — needs source expansion or just merge into pop
 5. **Production recommendation:** switch from kNN k=5 to unbalanced probe C=10
    for +3.8pp macro-F1 immediately (no re-embedding needed)
+
+## Stage A+ UPDATE: Family Taxonomy Cleanup (Oct 1)
+
+The "edm" family was 97% umbrella labels (EDM/Dance/Electronic = zero genre
+info). After umbrella exclusion, only 24 Electro tracks remain — too few to
+classify. Merging edm→house at training time:
+
+| Config | mF1 (unbal) | mF1 (bal) | Δ from 9-fam clean |
+|---|---|---|---|
+| 9-fam clean | 36.5% | 36.4% | baseline |
+| **8-fam (edm→house)** | **41.6%** | **40.9%** | **+5.1pp / +4.5pp** |
+| 9v2 (+afrolatin) | 39.5% | 39.2% | +3.0pp |
+| 11-fam (all splits) | 32.8% | 34.0% | −3.7pp |
+
+**The biggest single gain so far** — +5.1pp from taxonomy cleanup alone.
+Expanding families hurts (small classes). Implemented as `classifierFamily()`
+in `genre-vocab.ts` (training-time only; DJ code keeps "edm" unchanged).
+
+## Preliminary Section Embedding Results (474 tracks, Oct 1)
+
+On the subset with both whole-track and section embeddings cached:
+
+| Strategy | mF1 (unbal) | mF1 (bal) |
+|---|---|---|
+| whole_track_only | 38.5% | — |
+| section_mean_only | 36.9% | — |
+| section_mean+std | 37.0% | — |
+| whole+sec_mean (concat 2560d) | 37.1% | 38.5% |
+| whole+3sec (concat 5120d) | 38.0% | **39.0%** |
+
+**Preliminary finding:** Sections alone are WEAKER than whole-track (−1.5pp).
+Concatenating whole+sections doesn't help much. The position-based drop finder
+may be picking wrong sections — P6 (RMS-based finder) is the fix. Full results
+pending when all 3,094 tracks are cached (~2.5h remaining).
