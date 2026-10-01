@@ -124,8 +124,25 @@ On the subset with both whole-track and section embeddings cached:
 
 **Preliminary finding:** Sections alone are WEAKER than whole-track (−1.5pp).
 Concatenating whole+sections doesn't help much. The position-based drop finder
-may be picking wrong sections — P6 (RMS-based finder) is the fix. Full results
-pending when all 3,094 tracks are cached (~2.5h remaining).
+may be picking wrong sections — P6 (RMS-based finder) is the fix.
+
+## Full Section Embedding Results (2,293 tracks, Oct 1)
+
+Definitive results with the complete position-only section cache:
+
+| Strategy | mF1 | Acc | Notes |
+|---|---|---|---|
+| whole_track_only | 40.4% | 60.2% | Baseline |
+| **section_mean_only** | **41.4%** | 60.4% | **+1.0pp — sections BEAT whole-track** |
+| **section_mean+std** | **41.5%** | 60.5% | **+1.1pp — best unbalanced** |
+| whole+sec_mean (concat) | 40.7% | 60.6% | Concat doesn't add much |
+| whole+3sec (concat 5120d) | 41.1% | 60.7% | Slight improvement |
+| whole+sec_mean [balanced] | **41.7%** | 52.1% | **Best overall mF1** |
+
+**The preliminary 474-track result was wrong** — the −1.5pp deficit was a
+small-sample artifact. At full scale, section embeddings outperform whole-track
+by +1.1pp on unbalanced and lead on balanced too. The balanced probe (41.7%
+mF1) fixes minorities: bass 59%, trance 61%, groove 48%.
 
 ## P6 Results: RMS-Guided Drop Finder (Oct 1)
 
