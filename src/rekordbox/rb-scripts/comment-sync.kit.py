@@ -468,18 +468,20 @@ def main() -> None:
             elif pct_hap >= 0.80:
                 result["euph"] = True
 
-        # Subgenre with confidence gate
+        # Subgenre: secondary + tertiary when both differ from primary
         sub = genres_secondary.get(fp_key, "")
-        if sub:
-            # Check confidence from genre_votes
-            primary = genre_by_path.get(fp_key, "")
-            if sub.lower() != primary.lower():
-                result["subgenre"] = abbreviate_subgenre(sub)
-            else:
-                # Secondary = primary: try tertiary
-                ter = genres_tertiary.get(fp_key, "")
-                if ter and ter.lower() != primary.lower():
-                    result["subgenre"] = abbreviate_subgenre(ter)
+        primary = genre_by_path.get(fp_key, "")
+        ter = genres_tertiary.get(fp_key, "")
+        if sub and sub.lower() != primary.lower():
+            abbr = abbreviate_subgenre(sub)
+            # Append tertiary if it differs from both primary and secondary
+            if ter and ter.lower() != primary.lower() and ter.lower() != sub.lower():
+                abbr2 = abbreviate_subgenre(ter)
+                if abbr2 != abbr:
+                    abbr = f"{abbr}+{abbr2}"
+            result["subgenre"] = abbr
+        elif ter and ter.lower() != primary.lower():
+            result["subgenre"] = abbreviate_subgenre(ter)
 
         # VAR (variable tempo) from bpm_residual_std
         result["var_tempo"] = var_by_path.get(fp_key, False)
@@ -487,7 +489,7 @@ def main() -> None:
         return result
 
     def build_comment_v4(data: dict) -> str:
-        """v4 format: E8 IN:32 OUT:16 Drop Dark · MelTechno"""
+        """v4 format: E8 IN:32 OUT:16 Drop Dark · MelTechno+DeepHouse"""
         parts: list[str] = []
         eb = data.get("energy_band")
         if eb is not None:

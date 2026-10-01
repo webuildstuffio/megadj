@@ -445,4 +445,35 @@ describe("parseCommentV4", () => {
     expect(parsed.dark).toBe(true);
     expect(parsed.subgenre).toBe("PeakTechno");
   });
+
+  test("multi-genre subgenre with + separator", () => {
+    const parsed = parseCommentV4(
+      "E8 IN:32 OUT:16 Drop Dark · MelTechno+DeepHouse",
+    );
+    expect(parsed.energy).toBe(8);
+    expect(parsed.drop).toBe(true);
+    expect(parsed.dark).toBe(true);
+    expect(parsed.subgenre).toBe("MelTechno+DeepHouse");
+  });
+
+  test("multi-genre round-trip: build then parse", () => {
+    const comment = buildCommentV4({
+      energy: 7,
+      introBars: 16,
+      outroBars: 8,
+      vox: false,
+      hook: false,
+      drop: true,
+      roll: false,
+      hard: false,
+      soft: true,
+      dark: false,
+      euph: false,
+      varTempo: false,
+      subgenre: "TechHouse+ProgHouse",
+    });
+    expect(comment).toBe("E7 IN:16 OUT:8 Drop Soft · TechHouse+ProgHouse");
+    const parsed = parseCommentV4(comment);
+    expect(parsed.subgenre).toBe("TechHouse+ProgHouse");
+  });
 });

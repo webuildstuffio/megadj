@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v4 Booth Metadata — Quick Reference</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+  }
+  @media print {
+    :root { --bg: #fff; --card: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #656d76; }
+    body { font-size: 10pt; }
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    .example-card { break-inside: avoid; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 2rem 0 0.75rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
+  p, li { color: var(--text); }
+  .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+  .hero {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+    text-align: center;
+  }
+  .hero .token { display: inline; }
+  .t-energy { color: var(--red); font-weight: 700; }
+  .t-inout { color: var(--accent); }
+  .t-structure { color: var(--orange); font-weight: 600; }
+  .t-mood { color: var(--purple); }
+  .t-var { color: var(--muted); }
+  .t-sep { color: var(--muted); }
+  .t-sub { color: var(--green); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  .token-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+  }
+  .token-card h3 { margin: 0 0 0.25rem; font-size: 0.95rem; }
+  .token-card p { font-size: 0.85rem; color: var(--muted); margin: 0; }
+  .token-card code { font-size: 0.85rem; background: var(--bg); padding: 0.1em 0.35em; border-radius: 3px; }
+  .example-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 0.5rem 0;
+  }
+  .example-card .comment { font-family: monospace; font-size: 1rem; margin-bottom: 0.5rem; }
+  .example-card .reading { font-size: 0.85rem; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+  .color-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.3rem;
+  }
+  .print-btn {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.5rem;
+  }
+  .print-btn:hover { opacity: 0.9; }
+  footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>v4 Booth Metadata</h1>
+<p class="subtitle">Quick reference for reading rekordbox comments, colors, and tags</p>
+
+<div class="hero">
+  <span class="t-energy">E8</span>
+  <span class="t-inout">IN:32 OUT:16</span>
+  <span class="t-structure">Drop</span>
+  <span class="t-mood">Dark</span>
+  <span class="t-sep">·</span>
+  <span class="t-sub">MelTechno+DeepHouse</span>
+</div>
+
+<button class="print-btn no-print" onclick="window.print()">Print this guide</button>
+
+<h2>How to read a comment</h2>
+
+<p>Each comment is a left-to-right string of tokens. Every token is optional — if it's present, it means something. If it's absent, that data wasn't available.</p>
+
+<div class="grid">
+  <div class="token-card">
+    <h3><span class="t-energy">E1</span> – <span class="t-energy">E9</span></h3>
+    <p>Energy band. E1 = chill, E9 = peak energy. Ranked across the entire library so E5 is always your median.</p>
+  </div>
+  <div class="token-card">
+    <h3><span class="t-inout">IN:32 OUT:16</span></h3>
+    <p>Mix window in bars. <code>IN:32</code> = 32 bars of instrumental at the start you can blend over. <code>OUT:16</code> = 16 bars clean at the end.</p>
+  </div>
+  <div class="token-card">
+    <h3><span class="t-structure">Drop</span> / <span class="t-structure">Roll</span></h3>
+    <p><strong>Drop</strong> = build-and-release structure (big chorus). <strong>Roll</strong> = steady groove, no dramatic drops.</p>
+  </div>
+  <div class="token-card">
+    <h3><span class="t-mood">Hard</span> / <span class="t-mood">Soft</span></h3>
+    <p>Aggression relative to the track's own genre. Hard techno is <em>Hard</em>. A gentle techno track is <em>Soft</em> — for techno.</p>
+  </div>
+  <div class="token-card">
+    <h3><span class="t-mood">Dark</span> / <span class="t-mood">Euph</span></h3>
+    <p>Happiness relative to genre. <em>Dark</em> = bottom 20% of its genre family. <em>Euph</em> (euphoric) = top 20%.</p>
+  </div>
+  <div class="token-card">
+    <h3><span class="t-var">VAR</span></h3>
+    <p>Variable tempo. The BPM shifts enough that beatmatching may need riding. Rare (~4% of tracks).</p>
+  </div>
+  <div class="token-card">
+    <h3><span class="t-sep">·</span> <span class="t-sub">Subgenre</span></h3>
+    <p>After the dot: the secondary subgenre (what primary genre alone doesn't tell you). <code>+</code> adds a third genre when available.</p>
+  </div>
+  <div class="token-card">
+    <h3>Absent token</h3>
+    <p>A missing token means "not applicable" or "not enough data". No IN/OUT = no phrase analysis available. No mood word = middle of the pack.</p>
+  </div>
+</div>
+
+<h2>Real examples</h2>
+
+<div class="example-card">
+  <div class="comment"><span class="t-energy">E9</span> <span class="t-inout">IN:16 OUT:8</span> <span class="t-structure">Drop</span> <span class="t-mood">Hard Dark</span> <span class="t-sep">·</span> <span class="t-sub">PeakTechno</span></div>
+  <div class="reading">Peak energy, 16-bar intro, 8-bar outro, big drops, aggressive and dark for techno, peak-time techno subgenre. A closer — play this when you want the room at maximum.</div>
+</div>
+
+<div class="example-card">
+  <div class="comment"><span class="t-energy">E3</span> <span class="t-inout">IN:32 OUT:16</span> <span class="t-structure">Roll</span> <span class="t-mood">Soft Euph</span> <span class="t-sep">·</span> <span class="t-sub">DeepHouse</span></div>
+  <div class="reading">Low energy, long 32-bar intro, 16-bar outro, rolling groove (no drops), gentle and happy. A warm-up track with generous mix windows.</div>
+</div>
+
+<div class="example-card">
+  <div class="comment"><span class="t-energy">E7</span> <span class="t-inout">IN:8 OUT:8</span> <span class="t-structure">Drop</span> <span class="t-sep">·</span> <span class="t-sub">TechHouse+ProgHouse</span></div>
+  <div class="reading">High energy, short 8-bar mix windows (vocal-heavy?), drops, tech house with progressive house influences. Quick blends only.</div>
+</div>
+
+<div class="example-card">
+  <div class="comment"><span class="t-energy">E5</span> <span class="t-var">VAR</span></div>
+  <div class="reading">Mid energy, variable tempo — the grid drifts, so manual beatmatching or sync lock may need adjustment. No phrase data available.</div>
+</div>
+
+<h2 class="page-break">Track colors</h2>
+
+<p>Track color maps directly to energy band so you can scan a playlist by color:</p>
+
+<table>
+  <tr><th>Color</th><th>Energy</th><th>Vibe</th></tr>
+  <tr><td><span class="color-swatch" style="background:#4a90d9"></span>Blue</td><td>E1 – E2</td><td>Chill / warm-up</td></tr>
+  <tr><td><span class="color-swatch" style="background:#3dbeb5"></span>Aqua</td><td>E3</td><td>Easy groove</td></tr>
+  <tr><td><span class="color-swatch" style="background:#4caf50"></span>Green</td><td>E4 – E5</td><td>Mid energy</td></tr>
+  <tr><td><span class="color-swatch" style="background:#ffc107"></span>Yellow</td><td>E6</td><td>Building</td></tr>
+  <tr><td><span class="color-swatch" style="background:#ff9800"></span>Orange</td><td>E7 – E8</td><td>High energy</td></tr>
+  <tr><td><span class="color-swatch" style="background:#f44336"></span>Red</td><td>E9</td><td>Peak / closer</td></tr>
+  <tr><td><span class="color-swatch" style="background:#e91e8f"></span>Pink</td><td colspan="2"><em>Manual — your custom meaning</em></td></tr>
+  <tr><td><span class="color-swatch" style="background:#9c27b0"></span>Purple</td><td colspan="2"><em>Manual — your custom meaning</em></td></tr>
+</table>
+
+<h2>My Tags (XDJ-XZ Track Filter)</h2>
+
+<p>Three tag categories sync automatically for on-deck filtering:</p>
+
+<table>
+  <tr><th>Category</th><th>Tags</th><th>Meaning</th></tr>
+  <tr><td>Energy</td><td>Hard · Mid · Soft</td><td>Aggression relative to genre family</td></tr>
+  <tr><td>Mood</td><td>Dark · Neutral · Euph</td><td>Happiness relative to genre family</td></tr>
+  <tr><td>Tempo</td><td>VAR</td><td>Variable BPM — needs manual sync</td></tr>
+</table>
+
+<h2>IN/OUT bar counts</h2>
+
+<p>Bar counts tell you how much clean instrumental music is at the start and end of the track — your mix window. Always rounded <strong>down</strong> to a safe minimum.</p>
+
+<table>
+  <tr><th>Value</th><th>Duration at 128 BPM</th><th>What it means</th></tr>
+  <tr><td><code>IN:0</code></td><td>< 15 sec</td><td>No real intro — vocals or melody start immediately</td></tr>
+  <tr><td><code>IN:8</code></td><td>~15 sec</td><td>Short intro — quick blend or hard cut</td></tr>
+  <tr><td><code>IN:16</code></td><td>~30 sec</td><td>Standard intro — comfortable mix</td></tr>
+  <tr><td><code>IN:32</code></td><td>~1 min</td><td>Long intro — full phrase blend possible</td></tr>
+  <tr><td><code>IN:64</code></td><td>~2 min</td><td>Extended intro — DJ-friendly edit</td></tr>
+</table>
+
+<h2>Subgenre abbreviations</h2>
+
+<table>
+  <tr><th>Abbreviation</th><th>Full name</th></tr>
+  <tr><td>TechHouse</td><td>Tech House</td></tr>
+  <tr><td>DeepHouse</td><td>Deep House</td></tr>
+  <tr><td>MelTechno</td><td>Melodic Techno</td></tr>
+  <tr><td>PeakTechno</td><td>Peak-Time Techno</td></tr>
+  <tr><td>ProgHouse</td><td>Progressive House</td></tr>
+  <tr><td>DnB</td><td>Drum & Bass</td></tr>
+  <tr><td>HipHop</td><td>Hip-Hop</td></tr>
+  <tr><td>UKG</td><td>UK Garage</td></tr>
+  <tr><td>Psy</td><td>Psytrance</td></tr>
+  <tr><td>RnB</td><td>R&B</td></tr>
+  <tr><td>EDMBass</td><td>EDM / Bass</td></tr>
+  <tr><td>AltRock</td><td>Alternative Rock</td></tr>
+</table>
+
+<p style="color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem;">When two genres appear (e.g. <code>MelTechno+DeepHouse</code>), the first is the secondary genre and the second is the tertiary.</p>
+
+<footer>
+  megadj v4 booth metadata &middot; generated Oct 1 2026 &middot; <code>megadj rb-comment-sync</code>
+</footer>
+
+</body>
+</html>
