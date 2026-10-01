@@ -197,7 +197,9 @@ a 1280-dimensional effnet embedding vector for similarity matching:
 **Mood head thresholds:** A head fires when its score ≥ 0.5. The five heads
 are `Party`, `Dance`, `Electronic`, `Aggro`, `Happy`.
 
-**Energy 2.0 formula** (code: `pipeline-stages.ts`):
+**Energy 2.0 formula** (code: `pipeline-stages.ts`, **still production** — v3.1 pipeline
+shipped Oct 1 but Phase 4 switchover not yet done; see
+[energy-v3-plan-2026-10-01.md](energy-v3-plan-2026-10-01.md)):
 
 ```
   rms       = energyFromLufs(measureRms(file))           # RMS → 1–10

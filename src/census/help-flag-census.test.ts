@@ -97,9 +97,9 @@ function flagsFromBody(body: string, into: ArmFlags): void {
     const inside = call[1] ?? "";
     const lists = [...inside.matchAll(/\[([^\][]*)\]/g)].map((m) => m[1] ?? "");
     if (lists.length < 2) continue; // never a flags-call shape
-    for (const s of (lists[0] ?? "").matchAll(/"([a-z][a-z-]+)"/g))
+    for (const s of (lists[0] ?? "").matchAll(/"([a-z][a-z0-9-]+)"/g))
       if (s[1]) into.strings.add(s[1]);
-    for (const b of (lists[1] ?? "").matchAll(/"([a-z][a-z-]+)"/g))
+    for (const b of (lists[1] ?? "").matchAll(/"([a-z][a-z0-9-]+)"/g))
       if (b[1]) into.bools.add(b[1]);
   }
   // positionalArgs/firstPositional carry MORE stringOpts (the same list
@@ -268,7 +268,7 @@ describe("help-flag census (audit gap G1: help can't lie about flags)", () => {
     const problems: string[] = [];
     for (const { name, block } of entries) {
       const helpText = block.join(" ");
-      const advertised = [...helpText.matchAll(/--([a-z][a-z-]+)/g)].map(
+      const advertised = [...helpText.matchAll(/--([a-z][a-z0-9-]+)/g)].map(
         (m) => m[1] ?? "",
       );
       for (const flag of advertised) {

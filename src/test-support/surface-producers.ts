@@ -37,6 +37,8 @@ export function megadjCommands(): string[] {
   for (const f of [
     "src/shelf/cli-commands.ts",
     "src/rekordbox/cli-commands.ts",
+    "src/fulltags/cli/cli-commands.ts",
+    "src/getdat/cli-commands.ts",
   ]) {
     const src = read(f).join("\n");
     for (const tbl of src.matchAll(

@@ -43,7 +43,7 @@
 | Key | 80.7% exact vs RB (88 tracks) | Exact %, MIREX weighted score | GiantSteps Key / GiantSteps+ (external), rekordbox (reference) | `bench run key` |
 | Genre L2 (family) | 57.0 / 66.6% agreement vs ladder | Accuracy @ coverage curve; coverage @ 90% precision; macro-F1; confusion | Verified-store silver (leave-source-out), agent silver, your binary disputes | `bench run genre-l2` |
 | Genre L3 (subgenre) | *(not measured)* | Top-1 / top-3; calibration error (ECE) | Verified-store subgenres, agent silver | `bench run genre-l3` |
-| Energy | avg 8.5 (saturated) | Decile spread; genre-family separation; arousal/BPM/RMS independence | Multi-feature composite (z-score normalized, 8 signals, no manual labels — see `energy-v3-plan-2026-10-01.md`) | `bench run energy` |
+| Energy | avg 8.5 (saturated) | Decile spread; genre-family separation; arousal/BPM/RMS independence | ✅ Multi-tier composite (rank-normalized, 12 signals in 5 blocs, E1–E9 bands, no manual labels — see `energy-v3-plan-2026-10-01.md`). Core shipped Oct 1; production switchover pending. | `bench run energy` |
 | Mood heads | 5 heads, ≥0.5 fires | Fire rate per head; information (entropy) | Distribution check (no key needed) | `bench run mood` |
 | Structure / cues | Coverage only | Boundary F-measure ±1 bar; first-drop hit rate | EDM-98, rekordbox PSSI (weak), your drop checks | `bench run structure` |
 | Similarity | Coherence 0.362 (vs noisy labels) | Triplet accuracy; hubness skew; family coherence | Your triplets, verified-store silver | `bench run similarity` |
@@ -277,11 +277,14 @@ Effort: S < 1 day · M 1–3 days · L > 3 days. IDs are proposed GitHub issue t
 | **[B6.4](https://github.com/webuildstuffio/megadj/issues/382)** AK4 agent silver | Agent job with web search, schema'd packet (claims + URLs + confidence), cached; 20-row spot-check UI | 300 rows; spot-check agreement recorded |
 | **[B6.5](https://github.com/webuildstuffio/megadj/issues/383)** AK5 CrateDeck modes | Dispute / triplet / energy-pair pages; keyboard-driven; drop-start playback | 10-min sessions work on the XDJ-free laptop flow |
 
-### WS7 — Energy v3 (S–M) · *see `energy-v3-plan-2026-10-01.md`*
+### WS7 — Energy v3.1 (S–M) · ✅ Core pipeline shipped Oct 1 · *see `energy-v3-plan-2026-10-01.md`*
 
 **Superseded:** the pairwise-label approach (B7.2 Bradley–Terry) is replaced
-by a multi-feature composite with z-score normalization that needs NO manual
-labels. Full design in `docs/fulltags/energy-v3-plan-2026-10-01.md`.
+by a multi-tier composite with rank normalization (library percentiles) that
+needs NO manual labels. Full design in `docs/fulltags/energy-v3-plan-2026-10-01.md`.
+Shipped: schema + extractor + bloc scoring + 6 validation gates + CLI
+(`megadj energy`, `megadj energy-why`). Remaining: Phase 4 production
+switchover + Phase 5 bench verification.
 
 | Ticket | Scope | Acceptance |
 |---|---|---|

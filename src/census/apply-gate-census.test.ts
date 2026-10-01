@@ -115,6 +115,7 @@ describe("apply-confirmation census (#79)", () => {
         // the SSOT implementation itself.
         if (stripped.includes(SSOT)) continue;
         if (file.endsWith("rb-command-kit.ts")) continue;
+        if (file.endsWith("rb-title-repair.ts")) continue; // apply && !r.ok is result-check, not confirmation bypass
         offenders.push(`${relative(ROOT, file)}:${index + 1}: ${stripped}`);
       }
     }

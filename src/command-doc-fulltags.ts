@@ -204,6 +204,26 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "energy",
+    group: "fulltags",
+    block: [
+      "  megadj energy  [--phase0] [--extract] [--freeze] [--score] [--gates] [--full] [--shadow] [--json]",
+      "                                               energy v3.1 pipeline: 12-signal multi-tier composite",
+      "                                               (DSP + effnet heads), bloc-based rank normalization, E1–E9 bands;",
+      "                                               --extract downloads ONNX models + shows extractor instructions;",
+      "                                               --full runs phase0+freeze+score+gates+shadow in sequence;",
+      "                                               --shadow diffs biggest movers vs Energy 2.0",
+    ],
+  },
+  {
+    name: "energy-why",
+    group: "fulltags",
+    block: [
+      "  megadj energy-why <video_id>                 per-track energy bloc breakdown: Tier A (DSP) + Tier B (pretrained),",
+      "                                               drop section, confidence, preset, all 12 signals",
+    ],
+  },
+  {
     name: "regate",
     group: "fulltags",
     block: [

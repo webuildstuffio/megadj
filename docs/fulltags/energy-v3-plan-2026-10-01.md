@@ -1,6 +1,15 @@
 # Energy v3.1 — Multi-Tier Composite, Label-Free, Training-Free
 
-**Status:** 🧭 PLAN OF RECORD — Oct 1 2026 (rev 2)
+**Status:** ✅ SHIPPED (core pipeline) — Oct 1 2026
+- DB schema + feature extractor: `energy-features.ts` (inline Python, 12 signals, 6 ONNX models)
+- Bloc scoring + rank normalization: `energy-composite.ts` (5 blocs, 4 weight presets, E1–E9)
+- Validation gates: `energy-validate.ts` (6 non-circular gates)
+- CLI: `megadj energy --phase0|--extract|--freeze|--score|--gates|--full|--shadow|--json`
+- CLI: `megadj energy-why <video_id>` (per-track bloc breakdown)
+- Test coverage: 80 tests, 1527 assertions (energy-features + energy-composite + energy-validate)
+- **Not yet shipped:** Phase 4 switchover (`--apply`, pipeline-stages.ts swap, comment-sync
+  update), Phase 5 bench verification. Production `tracks.energy` still runs Energy 2.0.
+
 **Supersedes:** v3 rev 1 (single hand-weighted formula), v3 landscape §5
 (pairwise-calibrated model requiring ~200 manual judgments)
 **Root cause:** Energy 2.0 saturates because 50% of the weight is RMS loudness,
@@ -134,10 +143,12 @@ barely varies), it is **excluded and logged**. This rule is what would have
 caught danceability stuck at 0.98 in Energy 2.0.
 
 ```python
-def is_dead_signal(values: list[float], iqr_threshold: float = 0.05) -> bool:
+def is_dead_signal(values: list[float], iqr_threshold: float = 0.02) -> bool:
     q25, q75 = np.percentile(values, [25, 75])
     return (q75 - q25) < iqr_threshold
 ```
+
+(Shipped as `IQR_DEAD_THRESHOLD = 0.02` in `energy-composite.ts`.)
 
 ### 4.2 Bloc Structure
 
