@@ -85,9 +85,17 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 
   console.log(`energy: ${n} tracks with features`);
 
+  const needsFreeze = doPhase0 || doFreeze || doScore || doGates || doShadow;
+  if (!needsFreeze) {
+    console.log(
+      "usage: megadj energy --full | --phase0 | --extract | --freeze | --score | --gates | --shadow",
+    );
+    return;
+  }
+  const frozen = freezeSignals(rows);
+
   // Phase 0: diagnostics
   if (doPhase0) {
-    const frozen = freezeSignals(rows);
     console.log(
       `phase0: ${Object.keys(frozen.values).length} live signals, ${frozen.deadSignals.length} dead`,
     );
@@ -98,7 +106,6 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 
   // Freeze + Score
   if (doFreeze || doScore) {
-    const frozen = freezeSignals(rows);
     console.log(`freeze: ${Object.keys(frozen.values).length} live signals`);
 
     const presetResults: {
@@ -197,7 +204,6 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 
   // Gates (standalone)
   if (doGates && !doFreeze && !doScore) {
-    const frozen = freezeSignals(rows);
     const preset = WEIGHT_PRESETS[1]!;
     const scored = scoreAll(rows, frozen, preset);
     const gateResults: GateResult[] = [
@@ -215,7 +221,6 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 
   // Shadow: biggest movers vs Energy 2.0
   if (doShadow) {
-    const frozen = freezeSignals(rows);
     const preset = WEIGHT_PRESETS[1]!;
     const scored = scoreAll(rows, frozen, preset);
 
@@ -241,7 +246,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
     for (const t of scored) {
       const old = oldMap.get(t.videoId);
       if (old?.energy !== undefined && old.energy !== null) {
-        const oldBand = Math.max(1, Math.min(10, Math.round(old.energy)));
+        const oldBand = Math.max(1, Math.min(9, Math.round(old.energy)));
         const delta = Math.abs(t.band - oldBand);
         if (delta >= 2) {
           movers.push({
@@ -274,36 +279,69 @@ export async function energyWhy(
   const db = state.db;
   migrateEnergyTables(db);
 
+  interface WhyRow {
+    video_id: string;
+    onsets_per_beat: number | null;
+    bpm: number | null;
+    hf_energy_re_lufs: number | null;
+    low_energy_re_lufs: number | null;
+    crest_factor: number | null;
+    spectral_flux: number | null;
+    lufs_drop: number | null;
+    spectral_centroid: number | null;
+    aggressive: number | null;
+    engagement: number | null;
+    approachability: number | null;
+    arousal_drop: number | null;
+    drop_start_s: number | null;
+    drop_end_s: number | null;
+    drop_contrast_db: number | null;
+    composite_rank: number | null;
+    energy_band: number | null;
+    energy_confidence: string | null;
+    weight_preset: string | null;
+  }
+
   const row = db
-    .query(`SELECT * FROM energy_features WHERE video_id = ?`)
-    .get(videoId) as Record<string, unknown> | null;
+    .query(
+      `SELECT video_id, onsets_per_beat, bpm, hf_energy_re_lufs,
+              low_energy_re_lufs, crest_factor, spectral_flux, lufs_drop,
+              spectral_centroid, aggressive, engagement, approachability,
+              arousal_drop, drop_start_s, drop_end_s, drop_contrast_db,
+              composite_rank, energy_band, energy_confidence, weight_preset
+       FROM energy_features WHERE video_id = ?`,
+    )
+    .get(videoId) as WhyRow | null;
 
   if (row === null) {
     console.log(`energy-why: no features for ${videoId}`);
     return;
   }
 
+  const v = (n: number | null, unit = ""): string =>
+    n !== null ? `${n}${unit}` : "?";
+
   console.log(`energy-why: ${videoId}`);
   console.log(
-    `  band: E${row.energy_band ?? "?"} (composite: ${row.composite_rank ?? "?"})`,
+    `  band: E${row.energy_band ?? "?"} (composite: ${v(row.composite_rank)})`,
   );
   console.log(`  confidence: ${row.energy_confidence ?? "?"}`);
   console.log(`  preset: ${row.weight_preset ?? "?"}`);
   console.log(
-    `  drop: ${row.drop_start_s}s–${row.drop_end_s}s (contrast: ${row.drop_contrast_db} dB)`,
+    `  drop: ${v(row.drop_start_s, "s")}–${v(row.drop_end_s, "s")} (contrast: ${v(row.drop_contrast_db, " dB")})`,
   );
   console.log("  Tier A (DSP):");
-  console.log(`    onsets/beat: ${row.onsets_per_beat}`);
-  console.log(`    BPM: ${row.bpm}`);
-  console.log(`    HF energy re:LUFS: ${row.hf_energy_re_lufs} dB`);
-  console.log(`    low energy re:LUFS: ${row.low_energy_re_lufs} dB`);
-  console.log(`    crest factor: ${row.crest_factor}`);
-  console.log(`    spectral flux: ${row.spectral_flux}`);
-  console.log(`    LUFS (drop): ${row.lufs_drop}`);
-  console.log(`    spectral centroid: ${row.spectral_centroid} Hz`);
+  console.log(`    onsets/beat: ${v(row.onsets_per_beat)}`);
+  console.log(`    BPM: ${v(row.bpm)}`);
+  console.log(`    HF energy re:LUFS: ${v(row.hf_energy_re_lufs, " dB")}`);
+  console.log(`    low energy re:LUFS: ${v(row.low_energy_re_lufs, " dB")}`);
+  console.log(`    crest factor: ${v(row.crest_factor)}`);
+  console.log(`    spectral flux: ${v(row.spectral_flux)}`);
+  console.log(`    LUFS (drop): ${v(row.lufs_drop)}`);
+  console.log(`    spectral centroid: ${v(row.spectral_centroid, " Hz")}`);
   console.log("  Tier B (pretrained):");
-  console.log(`    aggressive: ${row.aggressive}`);
-  console.log(`    engagement: ${row.engagement}`);
-  console.log(`    approachability: ${row.approachability}`);
-  console.log(`    arousal (drop): ${row.arousal_drop}`);
+  console.log(`    aggressive: ${v(row.aggressive)}`);
+  console.log(`    engagement: ${v(row.engagement)}`);
+  console.log(`    approachability: ${v(row.approachability)}`);
+  console.log(`    arousal (drop): ${v(row.arousal_drop)}`);
 }

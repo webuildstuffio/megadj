@@ -57,7 +57,7 @@ function pearsonR(x: number[], y: number[]): number {
 function fractionalRanks(arr: readonly number[]): number[] {
   const indexed = arr.map((v, i) => ({ v, i }));
   indexed.sort((a, b) => a.v - b.v);
-  const ranks = Array.from<number>({ length: arr.length });
+  const ranks = Array.from({ length: arr.length }, () => 0);
   let i = 0;
   while (i < indexed.length) {
     let j = i;
@@ -147,9 +147,8 @@ export function gateBlocDominance(
 }
 
 function variance(arr: readonly number[]): number {
-  if (arr.length < 2) return 0;
-  const m = mean(arr);
-  return arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);
+  const s = stddev(arr);
+  return s * s;
 }
 
 // --------------- gate: not just BPM ---------------

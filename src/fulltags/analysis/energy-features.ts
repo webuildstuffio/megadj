@@ -400,14 +400,15 @@ for line in sys.stdin:
     line = line.strip()
     if not line:
         continue
+    path = "?"
     try:
         inp = json.loads(line)
+        path = inp.get("path", "?")
         features = extract_features(
-            inp["path"], inp["drop_start"], inp["drop_end"], inp["bpm"]
+            path, inp["drop_start"], inp["drop_end"], inp["bpm"]
         )
-        print(json.dumps({"path": inp["path"], "features": features}), flush=True)
+        print(json.dumps({"path": path, "features": features}), flush=True)
     except Exception as ex:
-        path = json.loads(line).get("path", "?") if line else "?"
         print(json.dumps({"path": path, "error": str(ex)[:200]}), flush=True)
 `;
 
@@ -464,24 +465,40 @@ export function getEnergyScript(): string {
   return ENERGY_SCRIPT;
 }
 
-/** Check that the new energy model ONNX heads are present. */
+/** All ONNX models the energy extractor needs. */
+const ENERGY_MODELS = [
+  "discogs-effnet-bsdynamic-1.onnx",
+  "audioset-vggish-3.onnx",
+  "mood_aggressive-discogs-effnet-1.onnx",
+  "engagement_regression-discogs-effnet-1.onnx",
+  "approachability_regression-discogs-effnet-1.onnx",
+  "emomusic-audioset-vggish-2.onnx",
+] as const;
+
+/** Check that all energy ONNX models are present. */
 export function energyModelsPresent(): boolean {
-  const required = [
-    "engagement_regression-discogs-effnet-1.onnx",
-    "approachability_regression-discogs-effnet-1.onnx",
-  ];
-  return required.every((f) => existsSync(`${MODEL_DIR}/${f}`));
+  return ENERGY_MODELS.every((f) => existsSync(`${MODEL_DIR}/${f}`));
 }
 
 /** Download any missing energy-specific models. Returns filenames fetched. */
 export async function energyModelsEnsure(): Promise<string[]> {
   const MODEL_BASE = "https://essentia.upf.edu/models";
   const heads: Record<string, string> = {
+    "discogs-effnet-bsdynamic-1.onnx":
+      "feature-extractors/discogs-effnet/discogs-effnet-bsdynamic-1.onnx",
+    "audioset-vggish-3.onnx":
+      "feature-extractors/vggish/audioset-vggish-3.onnx",
+    "mood_aggressive-discogs-effnet-1.onnx":
+      "classification-heads/mood_aggressive/mood_aggressive-discogs-effnet-1.onnx",
     "engagement_regression-discogs-effnet-1.onnx":
       "classification-heads/engagement/engagement_regression-discogs-effnet-1.onnx",
     "approachability_regression-discogs-effnet-1.onnx":
       "classification-heads/approachability/approachability_regression-discogs-effnet-1.onnx",
+    "emomusic-audioset-vggish-2.onnx":
+      "classification-heads/emomusic/emomusic-audioset-vggish-2.onnx",
   };
+  const { mkdirSync } = await import("node:fs");
+  mkdirSync(MODEL_DIR, { recursive: true });
   const fetched: string[] = [];
   for (const [filename, urlPath] of Object.entries(heads)) {
     const dest = `${MODEL_DIR}/${filename}`;

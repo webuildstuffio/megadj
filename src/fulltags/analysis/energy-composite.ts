@@ -33,7 +33,7 @@ export const SIGNAL_NAMES = [
 export type SignalName = (typeof SIGNAL_NAMES)[number];
 
 /** Bloc assignment: each signal belongs to exactly one bloc. */
-export const SIGNAL_BLOCS: Readonly<Record<SignalName, string>> = {
+export const SIGNAL_BLOCS: Readonly<Record<SignalName, BlocName>> = {
   onsetsPerBeat: "rhythm",
   bpm: "rhythm",
   hfEnergyReLufs: "brightness",
@@ -199,21 +199,25 @@ export function signalPercentiles(
 export function blocPercentiles(
   sigPcts: Readonly<Record<string, number>>,
 ): Record<BlocName, number> {
-  const blocs: Record<string, number[]> = {};
-  for (const name of BLOC_NAMES) blocs[name] = [];
+  const blocAccum = Object.fromEntries(
+    BLOC_NAMES.map((b) => [b, [] as number[]]),
+  ) as Record<BlocName, number[]>;
   for (const [sig, pct] of Object.entries(sigPcts)) {
     const bloc = SIGNAL_BLOCS[sig as SignalName];
-    if (bloc !== undefined) blocs[bloc]?.push(pct);
+    if (bloc !== undefined) blocAccum[bloc].push(pct);
   }
-  const result: Record<string, number> = {};
-  for (const name of BLOC_NAMES) {
-    const arr = blocs[name] ?? [];
-    result[name] =
-      arr.length > 0
-        ? round4(arr.reduce((a, b) => a + b, 0) / arr.length)
-        : 0.5;
-  }
-  return result as Record<BlocName, number>;
+  const result = Object.fromEntries(
+    BLOC_NAMES.map((name) => {
+      const arr = blocAccum[name];
+      return [
+        name,
+        arr.length > 0
+          ? round4(arr.reduce((a, b) => a + b, 0) / arr.length)
+          : 0.5,
+      ];
+    }),
+  ) as Record<BlocName, number>;
+  return result;
 }
 
 /** Compute composite score from bloc percentiles and a weight preset. */
