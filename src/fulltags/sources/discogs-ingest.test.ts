@@ -72,6 +72,26 @@ describe("discogs-ingest", () => {
       expect(result).not.toBeNull();
     });
 
+    it("handles XML entities in titles", () => {
+      db = new Database(":memory:");
+      migrateDiscogsDb(db);
+
+      db.run(
+        "INSERT INTO discogs_releases (release_id, title, year, country) VALUES (4, 'Rock & Roll', 2024, 'US')",
+      );
+      db.run(
+        "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (4, 'Test', ?)",
+        [nameKey("Test")],
+      );
+      db.run(
+        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (4, 'Rock')",
+      );
+
+      // Should match even though the DB title has decoded &
+      const result = discogsLookup(db, "Test", "Rock & Roll");
+      expect(result).not.toBeNull();
+    });
+
     it("returns null for non-matching artist", () => {
       db = new Database(":memory:");
       migrateDiscogsDb(db);

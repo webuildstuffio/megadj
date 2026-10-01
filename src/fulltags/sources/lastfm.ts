@@ -173,14 +173,15 @@ export async function lastfmGenreVote(
   };
 }
 
-/** Delay between Last.fm API calls. */
+/** Trailing-edge rate limiter: sleep until LASTFM_DELAY_MS after the
+ *  last call, then stamp. The stamp is set AFTER the sleep so concurrent
+ *  callers in the same event loop don't undercount the gap. */
 let lastLastfmCall = 0;
-export function lastfmDelay(): Promise<void> {
+export async function lastfmDelay(): Promise<void> {
   const now = Date.now();
   const wait = lastLastfmCall + LASTFM_DELAY_MS - now;
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
   lastLastfmCall = Date.now();
-  if (wait > 0) return new Promise((resolve) => setTimeout(resolve, wait));
-  return Promise.resolve();
 }
 
 /** Reset the in-process cache (tests). */

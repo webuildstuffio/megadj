@@ -293,7 +293,8 @@ export async function mbGenreForRecording(
     return { genre: recordingTagCache.get(key) ?? null, mbid: null };
   }
 
-  // Step 1: search recordings → get MBID
+  // Step 1: search recordings → get MBID (rate-limited)
+  await rateLimit();
   let recordings: MbRecording[] | null;
   try {
     recordings = await mbFetchRecordings(artist, title);

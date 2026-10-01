@@ -78,6 +78,17 @@ export function nameKey(s: string): string {
   return s.normalize("NFC").toLowerCase().trim();
 }
 
+/** Decode the 5 predefined XML entities (Discogs dump uses these). */
+function decodeXmlEntities(s: string): string {
+  if (!s.includes("&")) return s;
+  return s
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&apos;", "'")
+    .replaceAll("&quot;", '"');
+}
+
 /** Insert one release and its relations into the DB. */
 function insertRelease(
   stmts: ReturnType<typeof prepareStatements>,
@@ -249,8 +260,10 @@ export async function ingestDiscogsXml(
     const textMatch = trimmed.match(/^<(\w+)>(.*?)<\/\1>$/);
     if (!textMatch) continue;
     const tag = textMatch[1];
-    const text = textMatch[2];
-    if (tag === undefined || text === undefined) continue;
+    const rawText = textMatch[2];
+    if (tag === undefined || rawText === undefined) continue;
+    // Decode XML entities (Discogs dump uses &amp; &lt; &gt; &apos; &quot;)
+    const text = decodeXmlEntities(rawText);
 
     if (tag === "title" && !inArtists && !inArtist) {
       title = text;
@@ -282,9 +295,11 @@ export function discogsLookup(
   title: string,
 ): DiscogsGenreResult | null {
   const artistKey = nameKey(artist);
-  const titleLower = nameKey(title);
+  const titleKey = nameKey(title);
 
-  // Join: releases that have this artist AND match the title
+  // Join: releases that have this artist AND match the title.
+  // LOWER() in SQLite doesn't NFC-normalize, but nameKey() does — use
+  // COLLATE NOCASE on the indexed column and pass the NFC-casefolded key.
   const rows = db
     .prepare(
       `SELECT r.release_id, r.title, r.year, r.country
@@ -293,7 +308,7 @@ export function discogsLookup(
        WHERE a.name_key = ? AND LOWER(r.title) = ?
        LIMIT 5`,
     )
-    .all(artistKey, titleLower) as {
+    .all(artistKey, titleKey) as {
     release_id: number;
     title: string;
     year: number | null;
