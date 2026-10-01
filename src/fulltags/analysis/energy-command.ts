@@ -106,26 +106,23 @@ function buildExtractionQueue(db: Database): ExtractTrack[] {
   return queue;
 }
 
-/** Run the Python energy extractor over all queued tracks. */
-async function runEnergyExtraction(db: Database): Promise<void> {
-  const queue = buildExtractionQueue(db);
-  if (queue.length === 0) {
-    const existing = energyFeatureCount(db);
-    console.log(
-      `energy --extract: nothing to extract (${existing} features already stored)`,
-    );
-    return;
-  }
-  console.log(`energy --extract: ${queue.length} tracks to extract`);
+const JOBS = 3; // parallel Python workers
 
-  const script = getEnergyScript();
-  const { writeFileSync } = await import("node:fs");
-  const { join } = await import("node:path");
-  const scriptPath = join(
-    (await import("node:os")).tmpdir(),
-    `megadj-energy-extract-${process.pid}.py`,
-  );
-  writeFileSync(scriptPath, script);
+interface WorkerResult {
+  readonly extracted: number;
+  readonly failed: number;
+}
+
+/** Spawn one Python worker, feed it a slice of the queue, collect results. */
+async function runWorker(
+  workerIdx: number,
+  slice: readonly ExtractTrack[],
+  scriptPath: string,
+  videoIdByPath: ReadonlyMap<string, string>,
+  db: Database,
+  progress: { extracted: number; failed: number; total: number },
+  startMs: number,
+): Promise<WorkerResult> {
   const proc = Bun.spawn(
     ["uv", "run", "--with", "essentia,onnxruntime,numpy", "python", scriptPath],
     { stdin: "pipe", stdout: "pipe", stderr: "pipe" },
@@ -133,15 +130,11 @@ async function runEnergyExtraction(db: Database): Promise<void> {
   const enc = new TextEncoder();
   const lr = lineReader(proc.stdout as ReadableStream);
   const readLine = (timeoutMs: number) => lr.next(timeoutMs);
-
   let extracted = 0;
   let failed = 0;
-  const startMs = Date.now();
-
-  const videoIdByPath = new Map(queue.map((q) => [q.path, q.videoId]));
 
   try {
-    for (const t of queue) {
+    for (const t of slice) {
       const msg = JSON.stringify({
         path: t.path,
         drop_start: t.dropStart,
@@ -154,7 +147,7 @@ async function runEnergyExtraction(db: Database): Promise<void> {
       const line = await readLine(300_000);
       if (line === null) {
         console.error(
-          `energy --extract: timeout/EOF after ${extracted} extracted, ${failed} failed`,
+          `  worker ${workerIdx}: timeout/EOF after ${extracted}/${slice.length}`,
         );
         break;
       }
@@ -162,7 +155,8 @@ async function runEnergyExtraction(db: Database): Promise<void> {
       if (parsed === null) continue;
       if (parsed.error !== undefined) {
         failed++;
-        if (failed <= 10) {
+        progress.failed++;
+        if (progress.failed <= 10) {
           console.error(`  ✗ ${parsed.path.slice(-60)}: ${parsed.error}`);
         }
         continue;
@@ -173,10 +167,11 @@ async function runEnergyExtraction(db: Database): Promise<void> {
       const row = extractResultToRow(vid, parsed.features);
       upsertEnergyFeatures(db, row);
       extracted++;
-      if (extracted % 100 === 0) {
+      progress.extracted++;
+      if (progress.extracted % 100 === 0) {
         const elapsedS = ((Date.now() - startMs) / 1000).toFixed(0);
         console.log(
-          `  ${extracted}/${queue.length} extracted (${failed} failed, ${elapsedS}s)`,
+          `  ${progress.extracted}/${progress.total} extracted (${progress.failed} failed, ${elapsedS}s)`,
         );
       }
     }
@@ -185,13 +180,56 @@ async function runEnergyExtraction(db: Database): Promise<void> {
     try {
       proc.kill();
     } catch {
-      // Process exit can race cleanup
+      /* race */
     }
   }
+  return { extracted, failed };
+}
 
+/** Run the Python energy extractor over all queued tracks with parallel workers. */
+async function runEnergyExtraction(db: Database): Promise<void> {
+  const queue = buildExtractionQueue(db);
+  if (queue.length === 0) {
+    const existing = energyFeatureCount(db);
+    console.log(
+      `energy --extract: nothing to extract (${existing} features already stored)`,
+    );
+    return;
+  }
+  console.log(
+    `energy --extract: ${queue.length} tracks to extract (${JOBS} workers)`,
+  );
+
+  const script = getEnergyScript();
+  const { writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const scriptPath = join(
+    (await import("node:os")).tmpdir(),
+    `megadj-energy-extract-${process.pid}.py`,
+  );
+  writeFileSync(scriptPath, script);
+
+  const videoIdByPath = new Map(queue.map((q) => [q.path, q.videoId]));
+  const progress = { extracted: 0, failed: 0, total: queue.length };
+  const startMs = Date.now();
+
+  // Split queue into round-robin slices for workers
+  const slices: ExtractTrack[][] = Array.from({ length: JOBS }, () => []);
+  for (let i = 0; i < queue.length; i++) {
+    slices[i % JOBS]!.push(queue[i]!);
+  }
+
+  const results = await Promise.all(
+    slices.map((slice, idx) =>
+      runWorker(idx, slice, scriptPath, videoIdByPath, db, progress, startMs),
+    ),
+  );
+
+  const totalExtracted = results.reduce((s, r) => s + r.extracted, 0);
+  const totalFailed = results.reduce((s, r) => s + r.failed, 0);
   const elapsedS = ((Date.now() - startMs) / 1000).toFixed(1);
   console.log(
-    `energy --extract: done — ${extracted} extracted, ${failed} failed (${elapsedS}s)`,
+    `energy --extract: done — ${totalExtracted} extracted, ${totalFailed} failed (${elapsedS}s, ${JOBS} workers)`,
   );
 }
 

@@ -247,33 +247,30 @@ def chunks_of(frames, size):
 
 def extract_features(path, drop_start, drop_end, bpm):
     sr = 44100
-    # Load mono for DSP features
-    audio = MonoLoader(filename=path, sampleRate=sr, resampleQuality=4)()
+    # Load full file ONCE at 44.1kHz for DSP features + contrast
+    audio = MonoLoader(filename=path, sampleRate=sr, resampleQuality=1)()
     s = max(0, int(drop_start * sr))
     e = min(len(audio), int(drop_end * sr))
     if e - s < sr * 2:
         raise ValueError("drop section too short (< 2s)")
     drop_audio = audio[s:e]
 
-    # --- EBU R128 LUFS on drop (full signal for stereo) ---
+    # --- EBU R128 LUFS on drop (mono pseudo-stereo) ---
     try:
-        stereo, _, _, _, _, _ = AudioLoader(filename=path)()
-        drop_stereo = stereo[s:e]
         loudness = LoudnessEBUR128(sampleRate=sr)
-        integrated, _, _, _ = loudness(drop_stereo)
+        stereo = np.stack([drop_audio, drop_audio])
+        integrated, _, _, _ = loudness(stereo.T)
         lufs_drop = float(integrated)
     except Exception:
-        # Fallback to mono RMS-based estimate
         rms = np.sqrt(np.mean(drop_audio ** 2))
         lufs_drop = float(20 * np.log10(rms + 1e-10))
 
-    # LUFS-normalize the drop to -14 LUFS before spectral features
     target_lufs = -14.0
     gain_db = target_lufs - lufs_drop
     gain_linear = 10 ** (gain_db / 20.0)
     norm_audio = drop_audio * gain_linear
 
-    # --- Spectral features (frame → window → spectrum → band) ---
+    # --- Spectral features ---
     frame_size = 2048
     hop_size = 1024
     windowing = Windowing(type="hann", size=frame_size)
@@ -297,21 +294,20 @@ def extract_features(path, drop_start, drop_end, bpm):
 
     mean_hf = np.mean(hf_energies) if hf_energies else 0
     mean_low = np.mean(low_energies) if low_energies else 0
-    # Express as dB above the normalized LUFS level
     hf_energy_re_lufs = float(10 * np.log10(mean_hf + 1e-10) - target_lufs)
     low_energy_re_lufs = float(10 * np.log10(mean_low + 1e-10) - target_lufs)
     spectral_centroid = float(np.mean(centroids)) if centroids else 0
     spectral_flux = float(np.mean(fluxes)) if fluxes else 0
 
-    # --- Dynamic complexity (inverted = crest factor) ---
+    # --- Dynamic complexity ---
     dc, _ = DynamicComplexity(sampleRate=sr)(drop_audio)
-    crest_factor = float(-dc)  # inverted: low dynamics = high energy
+    crest_factor = float(-dc)
 
-    # --- Onset density (onsets per beat) ---
+    # --- Onset density ---
     _, onset_rate = OnsetRate()(drop_audio)
     onsets_per_beat = float(onset_rate / (bpm / 60.0)) if bpm > 0 else 0
 
-    # --- Drop contrast (dB) ---
+    # --- Drop contrast vs pre-drop section ---
     rest_audio = np.concatenate([audio[:s], audio[e:]]) if s > 0 or e < len(audio) else np.array([])
     if len(rest_audio) > sr:
         rest_rms = np.sqrt(np.mean(rest_audio ** 2))
@@ -321,57 +317,56 @@ def extract_features(path, drop_start, drop_end, bpm):
         drop_contrast_db = 0.0
     low_drop_contrast = drop_contrast_db < 3.0
 
-    # --- Tier B: effnet heads on drop section ---
+    # Free full-size 44.1k array early
+    del audio, norm_audio
+
+    # --- Tier B: load 16kHz ONCE for both ONNX towers ---
     aggressive_score = 0.0
     engagement_score = 0.0
     approachability_score = 0.0
     arousal_drop_score = 5.0
 
-    if effnet is not None:
-        drop16k = MonoLoader(filename=path, sampleRate=16000, resampleQuality=4)()
-        s16 = max(0, int(drop_start * 16000))
-        e16 = min(len(drop16k), int(drop_end * 16000))
-        drop_16k = drop16k[s16:e16]
-        if len(drop_16k) >= 16000 * 2:
-            mel = TensorflowInputMusiCNN()
-            frames_16k = np.asarray(
-                [mel(f) for f in FrameGenerator(drop_16k, frameSize=512, hopSize=256)],
-                dtype=np.float32
-            )
-            batch = chunks_of(frames_16k, 128)
-            if batch.shape[0] > 0:
-                emb = effnet.run(["embeddings"], {"melspectrogram": batch})[0]
-                emb1280 = emb.mean(axis=0).astype(np.float32)[np.newaxis, :]
-                if aggr_sess is not None:
-                    act = aggr_sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
-                    aggressive_score = float(act[0])
-                if eng_sess is not None:
-                    act = eng_sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
-                    engagement_score = float(act[0])
-                if appr_sess is not None:
-                    act = appr_sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
-                    approachability_score = float(act[0])
+    audio_16k = MonoLoader(filename=path, sampleRate=16000, resampleQuality=0)()
+    s16 = max(0, int(drop_start * 16000))
+    e16 = min(len(audio_16k), int(drop_end * 16000))
+    drop_16k = audio_16k[s16:e16]
+    del audio_16k
 
-    # Arousal on drop (vggish tower)
-    if vggish_sess is not None and emo_sess is not None:
+    if effnet is not None and len(drop_16k) >= 16000 * 2:
+        mel = TensorflowInputMusiCNN()
+        frames_16k = np.asarray(
+            [mel(f) for f in FrameGenerator(drop_16k, frameSize=512, hopSize=256)],
+            dtype=np.float32
+        )
+        batch = chunks_of(frames_16k, 128)
+        if batch.shape[0] > 0:
+            emb = effnet.run(["embeddings"], {"melspectrogram": batch})[0]
+            emb1280 = emb.mean(axis=0).astype(np.float32)[np.newaxis, :]
+            if aggr_sess is not None:
+                act = aggr_sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
+                aggressive_score = float(act[0])
+            if eng_sess is not None:
+                act = eng_sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
+                engagement_score = float(act[0])
+            if appr_sess is not None:
+                act = appr_sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
+                approachability_score = float(act[0])
+
+    # Arousal on drop (vggish tower — reuses drop_16k)
+    if vggish_sess is not None and emo_sess is not None and len(drop_16k) >= 16000 * 2:
         from essentia.standard import TensorflowInputVGGish
-        drop16k_v = MonoLoader(filename=path, sampleRate=16000, resampleQuality=4)()
-        s16 = max(0, int(drop_start * 16000))
-        e16 = min(len(drop16k_v), int(drop_end * 16000))
-        drop_v = drop16k_v[s16:e16]
-        if len(drop_v) >= 16000 * 2:
-            melv = TensorflowInputVGGish()
-            fsv = np.asarray(
-                [melv(f) for f in FrameGenerator(drop_v, frameSize=400, hopSize=200)],
-                dtype=np.float32
-            )
-            pv = chunks_of(fsv, 96)
-            if pv.shape[0] > 0:
-                pv = pv.transpose(0, 2, 1)
-                vemb = vggish_sess.run(["embeddings"], {"melspectrogram": pv})[0]
-                v128 = vemb.mean(axis=0).astype(np.float32)[np.newaxis, :]
-                va = emo_sess.run(["activations"], {"embeddings": v128})[0].flatten()
-                arousal_drop_score = float(va[1])
+        melv = TensorflowInputVGGish()
+        fsv = np.asarray(
+            [melv(f) for f in FrameGenerator(drop_16k, frameSize=400, hopSize=200)],
+            dtype=np.float32
+        )
+        pv = chunks_of(fsv, 96)
+        if pv.shape[0] > 0:
+            pv = pv.transpose(0, 2, 1)
+            vemb = vggish_sess.run(["embeddings"], {"melspectrogram": pv})[0]
+            v128 = vemb.mean(axis=0).astype(np.float32)[np.newaxis, :]
+            va = emo_sess.run(["activations"], {"embeddings": v128})[0].flatten()
+            arousal_drop_score = float(va[1])
 
     return {
         "onsets_per_beat": round(onsets_per_beat, 3),
