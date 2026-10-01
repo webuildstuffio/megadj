@@ -294,8 +294,8 @@ All 3,807 master.db tracks carry v4 comments. Re-run via
 | **Track color** | ✅ shipped | Energy band → ColorID map; manual Pink/Purple preserved | 100% |
 | **My Tags** | ✅ shipped | Energy/Mood/Tempo categories with per-track assignments | 100% |
 | **IN/OUT** | ✅ shipped | PSSI phrase decode from `.EXT` files (XOR-unmasked) | 85.8% (3,613/4,211 EXT files have PSSI) |
+| **Drop/Roll** | ✅ shipped | PSSI phrase structure: CHORUS ≥8 bars = Drop, else Roll | Drop 97.5%, Roll 2.5% |
 | **VOX/HOOK** | ⏳ reserved | needs vocal stem separation — see plan below | 0% |
-| **Drop/Roll** | ⏳ reserved | needs structure classification — see plan below | 0% |
 
 ### Code
 
@@ -351,29 +351,19 @@ Tracks without PSSI get no IN/OUT tokens (honest gap).
 Consider a lighter alternative: vocal activity detection (VAD) models are much
 faster but less accurate. ~3–4 sessions for Demucs; ~1–2 for VAD.
 
-### Drop/Roll (track structure)
+### Drop/Roll (track structure) — ✅ SHIPPED
 
-**What we have today:**
+**Shipped Oct 1 2026 (`676eae59`).**
 
-- **`drop-energy.ts`** — already computes drop features: peak LUFS, mean LUFS
-  at the drop, `lufsContrast` (drop vs rest). Has `DropEnergyFeatures` interface.
-- **`section-classifier.ts`** — can identify CHORUS (= drop) and VERSE sections
-  from PSSI codes.
-- **`bar-features.ts`** — per-bar LUFS, onset density, low-band share, spectral
-  flux. No data stored yet (table doesn't exist in archive.db).
+`phraseDropRoll()` classifies structure directly from PSSI phrases:
+- **Drop** = at least one CHORUS section ≥ 8 bars (a real structural drop)
+- **Roll** = no qualifying drops, but ≥ 2 body (non-intro/outro) phrases
 
-**What's missing:**
+No lufsContrast or bar_features needed — the PSSI phrase types
+themselves encode rekordbox's structure analysis.
 
-- **Bar features batch run** — run the per-bar feature extraction for all tracks
-  and store in a new `bar_features` table.
-- **Drop/Roll classifier** — threshold on `lufsContrast`: high contrast (>6 dB)
-  = Drop; low contrast (<3 dB) + high onset density = Roll. Needs calibration
-  against a human-labeled sample (~50 tracks).
-- **Integration** — add to comment-sync.
-
-**Effort:** Medium. The analysis code exists, just needs storage + calibration.
-~2 sessions (blocked on bar_features batch, which needs PSSI or beat-grid
-aligned feature extraction).
+**Measured:** Drop 97.5%, Roll 2.5% across 3,613 tracks.
+Distribution makes sense for a dance music library.
 
 ### VAR (variable tempo)
 
@@ -467,7 +457,7 @@ aligned feature extraction).
 2. ~~**Track Color** — E band → ColorID~~  ✅ shipped Sep 30
 3. ~~**My Tags** — Energy/Mood/Tempo categories~~ ✅ shipped Sep 30
 4. ~~**IN/OUT** — PSSI phrase parse from .EXT files~~ ✅ shipped Oct 1
-5. **Drop/Roll** — needs bar_features + calibration (~2 sessions, PSSI data available)
+5. ~~**Drop/Roll** — PSSI phrase structure classification~~ ✅ shipped Oct 1
 6. **VOX/HOOK** — heaviest lift, Demucs batch (~3–4 sessions)
 
 ---
@@ -711,11 +701,7 @@ tuning is a read of one table rather than a debugging session.
    Filter. **Gate:** works, or My Tags drop to a rekordbox-only
    nice-to-have.
 
-2. **Drop/Roll** — bar_features batch for structure classification.
-   PSSI data now available from the IN/OUT work.
-   **Gate:** meets accuracy bar before entering the comment.
-
-3. **VOX/HOOK** — Demucs/VAD vocal stem separation batch.
+2. **VOX/HOOK** — Demucs/VAD vocal stem separation batch.
    **Gate:** meets accuracy bar before entering the comment.
 
 4. **Field test.** Export one USB with v4 comment, My Tags and color;
