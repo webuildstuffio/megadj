@@ -74,6 +74,14 @@ export interface RbCommentSyncResult {
   genreWritten: number;
   /** tracks without a matching archive.db genre (skipped) */
   genreSkipped: number;
+  /** track colors written from energy band */
+  colorWritten: number;
+  /** track colors skipped (manual Pink/Purple) */
+  colorSkipped: number;
+  /** My Tag assignments written */
+  mytagWritten: number;
+  /** ANLZ .EXT files loaded for IN/OUT bars */
+  anlzLoaded: number;
   appliedMode: boolean;
   backedUpTo: string | null;
   verify: { ok: boolean; detail: string };
@@ -127,6 +135,10 @@ async function rbCommentSyncWithRuntime(
       : { beatsAt: null, moodAt: null },
     genreWritten: 0,
     genreSkipped: 0,
+    colorWritten: 0,
+    colorSkipped: 0,
+    mytagWritten: 0,
+    anlzLoaded: 0,
     appliedMode: apply,
     backedUpTo: null,
     verify: { ok: false, detail: "not run" },
@@ -156,6 +168,10 @@ async function rbCommentSyncWithRuntime(
       : { beatsAt: null, moodAt: null },
     genreWritten: out.genreWritten,
     genreSkipped: out.genreSkipped,
+    colorWritten: out.colorWritten,
+    colorSkipped: out.colorSkipped,
+    mytagWritten: out.mytagWritten,
+    anlzLoaded: out.anlzLoaded,
     ...over,
     ok: true,
   });
@@ -309,6 +325,17 @@ export function printRbCommentSyncReport(
       log(
         `genre sync: ${body.genreWritten} genres written to master.db · ${body.genreSkipped} skipped (no archive match)`,
       );
+    }
+    if (body.colorWritten > 0 || body.colorSkipped > 0) {
+      log(
+        `color sync: ${body.colorWritten} colors written · ${body.colorSkipped} skipped (manual Pink/Purple)`,
+      );
+    }
+    if (body.mytagWritten > 0) {
+      log(`my tags: ${body.mytagWritten} tag assignments written`);
+    }
+    if (body.anlzLoaded > 0) {
+      log(`anlz: ${body.anlzLoaded} phrase files loaded for IN/OUT bars`);
     }
     if (body.appliedMode) {
       log(

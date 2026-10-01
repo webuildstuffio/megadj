@@ -58,7 +58,8 @@
         "src/fulltags/bench/discogs-400.ts",
         "src/fulltags/bench/edmformer.ts",
         "src/fulltags/bench/ak4-silver.ts",
-        "src/fulltags/analysis/bar-rerun.ts"
+        "src/fulltags/analysis/bar-rerun.ts",
+        "src/fulltags/analysis/section-bench.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [

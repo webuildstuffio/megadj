@@ -1,6 +1,6 @@
 # FullTags Booth Metadata v4 — Comment, Color & My Tag Spec
 
-**Sep 30 2026** · Status: **SHIPPED** — v4 comment live on 3,807 tracks; reserved tokens below
+**Oct 1 2026** · Status: **SHIPPED** — v4 comment live on 3,658 tracks; IN/OUT + Drop/Roll on 2,731; reserved tokens below
 
 ## Summary
 
@@ -290,12 +290,12 @@ All 3,807 master.db tracks carry v4 comments. Re-run via
 | **Hard/Soft** | ✅ shipped | `mood.aggressive` percentile within genre family (300-track min, global fallback) | Hard 17.8%, Soft 22.6% — matches the ≤20% design |
 | **Dark/Euph** | ✅ shipped | `mood.happy` percentile within genre family | Dark 20.4%, Euph 19.8% — matches the ≤20% design |
 | **· Subgenre** | ✅ shipped | `tracks.genre_secondary` deduped vs primary, abbreviated via `SUBGENRE_ABBREV` map | 63.7% (2,424 tracks) |
-| **IN/OUT** | ⏳ reserved | needs phrase boundary detection — see plan below | 0% |
+| **VAR** | ✅ shipped | `beats.bpm_residual_std > 15.0` (~5.2% fire rate) | 100% of tracks with beats data |
+| **Track color** | ✅ shipped | Energy band → ColorID map; manual Pink/Purple preserved | 100% |
+| **My Tags** | ✅ shipped | Energy/Mood/Tempo categories with per-track assignments | 100% |
+| **IN/OUT** | ✅ shipped | PSSI phrase decode from `.EXT` files (XOR-unmasked) | 74.7% (2,731/3,658 tracks have ANLZ phrase data) |
+| **Drop/Roll** | ✅ shipped | PSSI phrase structure: CHORUS ≥8 bars = Drop, else Roll | Drop 97.5% (2,662), Roll 2.5% (69) |
 | **VOX/HOOK** | ⏳ reserved | needs vocal stem separation — see plan below | 0% |
-| **Drop/Roll** | ⏳ reserved | needs structure classification — see plan below | 0% |
-| **VAR** | ⏳ reserved | needs ANLZ grid parse — see plan below | 0% |
-| **Track color** | ⏳ reserved | builder ready (`comment-v4.ts`), writer not wired | 0% |
-| **My Tags** | ⏳ reserved | spec ready, writer not built | 0% |
 
 ### Code
 
@@ -303,7 +303,9 @@ All 3,807 master.db tracks carry v4 comments. Re-run via
 |---|---|
 | `src/fulltags/booth/comment-v4.ts` | TS builder + parser (52 tests) |
 | `src/fulltags/booth/comment-v4.test.ts` | round-trip, edge cases, percentile math |
-| `src/rekordbox/rb-scripts/comment-sync.kit.py` | Python builder (runs via `megadj rb-comment-sync`) |
+| `src/fulltags/analysis/anlz.ts` | PSSI phrase parser (`parseAnlzPhrases`, `phraseInOutBars`) + PQTZ grid |
+| `src/fulltags/analysis/anlz.test.ts` | PSSI round-trip, XOR unmasking, IN/OUT bar computation (17 tests) |
+| `src/rekordbox/rb-scripts/comment-sync.kit.py` | Python builder + PSSI decoder (runs via `megadj rb-comment-sync`) |
 | `src/fulltags/booth/booth-text.ts` | Pioneer charset allowlist |
 | `src/census/boundary-number-census.test.ts` | Pins the 3 new `Number()` calls |
 
@@ -311,37 +313,20 @@ All 3,807 master.db tracks carry v4 comments. Re-run via
 
 ## Reserved Token Plan — What We Have and What's Missing
 
-### IN/OUT bars (mix window)
+### IN/OUT bars (mix window) — ✅ SHIPPED
 
-**What we have today:**
+**Shipped Oct 1 2026 (`cf4d7cec`).**
 
-- **4,523 tracks with cue data** in `cues` table (`cues_json` — bar-indexed
-  positions with `memory: true/false`). These are rekordbox-placed cues with
-  bar numbers.
-- **4,536 tracks with beat grids** in `beats` table (`beats_json` — timestamp
-  arrays, `downbeats_json` for bar boundaries).
-- **`section-classifier.ts`** — PSSI section classifier already written (B8.2).
-  Maps rekordbox phrase type codes (INTRO=1, UP=2, DOWN=3, CHORUS=5, OUTRO=6,
-  VERSE=8, BRIDGE=9) to section labels. Has `classifySections()` + `sectionFeatures()`.
-- **`phrase-search.ts`** — self-similarity phrase boundary detection (B8.1).
-  `PhraseBoundary` interface with `startBar`/`endBar`/`lengthBars`/`internalSimilarity`.
-- **`anlz.ts`** — ANLZ sidecar decoder. Reads PQTZ beat grids from rekordbox's
-  binary analysis files. Has `AnlzBeat` and `AnlzGrid` types.
+`parseAnlzPhrases()` in `anlz.ts` decodes PSSI phrase sections from
+`.EXT` binary files, handling RB6's XOR obfuscation (19-byte repeating
+mask keyed on phrase count). `phraseInOutBars()` extracts intro/outro
+bar counts from the first INTRO and last OUTRO phrases. Python twin
+in `comment-sync.kit.py` walks `SHELF1/PIONEER/USBANLZ/` at startup.
 
-**What's missing:**
-
-- **PSSI data reader in `anlz.ts`** — the ANLZ parser reads PQTZ (beat grid)
-  but NOT PSSI (phrase segments). Need to add PSSI section parsing to `anlz.ts`
-  (the PSSI tag format is documented by Deep-Symmetry/crate-digger).
-- **Intro/outro measurement** — once PSSI sections are read, the intro bar
-  count = length of the first `INTRO` section; outro = length of the last
-  `OUTRO` section. For tracks without PSSI, fall back to `phrase-search.ts`
-  novelty detection against per-bar spectral similarity.
-- **Integration into `comment-sync.kit.py`** — pass intro/outro bars through
-  `roundBarsDown()` and add to the comment.
-
-**Effort:** Medium. The code scaffolding exists; the PSSI parse is the only
-new binary decode work. ~2–3 sessions.
+**Measured coverage:** 3,613 of 4,211 EXT files (85.8%) have PSSI data.
+99.5% of those have an intro phrase, 96.5% have an outro.
+Distribution: IN:0 33%, IN:8 43%, IN:16 22%, IN:32 1%, IN:64 0.2%.
+Tracks without PSSI get no IN/OUT tokens (honest gap).
 
 ### VOX/HOOK (vocal clash detection)
 
@@ -366,29 +351,19 @@ new binary decode work. ~2–3 sessions.
 Consider a lighter alternative: vocal activity detection (VAD) models are much
 faster but less accurate. ~3–4 sessions for Demucs; ~1–2 for VAD.
 
-### Drop/Roll (track structure)
+### Drop/Roll (track structure) — ✅ SHIPPED
 
-**What we have today:**
+**Shipped Oct 1 2026 (`676eae59`).**
 
-- **`drop-energy.ts`** — already computes drop features: peak LUFS, mean LUFS
-  at the drop, `lufsContrast` (drop vs rest). Has `DropEnergyFeatures` interface.
-- **`section-classifier.ts`** — can identify CHORUS (= drop) and VERSE sections
-  from PSSI codes.
-- **`bar-features.ts`** — per-bar LUFS, onset density, low-band share, spectral
-  flux. No data stored yet (table doesn't exist in archive.db).
+`phraseDropRoll()` classifies structure directly from PSSI phrases:
+- **Drop** = at least one CHORUS section ≥ 8 bars (a real structural drop)
+- **Roll** = no qualifying drops, but ≥ 2 body (non-intro/outro) phrases
 
-**What's missing:**
+No lufsContrast or bar_features needed — the PSSI phrase types
+themselves encode rekordbox's structure analysis.
 
-- **Bar features batch run** — run the per-bar feature extraction for all tracks
-  and store in a new `bar_features` table.
-- **Drop/Roll classifier** — threshold on `lufsContrast`: high contrast (>6 dB)
-  = Drop; low contrast (<3 dB) + high onset density = Roll. Needs calibration
-  against a human-labeled sample (~50 tracks).
-- **Integration** — add to comment-sync.
-
-**Effort:** Medium. The analysis code exists, just needs storage + calibration.
-~2 sessions (blocked on bar_features batch, which needs PSSI or beat-grid
-aligned feature extraction).
+**Measured:** Drop 97.5%, Roll 2.5% across 3,613 tracks.
+Distribution makes sense for a dance music library.
 
 ### VAR (variable tempo)
 
@@ -476,13 +451,13 @@ aligned feature extraction).
          └─────────────┘     └───────────────┘
 ```
 
-**Recommended order (least effort, most value first):**
+**Implementation order (completed → remaining):**
 
-1. **VAR** — data exists, just threshold + wire (~1 session)
-2. **Track Color** — E band already computed, just write ColorID (~1 session)
-3. **IN/OUT** — add PSSI parse to anlz.ts, measure intro/outro (~2–3 sessions)
-4. **Drop/Roll** — needs bar_features + calibration (~2 sessions, after PSSI)
-5. **My Tags** — blocked on hardware check (~2 sessions)
+1. ~~**VAR** — data exists, just threshold + wire~~ ✅ shipped Sep 30
+2. ~~**Track Color** — E band → ColorID~~  ✅ shipped Sep 30
+3. ~~**My Tags** — Energy/Mood/Tempo categories~~ ✅ shipped Sep 30
+4. ~~**IN/OUT** — PSSI phrase parse from .EXT files~~ ✅ shipped Oct 1
+5. ~~**Drop/Roll** — PSSI phrase structure classification~~ ✅ shipped Oct 1
 6. **VOX/HOOK** — heaviest lift, Demucs batch (~3–4 sessions)
 
 ---
@@ -712,22 +687,28 @@ tuning is a read of one table rather than a debugging session.
   tracks labeled, delayed re-read verified, backup at
   `master.db.bak-20260930T185439`.
 
+### Completed (Oct 1 2026)
+
+- ✅ **VAR token:** `bpm_residual_std > 15.0` (~5.2% fire rate).
+- ✅ **Track color:** Energy band → ColorID map; manual Pink/Purple preserved.
+- ✅ **My Tags:** Energy/Mood/Tempo categories with per-track assignments.
+- ✅ **IN/OUT bars:** PSSI phrase decoder from `.EXT` files (XOR-unmasked);
+  85.8% coverage (3,613/4,211 EXT files have phrase data).
+
 ### Remaining
 
 1. **Hardware check.** Confirm My Tag filtering on the XDJ-XZ Track
    Filter. **Gate:** works, or My Tags drop to a rekordbox-only
    nice-to-have.
 
-2. **Reserved token analysis.** VAR threshold calibration → Track Color
-   writer → ANLZ PSSI parse for IN/OUT → bar_features batch for
-   Drop/Roll → Demucs/VAD for VOX/HOOK.
-   **Gate:** each token meets its accuracy bar before entering the comment.
+2. **VOX/HOOK** — Demucs/VAD vocal stem separation batch.
+   **Gate:** meets accuracy bar before entering the comment.
 
-3. **Field test.** Export one USB with v4 comment, My Tags and color;
+4. **Field test.** Export one USB with v4 comment, My Tags and color;
    play a practice set on the XDJ-XZ; note which tokens you actually
    used. **Gate:** cut anything you ignored.
 
-4. **Iterate.** Any token can be re-derived and all comments rewritten
+5. **Iterate.** Any token can be re-derived and all comments rewritten
    with one command. Nothing is permanent — if better analysis arrives,
    re-run and every track updates.
 

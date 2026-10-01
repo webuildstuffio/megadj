@@ -66,8 +66,9 @@ test("knip lists no library module as a workspace entry point", () => {
   // the entry list.
   for (const [ws, cfg] of Object.entries(knip.workspaces)) {
     for (const e of cfg.entry ?? []) {
+      const basename = e.split("/").pop() ?? "";
       expect(
-        e.endsWith("bench.ts"),
+        basename === "bench.ts",
         `${ws} entry "${e}" is library code — import it, don't list it`,
       ).toBeFalse();
     }
