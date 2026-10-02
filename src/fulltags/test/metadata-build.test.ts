@@ -2,33 +2,33 @@ import { describe, expect, test } from "bun:test";
 import { guessFromFreeText } from "../genre/genre-vocab";
 import {
   buildMetadata,
-  cleanTitle,
+  cleanYouTubeTitle,
   extractComposer,
   scInfoToYtdlpInfo,
 } from "../write/metadata-build";
 
-describe("cleanTitle", () => {
+describe("cleanYouTubeTitle", () => {
   test("strips official-audio noise", () => {
-    expect(cleanTitle("Let Her Go (Official Audio)")).toBe("Let Her Go");
-    expect(cleanTitle("P2 [Official Lyric Video]")).toBe("P2");
-    expect(cleanTitle("Fade Away (Official Video)")).toBe("Fade Away");
-    expect(cleanTitle("Used To (Official Visualizer)")).toBe("Used To");
+    expect(cleanYouTubeTitle("Let Her Go (Official Audio)")).toBe("Let Her Go");
+    expect(cleanYouTubeTitle("P2 [Official Lyric Video]")).toBe("P2");
+    expect(cleanYouTubeTitle("Fade Away (Official Video)")).toBe("Fade Away");
+    expect(cleanYouTubeTitle("Used To (Official Visualizer)")).toBe("Used To");
   });
 
   test("normalizes smart quotes and whitespace", () => {
-    expect(cleanTitle("Rich “And” Blind")).toBe('Rich "And" Blind');
-    expect(cleanTitle("too   many    spaces")).toBe("too many spaces");
+    expect(cleanYouTubeTitle("Rich “And” Blind")).toBe('Rich "And" Blind');
+    expect(cleanYouTubeTitle("too   many    spaces")).toBe("too many spaces");
   });
 
   test("keeps feat. formatting normalized", () => {
-    expect(cleanTitle("Go Dumb (feat. blackbear)")).toBe(
+    expect(cleanYouTubeTitle("Go Dumb (feat. blackbear)")).toBe(
       "Go Dumb (ft. blackbear)",
     );
   });
 
   test("handles null", () => {
-    expect(cleanTitle(null)).toBeNull();
-    expect(cleanTitle(undefined)).toBeNull();
+    expect(cleanYouTubeTitle(null)).toBeNull();
+    expect(cleanYouTubeTitle(undefined)).toBeNull();
   });
 });
 

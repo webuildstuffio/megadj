@@ -110,7 +110,9 @@ export function extractComposer(
 }
 
 /** Clean a YouTube video title into a plausible track title. */
-export function cleanTitle(raw: string | null | undefined): string | null {
+export function cleanYouTubeTitle(
+  raw: string | null | undefined,
+): string | null {
   if (!raw) return null;
   return raw
     .replace(
@@ -151,7 +153,7 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   // carries the name (yt-dlp/SC titles are "Artist - Track"; keeping the
   // prefix mints a contaminated Title in archive.db AND in file tags —
   // the #321 root cause). Clean first, then strip.
-  let title = cleanTitle(info.title) ?? info.title ?? null;
+  let title = cleanYouTubeTitle(info.title) ?? info.title ?? null;
   if (title !== null && artist !== null) {
     const split = splitArtistFromTitle(title);
     if (split !== null && split.artist.toLowerCase() === artist.toLowerCase()) {
