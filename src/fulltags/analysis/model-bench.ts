@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { genreFamily } from "../../core/similar";
 import { findDropCandidates } from "./drop-finder";
 import { round2 } from "../../shared/leaf/fmt";
+import { cosineSimilarity } from "../../shared/leaf/vector-space";
 
 const DB_PATH =
   process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
@@ -135,19 +136,6 @@ function loadSample(db: Database, sampleSize: number): SampleTrack[] {
 
 // ── kNN helpers ────────────────────────────────────────────────────────
 
-function cosine(a: number[], b: number[]): number {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i]! * b[i]!;
-    na += a[i]! * a[i]!;
-    nb += b[i]! * b[i]!;
-  }
-  const denom = Math.sqrt(na) * Math.sqrt(nb);
-  return denom > 0 ? dot / denom : 0;
-}
-
 function isZeroVec(v: number[]): boolean {
   return v.every((x) => x === 0);
 }
@@ -200,7 +188,7 @@ function looKnn(
         );
         let bestSim = -Infinity;
         for (const otherVec of otherEmbs) {
-          const sim = cosine(queryVec, otherVec);
+          const sim = cosineSimilarity(queryVec, otherVec);
           if (sim > bestSim) bestSim = sim;
         }
         if (bestSim > -Infinity) {
@@ -262,7 +250,7 @@ function retrievalPrecision(
       let bestSim = -Infinity;
       for (const queryVec of heldEmbs) {
         for (const otherVec of otherEmbs) {
-          const sim = cosine(queryVec, otherVec);
+          const sim = cosineSimilarity(queryVec, otherVec);
           if (sim > bestSim) bestSim = sim;
         }
       }
@@ -300,7 +288,7 @@ function cosineGap(
         (e): e is number[] => e !== null && !isZeroVec(e),
       );
       if (!eJ) continue;
-      const sim = cosine(eI, eJ);
+      const sim = cosineSimilarity(eI, eJ);
       if (tracks[i]!.family === tracks[j]!.family) {
         intraSims.push(sim);
       } else {
@@ -347,7 +335,7 @@ function silhouetteScore(
         (e): e is number[] => e !== null && !isZeroVec(e),
       );
       if (!other) continue;
-      const dist = 1 - cosine(emb, other);
+      const dist = 1 - cosineSimilarity(emb, other);
       const otherFamily = tracks[j]!.family;
       if (otherFamily === family) {
         intraDists.push(dist);
