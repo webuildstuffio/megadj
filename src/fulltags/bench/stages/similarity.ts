@@ -10,6 +10,7 @@
  */
 import type { Database } from "bun:sqlite";
 import { round4 } from "../../../shared/leaf/fmt";
+import { cosineSimilarity } from "../../../shared/leaf/vector-space";
 import { registerStage } from "../runner";
 import type { BenchRow, BenchSplit, StageResult } from "../types";
 
@@ -35,19 +36,6 @@ function parseVec(json: string): number[] | null {
   } catch {
     return null;
   }
-}
-
-function cosine(a: number[], b: number[]): number {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i]! * b[i]!;
-    na += a[i]! * a[i]!;
-    nb += b[i]! * b[i]!;
-  }
-  const denom = Math.sqrt(na) * Math.sqrt(nb);
-  return denom > 0 ? dot / denom : 0;
 }
 
 function runSimilarityStage(
@@ -101,7 +89,7 @@ function runSimilarityStage(
     const limit = Math.min(members.length, MAX_PAIRS);
     for (let i = 0; i < limit; i++) {
       for (let j = i + 1; j < Math.min(i + 10, limit); j++) {
-        intraSum += cosine(members[i]!.vec, members[j]!.vec);
+        intraSum += cosineSimilarity(members[i]!.vec, members[j]!.vec);
         intraN++;
       }
     }
@@ -113,7 +101,7 @@ function runSimilarityStage(
       const b = familyVecs.get(families[fj]!)!;
       const limit = Math.min(10, a.length, b.length);
       for (let i = 0; i < limit; i++) {
-        interSum += cosine(a[i]!.vec, b[i]!.vec);
+        interSum += cosineSimilarity(a[i]!.vec, b[i]!.vec);
         interN++;
       }
     }
