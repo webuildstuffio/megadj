@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
+import { nameKey } from "../shared/name-key";
 import { DupFpCache } from "./dupescan-shared";
 
 /**
@@ -9,9 +10,6 @@ import { DupFpCache } from "./dupescan-shared";
  * join through a normalized index (allRows) — a raw-key get missed on
  * virtually every path and silently starved the DB-vs-disk checks.
  */
-
-/** The name key rule the bridge joins through (#238): NFC + lowercase. */
-const nameKey = (p: string): string => p.normalize("NFC").toLowerCase();
 
 function rawKeyJoinWouldMiss(storedPath: string, rowPath: string): boolean {
   // The OLD buggy read: cache.get(nameKeyPath(row.folderPath), size)
