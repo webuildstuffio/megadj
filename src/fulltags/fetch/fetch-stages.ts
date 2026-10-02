@@ -136,7 +136,7 @@ function missingTagValues(
   artist: string | null,
 ): TagValues {
   const vals: TagValues = {};
-  if (!truth.title) vals.title = cleanTitle(r.title);
+  if (!truth.title) vals.title = stripJunkPrefix(r.title);
   if (!truth.artist && artist) vals.artist = artist;
   if (!truth.album && r.album) vals.album = r.album;
   if (!truth.genre && r.genre && r.genre !== "Music") vals.genre = r.genre;
@@ -145,7 +145,7 @@ function missingTagValues(
 
 /** Strip a composed junk prefix from a DB title ("UnknownArtist ·
  *  UnknownAlbum · real title" was baked in by the Sep 11 pool batch). */
-export function cleanTitle(raw: string): string {
+export function stripJunkPrefix(raw: string): string {
   return raw
     .replace(/^UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*/iu, "")
     .trim();
@@ -174,7 +174,7 @@ function refreshTrackRow(
   db.query(
     "UPDATE tracks SET title=?, artist=?, album=?, genre=? WHERE video_id=?",
   ).run(
-    vals.title ?? truth.title ?? cleanTitle(r.title),
+    vals.title ?? truth.title ?? stripJunkPrefix(r.title),
     vals.artist ?? junkArtist ?? cleanArtist(r.artist),
     vals.album ?? junkAlbum,
     vals.genre ?? truth.genre,
@@ -231,7 +231,7 @@ export async function fanOutBeatport(t: StageCtx): Promise<void> {
     artist: bpQueryArtist(t),
     title:
       splitArtistFromTitle(t.truth.title ?? t.row.title)?.track ??
-      cleanTitle(t.truth.title ?? t.row.title),
+      stripJunkPrefix(t.truth.title ?? t.row.title),
     durationS: t.durationS ?? undefined,
   });
 }
@@ -262,7 +262,7 @@ export async function fanOutBandcamp(
   if (t.dry || !(wantsBcGenre || wantsBcYear || wantsBcLabel)) return;
   t.bcBest = await bcSearch({
     artist: cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist),
-    title: cleanTitle(t.truth.title ?? t.row.title),
+    title: stripJunkPrefix(t.truth.title ?? t.row.title),
   });
 }
 
