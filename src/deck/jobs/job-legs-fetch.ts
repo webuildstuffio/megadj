@@ -2,12 +2,12 @@ import { fetchFeedPush, fetchFeedReset } from "../tools/fetch-feed";
 import {
   fetchArgs,
   finiteOf,
-  isRecord,
   parseFetchJobMount,
   parseFetchStart,
   parseFetchTask,
   safeJsonParse,
 } from "./job-legs-fetch-protocol";
+import { isRecord } from "../../shared/leaf/guards";
 import { megadjCliPath, splitIntakeStdout } from "./intake-run";
 import { drain, type JobLog, type JobTick } from "./job-runtime";
 import type { LegArgs } from "./job-legs-types";
