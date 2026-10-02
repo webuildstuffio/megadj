@@ -5,15 +5,12 @@
  */
 import { $ } from "bun";
 import { round1 } from "../../shared/leaf/fmt";
+import { isRecord } from "../../shared/leaf/guards";
 
 function finiteNumber(raw: string | undefined): number | null {
   if (!raw) return null;
   const value = Number(raw);
   return Number.isFinite(value) ? value : null;
-}
-
-function isRecord(item: unknown): item is Record<string, unknown> {
-  return item !== null && typeof item === "object" && !Array.isArray(item);
 }
 
 function stringField(

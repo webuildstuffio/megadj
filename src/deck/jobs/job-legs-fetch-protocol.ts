@@ -1,3 +1,5 @@
+import { isRecord } from "../../shared/leaf/guards";
+
 export interface FetchOptions {
   all?: boolean;
   only?: string;
@@ -12,10 +14,6 @@ export function safeJsonParse(line: string): unknown {
   } catch {
     return null;
   }
-}
-
-export function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 export function finiteOf(v: unknown): number | null {
