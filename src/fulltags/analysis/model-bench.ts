@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { genreFamily } from "../../core/similar";
 import { findDropCandidates } from "./drop-finder";
 import { round2 } from "../../shared/leaf/fmt";
+import { normalCdf } from "../../shared/leaf/stats";
 
 const DB_PATH =
   process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
@@ -418,19 +419,6 @@ function mcnemar(
   const chi2 = (Math.abs(bc - cb) - 1) ** 2 / n;
   const p = 1 - (2 * normalCdf(Math.sqrt(chi2)) - 1);
   return { chi2: round2(chi2), p, sig: p < 0.05 };
-}
-
-function normalCdf(x: number): number {
-  const z = Math.abs(x) / Math.SQRT2;
-  const t = 1.0 / (1.0 + 0.3275911 * z);
-  const y =
-    1.0 -
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
-      t +
-      0.254829592) *
-      t *
-      Math.exp(-z * z);
-  return x < 0 ? 0.5 * (1 - y) : 0.5 * (1 + y);
 }
 
 // ── Checkpoint/streaming helpers ──────────────────────────────────────
