@@ -7,7 +7,7 @@
 // no longer applies — the AST census is the measurer now); merged per #221.
 import type { Database } from "bun:sqlite";
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
-import { parseSnapshotJson } from "../shared/badges";
+import { decodeSnapshot } from "../shared/decode-snapshot";
 import { errMessage } from "../../shared/leaf/fmt";
 import { sanitizeVerifyReport } from "../verify/report";
 
@@ -49,15 +49,6 @@ function decodeVerifyReport(driveId: string, raw: string): VerifyReport | null {
     );
     return null;
   }
-}
-
-function decodeSnapshot(driveId: string, data: string): SnapshotData | null {
-  const parsed = parseSnapshotJson(data);
-  if (parsed.corrupt) {
-    console.error(`snapshot for drive ${driveId} is corrupt — skipping`);
-    return null;
-  }
-  return parsed.snap;
 }
 
 /** A snapshot blob minus `taken_at` — the field the setSnapshot dedupe
@@ -298,7 +289,7 @@ export class DriveStore {
       .all() as { drive_id: string; data_json: string }[];
     const out = new Map<string, SnapshotData>();
     for (const r of rows) {
-      const snapshot = decodeSnapshot(r.drive_id, r.data_json);
+      const snapshot = decodeSnapshot(r.data_json, r.drive_id);
       if (snapshot) out.set(r.drive_id, snapshot);
     }
     return out;
@@ -312,7 +303,7 @@ export class DriveStore {
         )
         .all(driveId) as { data_json: string }[]
     ).flatMap((r) => {
-      const snapshot = decodeSnapshot(driveId, r.data_json);
+      const snapshot = decodeSnapshot(r.data_json, driveId);
       return snapshot ? [snapshot] : [];
     });
   }
