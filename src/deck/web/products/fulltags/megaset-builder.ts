@@ -1,7 +1,5 @@
 import { useState } from "preact/hooks";
 import {
-  MEGASET_MINUTES_MAX,
-  MEGASET_MINUTES_MIN,
   MEGASET_PRESET_DEFS,
   clampMegasetPool,
   type ArchiveSearchHit,
@@ -9,6 +7,7 @@ import {
   type MegasetPresetDef,
 } from "../../../shared/types";
 import { errMessage } from "../../../../shared/leaf/fmt";
+import { minutesFrom } from "../shared";
 import { api } from "../../ui/toast";
 import { useFetched } from "../../ui/useFetched";
 import type { TrackPick } from "./TrackPickSearch";
@@ -50,19 +49,6 @@ function presetFrom(id: string): MegasetPresetDef {
   return (
     MEGASET_PRESET_DEFS.find((preset) => preset.id === id) ?? defaultPreset()
   );
-}
-
-function clampMinutes(raw: number): number {
-  return Number.isFinite(raw)
-    ? Math.min(
-        MEGASET_MINUTES_MAX,
-        Math.max(MEGASET_MINUTES_MIN, Math.round(raw)),
-      )
-    : 60;
-}
-
-function minutesFrom(input: string): number {
-  return input.trim() === "" ? 60 : clampMinutes(Number(input));
 }
 
 function poolLimitFrom(input: string): number | null {
