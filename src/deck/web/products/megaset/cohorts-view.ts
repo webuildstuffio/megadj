@@ -4,6 +4,7 @@
 // tool — one source of truth), renders the per-family warmup/peak plan.
 import { useState } from "preact/hooks";
 import { errMessage } from "../../../../shared/leaf/fmt";
+import { minutesFrom } from "../shared";
 import { api } from "../../ui/toast";
 
 /** One warmup-or-peak arm — mirrors deck/megaset/cohorts.ts CohortBuild. */
@@ -81,22 +82,10 @@ const initialState: CohortsState = {
   requestedMinutes: 60,
 };
 
-function clampMinutes(raw: number): number {
-  return Number.isFinite(raw)
-    ? Math.min(240, Math.max(10, Math.round(raw)))
-    : 60;
-}
-
-function minutesFrom(input: string): number {
-  return input.trim() === "" ? 60 : clampMinutes(Number(input));
-}
-
 export function useCohortsPlanner() {
   const [state, setState] = useState<CohortsState>(initialState);
   const [familiesInput, setFamiliesInput] = useState("");
   const [minutesInput, setMinutesInput] = useState("60");
-  // same conversion shape as megaset-builder's minutesFrom: the raw form
-  // value converts once and clampMinutes finite-checks the result
   const minutes = minutesFrom(minutesInput);
 
   const request = () => {
