@@ -17,10 +17,12 @@ import sqlite3
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools.lib.embedding import emb_effnet
 
 FloatArray = NDArray[np.float32]
 MODEL_DIR = Path.home() / ".local/share/fulltags-models"
@@ -28,42 +30,10 @@ EFFNET_PATH = MODEL_DIR / "discogs-effnet-bsdynamic-1.onnx"
 MODEL_TAG = "effnet-discogs-1280"
 
 
-def normalize(v: FloatArray) -> FloatArray:
-    n = float(np.linalg.norm(v))
-    return v / n if n > 1e-8 else v
-
-
-def frame_mel(audio: FloatArray, extractor: Any, frame_size: int, hop: int) -> FloatArray:
-    from essentia.standard import FrameGenerator  # type: ignore[import-not-found]
-
-    return np.asarray(
-        [extractor(f) for f in FrameGenerator(audio, frameSize=frame_size, hopSize=hop)],
-        dtype=np.float32,
-    )
-
-
-def chunks(frames: FloatArray, size: int) -> FloatArray:
-    n = (frames.shape[0] // size) * size
-    if n == 0:
-        return np.zeros((1, size, frames.shape[1]), dtype=np.float32)
-    return frames[:n].reshape(-1, size, frames.shape[1])
-
-
-def emb_effnet(a16k: FloatArray, sess: Any) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN
-
-    mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
-    batch = chunks(mel, 128)
-    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
-    return normalize(
-        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
-    )
-
-
 def load_audio_section(path: str, start: float, end: float) -> FloatArray | None:
     """Load audio section at 16kHz mono."""
     try:
-        from essentia.standard import MonoLoader
+        from essentia.standard import MonoLoader  # type: ignore[import-not-found]
 
         audio = MonoLoader(filename=path, sampleRate=16000)()
         s = int(start * 16000)

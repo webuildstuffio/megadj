@@ -39,6 +39,7 @@ import {
 } from "../rekordbox/rb-command-kit.js";
 import { masterDbPath } from "../rekordbox/master-path";
 import { errMessage as errorText } from "../shared/leaf/fmt";
+import { nameKey } from "../shared/name-key";
 import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
@@ -52,13 +53,6 @@ import { DB_PATH } from "../cli-env";
  * DB-seam checks then detect nothing (an honest gap, never a
  * half-read); the reason is surfaced once on the log channel.
  */
-/** The one comparison form for shelf paths (NFC + lowercase) — the same
- *  rule the DB-vs-disk checks inline; here it keys the fp-cache lookup
- *  for a dead row's previous on-disk tenant. */
-function nameKeyPath(p: string): string {
-  return p.normalize("NFC").toLowerCase();
-}
-
 /** The mirrored on-disk size of a master-DB row's file, from the rb-adopt
  *  mirror in archive.db (tracks.file_size_bytes keyed by exact path).
  *  The fp cache is size-keyed, so a stale size would silently miss — the
@@ -438,7 +432,7 @@ export async function shelfHygiene(
                 index = new Map();
                 for (const r of cache.allRows()) {
                   if (r.fingerprint === null) continue;
-                  const key = nameKeyPath(r.path);
+                  const key = nameKey(r.path);
                   let bySize = index.get(key);
                   if (bySize === undefined) {
                     bySize = new Map();
@@ -452,7 +446,7 @@ export async function shelfHygiene(
                 const size = rowFileSize(db, row);
                 if (size === null) return null;
                 const hit = ensureIndex()
-                  .get(nameKeyPath(row.folderPath))
+                  .get(nameKey(row.folderPath))
                   ?.get(size);
                 return hit ?? null;
               };

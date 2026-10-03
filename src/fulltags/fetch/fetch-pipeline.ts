@@ -46,7 +46,6 @@ import {
   queueArtless,
 } from "./fetch-ai-fallback";
 import {
-  cleanTitle,
   fanOutBandcamp,
   fanOutBeatport,
   fanOutSoundcloud,
@@ -55,6 +54,7 @@ import {
   stageGenreElection,
   stageGenreYear,
   stageTags,
+  stripJunkPrefix,
   type StageCtx,
   type Stats,
 } from "./fetch-stages";
@@ -239,10 +239,11 @@ async function processTask({
   progress,
 }: ProcessTaskInput): Promise<ProcessTaskResult> {
   const { row: r } = t;
-  const name = `${cleanArtist(r.artist) ?? "?"} - ${cleanTitle(r.title)}`.slice(
-    0,
-    56,
-  );
+  const name =
+    `${cleanArtist(r.artist) ?? "?"} - ${stripJunkPrefix(r.title)}`.slice(
+      0,
+      56,
+    );
   const notes: string[] = [];
   const stats = emptyStats();
   const aiGenreBatch: Row[] = [];

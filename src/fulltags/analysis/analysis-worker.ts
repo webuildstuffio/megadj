@@ -17,8 +17,8 @@
  *  - Handshake failure (env missing / slow load) returns null — callers
  *    keep their degrade-to-null contract.
  */
+import { parseJsonOrNull } from "../../shared/leaf/guards";
 import { lineReader } from "../utils/stdio";
-import { parseJsonObject } from "../utils/parse-json";
 
 /** Resolve the next stdout line matching `pred`, or null on timeout/EOF.
  * Deterministic: consumes a buffered line or awaits exactly one read(). */
@@ -120,7 +120,7 @@ export async function openWorkerSession<Req, Res>(
 /** Shared readiness predicate: an NDJSON line announcing
  *  `{"type":"ready"}` (guarded parse — noise lines never throw). */
 export function lineIsReady(line: string): boolean {
-  return parseJsonObject(line)?.type === "ready";
+  return parseJsonOrNull(line)?.type === "ready";
 }
 
 /** Shared request writer: one NDJSON line onto the worker's stdin. */
@@ -137,6 +137,6 @@ export function writeNdjsonRequest(
 /** Shared response-id predicate: the line parses as JSON and carries a
  *  non-empty string id (guarded parse — noise lines never throw). */
 export function lineHasRequestId(line: string): boolean {
-  const v = parseJsonObject(line);
+  const v = parseJsonOrNull(line);
   return typeof v?.id === "string" && v.id.length > 0;
 }

@@ -40,17 +40,11 @@ import {
 } from "../types";
 
 export type { DbContentRow } from "../types";
+import { nameKey } from "../../../shared/name-key";
 
 /** The prefix20 key length — aliased to rb-fix-paths' ladder constant
  *  (one truncation class, one key length). */
 export const PREFIX20_LEN = 20;
-
-/** The name key: NFC + lowercase (the ONE comparison form for shelf
- *  paths — src/shared/name-key.ts's rule, inlined to keep this module
- *  leaf-of-leaf like its sibling checks). */
-function nameKey(p: string): string {
-  return p.normalize("NFC").toLowerCase();
-}
 
 export const truncatedName: CheckDef = {
   kind: "truncated-name",

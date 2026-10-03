@@ -78,7 +78,7 @@ src/fulltags/
                          (all format gotchas live here)
   readers.ts             groundTruth / readFullTag — file-first reads
   media-probe.ts         bounded ffprobe/audio probing
-  metadata-build.ts      yt-dlp info → EnrichedMetadata (cleanTitle, credits)
+  metadata-build.ts      yt-dlp info → EnrichedMetadata (cleanYouTubeTitle, credits)
   identity.ts            MB recording lookup + the audit ground-truth row
   art-sources.ts         SC search + every artwork source (the art ladder)
   ai.ts                  OpenRouter genre/year fallback (conf ≥ 0.7)
