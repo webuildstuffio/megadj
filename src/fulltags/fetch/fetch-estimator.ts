@@ -94,25 +94,3 @@ export function runEstimatorBatch(db: Database): void {
     );
   }
 }
-
-/** Parse a stored genre_vector back to a Map (for display/query). */
-export function parseGenreVector(
-  raw: string | null,
-): ReadonlyMap<string, number> | null {
-  if (raw === null || raw === "") return null;
-  try {
-    const obj = JSON.parse(raw) as unknown;
-    if (typeof obj !== "object" || obj === null || Array.isArray(obj)) {
-      return null;
-    }
-    const map = new Map<string, number>();
-    for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
-      if (typeof val === "number" && Number.isFinite(val)) {
-        map.set(key, val);
-      }
-    }
-    return map.size > 0 ? map : null;
-  } catch {
-    return null;
-  }
-}
