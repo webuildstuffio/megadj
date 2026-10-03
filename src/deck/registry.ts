@@ -3,20 +3,11 @@ import { rmSync } from "node:fs";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Drive, SearchResult, SnapshotData } from "./shared/types";
-import { parseSnapshotJson } from "./shared/badges";
+import { decodeSnapshot } from "./shared/decode-snapshot";
 import { legacySyncVerdict } from "./report/report";
 import type { listMountedVolumes, MountedVolume } from "./detect/detect";
 
 export type Emit = (channel: string, data: unknown) => void;
-
-function decodeSnapshot(
-  raw: string | null,
-  label: string,
-): SnapshotData | null {
-  const parsed = parseSnapshotJson(raw);
-  if (parsed.corrupt) console.error(`${label} snapshot is corrupt`);
-  return parsed.snap;
-}
 
 /** The drive-row fields that come straight off a mounted volume — both
  * upsert paths (first-seen and reconcile) write this same projection. */
