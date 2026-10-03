@@ -11,7 +11,7 @@
 // Pure logic is exported for tests; the spawn lives in the Downloader.
 // Metadata-only SC reads (the genre/art/year ladders) stay in
 // fulltags/sources/sc-search.ts — this file never duplicates them.
-import { parseJsonObject } from "../fulltags/utils/parse-json";
+import { parseJsonOrNull } from "../shared/leaf/guards";
 
 /** The ledger `source` value for SoundCloud rows (tracks.source). */
 export const SC_SOURCE = "soundcloud";
@@ -378,7 +378,7 @@ export async function scRawTrackLinks(
   );
   if (body === null) return null;
   // The shared guarded parser (boundary-json census): corrupt body → null.
-  const parsed = parseJsonObject(body);
+  const parsed = parseJsonOrNull(body);
   if (parsed === null) return null;
   const raw = parsed as Record<string, unknown>;
   // Carry only the fields extractAcquisitionLinks reads — the caller

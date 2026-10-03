@@ -20,15 +20,19 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools.lib.embedding import (
+    chunks,
+    emb_effnet,
+    emb_musicnn,
+    frame_mel,
+    normalize,
+)
+
 FloatArray = NDArray[np.float32]
 
 MODEL_DIR = Path.home() / ".local/share/fulltags-models"
 TMP = Path("/tmp/emb-bench")
-
-
-def normalize(v: FloatArray) -> FloatArray:
-    n = float(np.linalg.norm(v))
-    return v / (n + 1e-9) if n > 0 else v
 
 
 def audio_section(path: str, start: float, end: float, rate: int = 16000) -> FloatArray:
@@ -46,54 +50,11 @@ def audio_section(path: str, start: float, end: float, rate: int = 16000) -> Flo
     return section
 
 
-def frame_mel(
-    a: FloatArray,
-    algo: Any,
-    frame_size: int,
-    hop: int,
-) -> FloatArray:
-    from essentia.standard import FrameGenerator
-
-    return np.asarray(
-        [algo(f) for f in FrameGenerator(a, frameSize=frame_size, hopSize=hop)],
-        dtype=np.float32,
-    )
-
-
-def chunks(frames: FloatArray, size: int) -> FloatArray:
-    n = (frames.shape[0] // size) * size
-    if n == 0:
-        return np.zeros((1, size, frames.shape[1]), dtype=np.float32)
-    return frames[:n].reshape(-1, size, frames.shape[1])
-
-
-def emb_effnet(a16k: FloatArray, sess: Any) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN
-
-    mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
-    batch = chunks(mel, 128)
-    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
-    return normalize(
-        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
-    )
-
-
 def emb_vggish(a16k: FloatArray, sess: Any) -> FloatArray:
     from essentia.standard import TensorflowInputVGGish
 
     mel = frame_mel(a16k, TensorflowInputVGGish(), 400, 200)
     batch = chunks(mel, 96).transpose(0, 2, 1)
-    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
-    return normalize(
-        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
-    )
-
-
-def emb_musicnn(a16k: FloatArray, sess: Any) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN
-
-    mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
-    batch = chunks(mel, 187)
     out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
     return normalize(
         np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)

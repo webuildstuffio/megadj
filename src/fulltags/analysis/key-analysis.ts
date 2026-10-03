@@ -8,7 +8,7 @@
  * before spending compute.
  */
 import { existsSync } from "node:fs";
-import { parseJsonObject } from "../utils/parse-json";
+import { parseJsonOrNull } from "../../shared/leaf/guards";
 import { lineReader } from "../utils/stdio";
 import { readUntilLine } from "./analysis-worker";
 import { keyscanDir } from "./fingerprint";
@@ -66,7 +66,7 @@ export async function analyzeKeys(
  *  lines (JSON.parse guarded — sanctioned resilience, returns false).
  *  The one implementation lives in analysis-worker.ts (#189). */
 const lineIsReady = (l: string): boolean =>
-  parseJsonObject(l)?.type === "ready";
+  parseJsonOrNull(l)?.type === "ready";
 
 /** Does this analyzer stdout line carry a response id? Tolerant of partial
  *  lines (JSON.parse guarded — sanctioned resilience, returns false).
@@ -85,7 +85,7 @@ export interface KeyServerLine {
 /** Guard the key-analyzer protocol boundary. Log/noise lines and malformed
  *  replies become an explicit null and are ignored by the line reader. */
 export function parseKeyServerLine(line: string): KeyServerLine | null {
-  const value = parseJsonObject(line);
+  const value = parseJsonOrNull(line);
   if (!value || typeof value.id !== "string" || value.id.length === 0)
     return null;
   return {

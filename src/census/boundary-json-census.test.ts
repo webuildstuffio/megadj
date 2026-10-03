@@ -47,9 +47,6 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     // #173 genre-vote breakdown: the vote ledger's explainability column;
     // corrupt JSON reads as an empty breakdown, never a throw into a query.
     "src/fulltags/genre/genre-vote.ts::parseVotes::JSON.parse(raw)",
-    // #447 genre probability vector: corrupt JSON reads as null (no vector);
-    // callers treat null as "no posterior available", never a throw.
-    "src/fulltags/fetch/fetch-estimator.ts::parseGenreVector::JSON.parse(raw)",
   ]),
   // rb-adopt mirror payload: the catch converts corrupt JSON into
   // "no RB row" (the mirrors then stand alone; rb-adopt re-adopt
@@ -99,8 +96,6 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "Model bench: parses Python subprocess stdout (own protocol); throws on corrupt output — bench cannot continue without embeddings, failure is visible.",
   "src/fulltags/analysis/energy-features.ts::parseExtractLine::JSON.parse(line)":
     "Energy extractor: parses one JSON line from Python DSP+ONNX subprocess; try/catch returns null on corrupt lines — caller skips, never throws.",
-  "src/fulltags/fetch/fetch-estimator.ts::parseGenreVector::JSON.parse(raw)":
-    "Dawid-Skene estimator: parses stored genre_vector JSON from DB; try/catch returns null on corrupt data — caller treats as absent, never throws.",
 };
 
 test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => {
@@ -252,10 +247,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // adds one sanctioned JSON.parse (try/catch returns null on corrupt
     // genre vectors — caller treats as absent, never throws);
     // audited 89→90, sanctioned 33→34, guarded unchanged.
-    audited: 90,
+    // Oct 3 (#475 main-CI repair): parseGenreVector removed — dead
+    // export since 0c3bb03d, no caller ever landed (knip/noUnusedLocals);
+    // its sanction retires with it: audited 90→89, sanctioned 34→33,
+    // guarded unchanged.
+    audited: 89,
     guarded: 56,
-    sanctioned: 34,
-    digest: "71dd0e5cfd739d868b1a3fbccdb22344a14ce9e0e52beae649fca44d5242c763",
+    sanctioned: 33,
+    digest: "affb081bb6b7fd92c31e292e196074300d7391a05d99d1a3a1ee10d7198ecea8",
   });
 });
 
