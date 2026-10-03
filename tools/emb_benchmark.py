@@ -34,6 +34,9 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools.lib.embedding import EFFNET_CHUNK, embed_musiconn  # noqa: E402
+
 FloatArray = NDArray[np.float32]
 
 ARCHIVE_DB = Path.home() / ".local/state/megadj/archive.db"
@@ -138,12 +141,7 @@ def run_embeddings(name: str, batch: FloatArray) -> FloatArray:
 
 
 def emb_effnet(path: str) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN
-
-    a = audio(path)
-    mel = frame_mel(a, TensorflowInputMusiCNN(), 512, 256)
-    batch = chunks(mel, 128)
-    return normalize(run_embeddings("effnet", batch).mean(axis=0))
+    return embed_musiconn(audio(path), sess(), chunk_size=EFFNET_CHUNK, pad_empty=False)
 
 
 def emb_openl3(path: str) -> FloatArray:
