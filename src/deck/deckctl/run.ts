@@ -6,18 +6,13 @@ import {
   resolveDrive,
   type Job,
 } from "../deckapi";
+import { fmtEta } from "../../shared/leaf/fmt";
 import { DRIVE_JOB_KINDS, type InterlockState } from "../shared/types";
 import { IS_TTY, JSON_MODE, emitJson, errOut, getJson, log } from "./runtime";
 
 function spinFrame(): string {
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   return frames[Math.floor(Date.now() / 80) % frames.length] ?? "⠋";
-}
-
-function fmtEta(seconds: number): string {
-  if (seconds < 90) return `${Math.round(seconds)}s`;
-  if (seconds < 5400) return `${Math.round(seconds / 60)}m`;
-  return `${(seconds / 3600).toFixed(1)}h`;
 }
 
 function clearLine(): void {
