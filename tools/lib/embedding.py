@@ -67,7 +67,7 @@ def embed_musiconn(
     chunk_size: int,
     pad_empty: bool = True,
 ) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN  # type: ignore[import-not-found]
+    from essentia.standard import TensorflowInputMusiCNN
 
     mel = frame_mel(a16k, TensorflowInputMusiCNN(), MUSICNN_FRAME_SIZE, MUSICNN_HOP)
     batch = chunks(mel, chunk_size, pad_empty=pad_empty)
