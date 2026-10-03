@@ -15,11 +15,12 @@ import {
 const v = (
   rung: GenreVote["rung"],
   genre: string,
+  weight?: number,
   detail?: string,
 ): GenreVote => ({
   rung,
   genre,
-  weight: GENRE_VOTE_WEIGHTS[rung],
+  weight: weight ?? GENRE_VOTE_WEIGHTS[rung],
   ...(detail !== undefined ? { detail } : {}),
 });
 
@@ -107,7 +108,7 @@ describe("electGenre", () => {
   });
 
   test("imprint-only votes elect the family (sole voice)", () => {
-    const r = electGenre([v("imprint", "techno", "Drumcode")]);
+    const r = electGenre([v("imprint", "techno", undefined, "Drumcode")]);
     expect(r.genre).toBe("techno");
     expect(r.familyOnly).toBe(true);
     expect(r.weight).toBe(GENRE_VOTE_WEIGHTS.imprint);
@@ -172,13 +173,18 @@ describe("electGenre", () => {
 
 describe("serializeVotes / parseVotes round-trip", () => {
   test("breakdown survives the ledger column", () => {
-    const votes = [v("bp", "Techno"), v("imprint", "techno", "Drumcode")];
+    const votes = [
+      v("bp", "Techno"),
+      v("imprint", "techno", undefined, "Drumcode"),
+    ];
     const back = parseVotes(serializeVotes(votes));
     expect(back).toEqual(votes);
   });
 
   test("lastfm vote round-trips through serialize/parse", () => {
-    const votes = [v("lastfm", "House", "lastfm:house(100),deep house(50)")];
+    const votes = [
+      v("lastfm", "House", undefined, "lastfm:house(100),deep house(50)"),
+    ];
     const back = parseVotes(serializeVotes(votes));
     expect(back).toEqual(votes);
   });
@@ -227,10 +233,7 @@ describe("electGenre umbrella demotion", () => {
   });
 
   test("Electronic and Dance are also demoted", () => {
-    const r1 = electGenre([
-      v("bp", "Electronic", 0.6),
-      v("sc", "House", 0.35),
-    ]);
+    const r1 = electGenre([v("bp", "Electronic", 0.6), v("sc", "House", 0.35)]);
     expect(r1.genre).toBe("House");
 
     const r2 = electGenre([v("bp", "Dance", 0.6), v("sc", "Techno", 0.35)]);

@@ -12,10 +12,8 @@ const repo = join(import.meta.dir, "..", "..");
 const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
   "src/deck/tools/bench.ts::biggestFiles::Number(st.size)":
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
-  "src/deck/web/products/fulltags/megaset-builder.ts::minutesFrom::Number(input)":
-    "clampMinutes finite-checks the converted form value and supplies the default.",
-  "src/deck/web/products/megaset/cohorts-view.ts::minutesFrom::Number(input)":
-    "rev-51 cohort planner: clampMinutes finite-checks the converted form value and supplies the default (same shape as megaset-builder's sanctioned minutesFrom).",
+  "src/deck/web/products/shared/minutes.ts::minutesFrom::Number(input)":
+    "clampMinutes finite-checks the converted form value and supplies the default — the ONE shared copy (megaset-builder + cohorts-view both import it; #457 target 9).",
   "src/deck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
   // #230 (Sep 17): writer.ts applyTags's year parse was UPGRADED from a
@@ -209,9 +207,13 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // audited 60→63, guarded 42→45, sanctioned unchanged.
     // Oct 1 (discogs-api): parseDiscogsApiYear adds 1 Number() call
     // with isFinite+range guard — audited 64→65, guarded 45→46.
-    audited: 65,
+    // Oct 3 (#483, #457 target 9): the two minutesFrom Number() sites
+    // (megaset-builder + cohorts-view) consolidated into ONE shared copy
+    // in products/shared/minutes.ts — audited 65→64, sanctioned 19→18,
+    // guarded unchanged; sanction re-keyed, digest shifted below.
+    audited: 64,
     guarded: 46,
-    sanctioned: 19,
+    sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
     // Sep 21 (cratedeck→src/deck fold): the whole tree re-rooted —
@@ -242,7 +244,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Genre source expansion: discogs-ingest.ts adds 1 Number() site
     // (digits-only regex capture, sanctioned), audited 63→64, sanctioned 18→19.
     // Oct 1 (discogs-api): parseDiscogsApiYear adds 1 guarded Number() call.
-    digest: "63679371652199cd278baf3969e7d1ba042babf845f1be90eb642db651206d49",
+    digest: "a88a06766d16cf15e283b0ca1ff1061dbd6a571129210809e94798bd46f3c076",
   });
 });
 

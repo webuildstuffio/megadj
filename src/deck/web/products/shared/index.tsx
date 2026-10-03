@@ -9,6 +9,7 @@
 //                      (the Hygiene/Fixes job-remote scaffold)
 //   beat-sync.tsx    — the grid-cross-check breaker cluster
 //                      (GridBreaker → BeatSyncBreakersCard)
+//   minutes.ts       — the megaset custom-minutes form converter
 // Everything re-exports through this barrel so page imports stay one
 // seam — pages import from "./" (or "../products/shared"), NEVER
 // from a member module directly; the products-shared-dir census pins
@@ -27,6 +28,7 @@ export {
 export type { GridBreaker } from "./beat-sync";
 export { ScanApplyActions, ScanApplyGate, useScanApply } from "./scan-apply";
 export { collectBreakers, BeatSyncBreakersCard } from "./beat-sync";
+export { minutesFrom } from "./minutes";
 
 /** Raw pipeline statuses → plain language (one table, two readers: the
  *  GetDat library rows and any archive card; keys not listed render

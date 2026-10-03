@@ -34,6 +34,16 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools.lib.embedding import (
+    EFFNET_CHUNK,
+    MUSICNN_CHUNK,
+    chunks,
+    embed_musiconn,
+    frame_mel,
+    normalize,
+)
+
 FloatArray = NDArray[np.float32]
 
 ARCHIVE_DB = Path.home() / ".local/state/megadj/archive.db"
@@ -54,11 +64,6 @@ def load_eval_set(per_family: int) -> dict[str, list[str]]:
     return {f: v[:per_family] for f, v in by_fam.items()}
 
 
-def chunks(frames: FloatArray, size: int) -> FloatArray:
-    n = (frames.shape[0] // size) * size
-    return frames[:n].reshape(-1, size, frames.shape[1])
-
-
 def audio(path: str, rate: int = 16000) -> FloatArray:
     # essentia ships no type stubs and is a --with-only runtime dep; mypy
     # would flag every lazy import (import-untyped under strict mode).
@@ -68,24 +73,6 @@ def audio(path: str, rate: int = 16000) -> FloatArray:
         MonoLoader(filename=path, sampleRate=rate, resampleQuality=4)(),
         dtype=np.float32,
     )
-
-
-def frame_mel(
-    a: FloatArray,
-    algo: Callable[[FloatArray], FloatArray],
-    frame_size: int,
-    hop: int,
-) -> FloatArray:
-    from essentia.standard import FrameGenerator
-
-    return np.asarray(
-        [algo(f) for f in FrameGenerator(a, frameSize=frame_size, hopSize=hop)],
-        dtype=np.float32,
-    )
-
-
-def normalize(v: FloatArray) -> FloatArray:
-    return v / (float(np.linalg.norm(v)) + 1e-9)
 
 
 def embedding_metrics(
@@ -138,12 +125,7 @@ def run_embeddings(name: str, batch: FloatArray) -> FloatArray:
 
 
 def emb_effnet(path: str) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN
-
-    a = audio(path)
-    mel = frame_mel(a, TensorflowInputMusiCNN(), 512, 256)
-    batch = chunks(mel, 128)
-    return normalize(run_embeddings("effnet", batch).mean(axis=0))
+    return embed_musiconn(audio(path), sess(), chunk_size=EFFNET_CHUNK, pad_empty=False)
 
 
 def emb_openl3(path: str) -> FloatArray:
@@ -207,12 +189,7 @@ def emb_openl3(path: str) -> FloatArray:
 
 
 def emb_musicnn(path: str) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN
-
-    a = audio(path)
-    mel = frame_mel(a, TensorflowInputMusiCNN(), 512, 256)
-    batch = chunks(mel, 187)  # musicnn trains on ~3s (187 frames @ 16k/256)
-    return normalize(run_embeddings("musicnn", batch).mean(axis=0))
+    return embed_musiconn(audio(path), sess(), chunk_size=MUSICNN_CHUNK, pad_empty=False)
 
 
 def emb_vggish(path: str) -> FloatArray:
@@ -220,7 +197,7 @@ def emb_vggish(path: str) -> FloatArray:
 
     a = audio(path)
     mel = frame_mel(a, TensorflowInputVGGish(), 400, 200)
-    batch = chunks(mel, 96).transpose(0, 2, 1)
+    batch = chunks(mel, 96, pad_empty=False).transpose(0, 2, 1)
     return normalize(run_embeddings("vggish", batch).mean(axis=0))
 
 
