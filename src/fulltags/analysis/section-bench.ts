@@ -19,6 +19,7 @@ import { inferGenre, genreFamily, type GenreSeed } from "../../core/similar";
 import { findDropCandidates } from "./drop-finder";
 import { analyzeMoods } from "./models";
 import { round2 } from "../../shared/leaf/fmt";
+import { normalCdf } from "../../shared/leaf/stats";
 
 const DB_PATH =
   process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
@@ -107,20 +108,6 @@ function bootstrapCI(
 /** Cohen's h effect size for proportions. */
 function cohensH(p1: number, p2: number): number {
   return round2(2 * Math.asin(Math.sqrt(p2)) - 2 * Math.asin(Math.sqrt(p1)));
-}
-
-// Helpers for stats — Φ(x) via Abramowitz & Stegun erf approximation
-function normalCdf(x: number): number {
-  const z = Math.abs(x) / Math.SQRT2;
-  const t = 1.0 / (1.0 + 0.3275911 * z);
-  const y =
-    1.0 -
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
-      t +
-      0.254829592) *
-      t *
-      Math.exp(-z * z);
-  return x < 0 ? 0.5 * (1 - y) : 0.5 * (1 + y);
 }
 
 function chi2cdf(x: number): number {

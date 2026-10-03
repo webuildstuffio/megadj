@@ -21,7 +21,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tools.lib.embedding import (  # noqa: E402
+from tools.lib.embedding import (
     chunks,
     emb_effnet,
     emb_musicnn,

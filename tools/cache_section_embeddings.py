@@ -22,7 +22,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tools.lib.embedding import emb_effnet  # noqa: E402
+from tools.lib.embedding import emb_effnet
 
 FloatArray = NDArray[np.float32]
 MODEL_DIR = Path.home() / ".local/share/fulltags-models"
