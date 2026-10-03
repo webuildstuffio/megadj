@@ -20,6 +20,9 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools.lib.embedding import emb_effnet  # noqa: E402
+
 FloatArray = NDArray[np.float32]
 
 MODEL_DIR = Path.home() / ".local/share/fulltags-models"
@@ -65,17 +68,6 @@ def chunks(frames: FloatArray, size: int) -> FloatArray:
     if n == 0:
         return np.zeros((1, size, frames.shape[1]), dtype=np.float32)
     return frames[:n].reshape(-1, size, frames.shape[1])
-
-
-def emb_effnet(a16k: FloatArray, sess: Any) -> FloatArray:
-    from essentia.standard import TensorflowInputMusiCNN
-
-    mel = frame_mel(a16k, TensorflowInputMusiCNN(), 512, 256)
-    batch = chunks(mel, 128)
-    out = sess.run(["embeddings"], {"melspectrogram": batch})[0]
-    return normalize(
-        np.asarray(out, dtype=np.float32).mean(axis=0, keepdims=False).astype(np.float32)
-    )
 
 
 def emb_vggish(a16k: FloatArray, sess: Any) -> FloatArray:
