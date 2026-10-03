@@ -7,8 +7,7 @@
  * before spending compute.
  */
 import { existsSync } from "node:fs";
-import { nonEmptyEnv } from "../../shared/leaf/guards";
-import { parseJsonObject } from "../utils/parse-json";
+import { nonEmptyEnv, parseJsonOrNull } from "../../shared/leaf/guards";
 
 /** Parse fpcalc's JSON boundary. Null is an explicit malformed/schema-failed
  * result; callers preserve their documented degrade-to-null contract. */
@@ -16,7 +15,7 @@ export function parseFpcalcJson(raw: string): {
   fingerprint: string | null;
   durationS: number | null;
 } | null {
-  const value = parseJsonObject(raw);
+  const value = parseJsonOrNull(raw);
   if (!value) return null;
   const fingerprint =
     typeof value.fingerprint === "string" ? value.fingerprint : null;

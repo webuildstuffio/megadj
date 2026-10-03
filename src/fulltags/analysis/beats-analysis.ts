@@ -8,8 +8,7 @@
  * spending compute.
  */
 import { existsSync } from "node:fs";
-import { isFiniteNumberArray } from "../../shared/leaf/guards";
-import { parseJsonObject } from "../utils/parse-json";
+import { isFiniteNumberArray, parseJsonOrNull } from "../../shared/leaf/guards";
 import {
   lineHasRequestId,
   lineIsReady,
@@ -236,7 +235,7 @@ export async function openBeatSession(): Promise<BeatSession | null> {
     isResponse: lineHasRequestId,
     responseTimeoutMs: BEAT_RESPONSE_TIMEOUT_MS,
     parse: (line, path) => {
-      const v = parseJsonObject(line);
+      const v = parseJsonOrNull(line);
       if (!v || v.id !== path) return null;
       // Error lines ({"id","error"}) fail the BeatResult schema → null.
       return parseBeatThisJson(line);
@@ -249,7 +248,7 @@ export async function openBeatSession(): Promise<BeatSession | null> {
 export function parseBeatThisJson(stdout: string): BeatResult | null {
   const last = stdout.trim().split("\n").at(-1);
   if (!last) return null;
-  const value = parseJsonObject(last);
+  const value = parseJsonOrNull(last);
   if (
     !value ||
     typeof value.bpm !== "number" ||
