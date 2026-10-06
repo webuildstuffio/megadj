@@ -108,6 +108,18 @@ export interface PlanInput {
   openerId?: string | undefined;
 }
 
+/** Linear sample of the preset's arousal envelope at cut position t∈[0,1]. */
+const arousalAt = (preset: MegasetPresetDef, t: number): number =>
+  preset.arousal[0] + (preset.arousal[1] - preset.arousal[0]) * t;
+
+/** Linear sample of the preset's dance envelope at cut position t∈[0,1]. */
+const danceAt = (preset: MegasetPresetDef, t: number): number =>
+  preset.dance[0] + (preset.dance[1] - preset.dance[0]) * t;
+
+/** Linear sample of the preset's tempo envelope at cut position t∈[0,1]. */
+const tempoAt = (preset: MegasetPresetDef, t: number): number =>
+  preset.tempoTarget[0] + (preset.tempoTarget[1] - preset.tempoTarget[0]) * t;
+
 /** Cut [0,1] into the B3 thirds with the preset's envelopes sampled per
  *  segment. Deterministic; exported for the fill's slot-clock math. */
 export function planSegments(preset: MegasetPresetDef): PlanSegment[] {
@@ -115,25 +127,18 @@ export function planSegments(preset: MegasetPresetDef): PlanSegment[] {
   return thirds.map((role, i) => {
     const window = [i / 3, (i + 1) / 3] as const;
     const mid = (window[0] + window[1]) / 2;
-    const arousalAt = (t: number): number =>
-      preset.arousal[0] + (preset.arousal[1] - preset.arousal[0]) * t;
-    const danceAt = (t: number): number =>
-      preset.dance[0] + (preset.dance[1] - preset.dance[0]) * t;
-    const tempoAt = (t: number): number =>
-      preset.tempoTarget[0] +
-      (preset.tempoTarget[1] - preset.tempoTarget[0]) * t;
     return {
       role,
       window,
-      bpmTarget: Math.round(tempoAt(mid) * 1e6) / 1e6,
+      bpmTarget: Math.round(tempoAt(preset, mid) * 1e6) / 1e6,
       keyRegion: null,
       energyRange: [
-        Math.round(arousalAt(window[0]) * 1e6) / 1e6,
-        Math.round(arousalAt(window[1]) * 1e6) / 1e6,
+        Math.round(arousalAt(preset, window[0]) * 1e6) / 1e6,
+        Math.round(arousalAt(preset, window[1]) * 1e6) / 1e6,
       ] as const,
       danceRange: [
-        Math.round(danceAt(window[0]) * 1e6) / 1e6,
-        Math.round(danceAt(window[1]) * 1e6) / 1e6,
+        Math.round(danceAt(preset, window[0]) * 1e6) / 1e6,
+        Math.round(danceAt(preset, window[1]) * 1e6) / 1e6,
       ] as const,
     };
   });

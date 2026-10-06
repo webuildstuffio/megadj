@@ -71,23 +71,24 @@ interface HistoryRow {
   created_at: string;
 }
 
+const playHistoryFailure = (error: string): PlayHistoryResult => ({
+  command: "rb-play-history",
+  ok: false,
+  totalPlays: 0,
+  transitions: 0,
+  uniqueTracks: 0,
+  genreMatchRate: null,
+  avgBpmDelta: null,
+  pairs: [],
+  error,
+});
+
 export function minePlayHistory(
   dbPath: string,
   opts?: { limit?: number },
 ): PlayHistoryResult {
-  const fail = (error: string): PlayHistoryResult => ({
-    command: "rb-play-history",
-    ok: false,
-    totalPlays: 0,
-    transitions: 0,
-    uniqueTracks: 0,
-    genreMatchRate: null,
-    avgBpmDelta: null,
-    pairs: [],
-    error,
-  });
-
-  if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
+  if (!existsSync(dbPath))
+    return playHistoryFailure(`no master DB at ${dbPath}`);
 
   const db = new Database(dbPath, { readonly: true });
   try {
@@ -111,7 +112,8 @@ export function minePlayHistory(
       .all() as HistoryRow[];
 
     const totalPlays = rows.length;
-    if (totalPlays === 0) return fail("no play history in master.db");
+    if (totalPlays === 0)
+      return playHistoryFailure("no play history in master.db");
 
     const pairs: TransitionPair[] = [];
     const trackIds = new Set<string>();

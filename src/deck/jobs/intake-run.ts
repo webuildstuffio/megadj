@@ -69,23 +69,28 @@ export const INTAKE_FILE_LINE = /^  (⇄|⛔|⚠|= ok:|~)/;
  * the bar). Lines are matched RAW where indentation matters — Phase-C's
  * "[dupe] already in archive" is checked BEFORE the dedupe "[dupe]" so an
  * archive-only-dupe batch lands in archive-check, not dedupe. */
+const intakePhaseAt = (i: number): IntakePhase => INTAKE_PHASES[i]!;
+
 export function intakePhaseFor(
   line: string,
   phaseIdx: number,
 ): { progress: number; message: string; nextIdx: number } | null {
   const t = line.trim();
-  const at = (i: number): IntakePhase => INTAKE_PHASES[i]!;
   // probe: walk done, ffprobe starting. Phase 0 is already active from the
   // spawn tick — this is a message+progress nudge, not an advance (guard
   // < 1 so it can't re-fire once dedupe began).
   if (phaseIdx < 1 && t.includes("audio file(s) under")) {
-    return { progress: at(0).at, message: "probing files", nextIdx: 0 };
+    return {
+      progress: intakePhaseAt(0).at,
+      message: "probing files",
+      nextIdx: 0,
+    };
   }
   if (
     phaseIdx < 3 &&
     (t.includes("already in archive") || t.includes("[upgrade]"))
   ) {
-    const p = at(2);
+    const p = intakePhaseAt(2);
     return {
       progress: p.at,
       message: "checking against the archive",
@@ -93,11 +98,11 @@ export function intakePhaseFor(
     };
   }
   if (phaseIdx < 2 && (t.includes("[dupe]") || t.includes("[fp]"))) {
-    const p = at(1);
+    const p = intakePhaseAt(1);
     return { progress: p.at, message: "deduplicating", nextIdx: 1 };
   }
   if (phaseIdx < 3 && INTAKE_FILE_LINE.test(line)) {
-    const p = at(3);
+    const p = intakePhaseAt(3);
     return {
       progress: p.at,
       message: "tagging + artwork + analysis",
@@ -105,7 +110,7 @@ export function intakePhaseFor(
     };
   }
   if (phaseIdx < 4 && t.startsWith("done: ")) {
-    const p = at(4);
+    const p = intakePhaseAt(4);
     return { progress: p.at, message: "wrapping up batch", nextIdx: 4 };
   }
   return null;

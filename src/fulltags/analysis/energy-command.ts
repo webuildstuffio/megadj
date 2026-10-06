@@ -492,6 +492,10 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
   }
 }
 
+/** Format a nullable energy signal for the energy-why printout. */
+const whyVal = (n: number | null, unit = ""): string =>
+  n !== null ? `${n}${unit}` : "?";
+
 /** Show bloc breakdown for one track. */
 export async function energyWhy(
   state: ArchiveState,
@@ -539,30 +543,29 @@ export async function energyWhy(
     return;
   }
 
-  const v = (n: number | null, unit = ""): string =>
-    n !== null ? `${n}${unit}` : "?";
-
   console.log(`energy-why: ${videoId}`);
   console.log(
-    `  band: E${row.energy_band ?? "?"} (composite: ${v(row.composite_rank)})`,
+    `  band: E${row.energy_band ?? "?"} (composite: ${whyVal(row.composite_rank)})`,
   );
   console.log(`  confidence: ${row.energy_confidence ?? "?"}`);
   console.log(`  preset: ${row.weight_preset ?? "?"}`);
   console.log(
-    `  drop: ${v(row.drop_start_s, "s")}–${v(row.drop_end_s, "s")} (contrast: ${v(row.drop_contrast_db, " dB")})`,
+    `  drop: ${whyVal(row.drop_start_s, "s")}–${whyVal(row.drop_end_s, "s")} (contrast: ${whyVal(row.drop_contrast_db, " dB")})`,
   );
   console.log("  Tier A (DSP):");
-  console.log(`    onsets/beat: ${v(row.onsets_per_beat)}`);
-  console.log(`    BPM: ${v(row.bpm)}`);
-  console.log(`    HF energy re:LUFS: ${v(row.hf_energy_re_lufs, " dB")}`);
-  console.log(`    low energy re:LUFS: ${v(row.low_energy_re_lufs, " dB")}`);
-  console.log(`    crest factor: ${v(row.crest_factor)}`);
-  console.log(`    spectral flux: ${v(row.spectral_flux)}`);
-  console.log(`    LUFS (drop): ${v(row.lufs_drop)}`);
-  console.log(`    spectral centroid: ${v(row.spectral_centroid, " Hz")}`);
+  console.log(`    onsets/beat: ${whyVal(row.onsets_per_beat)}`);
+  console.log(`    BPM: ${whyVal(row.bpm)}`);
+  console.log(`    HF energy re:LUFS: ${whyVal(row.hf_energy_re_lufs, " dB")}`);
+  console.log(
+    `    low energy re:LUFS: ${whyVal(row.low_energy_re_lufs, " dB")}`,
+  );
+  console.log(`    crest factor: ${whyVal(row.crest_factor)}`);
+  console.log(`    spectral flux: ${whyVal(row.spectral_flux)}`);
+  console.log(`    LUFS (drop): ${whyVal(row.lufs_drop)}`);
+  console.log(`    spectral centroid: ${whyVal(row.spectral_centroid, " Hz")}`);
   console.log("  Tier B (pretrained):");
-  console.log(`    aggressive: ${v(row.aggressive)}`);
-  console.log(`    engagement: ${v(row.engagement)}`);
-  console.log(`    approachability: ${v(row.approachability)}`);
-  console.log(`    arousal (drop): ${v(row.arousal_drop)}`);
+  console.log(`    aggressive: ${whyVal(row.aggressive)}`);
+  console.log(`    engagement: ${whyVal(row.engagement)}`);
+  console.log(`    approachability: ${whyVal(row.approachability)}`);
+  console.log(`    arousal (drop): ${whyVal(row.arousal_drop)}`);
 }

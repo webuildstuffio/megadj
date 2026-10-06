@@ -23,6 +23,17 @@ import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
 
 const noop = () => undefined;
+const picker = (query: string, hitsStatus: "ok" | "loading" | "error") =>
+  render(
+    <TrackPickSearch
+      query={query}
+      onQuery={noop}
+      hits={null}
+      hitsStatus={hitsStatus}
+      placeholder="Pick a track"
+      onPick={noop}
+    />,
+  );
 const fmtBpmTest = (bpm: number | null): string =>
   bpm === null ? "—" : String(Math.round(bpm * 10) / 10);
 /** The chain's copy-line renderer, matching the component module's format
@@ -99,18 +110,6 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("track picking explains short, loading, and failed searches", () => {
-    const picker = (query: string, hitsStatus: "ok" | "loading" | "error") =>
-      render(
-        <TrackPickSearch
-          query={query}
-          onQuery={noop}
-          hits={null}
-          hitsStatus={hitsStatus}
-          placeholder="Pick a track"
-          onPick={noop}
-        />,
-      );
-
     expect(picker("a", "ok")).toContain("Type 2 or more characters");
     expect(picker("acid", "loading")).toContain('role="status"');
     expect(picker("acid", "loading")).toContain("Searching the archive");
