@@ -7,8 +7,8 @@ on master.db content rows that have no album. Creates new djmdAlbum rows
 when needed (with UUID + timestamps). Matches on NFC-casefolded file path
 first, then title+artist fallback.
 
-Safety: RB-closed gate, WAL checkpoint. The caller (rb-comment-sync or
-full-pipeline) owns the backup.
+Safety: RB-closed gate at start + late recheck before every commit
+(#494 TOCTOU), WAL checkpoint. The caller (full-pipeline) owns the backup.
 """
 
 import datetime
@@ -23,6 +23,8 @@ from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdAlbum, DjmdContent  # type: ignore[import-not-found]
 from sqlalchemy import text  # type: ignore[import-not-found]
+
+# @kit(PY_RB_COMMIT_GUARD)
 
 
 def nfc(s: str) -> str:
@@ -108,15 +110,32 @@ def main() -> None:
         if aid is None:
             new_uuid = str(uuid.uuid4())
             if apply:
-                with rbdb.engine.connect() as conn:
-                    conn.execute(
-                        text(
-                            "INSERT INTO djmdAlbum (ID, UUID, Name, created_at, updated_at) "
-                            "VALUES (:id, :uuid, :name, :now, :now)"
-                        ),
-                        {"id": next_id, "uuid": new_uuid, "name": album, "now": now},
+                # TOCTOU (#494): the start-of-run pgrep is stale by now —
+                # refuse closed if rekordbox opened before this write.
+                rb_refuse_if_open(rbdb)
+                try:
+                    with rbdb.engine.connect() as conn:
+                        conn.execute(
+                            text(
+                                "INSERT INTO djmdAlbum (ID, UUID, Name, created_at, updated_at) "
+                                "VALUES (:id, :uuid, :name, :now, :now)"
+                            ),
+                            {"id": next_id, "uuid": new_uuid, "name": album, "now": now},
+                        )
+                        conn.commit()
+                except Exception as e:
+                    rbdb.session.rollback()
+                    print(
+                        json.dumps(
+                            {
+                                "error": "master.db album insert failed after RB-closed gate "
+                                "(rekordbox may have launched mid-write) — rolled back: "
+                                + repr(e)[:200]
+                            }
+                        )
                     )
-                    conn.commit()
+                    rbdb.close()
+                    sys.exit(1)
             album_ids[album] = next_id
             aid = next_id
             next_id += 1
@@ -129,7 +148,7 @@ def main() -> None:
             samples.append([str(c.Title or "")[:50], album[:50]])
 
     if apply:
-        rbdb.session.commit()
+        rb_guarded_commit(rbdb)
 
     total = already + pushed + skipped
     pct = (already + pushed) * 100.0 / total if total > 0 else 0

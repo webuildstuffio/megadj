@@ -209,3 +209,38 @@ def cue_sig(cue):
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()`;
 
 export const pyCueSigBlock = (): string => PY_CUE_SIG_BLOCK;
+
+/** The #432-class TOCTOU commit guard (#494): `rb_refuse_if_open(db)` is
+ *  the LATE RB-closed recheck — the last gate immediately before any
+ *  master.db write; `rb_guarded_commit(db)` wraps a session commit so one
+ *  that loses the race fails CLOSED — rollback, error JSON, exit 1, never
+ *  a checkpoint on a lost race. Corpus files adopting the marker must
+ *  import json/subprocess/sys (the fragment references all three).
+ *  Adopters: tag-fix (#432), album-push (#494); title-repair and
+ *  comment-sync's later phases are the remaining #494 slices. */
+export const PY_RB_COMMIT_GUARD = `def rb_refuse_if_open(db):
+    if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
+        db.session.rollback()
+        print(json.dumps({"error": "rekordbox is running — refusing write"}))
+        db.close()
+        sys.exit(1)
+
+def rb_guarded_commit(db):
+    # TOCTOU (#432): pgrep→commit is not atomic; a commit that loses the
+    # race fails CLOSED — rollback, error JSON, exit 1, no checkpoint.
+    rb_refuse_if_open(db)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(
+            json.dumps(
+                {
+                    "error": "master.db commit failed after RB-closed gate "
+                    "(rekordbox may have launched mid-write) — rolled back: "
+                    + repr(e)[:200]
+                }
+            )
+        )
+        db.close()
+        sys.exit(1)`;
