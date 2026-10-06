@@ -24,6 +24,8 @@ from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdArtist, DjmdContent  # type: ignore[import-not-found]
 
+# @kit(PY_RB_COMMIT_GUARD)
+
 
 def nfc_casefold(s: str) -> str:
     return unicodedata.normalize("NFC", s).casefold() if s else ""
@@ -132,29 +134,7 @@ def main() -> None:
                 artist_fixed += 1
 
     if apply:
-        if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
-            rbdb.session.rollback()
-            print(json.dumps({"error": "rekordbox is running — refusing write"}))
-            rbdb.close()
-            sys.exit(1)
-        # TOCTOU (#432): pgrep→commit is not atomic. If rekordbox launches in
-        # that window and grabs the write lock, the commit fails CLOSED —
-        # rollback, error JSON, exit 1, never a checkpoint on a lost race.
-        try:
-            rbdb.session.commit()
-        except Exception as e:
-            rbdb.session.rollback()
-            print(
-                json.dumps(
-                    {
-                        "error": "master.db commit failed after RB-closed gate "
-                        "(rekordbox may have launched mid-write) — rolled back: "
-                        + repr(e)[:200]
-                    }
-                )
-            )
-            rbdb.close()
-            sys.exit(1)
+        rb_guarded_commit(rbdb)
 
     out = {
         "scanned": len(fixed),
