@@ -165,41 +165,42 @@ print(json.dumps({"free": free, "key": folder_key(0x12A, free)}))`,
 // ---------------------------------------------------------------------------
 // usb_verify.pdb_live_rows — legacy export.pdb page walk
 // ---------------------------------------------------------------------------
-describe("usb_verify.pdb_live_rows", () => {
-  function writePdb(rowsPerTable: number): string {
-    // Build a minimal-but-valid PDB: header with one table (type 0), a
-    // single page of `rowsPerTable` live rows in the canonical tail layout.
-    const PAGE = 4096;
-    const buf = new Uint8Array(PAGE * 2);
-    const dv = new DataView(buf.buffer);
-    // file header: n_tables at 0x08, table index at 0x1C
-    dv.setUint32(0x08, 1, true);
-    dv.setUint32(0x1c, 0, true); // table type
-    dv.setUint32(0x20, 0, true); // empty
-    dv.setUint32(0x24, 1, true); // first page
-    dv.setUint32(0x28, 1, true); // last page
-    // page 1: data page header
-    const o = PAGE;
-    // n_slots lives in the top 21 bits of the 3-byte field at 0x18
-    const packed = 8 << 11; // n_slots = 8
-    dv.setUint8(o + 0x18, packed & 0xff);
-    dv.setUint8(o + 0x19, (packed >> 8) & 0xff);
-    dv.setUint8(o + 0x1a, (packed >> 16) & 0xff);
-    // rows live: present mask + row offsets pointing at minimal live records
-    // base for group 0 = o + PAGE - 0; present at base-4
-    dv.setUint16(o + PAGE - 4, 0x00ff, true); // 8 present slots
-    for (let i = 0; i < 8; i++) {
-      const rowOff = 64 + i * 4;
-      dv.setUint16(o + PAGE - 6 - 2 * i, rowOff, true);
-      // minimal live record: subtype without the 0x02 tombstone bit
-      dv.setUint16(o + 32 + rowOff, 0x0001, true);
-    }
-    // next-page pointer 0 → chain ends
-    const p = join(TMP, `live-${rowsPerTable}.pdb`);
-    writeFileSync(p, buf);
-    return p;
-  }
 
+function writePdb(rowsPerTable: number): string {
+  // Build a minimal-but-valid PDB: header with one table (type 0), a
+  // single page of `rowsPerTable` live rows in the canonical tail layout.
+  const PAGE = 4096;
+  const buf = new Uint8Array(PAGE * 2);
+  const dv = new DataView(buf.buffer);
+  // file header: n_tables at 0x08, table index at 0x1C
+  dv.setUint32(0x08, 1, true);
+  dv.setUint32(0x1c, 0, true); // table type
+  dv.setUint32(0x20, 0, true); // empty
+  dv.setUint32(0x24, 1, true); // first page
+  dv.setUint32(0x28, 1, true); // last page
+  // page 1: data page header
+  const o = PAGE;
+  // n_slots lives in the top 21 bits of the 3-byte field at 0x18
+  const packed = 8 << 11; // n_slots = 8
+  dv.setUint8(o + 0x18, packed & 0xff);
+  dv.setUint8(o + 0x19, (packed >> 8) & 0xff);
+  dv.setUint8(o + 0x1a, (packed >> 16) & 0xff);
+  // rows live: present mask + row offsets pointing at minimal live records
+  // base for group 0 = o + PAGE - 0; present at base-4
+  dv.setUint16(o + PAGE - 4, 0x00ff, true); // 8 present slots
+  for (let i = 0; i < 8; i++) {
+    const rowOff = 64 + i * 4;
+    dv.setUint16(o + PAGE - 6 - 2 * i, rowOff, true);
+    // minimal live record: subtype without the 0x02 tombstone bit
+    dv.setUint16(o + 32 + rowOff, 0x0001, true);
+  }
+  // next-page pointer 0 → chain ends
+  const p = join(TMP, `live-${rowsPerTable}.pdb`);
+  writeFileSync(p, buf);
+  return p;
+}
+
+describe("usb_verify.pdb_live_rows", () => {
   // .timeout(30000): this suite spawns `uv run --with <git package>` per
   // test — even warm, the env resolution + pyrekordbox import takes 3–12s,
   // which blows bun's 5s default. The root bunfig.toml [test].timeout is

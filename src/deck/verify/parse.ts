@@ -29,6 +29,26 @@ export function cap(list: string[] | undefined): {
 /** Check doc lookup from the shared help SSOT: meaning + fix stay in one place. */
 const DOC = new Map(VERIFY_HELP.checks.map((c) => [c.id, c]));
 
+/** One verify check row: id + status + detail, enriched from the help SSOT
+ *  (label/meaning/fix) and optional offender counts. */
+const makeCheck = (
+  id: string,
+  status: VerifyCheck["status"],
+  detail: string,
+  off?: { offenders?: string[]; offender_count?: number },
+): VerifyCheck => {
+  const doc = DOC.get(id);
+  return {
+    id,
+    label: doc?.label ?? id,
+    status,
+    detail,
+    meaning: doc?.why ?? "See deckctl explain verify.",
+    fix: status === "pass" ? undefined : doc?.fix,
+    ...off,
+  };
+};
+
 /** Parse usb_verify.py output into a full structured verify report.
  *
  *  Preferred input: the script's machine-readable "VERIFY_JSON: {...}" line
@@ -49,24 +69,6 @@ export function parseVerifyReport(
   const m = extractVerifyMetrics(out);
   const checks: VerifyCheck[] = [];
 
-  const mk = (
-    id: string,
-    status: VerifyCheck["status"],
-    detail: string,
-    off?: { offenders?: string[]; offender_count?: number },
-  ): VerifyCheck => {
-    const doc = DOC.get(id);
-    return {
-      id,
-      label: doc?.label ?? id,
-      status,
-      detail,
-      meaning: doc?.why ?? "See deckctl explain verify.",
-      fix: status === "pass" ? undefined : doc?.fix,
-      ...off,
-    };
-  };
-
   // 1 — dual-DB agreement. Shelf-tier drives are ARCHIVE storage: the
   // master library lives there (rekordbox Database Management) and the
   // legacy pdb is a vestigial copy of a migrated stick tree. Parity is a
@@ -74,7 +76,7 @@ export function parseVerifyReport(
   if (m.pdb !== null && m.odb !== null) {
     const shelfTier = driveRole === "shelf";
     checks.push(
-      mk(
+      makeCheck(
         "dual-db",
         m.pdb === m.odb || shelfTier ? "pass" : "fail",
         m.pdb === m.odb
@@ -93,7 +95,7 @@ export function parseVerifyReport(
   // 2 — audio files present
   if (m.tracks !== null) {
     checks.push(
-      mk(
+      makeCheck(
         "audio-files",
         m.missingAudio === 0 ? "pass" : "fail",
         m.missingAudio === 0
@@ -108,7 +110,7 @@ export function parseVerifyReport(
   const anlzTotal = m.missingAnlz + m.anlzHash;
   if (m.tracks !== null) {
     checks.push(
-      mk(
+      makeCheck(
         "anlz",
         anlzTotal === 0 ? "pass" : anlzTotal < 20 ? "warn" : "fail",
         anlzTotal === 0
@@ -125,7 +127,7 @@ export function parseVerifyReport(
   // measurement happened. A crash is not a measurement.
   if (m.tracks !== null) {
     checks.push(
-      mk(
+      makeCheck(
         "fields",
         m.noBpm + m.badLen === 0 ? "pass" : "warn",
         m.noBpm + m.badLen === 0
@@ -139,7 +141,7 @@ export function parseVerifyReport(
   // 5 — grid plausibility
   if (m.tracks !== null) {
     checks.push(
-      mk(
+      makeCheck(
         "grids",
         m.badGrids === 0 ? "pass" : "warn",
         m.badGrids === 0
@@ -151,7 +153,7 @@ export function parseVerifyReport(
   }
   if (m.pioneerVar !== null && m.pioneerVar > 0) {
     checks.push(
-      mk(
+      makeCheck(
         "pioneer-variance",
         "pass",
         `${m.pioneerVar} Pioneer-shipped tracks have loose grids — informational, not an error`,
@@ -164,7 +166,7 @@ export function parseVerifyReport(
     const dang = m.dangling ?? 0;
     const fk = m.artistFk ?? 0;
     checks.push(
-      mk(
+      makeCheck(
         "relations",
         dang + fk === 0 ? "pass" : "fail",
         dang + fk === 0
@@ -177,7 +179,7 @@ export function parseVerifyReport(
   // 7..9 — cross-drive parity (only present in 2-drive runs)
   if (m.crossDrive) {
     checks.push(
-      mk(
+      makeCheck(
         "db-parity",
         m.dbIdentical ? "pass" : "fail",
         m.dbIdentical
@@ -187,7 +189,7 @@ export function parseVerifyReport(
     );
     if (m.anlzParity) {
       checks.push(
-        mk(
+        makeCheck(
           "anlz-parity",
           m.anlzParity[0] === 0 ? "pass" : "fail",
           `${m.anlzParity[0]} of ${m.anlzParity[1]} analysis files differ between drives`,
@@ -197,7 +199,7 @@ export function parseVerifyReport(
     }
     if (m.j || m.audioMismatch !== null) {
       checks.push(
-        mk(
+        makeCheck(
           "audio-parity",
           m.audioMismatch === 0 ? "pass" : "fail",
           m.audioMismatch === 0
@@ -223,7 +225,7 @@ export function parseVerifyReport(
       .join(" · ")
       .slice(0, 300);
     checks.push(
-      mk(
+      makeCheck(
         "script-failed",
         "fail",
         tail

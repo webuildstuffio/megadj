@@ -88,6 +88,25 @@ const isAssociationWire = (
   "cue_signatures" in value &&
   everyIs(value.cue_signatures, isCueSignature);
 
+/** unique non-empty strings — the removed/acknowledged id rule. */
+const isUniqueStringList = (v: unknown): v is string[] => {
+  if (!isUnknownArray(v)) return false;
+  if (!v.every(isNonEmptyString)) return false;
+  return new Set(v as string[]).size === v.length;
+};
+
+/** `[error_id, message]` tuple on every entry. */
+const isErrorsWire = (v: unknown): v is [string, string][] => {
+  if (!isUnknownArray(v)) return false;
+  return v.every(
+    (entry) =>
+      isUnknownArray(entry) &&
+      entry.length === 2 &&
+      typeof entry[0] === "string" &&
+      typeof entry[1] === "string",
+  );
+};
+
 function isScanRow(value: unknown): value is ScanRow {
   return (
     typeof value === "object" &&
@@ -148,23 +167,6 @@ export function parseDeleteResult(
     string,
     unknown
   > | null;
-  /** unique non-empty strings — the removed/acknowledged id rule. */
-  const isUniqueStringList = (v: unknown): v is string[] => {
-    if (!isUnknownArray(v)) return false;
-    if (!v.every(isNonEmptyString)) return false;
-    return new Set(v as string[]).size === v.length;
-  };
-  /** `[error_id, message]` tuple on every entry. */
-  const isErrorsWire = (v: unknown): v is [string, string][] => {
-    if (!isUnknownArray(v)) return false;
-    return v.every(
-      (entry) =>
-        isUnknownArray(entry) &&
-        entry.length === 2 &&
-        typeof entry[0] === "string" &&
-        typeof entry[1] === "string",
-    );
-  };
 
   if (
     typeof value !== "object" ||
@@ -231,31 +233,33 @@ interface VerifyRowWire {
   cue_owners_valid: boolean;
 }
 
+/** One wire verify row (snake_case), fully validated. */
+const isVerifyRowWire = (row: unknown): row is VerifyRowWire =>
+  typeof row === "object" &&
+  row !== null &&
+  "id" in row &&
+  isNonEmptyString(row.id) &&
+  "path" in row &&
+  typeof row.path === "string" &&
+  "playlists" in row &&
+  everyIs(row.playlists, isMembership) &&
+  "cue_signatures" in row &&
+  everyIs(row.cue_signatures, isCueSignature) &&
+  "cue_owners_valid" in row &&
+  typeof row.cue_owners_valid === "boolean";
+
+/** All rows valid AND ids unique — the verification contract. */
+const isVerifyRowsWire = (v: unknown): v is VerifyRowWire[] => {
+  if (!isUnknownArray(v)) return false;
+  if (!v.every(isVerifyRowWire)) return false;
+  return new Set(v.map((row) => row.id)).size === v.length;
+};
+
 export function parseVerifyRows(raw: string): VerifyRow[] {
   const value = parseJsonBoundary(raw, "rb-dedup verification") as Record<
     string,
     unknown
   > | null;
-  /** One wire verify row (snake_case), fully validated. */
-  const isVerifyRowWire = (row: unknown): row is VerifyRowWire =>
-    typeof row === "object" &&
-    row !== null &&
-    "id" in row &&
-    isNonEmptyString(row.id) &&
-    "path" in row &&
-    typeof row.path === "string" &&
-    "playlists" in row &&
-    everyIs(row.playlists, isMembership) &&
-    "cue_signatures" in row &&
-    everyIs(row.cue_signatures, isCueSignature) &&
-    "cue_owners_valid" in row &&
-    typeof row.cue_owners_valid === "boolean";
-  /** All rows valid AND ids unique — the verification contract. */
-  const isVerifyRowsWire = (v: unknown): v is VerifyRowWire[] => {
-    if (!isUnknownArray(v)) return false;
-    if (!v.every(isVerifyRowWire)) return false;
-    return new Set(v.map((row) => row.id)).size === v.length;
-  };
   const value2 = value;
   if (
     typeof value2 !== "object" ||

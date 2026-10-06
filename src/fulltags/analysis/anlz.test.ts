@@ -119,18 +119,18 @@ describe("rewriteAnlzGrid (the #147 Q4 writer)", () => {
   });
 });
 
+const mkPhrases = (
+  entries: { index: number; beat: number; kind: number }[],
+  endBeat = 500,
+  mood: number = TRACK_MOOD.HIGH,
+) =>
+  buildAnlz({
+    path: "/Contents/Artist/Album/track.mp3",
+    phrases: { mood, endBeat, entries },
+  });
+
 describe("parseAnlzPhrases (PSSI phrase structure, #427)", () => {
   const { HIGH } = PHRASE_KINDS;
-
-  const mkPhrases = (
-    entries: { index: number; beat: number; kind: number }[],
-    endBeat = 500,
-    mood: number = TRACK_MOOD.HIGH,
-  ) =>
-    buildAnlz({
-      path: "/Contents/Artist/Album/track.mp3",
-      phrases: { mood, endBeat, entries },
-    });
 
   test("unmasked round-trip: phrases survive encode/decode", () => {
     const entries = [

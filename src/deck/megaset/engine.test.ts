@@ -39,6 +39,22 @@ const cand = (over: Partial<SetCandidate>): SetCandidate => ({
   ...over,
 });
 
+const mkTieOrder = (order: [string, string][]) =>
+  buildMegaset({
+    candidates: order.map(([videoId, key]) => cand({ videoId, key, bpm: 128 })),
+    preset: SET_PRESETS.peak,
+    minutes: 11, // fits exactly two 5-min tracks
+  }).steps.map((s) => s.videoId);
+
+const mkCandidates = (n: number, prefix: string): SetCandidate[] =>
+  Array.from({ length: n }, (_, i) =>
+    cand({
+      videoId: `${prefix}${String(i).padStart(2, "0")}`,
+      bpm: 126,
+      key: "8A",
+    }),
+  );
+
 describe("camelotOf", () => {
   test("parses Camelot notation, case-insensitive", () => {
     expect(camelotOf("8A")).toEqual({ n: 8, letter: "A" });
@@ -392,29 +408,21 @@ describe("buildMegaset", () => {
   test("ties break by videoId — the chain does not depend on pool row order", () => {
     // two byte-identical candidates except the id: whichever wins must be
     // decided by the id, not by which row the SQL happened to return first
-    const mk = (order: [string, string][]) =>
-      buildMegaset({
-        candidates: order.map(([videoId, key]) =>
-          cand({ videoId, key, bpm: 128 }),
-        ),
-        preset: SET_PRESETS.peak,
-        minutes: 11, // fits exactly two 5-min tracks
-      }).steps.map((s) => s.videoId);
     // pool order reversed between the two calls — result must not flip
     expect(
-      mk([
+      mkTieOrder([
         ["zz-tie", "8A"],
         ["aa-tie", "8A"],
       ]),
     ).toEqual(
-      mk([
+      mkTieOrder([
         ["aa-tie", "8A"],
         ["zz-tie", "8A"],
       ]),
     );
     // lexicographically-smaller id wins the tie ("aa-tie" opener, "zz-tie" follows)
     expect(
-      mk([
+      mkTieOrder([
         ["zz-tie", "8A"],
         ["aa-tie", "8A"],
       ]),
@@ -695,31 +703,23 @@ describe("buildMegaset", () => {
     // only sees the pool size, and every surface quotes the SAME two
     // constants instead of hand-copied thresholds.
     expect(MEGASET_BEAM_POOL_MAX).toBe(250);
-    const mk = (n: number) =>
-      Array.from({ length: n }, (_, i) =>
-        cand({
-          videoId: `t${String(i).padStart(3, "0")}`,
-          bpm: 126,
-          key: "8A",
-        }),
-      );
     // rest.length + 1 = 250 → 250 is NOT < 250 → greedy on the line
     const atBoundary = buildMegaset({
-      candidates: mk(MEGASET_BEAM_POOL_MAX),
+      candidates: mkCandidates(MEGASET_BEAM_POOL_MAX, "t"),
       preset: SET_PRESETS.peak,
       minutes: 8,
     });
     expect(atBoundary.search).toBe("greedy");
     // rest.length + 1 = 249 < 250 → beam one below the line
     const below = buildMegaset({
-      candidates: mk(MEGASET_BEAM_POOL_MAX - 1),
+      candidates: mkCandidates(MEGASET_BEAM_POOL_MAX - 1, "t"),
       preset: SET_PRESETS.peak,
       minutes: 8,
     });
     expect(below.search).toBe("beam");
     // a forced override beats the pool-size rule at any size
     const forced = buildMegaset({
-      candidates: mk(MEGASET_BEAM_POOL_MAX),
+      candidates: mkCandidates(MEGASET_BEAM_POOL_MAX, "t"),
       preset: SET_PRESETS.peak,
       minutes: 8,
       searchOverride: "beam",
@@ -729,17 +729,9 @@ describe("buildMegaset", () => {
 
   test("every candidate lands in exactly one bucket — chain or excluded — on both paths", () => {
     // the double-exclusion regression, now asserted for BOTH strategies
-    const mk = (n: number) =>
-      Array.from({ length: n }, (_, i) =>
-        cand({
-          videoId: `p${String(i).padStart(2, "0")}`,
-          bpm: 126,
-          key: "8A",
-        }),
-      );
     for (const n of [8, 260]) {
       const r = buildMegaset({
-        candidates: mk(n),
+        candidates: mkCandidates(n, "p"),
         preset: SET_PRESETS.peak,
         minutes: 8,
       });

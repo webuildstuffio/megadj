@@ -44,7 +44,6 @@
     "eslint/eqeqeq": "error",
     "typescript/no-explicit-any": "error",
     "eslint/no-shadow": "error",
-    "typescript/no-unnecessary-condition": "error",
-    "unicorn/consistent-function-scoping": "off"
+    "typescript/no-unnecessary-condition": "error"
   }
 }
