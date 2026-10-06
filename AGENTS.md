@@ -331,7 +331,10 @@ a.prop !== null`), one strict check does NOT imply the other.
   proper master.db title with a truncated YouTube one; artist-only archive
   fixes must not re-push stale lowercase titles just because `updated_at`
   re-enters the since filter); (3) pgrep RB-closed
-  guard before commit; (4) WAL checkpoint on close. The `.kit.py` files have
+  guard as the LAST gate before commit, with the commit fail-closed (#432:
+  pgrep→commit is not atomic — a commit that loses the race rolls back,
+  prints the error JSON, exits 1, and never reaches the checkpoint);
+  (4) WAL checkpoint on close, success path only. The `.kit.py` files have
   `@kit()` annotation markers that the TS orchestrator expands via
   `renderKitMarkers` — running a `.kit.py` directly with `python` leaves the
   markers as comments and any code AFTER the marker (like the RB-closed guard

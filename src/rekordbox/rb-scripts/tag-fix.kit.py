@@ -137,7 +137,24 @@ def main() -> None:
             print(json.dumps({"error": "rekordbox is running — refusing write"}))
             rbdb.close()
             sys.exit(1)
-        rbdb.session.commit()
+        # TOCTOU (#432): pgrep→commit is not atomic. If rekordbox launches in
+        # that window and grabs the write lock, the commit fails CLOSED —
+        # rollback, error JSON, exit 1, never a checkpoint on a lost race.
+        try:
+            rbdb.session.commit()
+        except Exception as e:
+            rbdb.session.rollback()
+            print(
+                json.dumps(
+                    {
+                        "error": "master.db commit failed after RB-closed gate "
+                        "(rekordbox may have launched mid-write) — rolled back: "
+                        + repr(e)[:200]
+                    }
+                )
+            )
+            rbdb.close()
+            sys.exit(1)
 
     out = {
         "scanned": len(fixed),
