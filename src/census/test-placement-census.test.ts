@@ -63,6 +63,8 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
   "src/core/state-genreflag.test.ts": "#214: subject state.ts genreflag",
   "src/rekordbox/comment-sync-unreadable.test.ts":
     "#214: subject rb-comment-sync unreadable-file arm",
+  "src/rekordbox/tag-fix-guard.test.ts":
+    "#432: subject tag-fix.kit.py (python corpus kit) — RB-closed guard topology pin",
   "src/rekordbox/rb-scripts-census.test.ts":
     "#214: census over rb-scripts corpus",
   "src/shared/maintenance-flags.test.ts":
