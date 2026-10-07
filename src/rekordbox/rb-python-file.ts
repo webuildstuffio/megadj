@@ -15,6 +15,7 @@ import {
   PY_CUE_SIG_BLOCK,
   PY_FIND_PLAYLIST_FN,
   PY_MATCH_TRACK_STEP,
+  PY_RB_COMMIT_GUARD,
   PY_RID_FN,
   pyAddSongPlaylist,
   pyContentMatchPreamble,
@@ -144,6 +145,8 @@ function renderKitFragment(name: string, arg: string): string | null {
       return pyDbOpen(arg || "sys.argv[1]");
     case "RB_CLOSED_PY_GUARD":
       return RB_CLOSED_PY_GUARD;
+    case "PY_RB_COMMIT_GUARD":
+      return PY_RB_COMMIT_GUARD;
     case "pyEnsurePlaylistLadder": {
       // arg is "<createMissingGroup>|<onExisting>", e.g. "true|reuse"
       const [group, existing] = arg.split("|").map((p) => p.trim());

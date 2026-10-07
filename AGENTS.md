@@ -334,7 +334,16 @@ a.prop !== null`), one strict check does NOT imply the other.
   guard as the LAST gate before commit, with the commit fail-closed (#432:
   pgrep→commit is not atomic — a commit that loses the race rolls back,
   prints the error JSON, exits 1, and never reaches the checkpoint);
-  (4) WAL checkpoint on close, success path only. The `.kit.py` files have
+  (4) WAL checkpoint on close, success path only. That posture has ONE SSOT
+  since #494: the `PY_RB_COMMIT_GUARD` kit fragment in
+  `src/rekordbox/rb-script-kit.ts` (renders `rb_refuse_if_open` /
+  `rb_guarded_commit`); tag-fix and album-push adopt it via
+  `#@kit(PY_RB_COMMIT_GUARD)` with per-kit topology pins
+  (`tag-fix-guard.test.ts`, `album-push-guard.test.ts`) — never hand-roll a
+  second copy of the guard in a write kit, and every new master.db write kit
+  rechecks RB-closed immediately before each commit. Remaining #494 slices:
+  title-repair, comment-sync's genre/color/mytag commits. The `.kit.py`
+  files have
   `@kit()` annotation markers that the TS orchestrator expands via
   `renderKitMarkers` — running a `.kit.py` directly with `python` leaves the
   markers as comments and any code AFTER the marker (like the RB-closed guard
