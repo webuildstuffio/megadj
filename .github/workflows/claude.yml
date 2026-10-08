@@ -148,8 +148,8 @@ jobs:
             const n = '${{ steps.context.outputs.issue_number }}';
             if (!n) return;
             const status = '${{ steps.claude_action.conclusion }}';
-            try { await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, name: '🤖 claude-working' }); } catch {}
             if (status === 'skipped' || status === 'cancelled') return;
+            try { await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, name: '🤖 claude-working' }); } catch {}
             const label = status === 'success' ? '✅ claude-complete' : '❌ claude-failed';
             await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, labels: [label] });
             if (status !== 'success') {
