@@ -20,12 +20,17 @@ on:
   pull_request_review:
     types: [submitted]
 
-concurrency:
-  group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: false
 
 jobs:
   claude:
+    # Same-issue re-triggers supersede: cancel the stale run instead of
+    # billing two 30-min Claude jobs for one issue. Job-level (not
+    # workflow-level) on purpose: jobs skipped by the if: below never
+    # enter the group, so ordinary comments without a trigger
+    # cannot cancel an active run.
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: true
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
@@ -144,7 +149,7 @@ jobs:
             if (!n) return;
             const status = '${{ steps.claude_action.conclusion }}';
             try { await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, name: '🤖 claude-working' }); } catch {}
-            if (status === 'skipped') return;
+            if (status === 'skipped' || status === 'cancelled') return;
             const label = status === 'success' ? '✅ claude-complete' : '❌ claude-failed';
             await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, labels: [label] });
             if (status !== 'success') {
