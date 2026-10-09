@@ -5,7 +5,8 @@ row with an empty Comment and an existing file: read TXXX
 CAMELOT/ENERGY/MOOD (+ MOODS variant) via mutagen and build the
 FullTags comment `Camelot · E<energy> · Mood1+Mood2`; falls back to
 archive.db (mood+tracks tables) when the file carries no TXXX set.
-One spawn writes the batch behind the RB-closed guard (kit fragment).
+One spawn writes the batch; every phase commit goes through the
+shared RB-closed guard fragment (PY_RB_COMMIT_GUARD, fail-closed).
 """
 
 import json
@@ -21,6 +22,8 @@ from pathlib import Path
 from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent, DjmdKey  # type: ignore[import-not-found]
+
+# @kit(PY_RB_COMMIT_GUARD)
 
 # Sentinel: the file exists but its tag block is corrupt/unparseable.
 # Distinct from None ("readable, no usable frames") so the skip list can
@@ -582,17 +585,11 @@ def main() -> None:
                 pending.append((c, str(c.ID), new_comment))
 
     if apply:
-        try:
-            for c, _, comment in pending:
-                c.Commnt = comment
-                # @kit(RB_CLOSED_PY_GUARD;12)
-                raise RuntimeError("rekordbox reopened before comment commit")
-            db.session.commit()
-            out["writes"] = [[cid, comment] for _, cid, comment in pending]
-            out["written"] = len(out["writes"])
-        except Exception as e:
-            db.session.rollback()
-            out["errors"].append(["transaction", repr(e)[:200]])
+        for c, _, comment in pending:
+            c.Commnt = comment
+        rb_guarded_commit(db)
+        out["writes"] = [[cid, comment] for _, cid, comment in pending]
+        out["written"] = len(out["writes"])
 
     # ---- Genre sync: push archive.db vote-winner genres to master.db ----
     # genres_by_path_archive was populated in the single-connection block above
@@ -645,11 +642,7 @@ def main() -> None:
                 c.GenreID = genre_row.ID
 
     if apply and genre_written > 0:
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            out["errors"].append(["genre-sync", repr(e)[:200]])
+        rb_guarded_commit(db)
 
     out["genre_written"] = genre_written
     out["genre_skipped"] = genre_skipped
@@ -689,11 +682,7 @@ def main() -> None:
                 c.ColorID = target_color
             color_written += 1
     if apply and color_written > 0:
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            out["errors"].append(["color-sync", repr(e)[:200]])
+        rb_guarded_commit(db)
     out["color_written"] = color_written
     out["color_skipped"] = color_skipped
 
@@ -760,11 +749,7 @@ def main() -> None:
                 existing_tags[tag_name] = new_tag
 
     if apply:
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            out["errors"].append(["mytag-categories", repr(e)[:200]])
+        rb_guarded_commit(db)
 
     # Assign tags to tracks
     # Build a set of existing assignments to avoid duplicates
@@ -828,11 +813,7 @@ def main() -> None:
             mytag_written += 1
 
     if apply and mytag_written > 0:
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            out["errors"].append(["mytag-assign", repr(e)[:200]])
+        rb_guarded_commit(db)
 
     out["mytag_written"] = mytag_written
 

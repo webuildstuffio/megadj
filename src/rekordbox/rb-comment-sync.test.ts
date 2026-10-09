@@ -315,6 +315,29 @@ describe("rb-comment-sync", () => {
     expect(result.error).toContain("restore exploded");
   });
 
+  test("surfaces the guard's stdout refusal when the sync spawn exits 1", async () => {
+    const result = await __test.run(
+      { mount: "/Volumes/TEST", apply: true, yes: true },
+      {
+        exists: () => true,
+        fileExists: () => true,
+        assertClosed: () => {},
+        backup: () => "/tmp/master.db.bak",
+        restore: () => {},
+        sleep: () => {},
+        spawn: () => ({
+          status: 1,
+          stdout: JSON.stringify({
+            error: "rekordbox is running — refusing write",
+          }),
+          stderr: "",
+        }),
+      },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("rekordbox is running — refusing write");
+  });
+
   test("restores after an incomplete write acknowledgement", async () => {
     let restored = false;
     const result = await __test.run(

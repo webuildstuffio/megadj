@@ -77,6 +77,26 @@ export function parseJsonBoundary(raw: string, context: string): unknown {
   }
 }
 
+/** Best-effort read of a kit's fail-closed `{"error": ...}` line: the
+ *  commit guard (PY_RB_COMMIT_GUARD) prints it as the last stdout line
+ *  before exit 1, while callers' nonzero-exit branches otherwise see
+ *  only stderr and report an empty reason (`sync failed (exit 1):`).
+ *  Returns null when stdout's last line is not an error record — the
+ *  caller falls back to the stderr tail. */
+export function kitErrorReason(stdout: string): string | null {
+  const last = stdout.trim().split("\n").pop() ?? "";
+  if (!last.startsWith("{")) return null;
+  try {
+    const value: unknown = parseJsonBoundary(last, "kit failure");
+    if (!isRecord(value)) return null;
+    const error = value["error"];
+    return typeof error === "string" ? error : null;
+  } catch {
+    // stdout's tail was not the guard's error JSON — nothing to surface
+    return null;
+  }
+}
+
 /** The ONE guarded subprocess-payload parser factory (#202): every rb-*
  *  parseWriteOutput/parseVerifyOutput was the same hand-rolled skeleton —
  *  parseJsonBoundary, isRecord, per-field predicates, typed assembly.

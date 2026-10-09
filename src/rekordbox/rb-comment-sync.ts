@@ -23,6 +23,7 @@ import {
   applyConfirmed,
   applyConfirmationRefusal,
   compensateRestore,
+  kitErrorReason,
   printResult,
   pyUvFileArgv,
   rbCommandRuntime,
@@ -199,10 +200,12 @@ async function rbCommentSyncWithRuntime(
       }),
       600_000,
     );
-    if (r.status !== 0 || !r.stdout)
-      throw new Error(
-        `sync failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
-      );
+    if (r.status !== 0 || !r.stdout) {
+      // the guard's refusal reason rides stdout as {"error": ...} JSON;
+      // stderr alone would report an empty `sync failed (exit 1):`
+      const reason = kitErrorReason(r.stdout) ?? r.stderr.slice(-300);
+      throw new Error(`sync failed (exit ${String(r.status)}): ${reason}`);
+    }
     return parseSyncOutput(
       r.stdout.trim().split("\n").pop() ?? "",
       mode === "apply",
