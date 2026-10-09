@@ -3,9 +3,10 @@
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
 # and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
-# Model: google/gemma-4-31b-it:free primary, 8-model :free fallback chain.
+# Model: gemma-4-31b-it:free primary + 7-model :free fallback chain
+# (qwen free slug retired 2026-10; openrouter/free verified silent-broken
+# as primary 2026-10-09 — last-resort fallback only).
 # API: direct OpenRouter (no AI Gateway proxy — CF gateway corrupts streaming).
-# DO NOT use openrouter/free as primary — proven broken (silent no-reviews).
 # NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
 # GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
 # all global tuning (temperature, score threshold, focus instructions).
@@ -99,8 +100,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           config.model: "openrouter/google/gemma-4-31b-it:free"
           config.fallback_models: >-
-            ["openrouter/qwen/qwen3.8-27b:free",
-            "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+            ["openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
             "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
             "openrouter/cohere/north-mini-code:free",
             "openrouter/inclusionai/ling-3.0-flash-sante:free",
