@@ -18,6 +18,16 @@ name: security-scan
     - cron: "0 9 * * 1"  # Mondays 09:00 UTC — weekly deep scan
   workflow_dispatch:
 
+# Superseded runs cancel. Caller concurrency is safe
+# since repo-review#238 (reusable inner group renamed
+# `security-scan-inner-...`, so it can never equal this
+# group; equal strings previously cancelled the whole
+# run instantly, ~2s, zero jobs). Keyed by ref, so PR
+# runs never cancel the weekly deep scan. Pin below.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   fast:
     # PR-only (2026-10-09): the old push leg re-ran this scan on
@@ -26,14 +36,14 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false
-    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@1626cf7d07a2aa11d877c2e75934b25769fec0f1  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@05aef6b6a4c1586e6aeb23edb983d8e1483039f0  # yamllint disable-line rule:line-length
     secrets: inherit
 
   deep:
     if: >-
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
-    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@1626cf7d07a2aa11d877c2e75934b25769fec0f1  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@05aef6b6a4c1586e6aeb23edb983d8e1483039f0  # yamllint disable-line rule:line-length
     with:
       deep: true
     secrets: inherit
