@@ -15,7 +15,7 @@ name: metrics-weekly
 
 jobs:
   snapshot:
-    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@8d8b4047bf022be629172550a0a21d26257eb543  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@05aef6b6a4c1586e6aeb23edb983d8e1483039f0  # yamllint disable-line rule:line-length
     with:
       run_snapshot: true
       language: typescript
