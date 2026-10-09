@@ -14,20 +14,18 @@ name: security-scan
 "on":
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  push:
-    branches: [main]
   schedule:
     - cron: "0 9 * * 1"  # Mondays 09:00 UTC — weekly deep scan
   workflow_dispatch:
 
 jobs:
   fast:
-    # Direct-push repo (no PR flow): push leg kept deliberately.
-    # Draft guard applies to the PR leg only.
+    # PR-only (2026-10-09): the old push leg re-ran this scan on
+    # every PR merge commit. Main stays covered by the weekly
+    # Trivy deep scan below (schedule) and workflow_dispatch.
     if: >-
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-      github.event.pull_request.draft == false)
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false
     uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@1626cf7d07a2aa11d877c2e75934b25769fec0f1  # yamllint disable-line rule:line-length
     secrets: inherit
 

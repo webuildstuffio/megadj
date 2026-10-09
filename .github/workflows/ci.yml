@@ -5,11 +5,15 @@
 # suite locally on the developer's Mac.  CI runs the platform-agnostic
 # static checks as the blocking gate; tests run on Linux for visibility
 # but don't block (many tests need macOS-only tools).
+#
+# Trigger: pull_request only (2026-10-09). This suite used to also run
+# on every push to main, so each PR merge re-ran it on a tree-identical
+# commit. Direct pushes to main ended 2026-10-01 and every landing
+# since is a PR merge, so the PR is now the single gate; the local
+# pre-push hook remains the gate for any direct-push work.
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
