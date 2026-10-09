@@ -18,6 +18,7 @@ import {
   applyConfirmed,
   compensateRestore,
   isStringTriple,
+  kitErrorReason,
   parseJsonBoundary,
   printResult,
   pyUvFileArgv,
@@ -110,9 +111,11 @@ export async function rbTitleRepair(
     if (result.status !== 0) {
       if (backedUpTo)
         compensateRestore(deps, dbPath, backedUpTo, result.stderr);
-      return mk(
-        `title-repair failed (exit ${result.status}): ${result.stderr.slice(0, 300)}`,
-      );
+      // the guard's refusal reason rides stdout as {"error": ...} JSON;
+      // stderr alone would report an empty `title-repair failed (exit 1):`
+      const reason =
+        kitErrorReason(result.stdout) ?? result.stderr.slice(0, 300);
+      return mk(`title-repair failed (exit ${result.status}): ${reason}`);
     }
 
     const value = parseJsonBoundary(result.stdout, "rb-title-repair");
