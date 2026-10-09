@@ -337,12 +337,15 @@ a.prop !== null`), one strict check does NOT imply the other.
   (4) WAL checkpoint on close, success path only. That posture has ONE SSOT
   since #494: the `PY_RB_COMMIT_GUARD` kit fragment in
   `src/rekordbox/rb-script-kit.ts` (renders `rb_refuse_if_open` /
-  `rb_guarded_commit`); tag-fix and album-push adopt it via
+  `rb_guarded_commit`); tag-fix, album-push, title-repair and comment-sync
+  (every phase commit, genre/color/mytag included) adopt it via
   `#@kit(PY_RB_COMMIT_GUARD)` with per-kit topology pins
-  (`tag-fix-guard.test.ts`, `album-push-guard.test.ts`) — never hand-roll a
-  second copy of the guard in a write kit, and every new master.db write kit
-  rechecks RB-closed immediately before each commit. Remaining #494 slices:
-  title-repair, comment-sync's genre/color/mytag commits. The `.kit.py`
+  (`tag-fix-guard.test.ts`, `album-push-guard.test.ts`,
+  `title-repair-guard.test.ts`, `comment-sync-guard.test.ts`) — never
+  hand-roll a second copy of the guard in a write kit, and every new
+  master.db write kit rechecks RB-closed immediately before each commit.
+  All #494 slices landed 2026-10-09 (#503 closed the title-repair +
+  comment-sync tail). The `.kit.py`
   files have
   `@kit()` annotation markers that the TS orchestrator expands via
   `renderKitMarkers` — running a `.kit.py` directly with `python` leaves the

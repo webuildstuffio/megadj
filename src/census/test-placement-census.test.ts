@@ -67,6 +67,10 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#432: subject tag-fix.kit.py (python corpus kit) — RB-closed guard topology pin",
   "src/rekordbox/album-push-guard.test.ts":
     "#494: subject album-push.kit.py (python corpus kit) — RB-closed guard topology pin",
+  "src/rekordbox/title-repair-guard.test.ts":
+    "#503: subject title-repair.kit.py (python corpus kit) — RB-closed guard topology pin",
+  "src/rekordbox/comment-sync-guard.test.ts":
+    "#503: subject comment-sync.kit.py (python corpus kit) — RB-closed guard topology pin",
   "src/rekordbox/rb-scripts-census.test.ts":
     "#214: census over rb-scripts corpus",
   "src/shared/maintenance-flags.test.ts":

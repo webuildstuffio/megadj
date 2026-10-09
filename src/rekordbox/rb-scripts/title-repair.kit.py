@@ -12,7 +12,9 @@ Three classes of defect:
   2. CONTAMINATED: title contains "Artist - Title" but artist col has the name
   3. PAREN-MISMATCH: unbalanced parens/brackets from truncation
 
-Safety: RB-closed gate, WAL checkpoint. Report-only by default.
+Safety: the shared RB-closed guarded commit (PY_RB_COMMIT_GUARD
+fragment, fail-closed), WAL checkpoint on the success path only.
+Report-only by default.
 """
 
 import json
@@ -26,6 +28,8 @@ import unicodedata
 from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]
+
+# @kit(PY_RB_COMMIT_GUARD)
 
 
 def nfc(s: str) -> str:
@@ -263,22 +267,10 @@ def main() -> None:
             out["samples"].append([fix_class, db_title[:60], new_title[:60]])
 
     if apply and pending:
-        if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
-            rbdb.session.rollback()
-            out["errors"].append(["gate", "rekordbox is running -- refusing write"])
-            out["applied"] = False
-            print(json.dumps(out))
-            rbdb.close()
-            sys.exit(1)
-
         for c_obj, new_t in pending:
             c_obj.Title = new_t
 
-        try:
-            rbdb.session.commit()
-        except Exception as e:
-            rbdb.session.rollback()
-            out["errors"].append(["commit", repr(e)[:200]])
+        rb_guarded_commit(rbdb)
 
     print(json.dumps(out))
 

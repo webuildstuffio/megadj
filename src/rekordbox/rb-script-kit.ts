@@ -216,8 +216,9 @@ export const pyCueSigBlock = (): string => PY_CUE_SIG_BLOCK;
  *  that loses the race fails CLOSED — rollback, error JSON, exit 1, never
  *  a checkpoint on a lost race. Corpus files adopting the marker must
  *  import json/subprocess/sys (the fragment references all three).
- *  Adopters: tag-fix (#432), album-push (#494); title-repair and
- *  comment-sync's later phases are the remaining #494 slices. */
+ *  Adopters: tag-fix (#432), album-push, title-repair, and
+ *  comment-sync — every phase commit incl. genre/color/mytag (#494,
+ *  remainder closed by #503). */
 export const PY_RB_COMMIT_GUARD = `def rb_refuse_if_open(db):
     if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
         db.session.rollback()
