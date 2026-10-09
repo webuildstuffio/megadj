@@ -13,6 +13,7 @@
 name: security-scan
 "on":
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   schedule:
@@ -21,9 +22,12 @@ name: security-scan
 
 jobs:
   fast:
+    # Direct-push repo (no PR flow): push leg kept deliberately.
+    # Draft guard applies to the PR leg only.
     if: >-
-      github.event_name == 'pull_request' ||
-      github.event_name == 'push'
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false)
     uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@1626cf7d07a2aa11d877c2e75934b25769fec0f1  # yamllint disable-line rule:line-length
     secrets: inherit
 

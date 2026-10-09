@@ -11,9 +11,15 @@
 name: metrics-gate
 "on":
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   gate:
+    # No concurrency block: adding one (workflow- or job-level)
+    # hard-fails this reusable-workflow call at queue time
+    # (verified 2026-10-09, emf.exposed runs 37875294727 /
+    # 37875962995; draft-only passes).
+    if: github.event.pull_request.draft == false
     uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@8d8b4047bf022be629172550a0a21d26257eb543  # yamllint disable-line rule:line-length
     with:
       run_snapshot: false
