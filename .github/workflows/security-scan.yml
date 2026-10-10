@@ -36,14 +36,14 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false
-    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@05aef6b6a4c1586e6aeb23edb983d8e1483039f0  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@7ca2e13e1c338f64b09004fe0361c7cee5e92ecc  # yamllint disable-line rule:line-length
     secrets: inherit
 
   deep:
     if: >-
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
-    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@05aef6b6a4c1586e6aeb23edb983d8e1483039f0  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@7ca2e13e1c338f64b09004fe0361c7cee5e92ecc  # yamllint disable-line rule:line-length
     with:
       deep: true
     secrets: inherit
