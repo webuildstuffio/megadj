@@ -2,6 +2,10 @@
 
 Rules and traps only. Product detail: [`docs/`](docs/README.md); full incident history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 
+## Package manager
+
+Use **bun** for everything (install, run, test, build). Never use the `npm` or `pnpm` CLIs. npm registry packages are fine — install them with `bun`.
+
 ## Non-negotiables
 
 - English only. Product decisions follow [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md). macOS/Pioneer only; no CI; no PR flow — direct pushes to `main`.
