@@ -48,4 +48,32 @@ describe("rb-title-repair failure diagnostics", () => {
     expect(result.ok).toBe(false);
     expect(result.error).toContain("uv: package resolution failed");
   });
+
+  test("a clean run parses with no errors key in the kit payload (#514)", async () => {
+    // #514: the kit's write-only "errors": [] key is gone — exit 0 with
+    // valid JSON is a clean run, and the caller must not require the key.
+    const result = await rbTitleRepair(
+      { mount: "/Volumes/TEST", apply: true, yes: true, log: () => {} },
+      fakeDeps(() => ({
+        status: 0,
+        stdout: JSON.stringify({
+          scanned: 3,
+          truncated_fixed: 1,
+          contamination_fixed: 0,
+          paren_fixed: 0,
+          skipped_missing: 0,
+          skipped_no_tag: 0,
+          already_good: 2,
+          applied: true,
+          samples: [["truncated", "Old Title", "Full Title"]],
+        }),
+        stderr: "",
+      })),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.applied).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.truncatedFixed).toBe(1);
+    expect(result.samples).toEqual([["truncated", "Old Title", "Full Title"]]);
+  });
 });

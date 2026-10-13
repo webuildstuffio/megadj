@@ -147,7 +147,6 @@ def main() -> None:
         "already_good": 0,
         "applied": apply,
         "samples": [],
-        "errors": [],
     }
 
     rows = list(rbdb.query(DjmdContent).all())
