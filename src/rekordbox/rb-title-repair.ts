@@ -124,13 +124,6 @@ export async function rbTitleRepair(
       return mk("title-repair returned invalid payload");
     }
 
-    const errors: string[] = [];
-    if (isUnknownArray(value["errors"])) {
-      for (const e of value["errors"]) {
-        if (isUnknownArray(e) && e.length >= 2) errors.push(`${e[0]}: ${e[1]}`);
-      }
-    }
-
     const samples: [string, string, string][] = [];
     if (isUnknownArray(value["samples"])) {
       for (const s of value["samples"]) {
@@ -143,6 +136,9 @@ export async function rbTitleRepair(
       return typeof v === "number" && Number.isFinite(v) ? v : 0;
     };
 
+    // The kit payload carries no errors key (#514): a failure exits
+    // nonzero with {"error": ...} on stdout, handled above — exit 0 with
+    // valid JSON is a clean run.
     const r: RbTitleRepairResult = {
       command: "rb-title-repair",
       db: dbPath,
@@ -153,18 +149,13 @@ export async function rbTitleRepair(
       skippedMissing: n("skipped_missing"),
       skippedNoTag: n("skipped_no_tag"),
       alreadyGood: n("already_good"),
-      applied: apply && errors.length === 0,
+      applied: apply,
       samples,
-      errors,
-      ok: errors.length === 0,
+      errors: [],
+      ok: true,
     };
 
-    if (apply && !r.ok && backedUpTo) {
-      // applyConfirmationRefusal gated above
-      compensateRestore(deps, dbPath, backedUpTo, errors.join("; "));
-    }
-
-    if (apply && r.ok) {
+    if (apply) {
       deps.sleep(500);
       log(
         `title-repair: ${r.truncatedFixed} truncated, ${r.contaminationFixed} contamination, ${r.parenFixed} paren → fixed`,
