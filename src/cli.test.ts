@@ -46,9 +46,9 @@ function runCliWithAllowLinux(value: string | undefined): {
   return { code: p.exitCode, stderr: p.stderr.toString() };
 }
 
-describe("MEGADJ_ALLOW_LINUX opens the macOS-only gate only on \"1\" (#514)", () => {
+describe('MEGADJ_ALLOW_LINUX opens the macOS-only gate only on "1" (#514)', () => {
   test.skipIf(process.platform === "darwin")(
-    "unset / empty / \"0\" / \"false\" keep the fail-fast (exit 2)",
+    'unset / empty / "0" / "false" keep the fail-fast (exit 2)',
     () => {
       for (const value of [undefined, "", "0", "false"]) {
         const r = runCliWithAllowLinux(value);
@@ -60,7 +60,7 @@ describe("MEGADJ_ALLOW_LINUX opens the macOS-only gate only on \"1\" (#514)", ()
   );
 
   test.skipIf(process.platform === "darwin")(
-    "\"1\" opens the hatch — the run proceeds past the guard",
+    '"1" opens the hatch — the run proceeds past the guard',
     () => {
       const r = runCliWithAllowLinux("1");
       expect(r.stderr).not.toContain(MACOS_ONLY);
