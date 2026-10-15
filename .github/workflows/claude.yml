@@ -1,7 +1,18 @@
-# Claude Code Assistant v5.22
+# Claude Code Assistant v5.24
 # Triggered by @claude mentions in issues, PRs, and reviews.
 # Uses Z.AI routing (org ANTHROPIC_API_KEY is a Z.AI credential).
 #
+# v5.24 - (Oct 14 2026) Cross-stack allowlist: python3/pip/uv/pytest,
+#          cargo/rustc, go, npm/pnpm, make + everyday utilities
+#          (ls/cat/pwd/echo/chmod/tar/unzip/wc/du/tee/xargs/
+#          timeout/sqlite3) so non-JS repos stop eating Bash
+#          permission denials; --max-turns 125 -> 150 (turn data:
+#          125-cap deaths 6.6%, 13.4s/turn, 150 fits 35-min timeout).
+# v5.23 - (Oct 13 2026) Boot + resilience delta: --fallback-model
+#          claude-haiku-4-5 + --effort medium, Claude CLI binary
+#          cache (path_to_claude_code_executable on cache hit),
+#          bun via the existing setup-bun step
+#          (path_to_bun_executable), ENABLE_PROMPT_CACHING_1H.
 # v5.22 - (Oct 13 2026) Fleet rollout of the pilot template: max-turns
 #          75 -> 125, wider Bash allowlist, dependency pre-install +
 #          cache before the Claude step, retry watchdog env (the
@@ -114,6 +125,7 @@ jobs:
             await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, labels: ['🤖 claude-working'] });
 
       - name: Set up Bun
+        id: setup-bun
 
         uses: oven-sh/setup-bun@v2
 
@@ -142,12 +154,39 @@ jobs:
         run: bun install
 
 
+      - name: Cache Claude Code CLI
+        id: claude-cli-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin/claude
+            ~/.local/share/claude
+          key: claude-cli-2.1.286-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Resolve cached Claude Code CLI
+        id: claude-bin
+        run: |
+          # The cache is agent-writable state, so a restored binary is
+          # only used after its SHA256 matches the official Claude Code
+          # 2.1.286 linux-x64 release checksum (Anthropic manifest).
+          want="fe503f65c6289d59c23e5b21ae44f03583f997dd33a2cbfc75ab4f96fb8fc73f"
+          bin="$HOME/.local/bin/claude"
+          hit="${{ steps.claude-cli-cache.outputs.cache-hit }}"
+          got="$(sha256sum "$(readlink -f "$bin" 2>/dev/null)" 2>/dev/null | cut -d' ' -f1)"
+          if [ "$hit" = "true" ] && [ -x "$bin" ] && [ "$got" = "$want" ]; then
+            echo "path=$bin" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Claude Code
         id: claude_action
         uses: anthropics/claude-code-action@v1.0.238
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          path_to_claude_code_executable: ${{ steps.claude-bin.outputs.path }}
+          path_to_bun_executable: ${{ steps.setup-bun.outputs.bun-path }}
           show_full_output: false
           track_progress: true
           additional_permissions: |
@@ -159,9 +198,11 @@ jobs:
             Help with the task described in the issue/PR above. Complete it 100%.
             Read AGENTS.md at the repo root first for project-specific guidelines.
           claude_args: |
-            --max-turns 125
+            --max-turns 150
+            --fallback-model claude-haiku-4-5
+            --effort medium
             --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first."
-            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(jq:*),Bash(curl:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(diff:*),Bash(sort:*),Bash(which:*),Bash(env:*),Bash(sleep:*),Bash(bash:*)"
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(jq:*),Bash(curl:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(diff:*),Bash(sort:*),Bash(which:*),Bash(env:*),Bash(sleep:*),Bash(python3:*),Bash(pip:*),Bash(pip3:*),Bash(uv:*),Bash(pytest:*),Bash(cargo:*),Bash(rustc:*),Bash(go:*),Bash(npm:*),Bash(pnpm:*),Bash(make:*),Bash(ls:*),Bash(cat:*),Bash(pwd:*),Bash(echo:*),Bash(chmod:*),Bash(tar:*),Bash(unzip:*),Bash(wc:*),Bash(du:*),Bash(tee:*),Bash(xargs:*),Bash(timeout:*),Bash(sqlite3:*),Bash(bash:*)"
           settings: |
             {
               "env": {
@@ -171,7 +212,8 @@ jobs:
                 "ANTHROPIC_SMALL_FAST_MODEL": "${{ vars.CLAUDE_SMALL_MODEL || 'claude-haiku-4-5' }}",
                 "API_TIMEOUT_MS": "600000",
                 "CLAUDE_CODE_RETRY_WATCHDOG": "1",
-                "CLAUDE_CODE_MAX_RETRIES": "10"
+                "CLAUDE_CODE_MAX_RETRIES": "10",
+                "ENABLE_PROMPT_CACHING_1H": "1"
               }
             }
 
