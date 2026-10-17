@@ -3,9 +3,9 @@
 # All config lives in webuildstuffio/pr-agent-settings/.pr_agent.toml (global)
 # and per-repo .pr_agent.toml (overrides). This workflow is intentionally minimal.
 #
-# Model: gemma-4-31b-it:free primary + 10-model :free fallback chain.
-# Expanded 2026-10-09 (owner: more free models + retry depth;
-# ling-3.0 retired -> ling-3.1). openrouter/free last resort only.
+# Model: gemma-4-31b-it:free primary + trimmed 3-model :free fallback chain.
+# Trimmed 2026-10-17 (owner: 3 proven free models only, retries 1,
+# ai_timeout 90s per call). openrouter/free last resort only.
 # API: direct OpenRouter (no AI Gateway proxy — CF gateway corrupts streaming).
 # NOTE: webuildstuffio/pr-agent-settings MUST stay PUBLIC — the default
 # GITHUB_TOKEN cannot read it as a private repo (404), which silently drops
@@ -101,16 +101,10 @@ jobs:
           config.model: "openrouter/google/gemma-4-31b-it:free"
           config.fallback_models: >-
             ["openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
-            "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
-            "openrouter/cohere/north-mini-code:free",
-            "openrouter/inclusionai/ling-3.1-flash",
-            "openrouter/nvidia/nemotron-3.5-lightning:free",
-            "openrouter/poolside/laguna-s-2.1:free",
             "openrouter/google/gemma-4-26b-a4b-it:free",
-            "openrouter/poolside/laguna-xs-2.1:free",
-            "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
             "openrouter/free"]
-          config.num_retries: "3"
+          config.num_retries: "1"
+          config.ai_timeout: "90"
           CONFIG__CUSTOM_MODEL_MAX_TOKENS: "131072"
           github_action_config.auto_improve: "true"
           github_action_config.auto_review: "false"
