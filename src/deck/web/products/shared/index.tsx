@@ -96,6 +96,12 @@ export function Verdict(props: {
   );
 }
 
+/** Enter/Space activation for ShareBar's clickable seg/legend divs (#520):
+ *  same keyboard contract as StatCard. */
+const segOnKey = (onClick?: () => void) => (e: KeyboardEvent) => {
+  if (onClick && (e.key === "Enter" || e.key === " ")) onClick();
+};
+
 /** Horizontal segmented share bar + legend (the archive pipeline pie).
  *  Segments/legend entries accept an optional onClick (Sep 21): clicking
  *  a seg jumps to that cohort's list — the bar is a legend AND a nav.
@@ -112,9 +118,6 @@ export function ShareBar(props: {
   total: number;
 }) {
   const total = props.total || 1;
-  const onKey = (s: { onClick?: () => void }) => (e: KeyboardEvent) => {
-    if (s.onClick && (e.key === "Enter" || e.key === " ")) s.onClick();
-  };
   return (
     <>
       <div
@@ -133,7 +136,7 @@ export function ShareBar(props: {
               role={s.onClick ? "button" : undefined}
               tabIndex={s.onClick ? 0 : undefined}
               onClick={s.onClick}
-              onKeyDown={s.onClick ? onKey(s) : undefined}
+              onKeyDown={s.onClick ? segOnKey(s.onClick) : undefined}
             />
           ))}
       </div>
@@ -147,7 +150,7 @@ export function ShareBar(props: {
               role={s.onClick ? "button" : undefined}
               tabIndex={s.onClick ? 0 : undefined}
               onClick={s.onClick}
-              onKeyDown={s.onClick ? onKey(s) : undefined}
+              onKeyDown={s.onClick ? segOnKey(s.onClick) : undefined}
             >
               <i class={s.cls} /> {s.label} <em>{s.n.toLocaleString()}</em>
             </span>
