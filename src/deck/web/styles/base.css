@@ -26,7 +26,12 @@
 .megaset-duration-option:focus-visible,
 .megaset-minutes input:focus-visible,
 .megaset-method summary:focus-visible,
-.megaset-opener-pick summary:focus-visible {
+.megaset-opener-pick summary:focus-visible,
+.photopick-btn:focus-visible,
+.stat.clickable:focus-visible,
+.arch-seg.clickable:focus-visible,
+.arch-legend .clickable:focus-visible,
+.brand:focus-visible {
   outline: 2px solid var(--info);
   outline-offset: 2px;
   border-radius: 8px;

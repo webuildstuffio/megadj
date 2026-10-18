@@ -34,7 +34,12 @@ export function AppHeader(props: {
       <header class="topbar">
         <div
           class="brand"
+          role="button"
+          tabIndex={0}
           onClick={() => navigate(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") navigate(null);
+          }}
           title="megadj — one toolkit for the DJ library"
         >
           <span class="brand-mark" />
