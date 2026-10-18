@@ -11,10 +11,18 @@
   --surface4: #242830;
   --stroke: #23262c;
   --stroke2: #31353d;
+  /* --line is the border-color name the stylesheets already use — an alias
+   * to the stroke ramp, not a new color. A bare var() with no definition is
+   * invalid at computed-value time and silently drops the whole border
+   * declaration (same trap --text2 fell into, #521). */
+  --line: var(--stroke);
   /* text */
   --text: #ecedf0;
   --muted: #9a9ea8;
-  --faint: #63666e;
+  /* #63666e computed 3.43:1 on --bg — under the 4.5:1 AA bar on every
+   * surface it touches; #8b909b clears AA on all five surfaces (4.62:1
+   * worst-case on --surface4) while staying a step below --muted (#521). */
+  --faint: #8b909b;
   /* accents */
   --accent: #38e0a4;
   --accent-dim: rgba(56, 224, 164, 0.14);
