@@ -105,6 +105,10 @@ export function PhotoTab(props: {
           <Icon name="photo" size={14} /> Upload from Mac…
         </button>
       </div>
+      <div class="note">
+        <Icon name="photo" size={14} /> Click a thumbnail to set it as the cover
+        — or Tab to one and press Enter (the web results below work the same).
+      </div>
       <h3 class="sect" style={{ marginTop: 14 }}>
         <Icon name="usb" size={14} /> On this drive
         {!mounted && <span class="badge muted">plug in to browse</span>}
@@ -112,13 +116,15 @@ export function PhotoTab(props: {
       {props.driveImages && props.driveImages.length > 0 && (
         <div class="photopick">
           {props.driveImages.map((img) => (
-            <img
+            <button
               key={img.rel}
-              src={img.url}
-              alt={img.rel}
-              title={`${img.rel} — click to set as cover`}
+              type="button"
+              class="photopick-btn"
+              title={`${img.rel} — set as cover`}
               onClick={() => props.onChooseDriveImage(img.rel)}
-            />
+            >
+              <img src={img.url} alt={img.rel} />
+            </button>
           ))}
         </div>
       )}
@@ -148,13 +154,15 @@ export function PhotoTab(props: {
       {props.hits && (
         <div class="photopick">
           {props.hits.map((h) => (
-            <img
+            <button
               key={h.id}
-              src={h.thumb}
-              alt={h.source}
+              type="button"
+              class="photopick-btn"
               title={`source: ${h.source}`}
               onClick={() => props.onChoose(h)}
-            />
+            >
+              <img src={h.thumb} alt={h.source} />
+            </button>
           ))}
         </div>
       )}

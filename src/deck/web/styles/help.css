@@ -75,19 +75,27 @@
   gap: 8px;
   margin: 8px 0;
 }
+/* thumbs are real buttons (#520): native Tab + Enter/Space activation;
+ * the visible focus halo comes from the base.css enumeration */
+.photopick-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
 .photopick img {
+  display: block;
   width: 96px;
   height: 72px;
   object-fit: cover;
   border-radius: 10px;
   border: 2px solid var(--stroke);
-  cursor: pointer;
   transition:
     border-color 0.15s,
     transform 0.1s;
   background: var(--surface3);
 }
-.photopick img:hover {
+.photopick-btn:hover img {
   border-color: var(--info);
   transform: translateY(-2px);
 }
