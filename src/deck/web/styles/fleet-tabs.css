@@ -811,7 +811,7 @@ a.surfaced-link,
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 6px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border: 1px solid var(--stroke2);
   color: var(--accent, #4aa3ff);
   text-decoration: none;
   word-break: break-all;
@@ -828,7 +828,7 @@ a.surfaced-link:hover {
   flex-wrap: wrap;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+  border-top: 1px solid var(--line);
 }
 
 .surfaced-folder {
@@ -843,7 +843,7 @@ a.surfaced-link:hover {
   font-size: 12px;
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border: 1px solid var(--stroke2);
   background: transparent;
   color: var(--text-1, inherit);
   min-width: 260px;
@@ -891,7 +891,7 @@ a.surfaced-link:hover {
   font-size: 10.5px;
   padding: 1px 6px;
   border-radius: 6px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border: 1px solid var(--stroke2);
   color: var(--dim, var(--text-2));
   vertical-align: middle;
 }
@@ -911,7 +911,7 @@ a.surfaced-link:hover {
   flex-wrap: wrap;
   font-size: 12.5px;
   padding: 6px 8px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
