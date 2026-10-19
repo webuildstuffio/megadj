@@ -1,7 +1,18 @@
-# Claude Code Assistant v5.24
+# Claude Code Assistant v5.25
 # Triggered by @claude mentions in issues, PRs, and reviews.
 # Uses Z.AI routing (org ANTHROPIC_API_KEY is a Z.AI credential).
 #
+# v5.25 - (Oct 19 2026) Truthful status labels + speed: the completion
+#          badge now classifies every ending — success -> claude-complete,
+#          max-turns -> claude-failed-turns, timeout/cancelled ->
+#          claude-failed-time (label only, no comment, so superseded
+#          runs stay quiet), model/API (gateway) errors -> claude-failed-
+#          api, everything else -> claude-failed (incl. never-started).
+#          Cancelled runs no longer strand the 🤖 claude-working label.
+#          Failure comments carry a handoff (progress branch) and the
+#          prompt tells Claude to resume from it instead of re-exploring.
+#          Speed: bun pinned 1.4.2, bun install --frozen-lockfile with
+#          a download cache, timeout-minutes floor of 45.
 # v5.24 - (Oct 14 2026) Cross-stack allowlist: python3/pip/uv/pytest,
 #          cargo/rustc, go, npm/pnpm, make + everyday utilities
 #          (ls/cat/pwd/echo/chmod/tar/unzip/wc/du/tee/xargs/
@@ -72,7 +83,10 @@ jobs:
             const labels = [
               { name: '🤖 claude-working', color: 'f97316', description: 'Claude AI is currently analyzing this issue/PR' },
               { name: '✅ claude-complete', color: '22c55e', description: 'Claude AI has successfully completed analysis' },
-              { name: '❌ claude-failed', color: 'ef4444', description: 'Claude AI encountered an error during analysis' }
+              { name: '❌ claude-failed', color: 'ef4444', description: 'Claude AI encountered an error during analysis' },
+              { name: '❌ claude-failed-turns', color: 'ef4444', description: 'Claude AI hit the max-turns cap' },
+              { name: '❌ claude-failed-time', color: 'ef4444', description: 'Claude AI run timed out or was cancelled' },
+              { name: '❌ claude-failed-api', color: 'ef4444', description: 'Claude AI failed on a model/API (gateway) error' }
             ];
             for (const l of labels) {
               try {
@@ -113,9 +127,9 @@ jobs:
           script: |
             const n = '${{ steps.context.outputs.issue_number }}';
             if (!n) return;
-            const claudeLabels = ['🤖 claude-working', '✅ claude-complete', '❌ claude-failed'];
+            const claudeLabels = ['🤖 claude-working', '✅ claude-complete', '❌ claude-failed', '❌ claude-failed-turns', '❌ claude-failed-time', '❌ claude-failed-api'];
             try {
-              const { data: current } = await github.rest.issues.listLabelsOnIssue({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n });
+              const current = await github.paginate(github.rest.issues.listLabelsOnIssue, { owner: context.repo.owner, repo: context.repo.repo, issue_number: n, per_page: 100 });
               for (const label of current) {
                 if (claudeLabels.includes(label.name)) {
                   await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, name: label.name });
@@ -131,7 +145,7 @@ jobs:
 
         with:
 
-          bun-version: 1.3.14
+          bun-version: 1.4.2
 
 
       - name: Cache Bun dependencies
@@ -151,7 +165,7 @@ jobs:
 
       - name: Install dependencies
 
-        run: bun install
+        run: bun install --frozen-lockfile
 
 
       - name: Cache Claude Code CLI
@@ -181,6 +195,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude_action
+        timeout-minutes: 35
         uses: anthropics/claude-code-action@v1.0.238
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -201,7 +216,7 @@ jobs:
             --max-turns 150
             --fallback-model claude-haiku-4-5
             --effort medium
-            --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first."
+            --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first. If a comment marked 'claude-handoff' names a progress branch, continue from that branch instead of starting over."
             --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(jq:*),Bash(curl:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(diff:*),Bash(sort:*),Bash(which:*),Bash(env:*),Bash(sleep:*),Bash(python3:*),Bash(pip:*),Bash(pip3:*),Bash(uv:*),Bash(pytest:*),Bash(cargo:*),Bash(rustc:*),Bash(go:*),Bash(npm:*),Bash(pnpm:*),Bash(make:*),Bash(ls:*),Bash(cat:*),Bash(pwd:*),Bash(echo:*),Bash(chmod:*),Bash(tar:*),Bash(unzip:*),Bash(wc:*),Bash(du:*),Bash(tee:*),Bash(xargs:*),Bash(timeout:*),Bash(sqlite3:*),Bash(bash:*)"
           settings: |
             {
@@ -227,13 +242,97 @@ jobs:
             const n = '${{ steps.context.outputs.issue_number }}';
             if (!n) return;
             const status = '${{ steps.claude_action.conclusion }}';
-            if (status === 'skipped' || status === 'cancelled') return;
-            try { await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, name: '🤖 claude-working' }); } catch {}
-            const label = status === 'success' ? '✅ claude-complete' : '❌ claude-failed';
+            const execFile = '${{ steps.claude_action.outputs.execution_file }}';
+            const actionBranch = '${{ steps.claude_action.outputs.branch_name }}';
+            const statusLabels = ['🤖 claude-working', '✅ claude-complete', '❌ claude-failed', '❌ claude-failed-turns', '❌ claude-failed-time', '❌ claude-failed-api'];
+            const stripStatus = async (except) => {
+              try {
+                const current = await github.paginate(github.rest.issues.listLabelsOnIssue, { owner: context.repo.owner, repo: context.repo.repo, issue_number: n, per_page: 100 });
+                for (const l of current) {
+                  if (statusLabels.includes(l.name) && l.name !== except) {
+                    try { await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, name: l.name }); } catch {}
+                  }
+                }
+              } catch {}
+            };
+            if (status === 'skipped' || !status) {
+              let setupFailed = false;
+              try {
+                const jobs = await github.rest.actions.listJobsForWorkflowRun({ owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId });
+                const job = jobs.data.jobs.find(j => j.name === 'claude') || jobs.data.jobs[0];
+                setupFailed = !!(job && job.steps && job.steps.some(s => s.conclusion === 'failure'));
+              } catch {}
+              if (!setupFailed) { await stripStatus(''); return; }
+            }
+            let reason = '';
+            let subtype = '';
+            let resultText = '';
+            try {
+              const fs = require('fs');
+              const raw = fs.readFileSync(execFile, 'utf8').trim();
+              let data;
+              try { data = JSON.parse(raw); } catch { data = JSON.parse(raw.split('\n').pop()); }
+              let msg = data;
+              let extraErrors = '';
+              if (Array.isArray(data)) {
+                msg = [...data].reverse().find(m => m && m.type === 'result') || data[data.length - 1] || {};
+                const withErrors = [...data].reverse().find(m => m && Array.isArray(m.errors) && m.errors.length);
+                if (withErrors) extraErrors = JSON.stringify(withErrors.errors);
+              } else if (data && Array.isArray(data.errors)) {
+                extraErrors = JSON.stringify(data.errors);
+              }
+              reason = (msg && msg.terminal_reason) || '';
+              subtype = (msg && msg.subtype) || '';
+              resultText = [((msg && msg.result) || ''), (msg && Array.isArray(msg.errors) && msg.errors.length) ? JSON.stringify(msg.errors) : '', extraErrors].filter(Boolean).join(' ');
+            } catch {}
+            let label;
+            let why = status;
+            if (status === 'skipped' || !status) {
+              label = '❌ claude-failed';
+              why = 'setup failed before Claude started';
+            } else if (status === 'success') {
+              label = '✅ claude-complete';
+            } else if (status === 'cancelled') {
+              label = '❌ claude-failed-time';
+              why = 'timed out or cancelled';
+            } else if (reason === 'error_max_turns' || reason === 'max_turns' || subtype === 'error_max_turns') {
+              label = '❌ claude-failed-turns';
+              why = 'reached max turns';
+            } else if (reason === 'model_error' || /api[ _]error|overloaded|rate[ _]limit|too many requests|api timeout/i.test(reason + ' ' + subtype + ' ' + resultText)) {
+              label = '❌ claude-failed-api';
+              why = 'model/API (gateway) error';
+            } else if (!reason && !resultText.trim() && status === 'failure') {
+              let elapsedMin = 0;
+              try {
+                const run = await github.rest.actions.getWorkflowRun({ owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId });
+                elapsedMin = (Date.now() - new Date(run.data.run_started_at).getTime()) / 60000;
+              } catch {}
+              if (elapsedMin > 30) {
+                label = '❌ claude-failed-time';
+                why = 'timed out (step killed, no result)';
+              } else {
+                label = '❌ claude-failed';
+              }
+            } else {
+              label = '❌ claude-failed';
+            }
+            await stripStatus(label);
             await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, labels: [label] });
-            if (status !== 'success') {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo, issue_number: n,
-                body: `### ❌ Claude Error\n\nStatus: ${status}. Check [workflow logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}).`
-              });
+            if (label !== '✅ claude-complete' && status !== 'cancelled') {
+              let branch = actionBranch || '';
+              if (!branch) {
+                try {
+                  const refs = await github.rest.git.listMatchingRefs({ owner: context.repo.owner, repo: context.repo.repo, ref: `heads/claude/issue-${n}-` });
+                  if (refs.data.length) branch = refs.data[refs.data.length - 1].ref.replace('refs/heads/', '');
+                } catch {}
+              }
+              if (!branch) {
+                try {
+                  const refs = await github.rest.git.listMatchingRefs({ owner: context.repo.owner, repo: context.repo.repo, ref: `heads/claude/pr-${n}-` });
+                  if (refs.data.length) branch = refs.data[refs.data.length - 1].ref.replace('refs/heads/', '');
+                } catch {}
+              }
+              const lines = ['### ❌ Claude Error', '', `Status: ${why}. Check [workflow logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}).`];
+              if (branch) lines.push('', `<!-- claude-handoff --> Progress branch: \`${branch}\` — a re-trigger should continue from it.`);
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, body: lines.join('\n') });
             }
