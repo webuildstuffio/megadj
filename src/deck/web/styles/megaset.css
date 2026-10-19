@@ -239,7 +239,7 @@
 .megaset-genre-count {
   margin: 6px 0 0;
   font-size: 11px;
-  color: var(--text-2, var(--text));
+  color: var(--text2);
 }
 
 .megaset-minutes {
@@ -339,7 +339,7 @@
   color: var(--faint);
 }
 .megaset-fresh.ok {
-  border-left-color: var(--ok, #3fb26f);
+  border-left-color: var(--ok);
 }
 .megaset-fresh.warn {
   border-left-color: var(--warn, #d9a441);
@@ -827,7 +827,7 @@
 }
 .megaset-arcchart .arc-bpm {
   fill: none;
-  stroke: var(--ok, #3fb26f);
+  stroke: var(--ok);
   stroke-width: 1.5;
   stroke-linejoin: round;
   opacity: 0.9;
@@ -873,7 +873,7 @@
   border-top-style: dashed;
 }
 .megaset-arcchart .arc-sw.bpm {
-  border-top-color: var(--ok, #3fb26f);
+  border-top-color: var(--ok);
 }
 /* advanced drawer: pool cap + scoring evidence */
 .megaset-advanced {

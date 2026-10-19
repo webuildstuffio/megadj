@@ -727,7 +727,7 @@
 }
 
 .booth-row-specs {
-  color: var(--dim, var(--text-2));
+  color: var(--text2);
   font-size: 12.5px;
 }
 
@@ -757,7 +757,7 @@
 
 .booth-cite-src {
   font-size: 12px;
-  color: var(--dim, var(--text-2));
+  color: var(--text2);
 }
 
 .booth-cite-src a {
@@ -767,7 +767,7 @@
 .booth-lede,
 .booth-note {
   font-size: 13px;
-  color: var(--dim, var(--text-2));
+  color: var(--text2);
   max-width: 1240px;
 }
 
@@ -836,7 +836,7 @@ a.surfaced-link:hover {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--dim, var(--text-2));
+  color: var(--text2);
 }
 
 .surfaced-folder input {
@@ -876,7 +876,7 @@ a.surfaced-link:hover {
   gap: 10px;
   margin-top: 8px;
   font-size: 12px;
-  color: var(--dim, var(--text-2));
+  color: var(--text2);
 }
 
 .surfaced-pager button {
@@ -892,7 +892,7 @@ a.surfaced-link:hover {
   padding: 1px 6px;
   border-radius: 6px;
   border: 1px solid var(--stroke2);
-  color: var(--dim, var(--text-2));
+  color: var(--text2);
   vertical-align: middle;
 }
 
@@ -920,11 +920,11 @@ a.surfaced-link:hover {
 }
 
 .sc-set-progress {
-  color: var(--dim, var(--text-2));
+  color: var(--text2);
 }
 
 .sc-set-progress i.have {
-  color: var(--ok, #3ecf8e);
+  color: var(--ok);
   font-style: normal;
 }
 
