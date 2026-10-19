@@ -28,6 +28,20 @@ interface VarUse {
   line: number;
 }
 
+/* Comments/strings are scan noise: a commented-out `--x: …;` must not count
+ * --x as defined (that masks a genuinely unresolved var(--x) elsewhere) and
+ * prose like megaset.css's header ("all read var(--set)") must not red a
+ * token removal. Newlines are preserved so reported line numbers stay true.
+ * Comments go first: an unpaired quote inside a comment must not swallow the
+ * rest of the file. */
+function stripCssNoise(css: string): string {
+  return css
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, (m) =>
+      m.replace(/[^\n]/g, " "),
+    );
+}
+
 function declaredTokens(css: string): Set<string> {
   const tokens = new Set<string>();
   for (const m of css.matchAll(/--[a-zA-Z0-9-]+(?=\s*:)/g)) {
@@ -82,7 +96,7 @@ const files = readdirSync(stylesDir)
 const sources = new Map<string, string>();
 const tokens = new Set<string>();
 for (const f of files) {
-  const css = readFileSync(join(stylesDir, f), "utf8");
+  const css = stripCssNoise(readFileSync(join(stylesDir, f), "utf8"));
   sources.set(f, css);
   for (const t of declaredTokens(css)) tokens.add(t);
 }
@@ -115,6 +129,18 @@ test("#522: --ok/--line are defined aliases and the typo names never return", ()
       `banned undefined token --${banned} reintroduced`,
     ).toEqual([]);
   }
+});
+
+test("census scanner ignores tokens inside comments and strings", () => {
+  const css = stripCssNoise(
+    [
+      "/* prose reads var(--ghost) and a dead decl --ghost: #fff; */",
+      '.a { content: "var(--quoted)"; color: var(--real); }',
+      ":root { --real: #fff; }",
+    ].join("\n"),
+  );
+  expect([...declaredTokens(css)]).toEqual(["real"]);
+  expect(varUses(css, "x.css").map((u) => u.name)).toEqual(["real"]);
 });
 
 test("--dt-cols stays component-provided by ui/data-table.tsx", () => {
