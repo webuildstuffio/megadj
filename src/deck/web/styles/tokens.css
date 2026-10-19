@@ -38,6 +38,12 @@
   --warn-dim: rgba(233, 195, 90, 0.13);
   --bad: #f2555a;
   --bad-dim: rgba(242, 85, 90, 0.14);
+  /* --ok is the success/yes name data/megaset/products/fleet-tabs already
+   * use — an alias to the app's ONE green token, not a second green (#522).
+   * Before it was defined the bare use dropped its color declaration and
+   * the fallback-covered sites each hardcoded a disagreeing raw green
+   * (#3ecf8e / #3fb26f); all converge here now. Same trap as --line. */
+  --ok: var(--accent);
   --glow: rgba(97, 168, 255, 0.12);
   /* layout */
   --rail-w: 316px;

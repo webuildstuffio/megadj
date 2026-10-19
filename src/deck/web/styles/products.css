@@ -562,7 +562,7 @@
   color: var(--faint);
 }
 .ledger-fresh.ok {
-  border-left-color: var(--ok, #3fb26f);
+  border-left-color: var(--ok);
 }
 .ledger-fresh.warn {
   border-left-color: var(--warn, #d9a441);

@@ -494,7 +494,7 @@ h3.sect .icon {
   border-radius: 999px;
 }
 .bucket-filter:hover {
-  background: var(--hover);
+  background: var(--surface3);
 }
 .subpill {
   font-size: 11px;

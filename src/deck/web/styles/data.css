@@ -19,7 +19,11 @@
 .dt-head,
 .dt-row {
   display: grid;
-  grid-template-columns: var(--dt-cols);
+  /* --dt-cols is set inline per-table by ui/data-table.tsx (derived from the
+   * columns array); the fallback only fires if that provider is ever
+   * bypassed — a usable responsive grid instead of a silently-dropped
+   * declaration (#522). */
+  grid-template-columns: var(--dt-cols, repeat(auto-fill, minmax(120px, 1fr)));
   gap: 12px;
   align-items: center;
   padding: 8px 13px;
@@ -369,7 +373,7 @@
 .genre-tally-name {
   min-width: 90px;
   text-align: right;
-  color: var(--text-dim);
+  color: var(--faint);
 }
 .genre-tally-nums {
   color: var(--muted);
