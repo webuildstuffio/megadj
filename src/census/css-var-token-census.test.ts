@@ -31,15 +31,17 @@ interface VarUse {
 /* Comments/strings are scan noise: a commented-out `--x: …;` must not count
  * --x as defined (that masks a genuinely unresolved var(--x) elsewhere) and
  * prose like megaset.css's header ("all read var(--set)") must not red a
- * token removal. Newlines are preserved so reported line numbers stay true.
- * Comments go first: an unpaired quote inside a comment must not swallow the
- * rest of the file. */
+ * token removal. One pass strips both so comment/string state is tracked
+ * together — two passes misfire in EITHER order: comments-first lets a `/*`
+ * inside a string open a fake comment that eats real code up to the next
+ * real terminator; strings-first lets a quote inside a comment swallow that
+ * terminator and eat the span after it. Newlines are preserved so reported
+ * line numbers stay true. */
 function stripCssNoise(css: string): string {
-  return css
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, (m) =>
-      m.replace(/[^\n]/g, " "),
-    );
+  return css.replace(
+    /\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g,
+    (m) => m.replace(/[^\n]/g, " "),
+  );
 }
 
 function declaredTokens(css: string): Set<string> {
@@ -141,6 +143,23 @@ test("census scanner ignores tokens inside comments and strings", () => {
   );
   expect([...declaredTokens(css)]).toEqual(["real"]);
   expect(varUses(css, "x.css").map((u) => u.name)).toEqual(["real"]);
+});
+
+test("census scanner tracks comment and string state in one pass (no fake spans)", () => {
+  // Comments-first regression: the `/*` inside the string must not open a
+  // fake comment that eats `--real` up to the tail comment's terminator.
+  const strCss = stripCssNoise(
+    '.a { content: "/* fake" } .b { --real: 1; color: var(--real); } /* tail */',
+  );
+  expect(strCss).toContain("--real");
+  expect(varUses(strCss, "x.css").map((u) => u.name)).toEqual(["real"]);
+  // Strings-first regression: the quote inside the comment must not open a
+  // fake string that swallows the terminator and eats `--real2` after it.
+  const quoteCss = stripCssNoise(
+    '/* say " */ .c { --real2: 1; color: var(--real2); } /* " tail */',
+  );
+  expect(quoteCss).toContain("--real2");
+  expect(varUses(quoteCss, "x.css").map((u) => u.name)).toEqual(["real2"]);
 });
 
 test("--dt-cols stays component-provided by ui/data-table.tsx", () => {
