@@ -245,13 +245,13 @@
   transition: width 0.25s ease;
 }
 .bl-track.tone-accent i {
-  background: linear-gradient(90deg, #1f7a52, var(--accent));
+  background: linear-gradient(90deg, var(--good-grad), var(--accent));
 }
 .bl-track.tone-info i {
-  background: linear-gradient(90deg, #3b82c4, var(--info));
+  background: linear-gradient(90deg, var(--info-grad), var(--info));
 }
 .bl-track.tone-warn i {
-  background: linear-gradient(90deg, #6b5a20, var(--warn));
+  background: linear-gradient(90deg, var(--warn-border), var(--warn));
 }
 .bl-n {
   color: var(--muted);

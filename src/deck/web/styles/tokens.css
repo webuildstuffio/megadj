@@ -23,7 +23,13 @@
    * surface it touches; #8b909b clears AA on all five surfaces (4.62:1
    * worst-case on --surface4) while staying a step below --muted (#521). */
   --faint: #8b909b;
-  /* accents */
+  /* accents.
+   * Hue-job map (#519, accepted slot-sharing): --accent is the brand mint
+   * AND the Drives product colour AND pass/good AND the primary-button
+   * family; --info is GetDat's product colour AND the running/action blue.
+   * Every state also prints its word (text-redundant by design), so the
+   * hue alone never carries the job — recorded here so the next editor
+   * knows the sharing is deliberate, not drift. */
   --accent: #38e0a4;
   --accent-dim: rgba(56, 224, 164, 0.14);
   --info: #61a8ff;
@@ -33,17 +39,40 @@
   --warn: #e9c35a;
   /* Set (product 4) — the warm booth amber. One token, not three hexes:
    * chrome (nav/pintro/phasechip), canvas, and megaset styles all read
-   * this; the old #f0b64b/#d9a441 strays are retired. */
+   * this; the old #f0b64b/#d9a441 strays are retired (Fleet's canvas
+   * reads --set for --prod too). Amber slot-sharing (#519, accepted):
+   * --set (product identity) and --warn (caution) share one perceptual
+   * slot — product chrome is always labeled, so the hue alone never has
+   * to tell "you are in Fleet/Set" from "pay attention". */
   --set: #e0a93f;
   --warn-dim: rgba(233, 195, 90, 0.13);
   --bad: #f2555a;
   --bad-dim: rgba(242, 85, 90, 0.14);
+  /* Chip TEXT rides a lightened red: --bad on --bad-dim composites to
+   * 3.7–4.5:1 on the raised surfaces where failure chips render (under AA
+   * at 10px), #ff7b7f holds ≥ 5:1 over the same tints on surface2/3/4
+   * (#519). --bad stays the border/icon red. */
+  --bad-text: #ff7b7f;
   /* --ok is the success/yes name data/megaset/products/fleet-tabs already
    * use — an alias to the app's ONE green token, not a second green (#522).
    * Before it was defined the bare use dropped its color declaration and
    * the fallback-covered sites each hardcoded a disagreeing raw green
    * (#3ecf8e / #3fb26f); all converge here now. Same trap as --line. */
   --ok: var(--accent);
+  /* status border + bar-gradient family — the raw hexes canvas/jobs/shell/
+   * fleet-tabs/data spent on badge/pill/row borders and data-bar gradient
+   * stops, named so the next status-colour edit lands in one place (#519). */
+  --good-border: #1e4a37;
+  --warn-border: #6b5a20;
+  --bad-border: #6b2527;
+  --info-border: #2b5379;
+  --bad-border-deep: #4a2224;
+  --warn-border-deep: #4a401c;
+  --good-grad: #1f7a52;
+  --good-grad-deep: #177a52;
+  --info-grad: #3b82c4;
+  --info-grad-hi: #8ec7ff;
+  --bad-press: #d43a3f;
   --glow: rgba(97, 168, 255, 0.12);
   /* layout */
   --rail-w: 316px;
@@ -55,6 +84,9 @@
    * and --mono (used by prep-md/covdelta) are REAL tokens now; a var() that
    * doesn't exist silently inherits and lies. */
   --text2: #b9bdc7;
+  /* the brand wordmark's cool gradient stop (shell.css .brand h1) — the
+   * app's only non-product gradient text (#519) */
+  --text-grad: #aebfd4;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 

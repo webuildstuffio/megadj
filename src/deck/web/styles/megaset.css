@@ -115,7 +115,7 @@
   align-items: center;
   gap: 3px;
   color: var(--set);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -262,7 +262,7 @@
 }
 .megaset-minutes small {
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 450;
 }
 .megaset-minutes input {
@@ -332,24 +332,8 @@
 .megaset-evidence dd {
   margin: 0;
 }
-.megaset-fresh {
-  font-size: 11.5px;
-  padding: 4px 10px;
-  border-left: 2px solid var(--line);
-  color: var(--faint);
-}
-.megaset-fresh.ok {
-  border-left-color: var(--ok);
-}
-.megaset-fresh.warn {
-  border-left-color: var(--warn, #d9a441);
-}
-.megaset-fresh.stale {
-  border-left-color: var(--bad, #d05555);
-}
-.megaset-fresh .fresh-note code {
-  font-size: 10.5px;
-}
+/* the freshness line styles live in products.css's shared block — this
+ * panel only passes the `.megaset-fresh` root class (#519) */
 .megaset-loading {
   display: flex;
   align-items: flex-start;
@@ -451,15 +435,15 @@
 /* the shelf-offline verdict: distinct from a small-library warn — the
    drive is away, nothing is wrong with the music */
 .megaset-result.stale {
-  border-left-color: var(--bad, #d05555);
+  border-left-color: var(--bad);
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--bad, #d05555) 6%, var(--surface2)),
+    color-mix(in srgb, var(--bad) 6%, var(--surface2)),
     var(--surface2) 54%
   );
 }
 .megaset-result.stale .megaset-result-kicker {
-  color: var(--bad, #d05555);
+  color: var(--bad);
 }
 .megaset-result-head {
   display: grid;
@@ -522,7 +506,7 @@
 .megaset-result-metrics small,
 .megaset-source-grid small {
   color: var(--faint);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.35;
 }
 .megaset-source-summary {
@@ -841,7 +825,7 @@
 }
 .megaset-arcchart .arc-label {
   fill: var(--faint);
-  font-size: 9px;
+  font-size: 10px;
   text-anchor: start;
 }
 .megaset-arcchart figcaption {
@@ -944,7 +928,7 @@
   color: var(--faint);
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.05em;
 }
 .megaset-weights dd {

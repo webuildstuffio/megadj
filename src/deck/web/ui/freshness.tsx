@@ -1,5 +1,6 @@
 // freshness.tsx — THE freshness-line UI (#174): one component, one CSS
-// block, one band vocabulary. The AGENTS rule — "freshness ledgers must
+// block (the shared .ledger-fresh/.megaset-fresh block in products.css,
+// #519), one band vocabulary. The AGENTS rule — "freshness ledgers must
 // surface ages in UI (green/amber/red) instead of static counts" — was
 // previously satisfied by MegasetStatus's private FreshnessLine while
 // the other ledger-driven surfaces (tag-compare census, comment-sync)

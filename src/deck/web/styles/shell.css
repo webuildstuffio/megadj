@@ -52,7 +52,7 @@
   margin: 0;
   font-weight: 700;
   letter-spacing: 0.4px;
-  background: linear-gradient(90deg, var(--text), #aebfd4);
+  background: linear-gradient(90deg, var(--text), var(--text-grad));
   -webkit-background-clip: text;
   background-clip: text;
 }
@@ -223,7 +223,7 @@
 }
 .lockchip.on {
   color: var(--warn);
-  border-color: #6b5a20;
+  border-color: var(--warn-border);
   background: var(--warn-dim);
 }
 .lockchip.on .lockdot {
@@ -232,7 +232,7 @@
 }
 .lockchip.off {
   color: var(--accent);
-  border-color: #1e4a37;
+  border-color: var(--good-border);
   background: var(--accent-dim);
 }
 .lockdot {
