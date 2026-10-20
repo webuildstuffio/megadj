@@ -18,22 +18,22 @@
 }
 .badge.good {
   color: var(--accent);
-  border-color: #1e4a37;
+  border-color: var(--good-border);
   background: var(--accent-dim);
 }
 .badge.warn {
   color: var(--warn);
-  border-color: #6b5a20;
+  border-color: var(--warn-border);
   background: var(--warn-dim);
 }
 .badge.bad {
-  color: var(--bad);
-  border-color: #6b2527;
+  color: var(--bad-text);
+  border-color: var(--bad-border);
   background: var(--bad-dim);
 }
 .badge.info {
   color: var(--info);
-  border-color: #2b5379;
+  border-color: var(--info-border);
   background: var(--info-dim);
 }
 .badge.muted {
@@ -169,17 +169,17 @@
 }
 .pill.healthy {
   color: var(--accent);
-  border-color: #1e4a37;
+  border-color: var(--good-border);
   background: var(--accent-dim);
 }
 .pill.attention {
   color: var(--warn);
-  border-color: #6b5a20;
+  border-color: var(--warn-border);
   background: var(--warn-dim);
 }
 .pill.critical {
-  color: var(--bad);
-  border-color: #6b2527;
+  color: var(--bad-text);
+  border-color: var(--bad-border);
   background: var(--bad-dim);
   animation: pulse 2s ease infinite;
 }
@@ -285,12 +285,12 @@
   border-color: var(--accent-btn-border-hover);
 }
 .btn.danger {
-  color: var(--bad);
-  border-color: #55262a;
+  color: var(--bad-text);
+  border-color: var(--bad-border-deep);
   background: var(--bad-dim);
 }
 .btn.danger:hover:not(:disabled) {
-  border-color: #7a3237;
+  border-color: var(--bad-border);
   background: rgba(242, 85, 90, 0.2);
 }
 /* two-step confirm armed state — loud so the second click is deliberate */
@@ -302,7 +302,7 @@
 }
 @keyframes arm-pulse {
   50% {
-    background: #d43a3f;
+    background: var(--bad-press);
   }
 }
 .btn.sm {
@@ -490,7 +490,7 @@ h3.sect .icon {
   font: inherit;
   font-size: 12.5px;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 .bucket-filter:hover {
@@ -621,10 +621,10 @@ h3.sect .icon {
   align-items: center;
 }
 .check.fail {
-  border-color: #4a2224;
+  border-color: var(--bad-border-deep);
 }
 .check.warn {
-  border-color: #4a401c;
+  border-color: var(--warn-border-deep);
 }
 
 /* ---- space bar ---- */
@@ -641,7 +641,7 @@ h3.sect .icon {
 .bar i {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--info), #8ec7ff);
+  background: linear-gradient(90deg, var(--info), var(--info-grad-hi));
   border-radius: 5px;
   transition: width 0.4s ease;
 }
@@ -689,7 +689,7 @@ h3.sect .icon {
 .extbar i {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #3b82c4, var(--info));
+  background: linear-gradient(90deg, var(--info-grad), var(--info));
   border-radius: 4px;
 }
 .extrow .extn {
@@ -744,7 +744,7 @@ h3.sect .icon {
 .bartrack i {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #1f7a52, var(--accent));
+  background: linear-gradient(90deg, var(--good-grad), var(--accent));
   border-radius: 4px;
 }
 .barrow .barn {
@@ -775,7 +775,7 @@ h3.sect .icon {
 .bpmcol i {
   display: block;
   width: 100%;
-  background: linear-gradient(180deg, var(--accent), #177a52);
+  background: linear-gradient(180deg, var(--accent), var(--good-grad-deep));
   border-radius: 3px 3px 0 0;
   min-height: 2px;
   transition: height 0.3s ease;
