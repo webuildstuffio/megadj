@@ -1,4 +1,6 @@
-# Claude Code Assistant v5.26
+# Claude Code Assistant v5.27
+# v5.27 - (Oct 21 2026) actions/cache v4 -> v5 (Node 24; v4 was
+#          Node 20 and force-run with deprecation warnings).
 # v5.26 - (Oct 20 2026) Job timeout 55 / Claude step 45 uniform;
 #          --max-turns 150 -> 175 (action post-fails successful
 #          results that overshoot the cap while wrapping up);
@@ -156,7 +158,7 @@ jobs:
 
       - name: Cache Bun dependencies
 
-        uses: actions/cache@v4
+        uses: actions/cache@v5
 
         with:
 
@@ -176,7 +178,7 @@ jobs:
 
       - name: Cache Claude Code CLI
         id: claude-cli-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.local/bin/claude
