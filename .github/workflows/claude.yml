@@ -1,4 +1,10 @@
-# Claude Code Assistant v5.25
+# Claude Code Assistant v5.26
+# v5.26 - (Oct 20 2026) Job timeout 55 / Claude step 45 uniform;
+#          --max-turns 150 -> 175 (action post-fails successful
+#          results that overshoot the cap while wrapping up);
+#          classifier treats a success result as complete even if
+#          the step conclusion is failure; prompt adds checkpoint
+#          pushes per item + turn discipline.
 # Triggered by @claude mentions in issues, PRs, and reviews.
 # Uses Z.AI routing (org ANTHROPIC_API_KEY is a Z.AI credential).
 #
@@ -63,7 +69,7 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubicloud-standard-2
-    timeout-minutes: 45
+    timeout-minutes: 55
     permissions:
       contents: write
       pull-requests: write
@@ -195,7 +201,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude_action
-        timeout-minutes: 35
+        timeout-minutes: 45
         uses: anthropics/claude-code-action@v1.0.238
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -213,10 +219,10 @@ jobs:
             Help with the task described in the issue/PR above. Complete it 100%.
             Read AGENTS.md at the repo root first for project-specific guidelines.
           claude_args: |
-            --max-turns 150
+            --max-turns 175
             --fallback-model claude-haiku-4-5
             --effort medium
-            --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first. If a comment marked 'claude-handoff' names a progress branch, continue from that branch instead of starting over."
+            --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first. If a comment marked 'claude-handoff' names a progress branch, continue from that branch instead of starting over. Work item by item: after finishing each numbered item, commit and push to your branch before starting the next one. Be economical with turns: batch independent tool calls in one block, read each file once, and run the full check suite once at the end rather than after every edit."
             --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(jq:*),Bash(curl:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(diff:*),Bash(sort:*),Bash(which:*),Bash(env:*),Bash(sleep:*),Bash(python3:*),Bash(pip:*),Bash(pip3:*),Bash(uv:*),Bash(pytest:*),Bash(cargo:*),Bash(rustc:*),Bash(go:*),Bash(npm:*),Bash(pnpm:*),Bash(make:*),Bash(ls:*),Bash(cat:*),Bash(pwd:*),Bash(echo:*),Bash(chmod:*),Bash(tar:*),Bash(unzip:*),Bash(wc:*),Bash(du:*),Bash(tee:*),Bash(xargs:*),Bash(timeout:*),Bash(sqlite3:*),Bash(bash:*)"
           settings: |
             {
@@ -290,7 +296,7 @@ jobs:
             if (status === 'skipped' || !status) {
               label = '❌ claude-failed';
               why = 'setup failed before Claude started';
-            } else if (status === 'success') {
+            } else if (status === 'success' || subtype === 'success') {
               label = '✅ claude-complete';
             } else if (status === 'cancelled') {
               label = '❌ claude-failed-time';
