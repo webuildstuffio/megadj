@@ -158,7 +158,7 @@ jobs:
 
       - name: Cache Bun dependencies
 
-        uses: actions/cache@v5
+        uses: actions/cache@v6
 
         with:
 
@@ -178,7 +178,7 @@ jobs:
 
       - name: Cache Claude Code CLI
         id: claude-cli-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/bin/claude
@@ -204,7 +204,7 @@ jobs:
       - name: Run Claude Code
         id: claude_action
         timeout-minutes: 45
-        uses: anthropics/claude-code-action@v1.0.238
+        uses: anthropics/claude-code-action@v1.0.252
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
