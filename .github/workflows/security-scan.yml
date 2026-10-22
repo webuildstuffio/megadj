@@ -36,14 +36,21 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false
-    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@660e4d50f013090d88cd994d971e0d31e53c599e  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@6e6012b09e8e43fd8ab5e9c7f897036565ab7475  # yamllint disable-line rule:line-length
+    with:
+      # Opengrep SAST (repo-review#354): p/ci gate tier blocks on
+      # new ERRORs in the diff; breadth + zizmor report-only.
+      opengrep: true
+      opengrep_gate: true
+      zizmor: true
     secrets: inherit
 
   deep:
     if: >-
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
-    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@660e4d50f013090d88cd994d971e0d31e53c599e  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@6e6012b09e8e43fd8ab5e9c7f897036565ab7475  # yamllint disable-line rule:line-length
     with:
       deep: true
+      opengrep_deep: true
     secrets: inherit
