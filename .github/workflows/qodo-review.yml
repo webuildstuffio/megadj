@@ -94,7 +94,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Run Qodo /improve
-        uses: qodo-ai/pr-agent@v0.46.0
+        uses: qodo-ai/pr-agent@v0.48.0
         env:
           OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
