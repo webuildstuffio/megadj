@@ -130,6 +130,20 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "src/fulltags/analysis/energy-features.py":
       "planned module (energy v3 feature extractor — inline Python in energy-features.ts, not a separate file)",
   },
+  "docs/agents/learned-history.md": {
+    // Verbatim AGENTS.md history moved here 2026-10-22 (context hygiene).
+    // The facts were written against the pre-fold fulltags/ tree root;
+    // the modules now live under src/fulltags/ — historical text,
+    // deliberately not rewritten.
+    "fulltags/src/sources/name-match.ts":
+      "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
+    "fulltags/src/sources/bandcamp.ts":
+      "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
+    "fulltags/src/genre/genre-vocab.ts":
+      "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
+    "fulltags/write/artwork.ts":
+      "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
+  },
 };
 
 function docFiles(): string[] {
