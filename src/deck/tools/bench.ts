@@ -30,14 +30,19 @@ async function pumpStream(
   bytesRead: number,
   signal: { cancelled: boolean } | undefined,
 ): Promise<number> {
-  const reader = Bun.file(path).stream().getReader();
+  // Slice to the REMAINING cap — streaming whole chunks overshoots the cap
+  // by up to one chunk (bun 1.4 ships 128 KiB chunks; the speedProbe pin
+  // requires bytes_read === cap exactly).
+  const reader = Bun.file(path)
+    .slice(0, Math.max(0, cap - bytesRead))
+    .stream()
+    .getReader();
   try {
     for (;;) {
       if (signal?.cancelled) throw new Error("cancelled");
       const { done, value } = await reader.read();
       if (done) break;
       bytesRead += value.byteLength;
-      if (bytesRead >= cap) break;
     }
   } finally {
     reader.releaseLock();
