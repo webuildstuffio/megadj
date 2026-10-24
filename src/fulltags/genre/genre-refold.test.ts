@@ -18,10 +18,12 @@ describe("repairEscapes", () => {
 });
 
 describe("refoldLabel (data half)", () => {
-  test("title-cases lowercase labels", () => {
-    expect(refoldLabel("house")).toBe("House");
-    expect(refoldLabel("deep house")).toBe("Deep House");
-    expect(refoldLabel("afro house")).toBe("Afro House");
+  test.each([
+    ["house", "House"],
+    ["deep house", "Deep House"],
+    ["afro house", "Afro House"],
+  ])("title-cases lowercase labels: %s → %s", (input, expected) => {
+    expect(refoldLabel(input)).toBe(expected);
   });
 
   test("splits multi-label strings and picks the primary", () => {
@@ -31,12 +33,17 @@ describe("refoldLabel (data half)", () => {
     expect(refoldLabel("Hip Hop/Rap")).toBe("Hip-Hop");
   });
 
-  test("specific labels outrank umbrella parents in splits", () => {
-    expect(refoldLabel("Electronic/Techno")).toBe("Techno");
-    expect(refoldLabel("Electronic/Tech House")).toBe("Tech House");
+  test.each([
+    ["Electronic/Techno", "Techno"],
+    ["Electronic/Tech House", "Tech House"],
     // both tokens umbrella → the stored first token stays (deterministic)
-    expect(refoldLabel("Dance & EDM")).toBe("Dance");
-  });
+    ["Dance & EDM", "Dance"],
+  ])(
+    "specific labels outrank umbrella parents in splits: %s → %s",
+    (input, expected) => {
+      expect(refoldLabel(input)).toBe(expected);
+    },
+  );
 
   test("protects established &-compounds from splitting", () => {
     expect(refoldLabel("R&B")).toBe("R&B");
@@ -57,10 +64,12 @@ describe("refoldLabel (data half)", () => {
     expect(scoringFamily("Techno (Peak Time / Driving)")).toBe("techno");
   });
 
-  test("collapses measured spelling variants", () => {
-    expect(refoldLabel("hiphop")).toBe("Hip-Hop");
-    expect(refoldLabel("nu disco")).toBe("Nu-Disco");
-    expect(refoldLabel("Nu-Disco")).toBe("Nu-Disco");
+  test.each([
+    ["hiphop", "Hip-Hop"],
+    ["nu disco", "Nu-Disco"],
+    ["Nu-Disco", "Nu-Disco"],
+  ])("collapses measured spelling variants: %s → %s", (input, expected) => {
+    expect(refoldLabel(input)).toBe(expected);
   });
 
   test("ampersand in title-case fallbacks stays glued (never 'R&b'/'R & B')", () => {

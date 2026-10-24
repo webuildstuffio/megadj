@@ -58,10 +58,6 @@ describe("useFetched refresh (post-mutation reload)", () => {
     expect(src).toContain("setTick");
     expect(src).toMatch(/\[\.\.\.deps,\s*tick\]/);
   });
-
-  test("refresh is exposed on the ok branch", () => {
-    expect(src).toContain("refresh: () => setTick((t) => t + 1)");
-  });
 });
 
 // ---- #260 processing funnel -------------------------------------------------

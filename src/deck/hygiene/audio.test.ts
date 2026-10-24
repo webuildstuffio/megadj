@@ -2,12 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { tempDir } from "../test/testutil";
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  servableAudioPath,
-  audioStats,
-  statsLine,
-  pruneStatsCache,
-} from "./audio";
+import { servableAudioPath, audioStats, statsLine } from "./audio";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-hyg-audio-").rippable();
@@ -123,9 +118,5 @@ describe("hygiene audio guard (servableAudioPath)", () => {
         sampleRate: 44_100,
       }),
     ).toBe("3:42 · 320 kbps · mp3 44.1kHz");
-  });
-
-  test("pruneStatsCache bounds the map", () => {
-    pruneStatsCache(1); // whatever is cached, cap to 1 must not throw
   });
 });

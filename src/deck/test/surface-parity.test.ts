@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { COMMAND_DOCS } from "../../command-registry";
 import { DECK_MCP_SURFACES } from "../mcp/surfaces";
+import { DECK_ACTION_HANDLERS } from "../mcp/action-tools";
 import {
   canonicalJobKinds,
   deckctlVerbs,
@@ -521,29 +522,25 @@ describe("surface parity (docs/surface-parity.md)", () => {
   });
 
   test("mutating MCP tools are flagged destructive + interlock-guarded", () => {
-    // #89 split: the mutating handler table lives in mcp/action-tools.ts
+    // #89 split: the mutating handler table lives in mcp/action-tools.ts.
+    // Typed behavior check: every mutating entry carries destructive:true
+    // on its ToolDef — a verb registered without the flag fails here, not
+    // on a user's drive.
+    for (const verb of [
+      "run",
+      "cancel",
+      "booth",
+      "note",
+      "rename",
+      "dismiss",
+    ]) {
+      expect(DECK_ACTION_HANDLERS[verb]?.destructive, verb).toBe(true);
+    }
+    // the mutating surface runs the interlock guard before enqueue
     const src = readFileSync(
       join(ROOT, "src/deck/mcp/action-tools.ts"),
       "utf8",
     );
-    for (const tool of [
-      "deck_run",
-      "deck_cancel",
-      "deck_booth",
-      "deck_note",
-      "deck_rename",
-      "deck_dismiss",
-    ]) {
-      const verb = tool.slice("deck_".length);
-      const handlers = src.split("export const DECK_ACTION_HANDLERS")[1] ?? "";
-      const def =
-        handlers.split(`\n  ${verb}: {`)[1]?.split(/\n\s{2}\}/)[0] ?? "";
-      expect(def.length, `${tool} definition found`).toBeGreaterThan(0);
-      expect(def, `${tool} must carry destructive: true`).toContain(
-        "destructive: true",
-      );
-    }
-    // the mutating surface runs the interlock guard before enqueue
     expect(src).toContain("await interlockGuard()");
   });
 

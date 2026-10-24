@@ -54,23 +54,14 @@ describe("numeric option validation: invalid input aborts, never runs", () => {
     expect(code).toBe(2);
   });
 
-  test("beats --limit abc does zero work and exits 2 (no silent success)", async () => {
-    const { code, stderr } = await runCli(["beats", "--limit", "abc"], env);
-    expect(stderr).toContain("--limit must be a non-negative number");
-    expect(code).toBe(2);
-  });
-
-  test("upgrade --limit abc does zero work and exits 2", async () => {
-    const { code, stderr } = await runCli(["upgrade", "--limit", "abc"], env);
-    expect(stderr).toContain("--limit must be a non-negative number");
-    expect(code).toBe(2);
-  });
-
-  test("mood --limit abc does zero work and exits 2", async () => {
-    const { code, stderr } = await runCli(["mood", "--limit", "abc"], env);
-    expect(stderr).toContain("--limit must be a non-negative number");
-    expect(code).toBe(2);
-  });
+  test.each(["beats", "upgrade", "mood"])(
+    "%s --limit abc does zero work and exits 2 (no silent success)",
+    async (cmd) => {
+      const { code, stderr } = await runCli([cmd, "--limit", "abc"], env);
+      expect(stderr).toContain("--limit must be a non-negative number");
+      expect(code).toBe(2);
+    },
+  );
 
   test("valid limit still works (cues --limit 0 = derive nothing, exit 0)", async () => {
     const { code, stderr } = await runCli(

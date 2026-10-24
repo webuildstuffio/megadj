@@ -72,25 +72,20 @@ describe("camelotOf", () => {
 
 describe("keyScore", () => {
   const a = cand({ key: "8A" });
-  test("same key → 1", () => {
-    expect(keyScore(a, cand({ key: "8A" }))).toBe(1);
-  });
-  test("energy flow ±1 same letter → 1", () => {
-    expect(keyScore(a, cand({ key: "7A" }))).toBe(1);
-    expect(keyScore(a, cand({ key: "9A" }))).toBe(1);
-  });
-  test("mood lift same number other letter → 1", () => {
-    expect(keyScore(a, cand({ key: "8B" }))).toBe(1);
-  });
-  test("diagonal → 0.9", () => {
-    expect(keyScore(a, cand({ key: "9B" }))).toBe(0.9);
-  });
-  test("clash → 0", () => {
-    expect(keyScore(a, cand({ key: "2B" }))).toBe(0);
-  });
-  test("unparsable either side → neutral 0.5", () => {
-    expect(keyScore(a, cand({ key: null }))).toBe(0.5);
-  });
+  test.each([
+    ["same key", "8A", 1],
+    ["energy flow ±1 same letter", "7A", 1],
+    ["energy flow ±1 same letter", "9A", 1],
+    ["mood lift same number other letter", "8B", 1],
+    ["diagonal", "9B", 0.9],
+    ["clash", "2B", 0],
+    ["unparsable either side → neutral", null, 0.5],
+  ] as [string, string | null, number][])(
+    "%s (key %s)",
+    (_label, key, expected) => {
+      expect(keyScore(a, cand({ key }))).toBe(expected);
+    },
+  );
 });
 
 describe("bpmScore", () => {

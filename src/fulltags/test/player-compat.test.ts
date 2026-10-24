@@ -52,50 +52,48 @@ describe("playerCompat — fleet-floor pass cases", () => {
 });
 
 describe("playerCompat — hard rejects (no fleet member plays these)", () => {
-  test("32-bit float WAV — the DAW bounce trap", () => {
-    const r = playerCompat(probe({ codec: "pcm_f32le" }));
-    expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("float-pcm-unsupported");
-  });
-  test("32-bit int WAV also rejected", () => {
-    const r = playerCompat(probe({ codec: "pcm_s32le" }));
-    expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("bit-depth-unsupported");
-  });
-  test("ADPCM WAV rejected", () => {
-    const r = playerCompat(probe({ codec: "adpcm_ms" }));
-    expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("compressed-wav-unsupported");
-  });
-  test("MP3 at 22.05kHz (MPEG-2 rip) rejected", () => {
-    const r = playerCompat(probe({ codec: "mp3", sampleRate: 22050 }));
-    expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("mp3-mpeg2-unsupported");
-  });
-  test("96kHz AIFF on the floor is hi-res-partial, not ok", () => {
-    const r = playerCompat(probe({ sampleRate: 96000 }));
-    expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("sample-rate-hires");
-  });
-  test("88.2kHz WAV same", () => {
-    expect(playerCompat(probe({ sampleRate: 88200 })).reasons).toContain(
+  test.each([
+    [
+      "32-bit float WAV — the DAW bounce trap",
+      { codec: "pcm_f32le" },
+      "float-pcm-unsupported",
+    ],
+    [
+      "32-bit int WAV also rejected",
+      { codec: "pcm_s32le" },
+      "bit-depth-unsupported",
+    ],
+    ["ADPCM WAV rejected", { codec: "adpcm_ms" }, "compressed-wav-unsupported"],
+    [
+      "MP3 at 22.05kHz (MPEG-2 rip) rejected",
+      { codec: "mp3", sampleRate: 22050 },
+      "mp3-mpeg2-unsupported",
+    ],
+    [
+      "96kHz AIFF on the floor is hi-res-partial, not ok",
+      { sampleRate: 96000 },
       "sample-rate-hires",
-    );
-  });
-  test("absurd sample rate (192k) is a full reject, not hi-res", () => {
-    const r = playerCompat(probe({ sampleRate: 192000 }));
+    ],
+    ["88.2kHz WAV same", { sampleRate: 88200 }, "sample-rate-hires"],
+    [
+      "absurd sample rate (192k) is a full reject, not hi-res",
+      { sampleRate: 192000 },
+      "sample-rate-unsupported",
+    ],
+    [
+      "ALAC rejected (XDJ-XZ + CDJ-2000)",
+      { codec: "alac" },
+      "alac-not-universal",
+    ],
+    [
+      "FLAC rejected on the floor (plain CDJ-2000)",
+      { codec: "flac" },
+      "flac-not-universal",
+    ],
+  ] as [string, Partial<Probe>, string][])("%s", (_label, over, reason) => {
+    const r = playerCompat(probe(over));
     expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("sample-rate-unsupported");
-  });
-  test("ALAC rejected (XDJ-XZ + CDJ-2000)", () => {
-    const r = playerCompat(probe({ codec: "alac" }));
-    expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("alac-not-universal");
-  });
-  test("FLAC rejected on the floor (plain CDJ-2000)", () => {
-    const r = playerCompat(probe({ codec: "flac" }));
-    expect(r.ok).toBe(false);
-    expect(r.reasons).toContain("flac-not-universal");
+    expect(r.reasons).toContain(reason);
   });
   test("no audio stream rejected", () => {
     const r = playerCompat(probe({ codec: null }));
