@@ -68,17 +68,21 @@ describe("sync", () => {
     });
   });
 
-  test("unmounted stick volumes are skipped, not fatal", () => {
+  test("unmounted stick volumes are skipped, not fatal", async () => {
     const src = makeArchive();
-    return shelfSync({
+    const logs: string[] = [];
+    await shelfSync({
       musicDir: src,
       shelfVolume: t3.dir(),
       stickVolumes: ["/tmp/megadj-shelf-not-mounted-zz"],
-      log: () => {},
-    }).then(() => {
-      // reaching here = no throw; the unmounted volume was skipped
-      expect(true).toBe(true);
+      log: (s) => logs.push(s),
     });
+    // resolving at all = the dead stick wasn't fatal; the skip is reported
+    expect(
+      logs.some((l) =>
+        l.includes("/tmp/megadj-shelf-not-mounted-zz: not mounted"),
+      ),
+    ).toBe(true);
   });
 
   test("--json emits one parseable summary (P1 contract)", async () => {

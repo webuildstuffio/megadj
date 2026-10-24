@@ -54,12 +54,30 @@ describe("KIND_DOCS covers every job kind (the explain census)", () => {
     expect(orphans).toEqual([]);
   });
 
-  test("the deck_explain schema enum derives from KIND_DOCS (not a literal)", () => {
-    // #89 split: the explain handler lives in mcp/read-tools.ts
-    const mcp = readFileSync(join(ROOT, "src/deck/mcp/read-tools.ts"), "utf8");
-    expect(mcp).toContain('["verify", ...Object.keys(KIND_DOCS)]');
-    // the old hand-filtered literal is gone
-    expect(mcp).not.toContain('JOB_KINDS.filter((k) => k !== "verify"');
+  test("the deck_explain schema enum derives from KIND_DOCS (not a literal)", async () => {
+    // #89 split: the explain handler lives in mcp/read-tools.ts.
+    // Behavior, not source-grep: the advertised enum AND the no-kind
+    // response must equal the KIND_DOCS SSOT (+ verify) exactly — the
+    // schema can neither advertise a doc-less kind nor miss a documented
+    // one, and the old hand-filtered literal can't silently return.
+    const { DECK_READ_HANDLERS } = require("../mcp/read-tools") as {
+      DECK_READ_HANDLERS: Record<
+        string,
+        {
+          inputSchema: { properties: { kind: { enum: readonly string[] } } };
+          run: (args: Record<string, unknown>) => Promise<unknown>;
+        }
+      >;
+    };
+    const expected = ["verify", ...Object.keys(KIND_DOCS)];
+    expect(
+      DECK_READ_HANDLERS.explain?.inputSchema.properties.kind.enum,
+    ).toEqual(expected);
+    const all = (await DECK_READ_HANDLERS.explain?.run({})) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(all)).toEqual(expected);
   });
 
   test("the deckctl explain error message lists kinds from KIND_DOCS, not a stale literal", () => {
@@ -115,10 +133,40 @@ describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
   // (the explain SSOT), never a hand-rolled ternary — the old twin printed
   // "requires: drive mounted, rekordbox closed" for ingest/speedtest/
   // checksum, none of which is true.
-  test("deckctl help reads job `needs` from KIND_DOCS, not a hand twin", () => {
-    const src = readFileSync(join(ROOT, "src/deck/deckctl/help.ts"), "utf8");
-    expect(src).toContain("KIND_DOCS[job.kind]?.needs");
-    expect(src).not.toContain('"drive mounted, rekordbox closed"');
+  test("deckctl help reads job `needs` from KIND_DOCS, not a hand twin", async () => {
+    // Behavior pin for the Sep-17 fix: the old hand-rolled ternary printed
+    // "requires: drive mounted, rekordbox closed" for ingest/speedtest/
+    // checksum — none true. The rendered help must carry the KIND_DOCS
+    // needs line verbatim, and the stale twin wording must never return.
+    const { cmdHelp } = require("../deckctl/help") as {
+      cmdHelp: (
+        h: {
+          jsonMode: boolean;
+          log: (s: string) => void;
+          errOut: (s: string) => void;
+          exit: (code: number) => never;
+        },
+        topic?: string,
+      ) => Promise<void>;
+    };
+    const { KIND_DOCS: docs } = require("../deckctl/docs") as {
+      KIND_DOCS: Record<string, { needs: string }>;
+    };
+    const lines: string[] = [];
+    await cmdHelp(
+      {
+        jsonMode: false,
+        log: (s) => lines.push(s),
+        errOut: () => {},
+        exit: () => {
+          throw new Error("help exited unexpectedly");
+        },
+      },
+      "scan",
+    );
+    const out = lines.join("\n");
+    expect(out).toContain(docs["scan"]?.needs ?? "«missing KIND_DOCS row»");
+    expect(out).not.toContain("drive mounted, rekordbox closed");
   });
 
   // Super-sure pass: the jobs-section headers were hard-coded "five jobs"

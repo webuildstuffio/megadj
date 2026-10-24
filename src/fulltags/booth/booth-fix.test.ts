@@ -4,7 +4,6 @@ import {
   sanitizeFilename,
   repairMojibake,
 } from "./booth-fix";
-import { setBoothFleet } from "./player-compat";
 
 describe("sanitizeDisplayText", () => {
   test("strips emoji + ZWJ + variation selectors", () => {
@@ -62,12 +61,5 @@ describe("repairMojibake", () => {
   test("returns null for already-clean text (no rewrite)", () => {
     expect(repairMojibake("Beyoncé")).toBe(null);
     expect(repairMojibake("Plain ASCII")).toBe(null);
-  });
-});
-
-describe("fleet selection is pinned in tests", () => {
-  test("booth-fix tests run under the default trio", () => {
-    setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2"]);
-    expect(true).toBe(true);
   });
 });

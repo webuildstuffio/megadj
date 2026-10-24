@@ -9,25 +9,27 @@ import {
 const NOW = new Date("2026-09-10T12:00:00");
 
 describe("intakeFolderName", () => {
-  test("date-prefixed dump name keeps its own date from the name", () => {
-    expect(intakeFolderName("/x/new dump sept 9", NOW)).toBe(
+  test.each([
+    [
+      "date-prefixed dump name keeps its own date from the name",
+      "/x/new dump sept 9",
       "2026-09-09 new dump",
-    );
-  });
-  test("full month names work too", () => {
-    expect(intakeFolderName("/x/dump september 9", NOW)).toBe(
-      "2026-09-09 dump",
-    );
-  });
-  test("generic folders fall back to today's date + 'intake'", () => {
-    expect(intakeFolderName("/x/Downloads", NOW)).toBe("2026-09-10 intake");
-    expect(intakeFolderName("/x/Desktop", NOW)).toBe("2026-09-10 intake");
-    expect(intakeFolderName("/x/intake", NOW)).toBe("2026-09-10 intake");
-  });
-  test("no month in the name → today's date + the name", () => {
-    expect(intakeFolderName("/x/record pool haul", NOW)).toBe(
+    ],
+    ["full month names work too", "/x/dump september 9", "2026-09-09 dump"],
+    [
+      "generic folders fall back to today's date + 'intake'",
+      "/x/Downloads",
+      "2026-09-10 intake",
+    ],
+    ["generic fallback (Desktop)", "/x/Desktop", "2026-09-10 intake"],
+    ["generic fallback (intake)", "/x/intake", "2026-09-10 intake"],
+    [
+      "no month in the name → today's date + the name",
+      "/x/record pool haul",
       "2026-09-10 record pool haul",
-    );
+    ],
+  ] as [string, string, string][])("%s", (_label, input, expected) => {
+    expect(intakeFolderName(input, NOW)).toBe(expected);
   });
   test("future month wraps to next year", () => {
     expect(intakeFolderName("/x/dump dec 20", NOW)).toBe("2026-12-20 dump");

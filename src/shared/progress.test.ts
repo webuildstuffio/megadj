@@ -20,19 +20,40 @@ describe("progress formatting", () => {
   });
 });
 
+// Milestone lines always go to stderr (stdout belongs to --json).
+function captureStderr(): { seen: string[]; restore: () => void } {
+  const seen: string[] = [];
+  const orig = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    seen.push(String(chunk));
+    return true;
+  }) as typeof process.stderr.write;
+  return { seen, restore: () => (process.stderr.write = orig) };
+}
+
 describe("ProgressBar non-TTY milestones", () => {
-  test("close() prints summary even with zero updates", () => {
-    const bar = new ProgressBar(10, "test");
-    bar.close();
-    // smoke: no throw; log output goes to console
+  test("close() prints the summary even with zero updates", () => {
+    const { seen, restore } = captureStderr();
+    try {
+      new ProgressBar(10, "test").close();
+    } finally {
+      restore();
+    }
+    expect(seen.some((l) => l.includes("[test] 0/10 tracks in"))).toBe(true);
   });
 
-  test("update() past total clamps display only", () => {
-    const bar = new ProgressBar(2, "t");
-    bar.update(1, 1000);
-    bar.update(1, 2000);
-    bar.update(5, 0);
-    bar.close();
+  test("update() past total never throws and close reports the true counts", () => {
+    const { seen, restore } = captureStderr();
+    try {
+      const bar = new ProgressBar(2, "t");
+      bar.update(1, 1000);
+      bar.update(1, 2000);
+      bar.update(5, 0);
+      bar.close();
+    } finally {
+      restore();
+    }
+    expect(seen.some((l) => l.includes("[t] 7/2 tracks"))).toBe(true);
   });
 });
 

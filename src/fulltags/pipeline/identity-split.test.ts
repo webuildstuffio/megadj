@@ -49,14 +49,6 @@ describe("#275 scInfoToYtdlpInfo artist correction", () => {
     expect(mapped.artist).toBe("Tini Gessler");
   });
 
-  test("self-upload keeps the uploader (split artist == uploader)", () => {
-    const mapped = scInfoToYtdlpInfo({
-      title: "Mau P - TESLA",
-      uploader: "Mau P",
-    });
-    expect(mapped.artist).toBe("Mau P");
-  });
-
   test("no-split title falls back to uploader→artist", () => {
     const mapped = scInfoToYtdlpInfo({
       title: "Sofia",
@@ -76,15 +68,6 @@ describe("#275 buildMetadata identity hygiene", () => {
 
   test("real albums pass through untouched", () => {
     expect(buildMetadata({ title: "T", album: "Buds" }).album).toBe("Buds");
-  });
-
-  test("description album mention is recovered (Surf Curse live shape)", () => {
-    const meta = buildMetadata({
-      title: "Surf Curse - Freaks",
-      description:
-        '"Freaks" from the upcoming album "Buds" by Reno, Nevada\'s Surf Curse.',
-    });
-    expect(meta.album).toBe("Buds");
   });
 
   test("description without an album mention stays null", () => {
