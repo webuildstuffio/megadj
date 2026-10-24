@@ -1,4 +1,8 @@
-# Claude Code Assistant v5.28.1
+# Claude Code Assistant v5.28.2
+# v5.28.2 - (Oct 24 2026) Label hygiene: a new label-hygiene job fires
+#          on issue close / PR merge and strips the robot + failed
+#          labels, so merged PRs and closed issues no longer wear a
+#          stale claude-failed. Main job never starts on a close event.
 # v5.28.1 - (Oct 21 2026) Setup profiles via vars.CLAUDE_SETUP_PROFILE:
 #          minimal (default, variable unset) is the unchanged template;
 #          agent adds a lite guardrails bootstrap; dev is agent plus the
@@ -59,9 +63,11 @@ on:
   pull_request_review_comment:
     types: [created]
   issues:
-    types: [opened, assigned]
+    types: [opened, assigned, closed]
   pull_request_review:
     types: [submitted]
+  pull_request:
+    types: [closed]
 
 
 jobs:
@@ -78,7 +84,7 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issues' && github.event.action != 'closed' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubicloud-standard-2
     timeout-minutes: 55
     permissions:
@@ -929,4 +935,35 @@ jobs:
               const lines = ['### ❌ Claude Error', '', `Status: ${why}. Check [workflow logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}).`];
               if (branch) lines.push('', `<!-- claude-handoff --> Progress branch: \`${branch}\` — a re-trigger should continue from it.`);
               await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, body: lines.join('\n') });
+            }
+
+  label-hygiene:
+    # Terminal-state label cleanup. Runs only on close events (job-level
+    # if), independent of the claude job's concurrency group on purpose.
+    if: github.event.action == 'closed' && (github.event_name == 'issues' || github.event.pull_request.merged == true)
+    runs-on: ubicloud-standard-2
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Strip stale Claude status labels on close
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const payload = context.payload;
+            const isPR = !!payload.pull_request;
+            if (isPR && !payload.pull_request.merged) return;
+            const n = context.issue.number;
+            if (!n) return;
+            const stale = ['🤖 claude-working', '❌ claude-failed', '❌ claude-failed-turns', '❌ claude-failed-time', '❌ claude-failed-api'];
+            const res = await github.rest.issues.listLabelsOnIssue({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, per_page: 100 });
+            const present = new Set(res.data.map(l => l.name));
+            for (const name of stale) {
+              if (!present.has(name)) continue;
+              try {
+                await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: n, name });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
             }
