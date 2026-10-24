@@ -1,4 +1,13 @@
-# Claude Code Assistant v5.27
+# Claude Code Assistant v5.28.1
+# v5.28.1 - (Oct 21 2026) Setup profiles via vars.CLAUDE_SETUP_PROFILE:
+#          minimal (default, variable unset) is the unchanged template;
+#          agent adds a lite guardrails bootstrap; dev is agent plus the
+#          repo's own .claude/setup.sh when present. Agent/dev install
+#          checksum-pinned opengrep 1.30.0 + betterleaks 1.9.0 and the
+#          ruleset v2 packs/custom rules (cached), then wire lite git
+#          hooks via core.hooksPath - betterleaks secret gate at commit,
+#          opengrep ERROR gate at push - so findings land inside the
+#          run where Claude can fix them. Prompt: never bypass hooks.
 # v5.27 - (Oct 21 2026) actions/cache v4 -> v5 (Node 24; v4 was
 #          Node 20 and force-run with deprecation warnings).
 # v5.26 - (Oct 20 2026) Job timeout 55 / Claude step 45 uniform;
@@ -126,6 +135,583 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Claude Lite bootstrap
+        if: vars.CLAUDE_SETUP_PROFILE == 'agent' || vars.CLAUDE_SETUP_PROFILE == 'dev'
+        env:
+          CLAUDE_SETUP_PROFILE: ${{ vars.CLAUDE_SETUP_PROFILE }}
+          CLAUDE_LITE_SELFTEST: ${{ vars.CLAUDE_LITE_SELFTEST }}
+          CLAUDE_IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
+        run: |
+          set -euo pipefail
+          # claude-lite bootstrap (template v5.28.1). Runs only when the repo sets
+          # vars.CLAUDE_SETUP_PROFILE to agent or dev. Installs the guardrail
+          # tools (checksum-pinned release downloads, verified before use;
+          # deliberately no actions/cache: comment-triggered runs get read-only
+          # cache at best, and a post-job save would persist agent-writable
+          # files), installs the
+          # ruleset v2, writes the lite git hooks, and points this checkout's
+          # core.hooksPath at them so Claude's own git commands run the gates.
+          LITE="$HOME/.claude-lite"
+          mkdir -p "$LITE/bin" "$LITE/hooks" "$LITE/rules"
+          OG_SHA256="35779bdd72e92129c8df2a77f0c55e8c08356801ea92591ef32108d6b28d564c"
+          BL_SHA256="f8b185a39ffcece2a1ca82bf3a4e7435cd81963ffd16b7a9128daf75f35f6de7"
+          BL_BIN_SHA256="0ace40b41652344608f89967fe93c6caf4faae9a4df20423632c7efb02a4d4e1"
+          sha_ok() { [ -f "$1" ] && echo "$2  $1" | sha256sum --check - >/dev/null 2>&1; }
+          if ! sha_ok "$LITE/bin/opengrep" "$OG_SHA256"; then
+            tmp=$(mktemp -d)
+            curl -fsSL --retry 3 --connect-timeout 15 --max-time 300 -o "$tmp/opengrep" \
+              "https://github.com/opengrep/opengrep/releases/download/v1.30.0/opengrep_manylinux_x86"
+            echo "$OG_SHA256  $tmp/opengrep" | sha256sum --check -
+            install -m 755 "$tmp/opengrep" "$LITE/bin/opengrep"
+            rm -rf "$tmp"
+          fi
+          if ! sha_ok "$LITE/bin/betterleaks" "$BL_BIN_SHA256"; then
+            tmp=$(mktemp -d)
+            curl -fsSL --retry 3 --connect-timeout 15 --max-time 180 -o "$tmp/bl.tgz" \
+              "https://github.com/betterleaks/betterleaks/releases/download/v1.9.0/betterleaks_1.9.0_linux_x64.tar.gz"
+            echo "$BL_SHA256  $tmp/bl.tgz" | sha256sum --check -
+            tar --no-same-owner -xzf "$tmp/bl.tgz" -C "$tmp" betterleaks
+            echo "$BL_BIN_SHA256  $tmp/betterleaks" | sha256sum --check -
+            install -m 755 "$tmp/betterleaks" "$LITE/bin/betterleaks"
+            rm -rf "$tmp"
+          fi
+          # Ruleset v2: 10 registry packs, pre-downloaded as local files so hook
+          # scans never resolve packs over the network; plus the custom rules,
+          # whose canonical source is repo-review
+          # worker/scripts/opengrep/ai-agent-security-v2.yml (#354), inlined here
+          # because a caller's GITHUB_TOKEN cannot read that private repo (the
+          # same pattern #355 uses).
+          # Pinning note (measured 2026-10-21): the pack endpoints are NOT
+          # byte-stable - downloads hours apart returned same-size files with
+          # rotated rule membership, so a fixed pack hash would brick runs.
+          # Packs are integrity-checked structurally (sizeable, top-level
+          # rules list) and their combined hash is logged every run as drift
+          # telemetry across runs. The custom
+          # rules ARE hard-pinned: a mismatch means the inlined copy was altered.
+          CUSTOM_SHA256="2f5c5d02b0dd7ddc859eb1ac049ee35cb06a2ccfc6170cfdea8798a00a157e6d"
+          if ! sha_ok "$LITE/rules/ai-agent-security-v2.yml" "$CUSTOM_SHA256"; then
+            cat > "$LITE/rules/ai-agent-security-v2.yml" <<'CLAUDE_LITE_RULES_EOF'
+          # yamllint disable
+          # (vendored upstream-format rules file: byte-faithful to the
+          # experiment asset, whose list style predates this repo's yamllint
+          # indentation rule; semantics verified by the opengrep test suite.)
+          #
+          # ai-agent-security-v2.yml -- Opengrep custom rules, ruleset v2
+          # (repo-review#354). SOURCE OF TRUTH for the copy inlined into
+          # .github/workflows/security-scan-reusable.yml (a caller's GITHUB_TOKEN
+          # cannot read this private repo, so the reusable carries the file as a
+          # heredoc; worker/scripts/tests/security-scan-opengrep.test.sh fails
+          # on drift between the two copies).
+          #
+          # Provenance: filtered from shell-config's .opengrep/rules/
+          # ai-agent-security.yml by the 2026-10-21 fleet Opengrep experiment
+          # round 2 (25 of 32 rules kept). REMOVED -- the two broken families
+          # (68% of round-1 noise, fired on ordinary code):
+          #   javascript-prompt-injection-template, javascript-prompt-injection-concat,
+          #   python-prompt-injection-{fstring,format,percent,concat},
+          #   javascript-tool-no-validation
+          # Those stay report-only/local until rewritten name-anchored.
+          rules:
+          - id: python-llm-call-user-input
+            pattern-either:
+            - pattern: 'openai.$FUNC(..., messages=[{"role": "user", "content": $INPUT}], ...)'
+            - pattern: 'openai.$FUNC(..., messages=[{''role'': ''user'', ''content'': $INPUT}],
+                ...)'
+            message: Direct user input to LLM call (sanitize first)
+            languages:
+            - python
+            severity: WARNING
+            metadata:
+              category: security
+              remediation: Use input sanitization and allowlist patterns
+          - id: mcp-sampling-all-servers-context
+            pattern: 'includeContext: "allServers"'
+            message: MCP sampling with broad context access (data exfiltration risk)
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              impact: May allow MCP server to access data from other servers
+              reference: https://authzed.com/blog/timeline-mcp-breaches/
+          - id: mcp-sampling-all-context
+            pattern: 'includeContext: "all"'
+            message: MCP sampling with all context access (review if necessary)
+            languages:
+            - yaml
+            - json
+            severity: WARNING
+            metadata:
+              category: security
+              remediation: Use 'ownServer' or specify exact servers
+          - id: mcp-unrestricted-permissions
+            pattern: "permissions:\n  - \"*\"\n"
+            message: Wildcard MCP permissions (specify exact permissions)
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Use exact permission names instead of wildcard
+          - id: mcp-disabled-authentication
+            pattern: 'authentication: "none"'
+            message: MCP server without authentication (security risk)
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Enable authentication for MCP servers
+          - id: mcp-unrestricted-resource-access
+            pattern: "resources:\n  - \"*\"\n"
+            message: Unrestricted MCP resource access (specify exact resources)
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Specify exact resource paths instead of wildcard
+          - id: mcp-cross-tenant-access
+            pattern: 'allowCrossTenantAccess: true'
+            message: MCP cross-tenant access enabled (data privacy risk)
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              impact: May allow accessing data across tenant boundaries
+              reference: Asana MCP breach (June 2025)
+          - id: mcp-broad-server-access
+            pattern: 'serverAccess: "all"'
+            message: MCP with broad server access (specify exact servers)
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Specify exact server names instead of 'all'
+          - id: typescript-tool-any-type
+            pattern: 'const $TOOL = async ($PARAMS: any) => ...'
+            message: Tool with 'any' type (no schema validation)
+            languages:
+            - typescript
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Use Zod or similar schema validation library
+              impact: May allow injection attacks via tool parameters
+          - id: python-tool-no-validation
+            pattern: "def $TOOL($PARAMS):\n    return $FUNC($PARAMS)\n"
+            message: Tool function without parameter validation
+            languages:
+            - python
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Use Pydantic or similar validation library
+              impact: May allow injection attacks via tool parameters
+          - id: python-tool-exec-code-param
+            pattern: exec($PARAMS)
+            message: Tool executes code from parameters without validation
+            languages:
+            - python
+            severity: ERROR
+            metadata:
+              category: security
+              impact: Remote code execution vulnerability
+              reference: CVE-2025-6514 (mcp-remote RCE)
+          - id: typescript-tool-eval-param
+            pattern: eval($PARAMS.$PROP)
+            message: Tool evaluates code from parameters (RCE risk)
+            languages:
+            - typescript
+            - javascript
+            severity: ERROR
+            metadata:
+              category: security
+              impact: Remote code execution vulnerability
+          - id: python-tool-subprocess-param
+            pattern: subprocess.run($PARAMS, shell=True)
+            message: Tool runs subprocess with parameters (command injection risk)
+            languages:
+            - python
+            severity: ERROR
+            metadata:
+              category: security
+              impact: Command injection vulnerability
+          - id: python-hardcoded-openai-key
+            pattern: api_key = "sk-..."
+            message: Hardcoded OpenAI API key (use environment variables)
+            languages:
+            - python
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Use os.getenv('OPENAI_API_KEY') instead
+          - id: python-hardcoded-anthropic-key
+            pattern: api_key = "sk-ant-..."
+            message: Hardcoded Anthropic API key (use environment variables)
+            languages:
+            - python
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Use os.getenv('ANTHROPIC_API_KEY') instead
+          - id: javascript-hardcoded-llm-key
+            pattern: 'apiKey: "sk-..."'
+            message: Hardcoded LLM API key in object (use environment variables)
+            languages:
+            - javascript
+            - typescript
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Use process.env.API_KEY instead
+          - id: env-llm-key-not-from-env
+            pattern: 'const apiKey = "sk-..."
+
+              '
+            message: LLM API key not from environment variable
+            languages:
+            - javascript
+            - typescript
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Use process.env to load API keys
+          - id: python-autonomous-system-command
+            pattern: subprocess.run($CMD, shell=True)
+            message: Autonomous system command execution (add human approval)
+            languages:
+            - python
+            severity: WARNING
+            metadata:
+              category: security
+              remediation: Add human-in-the-loop approval for dangerous operations
+          - id: python-autonomous-file-delete
+            pattern: 'os.remove($PATH)
+
+              '
+            message: Autonomous file deletion (add human approval)
+            languages:
+            - python
+            severity: WARNING
+            metadata:
+              category: security
+              remediation: Add human-in-the-loop approval for destructive operations
+          - id: python-autonomous-file-write
+            pattern: "with open($PATH, \"w\") as f:\n    f.write($DATA)\n"
+            message: Autonomous file write operation (review if necessary)
+            languages:
+            - python
+            severity: INFO
+            metadata:
+              category: security
+          - id: javascript-autonomous-system-command
+            pattern: 'exec($CMD)
+
+              '
+            message: Autonomous system command execution (add human approval)
+            languages:
+            - javascript
+            - typescript
+            severity: WARNING
+            metadata:
+              category: security
+              remediation: Add human-in-the-loop approval for dangerous operations
+          - id: mcp-server-access-all-databases
+            pattern: 'databases: ["*"]'
+            message: MCP server with wildcard database access
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Specify exact database names
+          - id: mcp-server-access-all-tables
+            pattern: 'tables: ["*"]'
+            message: MCP server with wildcard table access
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Specify exact table names
+          - id: mcp-broad-file-access
+            pattern: 'allowedPaths: "/*"'
+            message: MCP server with broad file system access
+            languages:
+            - yaml
+            - json
+            severity: ERROR
+            metadata:
+              category: security
+              remediation: Restrict to specific directories
+          - id: python-llm-unrestricted-tool-access
+            pattern: tools=$ALL_TOOLS
+            message: LLM with unrestricted tool access (specify exact tools)
+            languages:
+            - python
+            severity: WARNING
+            metadata:
+              category: security
+              remediation: Specify exact tool list instead of wildcard
+          CLAUDE_LITE_RULES_EOF
+          fi
+          echo "$CUSTOM_SHA256  $LITE/rules/ai-agent-security-v2.yml" | sha256sum --check -
+          # The custom rules are the security-critical file: prove opengrep can
+          # actually load them before any hook relies on them.
+          "$LITE/bin/opengrep" --validate --config "$LITE/rules/ai-agent-security-v2.yml" >/dev/null \
+            || { echo "claude-lite: custom rules fail opengrep --validate" >&2; exit 1; }
+          pack_ok() {
+            # Dependency-free structural check (no PyYAML assumption): a real
+            # pack is a sizeable YAML document carrying a top-level rules list.
+            # Anything corrupt enough to matter also fails loudly downstream -
+            # the pre-push scan loads every config and fails closed on errors.
+            [ -s "$1" ] || return 1
+            [ "$(stat -c%s "$1" 2>/dev/null || echo 0)" -gt 10000 ] || return 1
+            # The registry content-negotiates: YAML (rules:) or JSON ({"rules":)
+            # depending on the request; both are valid opengrep configs.
+            grep -q '^rules:' "$1" || head -c 64 "$1" | grep -q '{"rules"'
+          }
+          for pack in security-audit owasp-top-ten typescript javascript python rust golang terraform dockerfile github-actions; do
+            if ! pack_ok "$LITE/rules/pack-$pack.yml"; then
+              curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 -H 'Accept: text/yaml' "https://semgrep.dev/c/p/$pack" -o "$LITE/rules/pack-$pack.yml"
+              pack_ok "$LITE/rules/pack-$pack.yml" || { echo "claude-lite: downloaded pack $pack is not well-formed" >&2; exit 1; }
+            fi
+          done
+          packs_hash=$(cat "$LITE"/rules/pack-*.yml | sha256sum | cut -d' ' -f1)
+          echo "claude-lite: ruleset packs manifest sha256 $packs_hash (telemetry; pack endpoints are not byte-stable)"
+          # Warm the opengrep runtime extraction now, not inside Claude's first push.
+          "$LITE/bin/opengrep" --version >/dev/null 2>&1 || true
+          "$LITE/bin/betterleaks" version >/dev/null 2>&1 || true
+          cat > "$LITE/hooks/pre-commit" <<'CLAUDE_LITE_HOOK_EOF'
+          #!/usr/bin/env bash
+          # claude-lite pre-commit (template v5.28.1, CLAUDE_SETUP_PROFILE=agent/dev).
+          # Gate: betterleaks secret scan over the staged content (~1s). Opengrep
+          # runs at pre-push instead: its per-invocation rule-compile cost (~30s)
+          # is paid once per push, not once per checkpoint commit.
+          # Fail-closed: on findings, and when betterleaks is missing (the
+          # bootstrap installs and verifies it before pointing hooksPath here,
+          # so a missing scanner is tampering or corruption, never a pass). Output goes to stderr so Claude sees it in the
+          # git error and can fix the finding and retry.
+          set -uo pipefail
+          LITE="${CLAUDE_LITE_HOME:-$HOME/.claude-lite}"
+          BL="$LITE/bin/betterleaks"
+          if [ ! -x "$BL" ]; then
+            echo "== claude-lite: betterleaks is missing ($BL) - commit blocked ==" >&2
+            echo "== the lite bootstrap installs and verifies it; a missing scanner is never a silent pass ==" >&2
+            exit 1
+          fi
+          root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+          cd "$root" || exit 0
+          git diff --cached --quiet && exit 0
+          bl_out=$(mktemp)
+          timeout 120 "$BL" git --staged --redact --no-banner . >"$bl_out" 2>&1
+          bl_rc=$?
+          if [ "$bl_rc" -eq 124 ]; then
+            echo "== claude-lite: betterleaks scan timed out (120s) - commit blocked ==" >&2
+            rm -f "$bl_out"
+            exit 1
+          fi
+          if [ "$bl_rc" -ne 0 ]; then
+            echo "== claude-lite: betterleaks found secret(s) in the staged changes - commit blocked ==" >&2
+            echo "== recovery: commit everything else and report this file. Only if the value is a demonstrably fake fixture may you add its fingerprint (printed above) to .betterleaksignore and retry. A real-looking secret is never committed. ==" >&2
+            tail -25 "$bl_out" >&2
+            echo "== remove the secret(s), load them from the environment, and commit again ==" >&2
+            rm -f "$bl_out"
+            exit 1
+          fi
+          rm -f "$bl_out"
+          exit 0
+          CLAUDE_LITE_HOOK_EOF
+          cat > "$LITE/hooks/pre-push" <<'CLAUDE_LITE_HOOK_EOF'
+          #!/usr/bin/env bash
+          # claude-lite pre-push (template v5.28.1, CLAUDE_SETUP_PROFILE=agent/dev).
+          # Backstop for the push: betterleaks over the pushed commit range +
+          # opengrep ERROR gate over the range's changed files. The opengrep scan
+          # runs on the pushed commit's blobs (git archive into a scratch dir),
+          # never on the mutable worktree, and FAILS CLOSED: a scanner crash, a
+          # missing/unparseable report, or a report carrying scan errors blocks
+          # the push just like a finding does.
+          set -uo pipefail
+          LITE="${CLAUDE_LITE_HOME:-$HOME/.claude-lite}"
+          OG="$LITE/bin/opengrep"
+          BL="$LITE/bin/betterleaks"
+          if [ ! -x "$OG" ] || [ ! -x "$BL" ] || [ ! -d "$LITE/rules" ]; then
+            echo "== claude-lite: guardrail tools missing (opengrep/betterleaks/rules) - push blocked ==" >&2
+            echo "== the lite bootstrap installs and verifies them; missing tools are never a silent pass ==" >&2
+            exit 1
+          fi
+          root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+          cd "$root" || exit 0
+          ZERO=0000000000000000000000000000000000000000
+          rc=0
+          while read -r _local_ref local_sha _remote_ref remote_sha; do
+            [ "$local_sha" = "$ZERO" ] && continue
+            if [ "$remote_sha" = "$ZERO" ]; then
+              range="new branch at $local_sha"
+              # Only origin's remote-tracking refs count as already-pushed:
+              # refs fetched from any other remote were never scanned anywhere.
+              excl=()
+              while read -r ref; do excl+=("^$ref"); done < <(git for-each-ref --format='%(refname)' refs/remotes/origin)
+              log_opts="$local_sha ${excl[*]}"
+              files=()
+              while IFS= read -r -d '' f; do files+=("$f"); done < <(
+                git rev-list "$local_sha" "${excl[@]}" |
+                while read -r c; do git diff-tree --root --diff-merges=separate --no-commit-id --name-only -r -z --diff-filter=ACMR "$c"; done | sort -zu)
+            else
+              range="$remote_sha..$local_sha"
+              log_opts="$range"
+              mapfile -d '' -t files < <(git diff --name-only -z --diff-filter=ACMR "$remote_sha" "$local_sha")
+            fi
+            if [ -x "$BL" ]; then
+              bl_out=$(mktemp)
+              timeout 300 "$BL" git --redact --no-banner --log-opts "$log_opts" . >"$bl_out" 2>&1
+              bl_rc=$?
+              if [ "$bl_rc" -eq 124 ]; then
+                echo "== claude-lite: betterleaks scan timed out (300s) for $range - push blocked ==" >&2
+                rc=1
+              elif [ "$bl_rc" -ne 0 ]; then
+                echo "== claude-lite: betterleaks found secret(s) in $range - push blocked ==" >&2
+                echo "== recovery: same rule as pre-commit - only a demonstrably fake fixture value may be triaged via .betterleaksignore; never commit a real-looking secret. ==" >&2
+                tail -25 "$bl_out" >&2
+                rc=1
+              fi
+              rm -f "$bl_out"
+            fi
+            if [ -x "$OG" ] && [ -d "$LITE/rules" ] && [ "${#files[@]}" -gt 0 ]; then
+              declare -A at_tip=()
+              while IFS= read -r -d '' f; do at_tip["$f"]=1; done < <(git ls-tree -r -z --name-only "$local_sha")
+              present=()
+              for f in "${files[@]}"; do
+                [ -n "${at_tip[$f]:-}" ] || continue
+                case "/$f" in
+                  */node_modules/*|*/.next/*|*/dist/*|*/target/*|*/build/*|*/out/*|*/vendor/*|*/.turbo/*) continue ;;
+                esac
+                case "$f" in *.min.js|*.min.css) continue ;; esac
+                present+=("$f")
+              done
+              if [ "${#present[@]}" -gt 0 ]; then
+                scan_dir=$(mktemp -d)
+                if ! git archive "$local_sha" -- "${present[@]/#/:(literal)}" | tar --no-same-owner -x -C "$scan_dir"; then
+                  echo "== claude-lite: could not extract $local_sha for scanning - push blocked ==" >&2
+                  rc=1
+                else
+                  cfg=()
+                  for f in "$LITE"/rules/*.yml; do cfg+=(--config "$f"); done
+                  out=$(mktemp)
+                  err=$(mktemp)
+                  (cd "$scan_dir" && OPENGREP_ENABLE_VERSION_CHECK=0 SEMGREP_SEND_METRICS=off \
+                    timeout 600 "$OG" scan --disable-version-check --json --quiet --output "$out" "${cfg[@]}" \
+                    --exclude node_modules --exclude .next --exclude dist --exclude target \
+                    --exclude build --exclude out --exclude vendor --exclude .turbo \
+                    --exclude '*.min.js' --exclude '*.min.css' \
+                    --exclude-rule 'package_managers.bun.bun-missing-minimum-release-age.bun-missing-minimum-release-age' \
+                    --exclude-rule 'javascript.lang.security.detect-child-process.detect-child-process' \
+                    --exclude-rule 'yaml.github-actions.security.secrets-inherit.secrets-inherit' \
+                    -- "${present[@]}" >/dev/null 2>"$err")
+                  og_rc=$?
+                  if [ "$og_rc" -ge 2 ] || [ ! -s "$out" ]; then
+                    echo "== claude-lite: opengrep scan failed (exit $og_rc) - push blocked ==" >&2
+                    echo "== scanner diagnostics (tail) ==" >&2
+                    tail -30 "$err" >&2
+                    rc=1
+                  elif ! python3 - "$out" <<'PYEOF'
+          import json, sys
+          try:
+              doc = json.load(open(sys.argv[1]))
+          except Exception:
+              print("claude-lite: opengrep report unparseable - treating as scan failure", file=sys.stderr)
+              sys.exit(2)
+          scan_errors = doc.get("errors") or []
+          if scan_errors:
+              print("claude-lite: opengrep reported {} scan error(s) - treating as scan failure".format(len(scan_errors)), file=sys.stderr)
+              sys.exit(2)
+          errs = [r for r in doc.get("results", [])
+                  if (r.get("extra") or {}).get("severity") == "ERROR"]
+          for r in errs:
+              print("{}:{}: {} - {}".format(
+                  r.get("path"), (r.get("start") or {}).get("line"),
+                  r.get("check_id"), (r.get("extra") or {}).get("message", "")),
+                  file=sys.stderr)
+          sys.exit(1 if errs else 0)
+          PYEOF
+                  then
+                    echo "== claude-lite: opengrep gate failed for $range - push blocked ==" >&2
+                    echo "== recovery: push everything except the flagged files (commit them locally if useful) and put the blocked work in your issue summary so it is not lost. Do not bypass this gate. ==" >&2
+                    echo "== fix the findings and push again; do not bypass this hook ==" >&2
+                    rc=1
+                  fi
+                  rm -f "$out" "$err"
+                fi
+                rm -rf "$scan_dir"
+              fi
+            fi
+          done
+          exit $rc
+          CLAUDE_LITE_HOOK_EOF
+          chmod +x "$LITE/hooks/pre-commit" "$LITE/hooks/pre-push"
+          if [ "${CLAUDE_SETUP_PROFILE:-}" = "dev" ] && [ -f .claude/setup.sh ]; then
+            # Note: on issue_comment runs the checkout (and this workflow) is the
+            # default branch by GitHub's event semantics, so the setup script is
+            # main's version - intended: PR branches cannot weaken the hooks
+            # either, for the same reason.
+            if [ "${CLAUDE_IS_FORK:-}" = "true" ]; then
+              echo "claude-lite: SKIPPING .claude/setup.sh - fork PR runs never execute workspace-controlled setup code"
+            else
+              echo "claude-lite: running repo .claude/setup.sh (dev profile)"
+              bash .claude/setup.sh
+            fi
+          fi
+          git config core.hooksPath "$LITE/hooks"
+          echo "claude-lite: guardrails active (profile=${CLAUDE_SETUP_PROFILE:-minimal}); hooks at $LITE/hooks"
+          if [ "${CLAUDE_LITE_SELFTEST:-}" = "1" ]; then
+            echo "claude-lite: running hook self-test (pilot mode)"
+            (
+              st=$(mktemp -d)
+              trap 'rm -rf "$st"' EXIT
+              git init -q -b main "$st/repo"
+              git init -q --bare "$st/remote.git"
+              cd "$st/repo"
+              git config user.email lite@selftest.invalid
+              git config user.name claude-lite-selftest
+              git config core.hooksPath "$LITE/hooks"
+              echo ok > README.md
+              git add .
+              git commit -q -m init
+              git push -q "$st/remote.git" main
+              # The probe secret is generated at runtime: no token-shaped literal
+              # ever sits in this workflow file for other scanners to flag.
+              probe_token="ghp_$(python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(36)))")"
+              printf 'TOKEN = "%s"\n' "$probe_token" > secret_probe.py
+              git add secret_probe.py
+              if git commit -q -m probe-secret 2>"$st/log1"; then
+                echo "::error::claude-lite self-test FAILED: a seeded secret commit was not blocked at commit"
+                exit 1
+              fi
+              echo "claude-lite self-test: secret commit blocked at pre-commit (betterleaks)"
+              git reset -q
+              rm -f secret_probe.py
+              printf 'import subprocess\ndef run_tool(params):\n    return subprocess.run(params, shell=True)\n' > og_probe.py
+              git add og_probe.py
+              git commit -q -m probe-opengrep
+              if git push -q "$st/remote.git" main 2>"$st/log2"; then
+                echo "::error::claude-lite self-test FAILED: a seeded opengrep ERROR was not blocked at push"
+                exit 1
+              fi
+              echo "claude-lite self-test: opengrep ERROR blocked at pre-push"
+            )
+            echo "claude-lite self-test: PASS"
+          fi
       - name: Add Claude Working Badge
         if: ${{ steps.context.outputs.issue_number != '' }}
         continue-on-error: true
@@ -224,7 +810,7 @@ jobs:
             --max-turns 175
             --fallback-model claude-haiku-4-5
             --effort medium
-            --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first. If a comment marked 'claude-handoff' names a progress branch, continue from that branch instead of starting over. Work item by item: after finishing each numbered item, commit and push to your branch before starting the next one. Be economical with turns: batch independent tool calls in one block, read each file once, and run the full check suite once at the end rather than after every edit."
+            --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first. If a comment marked 'claude-handoff' names a progress branch, continue from that branch instead of starting over. Work item by item: after finishing each numbered item, commit and push to your branch before starting the next one. Be economical with turns: batch independent tool calls in one block, read each file once, and run the full check suite once at the end rather than after every edit. Never bypass git hooks (no --no-verify, no core.hooksPath overrides): if a hook blocks a commit or push, read its output and recover, never bypass: for a secret finding, commit everything else and report the blocked file (only a demonstrably fake fixture value may be triaged via a .betterleaksignore fingerprint entry; a real-looking secret is never committed); for a code finding, push everything except the flagged files and put the blocked work in your summary so it is not lost."
             --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(jq:*),Bash(curl:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(diff:*),Bash(sort:*),Bash(which:*),Bash(env:*),Bash(sleep:*),Bash(python3:*),Bash(pip:*),Bash(pip3:*),Bash(uv:*),Bash(pytest:*),Bash(cargo:*),Bash(rustc:*),Bash(go:*),Bash(npm:*),Bash(pnpm:*),Bash(make:*),Bash(ls:*),Bash(cat:*),Bash(pwd:*),Bash(echo:*),Bash(chmod:*),Bash(tar:*),Bash(unzip:*),Bash(wc:*),Bash(du:*),Bash(tee:*),Bash(xargs:*),Bash(timeout:*),Bash(sqlite3:*),Bash(bash:*)"
           settings: |
             {
