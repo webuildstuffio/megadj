@@ -19,7 +19,12 @@ megadj operator toolkit without repo-local setup.
 **Skills are symlinks** into `../../.claude/skills/` — the in-repo skill
 directories are the single source of truth; editing a skill updates the
 plugin copy too (no byte-duplicated fork to drift). A published/marketplace
-build would dereference them at package time.
+build would dereference them at package time. The mirror topology
+(symlink-only, exact shipped set) is pinned by
+`src/census/plugin-skills-mirror-census.test.ts` — content scanners
+(jscpd, `diff -rq`, `wc`) follow symlinks and double-count this mirror as
+~2k duplicated lines; verify with `git ls-files -s` before proposing a
+dedup (#533).
 
 ## Install (development, from this repo)
 
