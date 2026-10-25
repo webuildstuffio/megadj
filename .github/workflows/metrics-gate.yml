@@ -25,7 +25,7 @@ concurrency:
 jobs:
   gate:
     if: github.event.pull_request.draft == false
-    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@f63d804d5721aa0a80e2eed5a2a08d5af8e07f74  # yamllint disable-line rule:line-length
+    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@9e8fe834ab6cbe96c7d133e703e0b326c1707b9e  # yamllint disable-line rule:line-length
     with:
       run_snapshot: false
       language: typescript
