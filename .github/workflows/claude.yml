@@ -1,4 +1,10 @@
-# Claude Code Assistant v5.28.2
+# Claude Code Assistant v5.28.3
+# v5.28.3 - (Oct 26 2026) CLI cache pin 2.1.286 -> 2.1.310 (checksum
+#          from Anthropic's release manifest) and the pin is no longer
+#          bumped blind: scripts/check-claude-cli-pin.sh compares the
+#          pin against the current release manifest, and the
+#          claude-cli-pin-check workflow (weekly + on template change)
+#          files a visible failure when it drifts (issue #100).
 # v5.28.2 - (Oct 24 2026) Label hygiene: a new label-hygiene job fires
 #          on issue close / PR merge and strips the robot + failed
 #          labels, so merged PRs and closed issues no longer wear a
@@ -775,15 +781,17 @@ jobs:
           path: |
             ~/.local/bin/claude
             ~/.local/share/claude
-          key: claude-cli-2.1.286-${{ runner.os }}-${{ runner.arch }}
+          key: claude-cli-2.1.310-${{ runner.os }}-${{ runner.arch }}
 
       - name: Resolve cached Claude Code CLI
         id: claude-bin
         run: |
           # The cache is agent-writable state, so a restored binary is
           # only used after its SHA256 matches the official Claude Code
-          # 2.1.286 linux-x64 release checksum (Anthropic manifest).
-          want="fe503f65c6289d59c23e5b21ae44f03583f997dd33a2cbfc75ab4f96fb8fc73f"
+          # 2.1.310 linux-x64 release checksum (Anthropic manifest).
+          # Drift is watched by scripts/check-claude-cli-pin.sh (issue
+          # #100); bump version + checksum together when it fires.
+          want="b73676430af12f97316a798b8371f81d640f90a58bdcb8f3ce56a835bb47df56"
           bin="$HOME/.local/bin/claude"
           hit="${{ steps.claude-cli-cache.outputs.cache-hit }}"
           got="$(sha256sum "$(readlink -f "$bin" 2>/dev/null)" 2>/dev/null | cut -d' ' -f1)"
