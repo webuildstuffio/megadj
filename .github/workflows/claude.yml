@@ -804,7 +804,7 @@ jobs:
       - name: Run Claude Code
         id: claude_action
         timeout-minutes: 45
-        uses: anthropics/claude-code-action@v1.0.252
+        uses: anthropics/claude-code-action@v1.0.257
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
