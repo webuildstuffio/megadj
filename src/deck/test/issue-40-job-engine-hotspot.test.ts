@@ -62,9 +62,7 @@ function methodMetrics(path: string, methodName: string): MethodMetrics {
   };
   countBranches(target);
 
-  const start = sourceFile.getLineAndCharacterOfPosition(
-    target.getStart(),
-  ).line;
+  const start = sourceFile.getLineAndCharacterOfPosition(target.getStart()).line;
   const end = sourceFile.getLineAndCharacterOfPosition(target.getEnd()).line;
   return { lines: end - start + 1, cyclomaticComplexity };
 }
@@ -78,10 +76,7 @@ test("#40: JobEngine stays a small orchestrator", () => {
     source.trimEnd().split("\n").length,
     "jobs/engine.ts must be at most 500 lines",
   ).toBeLessThanOrEqual(500);
-  expect(
-    metrics.lines,
-    "executeInner() must be at most 120 lines",
-  ).toBeLessThanOrEqual(120);
+  expect(metrics.lines, "executeInner() must be at most 120 lines").toBeLessThanOrEqual(120);
   expect(
     metrics.cyclomaticComplexity,
     "executeInner() cyclomatic complexity must be at most 12",

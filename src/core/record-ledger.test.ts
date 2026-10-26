@@ -19,18 +19,12 @@ class ProbeLedger extends RecordLedger {
     if (!row) return null;
     try {
       const parsed: unknown = JSON.parse(row.payload);
-      if (
-        parsed === null ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
-      ) {
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
         throw new Error("expected a JSON object");
       }
       return parsed;
     } catch (error) {
-      return this.absorbParseFailure(error, `probe ${videoId}`, (m) =>
-        this.warnings.push(m),
-      );
+      return this.absorbParseFailure(error, `probe ${videoId}`, (m) => this.warnings.push(m));
     }
   }
 
@@ -45,9 +39,7 @@ describe("RecordLedger base (#74)", () => {
     ledger.put("a", '{"v":1}');
     ledger.put("a", '{"v":2}');
     expect(ledger.read("a")).toEqual({ v: 2 });
-    expect(
-      db.query("SELECT COUNT(*) n FROM probe").get() as { n: number },
-    ).toEqual({ n: 1 });
+    expect(db.query("SELECT COUNT(*) n FROM probe").get() as { n: number }).toEqual({ n: 1 });
   });
 
   test("corrupt JSON row reads as absent + names the row (ONE guard home)", () => {

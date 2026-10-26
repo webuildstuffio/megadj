@@ -21,8 +21,7 @@ import { analyzeMoods } from "./models";
 import { round2 } from "../../shared/leaf/fmt";
 import { normalCdf } from "../../shared/leaf/stats";
 
-const DB_PATH =
-  process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
+const DB_PATH = process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
 
 // ── Data types ────────────────────────────────────────────────────────
 
@@ -98,11 +97,7 @@ function bootstrapCI(
   const lo = Math.floor((alpha / 2) * nBoot);
   const hi = Math.floor((1 - alpha / 2) * nBoot);
   const mean = diffs.reduce((s, d) => s + d, 0) / nBoot;
-  return {
-    low: round2(diffs[lo]!),
-    high: round2(diffs[hi]!),
-    mean: round2(mean),
-  };
+  return { low: round2(diffs[lo]!), high: round2(diffs[hi]!), mean: round2(mean) };
 }
 
 /** Cohen's h effect size for proportions. */
@@ -185,11 +180,7 @@ function loadAllSeeds(db: Database): GenreSeed[] {
   return rows.flatMap((r) => {
     try {
       return [
-        {
-          videoId: r.video_id,
-          genre: r.genre,
-          vec: parseEmbeddingVector(r.vec_json, r.video_id),
-        },
+        { videoId: r.video_id, genre: r.genre, vec: parseEmbeddingVector(r.vec_json, r.video_id) },
       ];
     } catch {
       return [];
@@ -220,23 +211,14 @@ function runLoo(
 
 function summarize(name: string, outcomes: LooOutcome[]): StratResult {
   const agree = outcomes.filter((o) => o.correct).length;
-  const disagree = outcomes.filter(
-    (o) => !o.correct && o.predicted !== null,
-  ).length;
+  const disagree = outcomes.filter((o) => !o.correct && o.predicted !== null).length;
   const refused = outcomes.filter((o) => o.predicted === null).length;
   const total = outcomes.length;
 
   // Per-family breakdown
-  const perFamily = new Map<
-    string,
-    { correct: number; total: number; accuracy: number }
-  >();
+  const perFamily = new Map<string, { correct: number; total: number; accuracy: number }>();
   for (const o of outcomes) {
-    const f = perFamily.get(o.trueFamily) ?? {
-      correct: 0,
-      total: 0,
-      accuracy: 0,
-    };
+    const f = perFamily.get(o.trueFamily) ?? { correct: 0, total: 0, accuracy: 0 };
     f.total++;
     if (o.correct) f.correct++;
     f.accuracy = f.total > 0 ? round2(f.correct / f.total) : 0;
@@ -265,10 +247,7 @@ function bestOfNLoo(
 ): LooOutcome[] {
   return sample.map((held, i) => {
     const rest = allSeeds.filter((s) => s.videoId !== held.videoId);
-    const vecs = [
-      held.wholeVec,
-      ...sectionEmbeddings[i]!.filter((e): e is number[] => e !== null),
-    ];
+    const vecs = [held.wholeVec, ...sectionEmbeddings[i]!.filter((e): e is number[] => e !== null)];
     let bestVote = inferGenre(rest, held.wholeVec, k, minAgreement);
     for (let vi = 1; vi < vecs.length; vi++) {
       const vote = inferGenre(rest, vecs[vi]!, k, minAgreement);
@@ -299,11 +278,7 @@ async function computeSections(
 
     for (let tIdx = 0; tIdx < tracks.length; tIdx++) {
       const t = tracks[tIdx]!;
-      const candidates = findDropCandidates(
-        t.downbeats,
-        nCandidates,
-        t.durationS,
-      );
+      const candidates = findDropCandidates(t.downbeats, nCandidates, t.durationS);
       if (cIdx >= candidates.length) continue;
       const sec = candidates[cIdx]!;
       batchPaths.push(t.filePath);
@@ -348,13 +323,9 @@ async function main() {
   );
   process.argv.includes("--skip-models"); // reserved for future model comparison
 
-  console.log(
-    `\n╔═══════════════════════════════════════════════════════════╗`,
-  );
+  console.log(`\n╔═══════════════════════════════════════════════════════════╗`);
   console.log(`║  Section Embedding Bench — Rigorous Statistical Analysis  ║`);
-  console.log(
-    `╚═══════════════════════════════════════════════════════════╝\n`,
-  );
+  console.log(`╚═══════════════════════════════════════════════════════════╝\n`);
 
   const db = new Database(DB_PATH, { readonly: true });
   const sample = loadSample(db, sampleSize);
@@ -403,37 +374,25 @@ async function main() {
   console.log(`\n━━ Phase 3: Truth Quality Stratification ━━`);
   if (highConf.length >= 10 && lowConf.length >= 10) {
     // Recompute best-of-3 on high-conf and low-conf separately
-    console.log(
-      `  Computing best-of-3 on ${highConf.length} high-confidence tracks...`,
-    );
+    console.log(`  Computing best-of-3 on ${highConf.length} high-confidence tracks...`);
     const highSecEmbs = await computeSections(highConf, 3);
     const highBaseOuts = runLoo(
       highConf.map((t) => ({ ...t, vec: t.wholeVec })),
       allSeeds,
     );
     const highBo3Outs = bestOfNLoo(highConf, allSeeds, highSecEmbs);
-    console.log(
-      `    High-conf whole:   ${summarize("whole", highBaseOuts).accuracy * 100}%`,
-    );
-    console.log(
-      `    High-conf bo3:     ${summarize("bo3", highBo3Outs).accuracy * 100}%`,
-    );
+    console.log(`    High-conf whole:   ${summarize("whole", highBaseOuts).accuracy * 100}%`);
+    console.log(`    High-conf bo3:     ${summarize("bo3", highBo3Outs).accuracy * 100}%`);
 
-    console.log(
-      `  Computing best-of-3 on ${lowConf.length} low-confidence tracks...`,
-    );
+    console.log(`  Computing best-of-3 on ${lowConf.length} low-confidence tracks...`);
     const lowSecEmbs = await computeSections(lowConf, 3);
     const lowBaseOuts = runLoo(
       lowConf.map((t) => ({ ...t, vec: t.wholeVec })),
       allSeeds,
     );
     const lowBo3Outs = bestOfNLoo(lowConf, allSeeds, lowSecEmbs);
-    console.log(
-      `    Low-conf whole:    ${summarize("whole", lowBaseOuts).accuracy * 100}%`,
-    );
-    console.log(
-      `    Low-conf bo3:      ${summarize("bo3", lowBo3Outs).accuracy * 100}%`,
-    );
+    console.log(`    Low-conf whole:    ${summarize("whole", lowBaseOuts).accuracy * 100}%`);
+    console.log(`    Low-conf bo3:      ${summarize("bo3", lowBo3Outs).accuracy * 100}%`);
   } else {
     console.log(`  Skipped: insufficient split (need ≥10 in each tier)`);
   }
@@ -468,9 +427,7 @@ async function main() {
       confusions.set(key, (confusions.get(key) ?? 0) + 1);
     }
   }
-  const topConfusions = [...confusions.entries()]
-    .toSorted((a, b) => b[1] - a[1])
-    .slice(0, 10);
+  const topConfusions = [...confusions.entries()].toSorted((a, b) => b[1] - a[1]).slice(0, 10);
   for (const [pair, count] of topConfusions) {
     console.log(`  ${count}×  ${pair}`);
   }
@@ -480,17 +437,11 @@ async function main() {
   const ranked = scalingResults.toSorted((a, b) => b.accuracy - a.accuracy);
   for (const r of ranked) {
     const bar = "█".repeat(Math.round(r.accuracy * 50));
-    console.log(
-      `  ${r.name.padEnd(18)} ${(r.accuracy * 100).toFixed(1).padStart(5)}%  ${bar}`,
-    );
+    console.log(`  ${r.name.padEnd(18)} ${(r.accuracy * 100).toFixed(1).padStart(5)}%  ${bar}`);
   }
   const winner = ranked[0]!;
-  console.log(
-    `\n  Winner: ${winner.name} at ${(winner.accuracy * 100).toFixed(1)}%`,
-  );
-  console.log(
-    `  Δ vs baseline: ${((winner.accuracy - baseline.accuracy) * 100).toFixed(1)}pp`,
-  );
+  console.log(`\n  Winner: ${winner.name} at ${(winner.accuracy * 100).toFixed(1)}%`);
+  console.log(`  Δ vs baseline: ${((winner.accuracy - baseline.accuracy) * 100).toFixed(1)}pp`);
 
   // Diminishing returns analysis
   console.log(`\n━━ Diminishing Returns ━━`);
@@ -517,19 +468,12 @@ function printResult(r: StratResult): void {
   );
 }
 
-function printStats(
-  aCorrect: boolean[],
-  bCorrect: boolean[],
-  aAcc: number,
-  bAcc: number,
-): void {
+function printStats(aCorrect: boolean[], bCorrect: boolean[], aAcc: number, bAcc: number): void {
   const mc = mcnemar(aCorrect, bCorrect);
   const ci = bootstrapCI(aCorrect, bCorrect);
   const h = cohensH(aAcc, bAcc);
   const sig = mc.p < 0.05 ? "✓" : "✗";
-  console.log(
-    `    McNemar χ²=${mc.chi2} p=${mc.p.toFixed(4)} ${sig}  Cohen's h=${h}`,
-  );
+  console.log(`    McNemar χ²=${mc.chi2} p=${mc.p.toFixed(4)} ${sig}  Cohen's h=${h}`);
   console.log(
     `    Bootstrap 95% CI for Δ: [${(ci.low * 100).toFixed(1)}%, ${(ci.high * 100).toFixed(1)}%]  mean=${(ci.mean * 100).toFixed(1)}%`,
   );

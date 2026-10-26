@@ -14,12 +14,7 @@ import {
   withinAnchorBudget,
   type SetCandidate,
 } from "./engine";
-import {
-  megasetTempoLane,
-  similarityScore,
-  transitionEvidence,
-  transitionScore,
-} from "./scoring";
+import { megasetTempoLane, similarityScore, transitionEvidence, transitionScore } from "./scoring";
 import {
   MEGASET_SIMILARITY_WEIGHT,
   MEGASET_TRANSITION_WEIGHTS,
@@ -80,41 +75,21 @@ describe("similarityScore (#171)", () => {
 describe("transitionScore with the prior", () => {
   const anchor = 128;
   const prev = base({ bpm: 128, key: "8A", embedding: [1, 0, 0, 0] });
-  const twin = base({
-    videoId: "twin",
-    bpm: 129,
-    key: "8A",
-    embedding: [1, 0, 0, 0],
-  });
-  const stranger = base({
-    videoId: "stranger",
-    bpm: 129,
-    key: "8A",
-    embedding: [0, 0, 0, 1],
-  });
+  const twin = base({ videoId: "twin", bpm: 129, key: "8A", embedding: [1, 0, 0, 0] });
+  const stranger = base({ videoId: "stranger", bpm: 129, key: "8A", embedding: [0, 0, 0, 1] });
 
   test("compatible candidates: identical key/tempo, timbre breaks the tie", () => {
     const sTwin = transitionScore(prev, twin, preset, 0.5, anchor, 5);
     const sStranger = transitionScore(prev, stranger, preset, 0.5, anchor, 5);
     expect(sTwin).toBeGreaterThan(sStranger);
     // the gap is exactly the capped prior
-    expect(sTwin - sStranger).toBeCloseTo(
-      MEGASET_SIMILARITY_WEIGHT * (1 - 0.5),
-      10,
-    );
+    expect(sTwin - sStranger).toBeCloseTo(MEGASET_SIMILARITY_WEIGHT * (1 - 0.5), 10);
   });
 
   test("no embeddings on both sides → the pre-prior score exactly", () => {
     const prevNoEmb = base({ embedding: null });
     const cNoEmb = base({ videoId: "y", embedding: null });
-    const withPrior = transitionScore(
-      prevNoEmb,
-      cNoEmb,
-      preset,
-      0.5,
-      anchor,
-      5,
-    );
+    const withPrior = transitionScore(prevNoEmb, cNoEmb, preset, 0.5, anchor, 5);
     const withEmb = transitionScore(
       base({ embedding: [1, 0, 0, 0] }),
       base({ videoId: "y", embedding: [1, 0, 0, 0] }),
@@ -141,12 +116,8 @@ describe("transitionScore with the prior", () => {
       key: "8A",
       embedding: [1, 0, 0, 0],
     });
-    expect(transitionScore(prev, clasher, preset, 0.5, anchor, 5)).toBeLessThan(
-      0,
-    );
-    expect(
-      transitionScore(prev, unmixable, preset, 0.5, anchor, 5),
-    ).toBeLessThan(0);
+    expect(transitionScore(prev, clasher, preset, 0.5, anchor, 5)).toBeLessThan(0);
+    expect(transitionScore(prev, unmixable, preset, 0.5, anchor, 5)).toBeLessThan(0);
   });
 
   test("weight pins: the prior rides BESIDE the frozen weights (E6)", () => {
@@ -223,12 +194,7 @@ describe("buildMegaset improvement pass (#107)", () => {
     // the anchor budget's branch lane admits the 174 track; before B8 its
     // tempo component was 0 (outside ±6%) so it never won a slot
     const anchor = cand({ videoId: "anchor", bpm: 87, key: "8A", arousal: 5 });
-    const halftime = cand({
-      videoId: "dnb",
-      bpm: 174,
-      key: "8A",
-      arousal: 6,
-    });
+    const halftime = cand({ videoId: "dnb", bpm: 174, key: "8A", arousal: 6 });
     // directly out of window → the ONLY lane is half-time
     expect(bpmScore(87, 174)).toBe(0);
     // the pairing is recognized and scores the flat half-time value
@@ -236,22 +202,12 @@ describe("buildMegaset improvement pass (#107)", () => {
     expect(isMegasetHalfTimePair(174, 87)).toBe(true);
     // F1 pin: the lane value is 0.75 × penalty — computed by the lane fn
     // M2: genre families required for the half-time lane to open
-    expect(megasetTempoLane(87, 174, "drum and bass", "house")).toBeCloseTo(
-      0.75 * 0.9,
-      10,
-    );
+    expect(megasetTempoLane(87, 174, "drum and bass", "house")).toBeCloseTo(0.75 * 0.9, 10);
     // M2: null genre = gate closed
     expect(megasetTempoLane(87, 174, null, "house")).toBe(0);
     // and transitionScore composes it — strictly positive where it used
     // to be −1
-    const s = transitionScore(
-      anchor,
-      halftime,
-      SET_PRESETS.peak,
-      0.5,
-      87,
-      anchor.arousal,
-    );
+    const s = transitionScore(anchor, halftime, SET_PRESETS.peak, 0.5, 87, anchor.arousal);
     expect(s).toBeGreaterThan(0);
     // a NON-multiple far-BPM track stays at −1
     expect(
@@ -302,9 +258,7 @@ describe("buildMegaset improvement pass (#107)", () => {
     // old ×2/×½ exemption doesn't cover 1.49× — only the new pairing
     // exemption lets this hop score
     expect(withinAnchorBudget(130, 87)).toBe(false);
-    expect(
-      transitionScore(anchor, trap, SET_PRESETS.peak, 0.5, 87, 5),
-    ).toBeGreaterThan(0);
+    expect(transitionScore(anchor, trap, SET_PRESETS.peak, 0.5, 87, 5)).toBeGreaterThan(0);
   });
 
   test("S13: a landmark pin is slotted into the chain even when the search never picked it", () => {
@@ -348,11 +302,9 @@ describe("buildMegaset improvement pass (#107)", () => {
     expect(r.landmarks_missing).toEqual(["ghost", "clasher"]);
     // each missing pin explains itself in excluded[]
     for (const id of r.landmarks_missing)
-      expect(
-        r.excluded.some(
-          (e) => e.videoId === id && e.reason.startsWith("landmark"),
-        ),
-      ).toBe(true);
+      expect(r.excluded.some((e) => e.videoId === id && e.reason.startsWith("landmark"))).toBe(
+        true,
+      );
     // and the chain still built around the failure
     expect(r.steps.length).toBeGreaterThanOrEqual(2);
   });
@@ -418,18 +370,8 @@ describe("buildMegaset improvement pass (#107)", () => {
       const prev = r.steps[i - 1]!;
       const t = Math.min(1, (prev.atMin * 60) / budgetS);
       const fresh = transitionScore(
-        cand({
-          videoId: prev.videoId,
-          arousal: prev.arousal,
-          bpm: prev.bpm,
-          key: prev.key,
-        }),
-        cand({
-          videoId: s.videoId,
-          arousal: s.arousal,
-          bpm: s.bpm,
-          key: s.key,
-        }),
+        cand({ videoId: prev.videoId, arousal: prev.arousal, bpm: prev.bpm, key: prev.key }),
+        cand({ videoId: s.videoId, arousal: s.arousal, bpm: s.bpm, key: s.key }),
         SET_PRESETS.peak,
         t,
         126,
@@ -464,8 +406,7 @@ describe("buildMegaset improvement pass (#107)", () => {
       expect(ev).not.toBeNull();
       if (ev === null) continue;
       const raw = ev.tempo + ev.key + ev.arcFit + ev.anchor + ev.similarity;
-      const expectedTotal =
-        ev.artistPenalty > 0 ? Math.max(0.01, raw - ev.artistPenalty + 1) : raw;
+      const expectedTotal = ev.artistPenalty > 0 ? Math.max(0.01, raw - ev.artistPenalty + 1) : raw;
       expect(ev.total).toBeCloseTo(expectedTotal, 5);
       expect(ev.total).toBeCloseTo(s.transition!, 2);
       // weight sanity: each component cannot exceed its weight's ceiling
@@ -473,9 +414,7 @@ describe("buildMegaset improvement pass (#107)", () => {
       expect(ev.key).toBeLessThanOrEqual(W.key + 1e-9);
       expect(ev.arcFit).toBeLessThanOrEqual(W.arcFit + 1e-9);
       expect(ev.anchor).toBeLessThanOrEqual(MEGASET_ANCHOR_WEIGHT + 1e-9);
-      expect(ev.similarity).toBeLessThanOrEqual(
-        MEGASET_SIMILARITY_WEIGHT + 1e-9,
-      );
+      expect(ev.similarity).toBeLessThanOrEqual(MEGASET_SIMILARITY_WEIGHT + 1e-9);
     }
   });
 
@@ -650,11 +589,9 @@ describe("#304: direction-wall tripwire (non-monotone preset)", () => {
     });
     expect(r.landmarks_missing).toContain("pin-up");
     // the pin is accounted for honestly, never silently dropped
-    expect(
-      r.excluded.some(
-        (e) => e.videoId === "pin-up" && e.reason.startsWith("landmark"),
-      ),
-    ).toBe(true);
+    expect(r.excluded.some((e) => e.videoId === "pin-up" && e.reason.startsWith("landmark"))).toBe(
+      true,
+    );
     // and the wire stays exact: no inserted hop, so transitions recompute
     // clean — the F2 exactness invariant still holds on this build
     const budgetS = 20 * 60;
@@ -663,18 +600,8 @@ describe("#304: direction-wall tripwire (non-monotone preset)", () => {
       const prev = r.steps[i - 1]!;
       const t = Math.min(1, (prev.atMin * 60) / budgetS);
       const fresh = transitionScore(
-        cand({
-          videoId: prev.videoId,
-          arousal: prev.arousal,
-          bpm: prev.bpm,
-          key: prev.key,
-        }),
-        cand({
-          videoId: s.videoId,
-          arousal: s.arousal,
-          bpm: s.bpm,
-          key: s.key,
-        }),
+        cand({ videoId: prev.videoId, arousal: prev.arousal, bpm: prev.bpm, key: prev.key }),
+        cand({ videoId: s.videoId, arousal: s.arousal, bpm: s.bpm, key: s.key }),
         SET_PRESETS.afterhours,
         t,
         126,

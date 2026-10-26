@@ -91,8 +91,7 @@ function batchBlobs(requests: string[], root: string): string | null {
     input: `${requests.join("\n")}\n`,
     cwd: root,
   });
-  if (batch.error !== undefined || batch.status !== 0 || batch.stdout === null)
-    return null;
+  if (batch.error !== undefined || batch.status !== 0 || batch.stdout === null) return null;
   return batch.stdout;
 }
 
@@ -142,19 +141,12 @@ interface Verdict {
 }
 
 function failAdvisory(reason: string): Verdict {
-  return {
-    code: 0,
-    summary: `LOC-budget gate: ADVISORY ONLY — ${reason} (never blocks)`,
-  };
+  return { code: 0, summary: `LOC-budget gate: ADVISORY ONLY — ${reason} (never blocks)` };
 }
 
 /** Added/deleted over budgeted code in the staged diff. Null rows are
  *  binary/unresolvable — the caller degrades to advisory (fail soft). */
-function stagedCodeDelta(): {
-  added: number;
-  deleted: number;
-  parseFailed: boolean;
-} {
+function stagedCodeDelta(): { added: number; deleted: number; parseFailed: boolean } {
   const staged = git(["diff", "--cached", "--numstat", "--"]);
   if (!staged.ok) return { added: 0, deleted: 0, parseFailed: true };
   let added = 0;
@@ -192,8 +184,7 @@ function bypassVerdict(root: string, codeFiles: string[]): Verdict {
   }
   return {
     code: 0,
-    summary:
-      "LOC-budget gate: BYPASSED (MEGADJ_LOC_BYPASS) — reason audit-logged",
+    summary: "LOC-budget gate: BYPASSED (MEGADJ_LOC_BYPASS) — reason audit-logged",
   };
 }
 
@@ -230,8 +221,7 @@ function growthVerdict(
 /** Extract the staged code-file set ([] when nothing code-budgeted is
  *  staged). The caller returns "no work" on an empty set. */
 function stagedCodeFiles(): string[] {
-  const stagedPaths =
-    git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"]).stdout ?? "";
+  const stagedPaths = git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"]).stdout ?? "";
   return stagedPaths
     .split("\n")
     .map((p) => p.trim())
@@ -254,9 +244,7 @@ function censusGrowthVerdict(
   }
   const baselineCommit = resolveCommit(`@{${baselineDay}}`, root);
   if (baselineCommit === undefined) {
-    return failAdvisory(
-      `no reflog entry for "${baselineDay}" in this clone — baseline unknown`,
-    );
+    return failAdvisory(`no reflog entry for "${baselineDay}" in this clone — baseline unknown`);
   }
   const headLoc = treeLoc(headCommit, root);
   if (headLoc === 0) return failAdvisory("census unreadable at HEAD");
@@ -268,23 +256,14 @@ function censusGrowthVerdict(
   }
   const baseLoc = treeLoc(baselineCommit, root);
   if (baseLoc === 0) return failAdvisory("census unreadable at baseline");
-  return growthVerdict(
-    added,
-    deleted,
-    delta,
-    baselineDay,
-    headLoc,
-    baseLoc,
-    baselineCommit,
-  );
+  return growthVerdict(added, deleted, delta, baselineDay, headLoc, baseLoc, baselineCommit);
 }
 
 function runGate(baselineArg: string | undefined): Verdict {
   // Precedence: explicit argv > MEGADJ_LOC_BASELINE env (hook-friendly) >
   // policy default day. Anything malformed degrades to advisory — the
   // knob must never become a wedge.
-  const baselineDay =
-    baselineArg ?? process.env.MEGADJ_LOC_BASELINE ?? DEFAULT_BASELINE;
+  const baselineDay = baselineArg ?? process.env.MEGADJ_LOC_BASELINE ?? DEFAULT_BASELINE;
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(baselineDay)) {
     return failAdvisory(`bad baseline date "${baselineDay}"`);
   }
@@ -346,10 +325,7 @@ function selfTest(): number {
   }
   // The bypass flag is the gate's one escape hatch — its absence would
   // strand the policy without the documented release valve.
-  const self = readFileSync(
-    join(import.meta.dirname ?? ".", "loc-budget.ts"),
-    "utf8",
-  );
+  const self = readFileSync(join(import.meta.dirname ?? ".", "loc-budget.ts"), "utf8");
   if (!self.includes("MEGADJ_LOC_BYPASS")) {
     console.error("selftest FAIL: bypass flag string missing");
     failed++;

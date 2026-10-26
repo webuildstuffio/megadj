@@ -98,19 +98,17 @@ describe("acoustic-twin", () => {
       [file("/V/a.mp3", 1000), file("/V/b.mp3", 1001)],
       withMaps({}, { "/V/a.mp3": "fp2", "/V/b.mp3": "fp2" }),
     );
-    expect(
-      tiny.find((r) => r.kind === "acoustic-twin")!.findings[0]!.evidence
-        .subcategory,
-    ).toBe("metadata-diff");
+    expect(tiny.find((r) => r.kind === "acoustic-twin")!.findings[0]!.evidence.subcategory).toBe(
+      "metadata-diff",
+    );
 
     const odd = runChecks(
       [file("/V/c.mp3", 1000), file("/V/d.mp3", 1000)],
       withMaps({}, { "/V/c.mp3": "fp3", "/V/d.mp3": "fp3" }),
     );
-    expect(
-      odd.find((r) => r.kind === "acoustic-twin")!.findings[0]!.evidence
-        .subcategory,
-    ).toBe("oddball");
+    expect(odd.find((r) => r.kind === "acoustic-twin")!.findings[0]!.evidence.subcategory).toBe(
+      "oddball",
+    );
   });
 
   test(">15% size delta flags a review note (fp-collision guard)", () => {
@@ -148,15 +146,10 @@ describe("folder-variant", () => {
 
   test("different artists with similar names do NOT merge (the Akn/Ama trap)", () => {
     const res = runChecks(
-      [
-        file("/V/Contents/Cassian/a.mp3", 10),
-        file("/V/Contents/Kassian/b.mp3", 10),
-      ],
+      [file("/V/Contents/Cassian/a.mp3", 10), file("/V/Contents/Kassian/b.mp3", 10)],
       ctx(),
     );
-    expect(res.find((r) => r.kind === "folder-variant")!.findings).toHaveLength(
-      0,
-    );
+    expect(res.find((r) => r.kind === "folder-variant")!.findings).toHaveLength(0);
   });
 });
 
@@ -164,24 +157,16 @@ describe("claimed-set short-circuit", () => {
   test("a byte-twin loser is not re-reported by acoustic-twin", () => {
     const res = runChecks(
       [file("/V/a.mp3", 100), file("/V/b.mp3", 100)],
-      withMaps(
-        { "/V/a.mp3": "h1", "/V/b.mp3": "h1" },
-        { "/V/a.mp3": "fp1", "/V/b.mp3": "fp1" },
-      ),
+      withMaps({ "/V/a.mp3": "h1", "/V/b.mp3": "h1" }, { "/V/a.mp3": "fp1", "/V/b.mp3": "fp1" }),
     );
     expect(res.find((r) => r.kind === "byte-twin")!.findings.length).toBe(1);
-    expect(res.find((r) => r.kind === "acoustic-twin")!.findings).toHaveLength(
-      0,
-    );
+    expect(res.find((r) => r.kind === "acoustic-twin")!.findings).toHaveLength(0);
   });
 });
 
 describe("zero-byte + junk", () => {
   test("zero-byte flags human-gated delete-corrupt; junk flags auto-clean", () => {
-    const res = runChecks(
-      [file("/V/empty.mp3", 0), file("/V/._t.mp3", 12)],
-      ctx(),
-    );
+    const res = runChecks([file("/V/empty.mp3", 0), file("/V/._t.mp3", 12)], ctx());
     const z = res.find((r) => r.kind === "zero-byte")!.findings;
     expect(z.length).toBe(1);
     expect(z[0]!.autoSafe).toBe(false);

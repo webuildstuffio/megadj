@@ -36,10 +36,7 @@ export interface FunctionMetrics {
   cyclomaticComplexity: number;
 }
 
-export function functionMetrics(
-  path: string,
-  functionName: string,
-): FunctionMetrics {
+export function functionMetrics(path: string, functionName: string): FunctionMetrics {
   const sourceText = readFileSync(path, "utf8");
   const sourceFile = parseSourceFile(path, sourceText);
 
@@ -64,16 +61,9 @@ export function functionMetrics(
   };
   countBranches(target);
 
-  const startLine = sourceFile.getLineAndCharacterOfPosition(
-    target.getStart(),
-  ).line;
-  const endLine = sourceFile.getLineAndCharacterOfPosition(
-    target.getEnd(),
-  ).line;
-  return {
-    lines: endLine - startLine + 1,
-    cyclomaticComplexity,
-  };
+  const startLine = sourceFile.getLineAndCharacterOfPosition(target.getStart()).line;
+  const endLine = sourceFile.getLineAndCharacterOfPosition(target.getEnd()).line;
+  return { lines: endLine - startLine + 1, cyclomaticComplexity };
 }
 
 /** Every function-like node in a file (named declarations, methods,
@@ -134,15 +124,13 @@ type NamedFunctionNode =
  *  variable/property name; everything else reports <anonymous>). */
 function displayName(node: NamedFunctionNode): string {
   if (isFunctionDeclaration(node) && node.name) return node.name.text;
-  if (isMethodDeclaration(node) && isIdentifier(node.name))
-    return `${node.name.text} (method)`;
+  if (isMethodDeclaration(node) && isIdentifier(node.name)) return `${node.name.text} (method)`;
   if (isConstructorDeclaration(node)) return "constructor";
   if (isArrowFunction(node) || isFunctionExpression(node)) {
     const p: Node = node.parent;
     const decl = p as VariableDeclaration | PropertyDeclaration;
     const namedDecl =
-      (isVariableDeclaration(p) || isPropertyDeclaration(p)) &&
-      isIdentifier(decl.name)
+      (isVariableDeclaration(p) || isPropertyDeclaration(p)) && isIdentifier(decl.name)
         ? decl.name.text
         : undefined;
     return namedDecl ?? "<anonymous>";

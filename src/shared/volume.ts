@@ -37,10 +37,7 @@ export function crateDeckRoot(): string {
     const parent = dirname(dir);
     if (parent === dir) break; // filesystem root: no anchor anywhere
     dir = parent;
-    if (
-      existsSync(join(dir, "package.json")) &&
-      existsSync(join(dir, ".git"))
-    ) {
+    if (existsSync(join(dir, "package.json")) && existsSync(join(dir, ".git"))) {
       return join(dir, "src", "deck");
     }
   }

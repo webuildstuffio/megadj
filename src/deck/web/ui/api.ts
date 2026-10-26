@@ -6,9 +6,7 @@
 let reportError: ((message: string) => void) | null = null;
 
 /** Install the UI's error presenter without coupling transport to a view. */
-export function setApiErrorReporter(
-  reporter: ((message: string) => void) | null,
-): void {
+export function setApiErrorReporter(reporter: ((message: string) => void) | null): void {
   reportError = reporter;
 }
 
@@ -84,10 +82,7 @@ export function apiPost<T = unknown>(
   body: unknown,
   init?:
     | Partial<
-        Omit<RequestInit, "method" | "body" | "headers"> & {
-          quiet?: boolean;
-          timeoutMs?: number;
-        }
+        Omit<RequestInit, "method" | "body" | "headers"> & { quiet?: boolean; timeoutMs?: number }
       >
     | undefined,
 ): Promise<T> {

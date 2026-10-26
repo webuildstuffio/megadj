@@ -5,13 +5,7 @@
 //   2. over-broad regex: junk category labels map to NO family
 // Pure — reads only the vocabulary tables.
 import { describe, expect, test } from "bun:test";
-import {
-  AI_VOCAB,
-  familyOf,
-  isUmbrellaLabel,
-  normalizeGenre,
-  SC_GENRE_CANON,
-} from "./genre-vocab";
+import { AI_VOCAB, familyOf, isUmbrellaLabel, normalizeGenre, SC_GENRE_CANON } from "./genre-vocab";
 
 describe("genre vocab: cross-map consistency (#187)", () => {
   test("every canon VALUE that is not an umbrella lands on a family", () => {
@@ -41,10 +35,7 @@ describe("genre vocab: cross-map consistency (#187)", () => {
     // non-scoring labels — anything else is a silent coverage hole.
     const NON_SCORING = new Set(["Edits / Bootlegs", "Unknown"]);
     const holes = AI_VOCAB.split(", ").filter(
-      (label) =>
-        !NON_SCORING.has(label) &&
-        !isUmbrellaLabel(label) &&
-        familyOf(label) === null,
+      (label) => !NON_SCORING.has(label) && !isUmbrellaLabel(label) && familyOf(label) === null,
     );
     expect(holes).toEqual([]);
   });

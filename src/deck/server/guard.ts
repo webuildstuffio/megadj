@@ -1,15 +1,7 @@
 // guard.ts — THE write allow-list. Every disk write outside data/ goes
 // through here; a repo test fails CI if any other file performs writes.
 import { existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  parse,
-  relative,
-  resolve,
-  sep,
-} from "node:path";
+import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "../config";
 import { errMessage as errorText } from "../../shared/leaf/fmt";
 
@@ -60,16 +52,9 @@ export class Guard {
     if (!isAbsolute(path)) return this.violation(path, "path is not absolute");
     const candidate = resolve(path);
     const allowedMatch = this.allowed
-      .map((pattern) => ({
-        pattern,
-        root: this.matchRoot(pattern, candidate),
-      }))
-      .find(
-        (match): match is { pattern: string; root: string } =>
-          match.root !== null,
-      );
-    if (!allowedMatch)
-      return this.violation(path, "path is outside allowed prefixes");
+      .map((pattern) => ({ pattern, root: this.matchRoot(pattern, candidate) }))
+      .find((match): match is { pattern: string; root: string } => match.root !== null);
+    if (!allowedMatch) return this.violation(path, "path is outside allowed prefixes");
 
     try {
       const realRoot = this.resolveExistingAncestors(allowedMatch.root);
@@ -79,37 +64,24 @@ export class Guard {
         wildcardAnchor !== null &&
         !this.isWithin(this.resolveExistingAncestors(wildcardAnchor), realRoot)
       ) {
-        return this.violation(
-          path,
-          "the wildcard match escapes its canonical parent",
-        );
+        return this.violation(path, "the wildcard match escapes its canonical parent");
       }
       if (!this.isWithin(realRoot, realCandidate)) {
         return this.violation(path, "an existing symlink escapes its prefix");
       }
     } catch (error) {
-      return this.violation(
-        path,
-        `path ancestry could not be resolved: ${errorText(error)}`,
-      );
+      return this.violation(path, `path ancestry could not be resolved: ${errorText(error)}`);
     }
     return candidate;
   }
 
   private normalizeAllowed(prefix: string): string {
     if (!isAbsolute(prefix)) {
-      throw new Error(
-        `GUARD CONFIG: allowed prefix '${prefix}' is not absolute`,
-      );
+      throw new Error(`GUARD CONFIG: allowed prefix '${prefix}' is not absolute`);
     }
     const normalized = resolve(prefix);
-    const wildcardSegments = this.parts(normalized).parts.filter((part) =>
-      part.includes("*"),
-    );
-    if (
-      wildcardSegments.length > 1 ||
-      wildcardSegments.some((part) => part !== "*")
-    ) {
+    const wildcardSegments = this.parts(normalized).parts.filter((part) => part.includes("*"));
+    if (wildcardSegments.length > 1 || wildcardSegments.some((part) => part !== "*")) {
       throw new Error(
         `GUARD CONFIG: allowed prefix '${prefix}' must contain at most one whole-segment '*' wildcard`,
       );
@@ -120,12 +92,10 @@ export class Guard {
   /** Return the concrete matched prefix. `*` consumes exactly one normalized
    * path segment; the candidate may then descend below that prefix. */
   private matchRoot(pattern: string, candidate: string): string | null {
-    if (!pattern.includes("*"))
-      return this.isWithin(pattern, candidate) ? pattern : null;
+    if (!pattern.includes("*")) return this.isWithin(pattern, candidate) ? pattern : null;
     const pat = this.parts(pattern);
     const got = this.parts(candidate);
-    if (pat.root !== got.root || got.parts.length < pat.parts.length)
-      return null;
+    if (pat.root !== got.root || got.parts.length < pat.parts.length) return null;
     for (let i = 0; i < pat.parts.length; i++) {
       const expected = pat.parts[i]!;
       if (expected !== "*" && expected !== got.parts[i]) return null;
@@ -144,18 +114,12 @@ export class Guard {
 
   private parts(path: string): { root: string; parts: string[] } {
     const root = parse(path).root;
-    return {
-      root,
-      parts: path.slice(root.length).split(sep).filter(Boolean),
-    };
+    return { root, parts: path.slice(root.length).split(sep).filter(Boolean) };
   }
 
   private isWithin(root: string, candidate: string): boolean {
     const rel = relative(root, candidate);
-    return (
-      rel === "" ||
-      (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
-    );
+    return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
   }
 
   /** Resolve the nearest existing ancestor, then append the missing tail.
@@ -174,8 +138,6 @@ export class Guard {
   }
 
   private violation(path: string, reason: string): never {
-    throw new Error(
-      `GUARD VIOLATION: write to '${path}' ${reason} [${this.allowed.join(", ")}]`,
-    );
+    throw new Error(`GUARD VIOLATION: write to '${path}' ${reason} [${this.allowed.join(", ")}]`);
   }
 }

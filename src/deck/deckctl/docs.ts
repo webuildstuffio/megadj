@@ -91,11 +91,7 @@ export const KIND_DOCS: Record<string, KindDoc> = {
 
 /** One KIND_DOCS entry as CLI prose (shared by the all-kinds + single-kind
  *  paths in `explain`, and by `help <kind>` via deckctl/help.ts). */
-export function printKindDoc(
-  kind: string,
-  d: KindDoc,
-  log: (s: string) => void,
-): void {
+export function printKindDoc(kind: string, d: KindDoc, log: (s: string) => void): void {
   log(`── ${kind} ──`);
   log(d.what);
   if (d.checks) {

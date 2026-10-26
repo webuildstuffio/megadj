@@ -68,30 +68,9 @@ describe("insertBenchRun + loadBenchRun", () => {
       createdAt: "2026-09-29T00:00:00.000Z",
     };
     const rows: BenchRow[] = [
-      {
-        runId: "test-run-1",
-        trackId: "t1",
-        truth: "high",
-        pred: "high",
-        conf: 0.9,
-        correct: 1,
-      },
-      {
-        runId: "test-run-1",
-        trackId: "t2",
-        truth: "low",
-        pred: "high",
-        conf: 0.6,
-        correct: 0,
-      },
-      {
-        runId: "test-run-1",
-        trackId: "t3",
-        truth: "high",
-        pred: "high",
-        conf: 0.8,
-        correct: 1,
-      },
+      { runId: "test-run-1", trackId: "t1", truth: "high", pred: "high", conf: 0.9, correct: 1 },
+      { runId: "test-run-1", trackId: "t2", truth: "low", pred: "high", conf: 0.6, correct: 0 },
+      { runId: "test-run-1", trackId: "t3", truth: "high", pred: "high", conf: 0.8, correct: 1 },
     ];
     insertBenchRun(db, run, rows);
     const loaded = loadBenchRun(db, "test-run-1");
@@ -125,21 +104,9 @@ describe("listBenchRuns", () => {
       metrics: {},
       ci: null,
     };
-    insertBenchRun(
-      db,
-      { ...base, runId: "r1", stage: "bpm", createdAt: "2026-09-01" },
-      [],
-    );
-    insertBenchRun(
-      db,
-      { ...base, runId: "r2", stage: "mood", createdAt: "2026-09-02" },
-      [],
-    );
-    insertBenchRun(
-      db,
-      { ...base, runId: "r3", stage: "bpm", createdAt: "2026-09-03" },
-      [],
-    );
+    insertBenchRun(db, { ...base, runId: "r1", stage: "bpm", createdAt: "2026-09-01" }, []);
+    insertBenchRun(db, { ...base, runId: "r2", stage: "mood", createdAt: "2026-09-02" }, []);
+    insertBenchRun(db, { ...base, runId: "r3", stage: "bpm", createdAt: "2026-09-03" }, []);
     const all = listBenchRuns(db);
     expect(all).toHaveLength(3);
     expect(all[0]!.runId).toBe("r3");

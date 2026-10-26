@@ -20,10 +20,7 @@
 // `aok` is the count of clean tracks; offender lists stay per-class so
 // the UI keeps its fix-first ordering (octave > off > drift).
 import type { ArchiveQuery } from "../shared/types/archive-reader";
-import {
-  gridAudit,
-  type GridAuditVerdict,
-} from "../../fulltags/analysis/grid-audit";
+import { gridAudit, type GridAuditVerdict } from "../../fulltags/analysis/grid-audit";
 import { isFiniteNumberArray } from "../../shared/leaf/guards";
 import { round1 } from "../../shared/leaf/fmt";
 import type { ArchiveGridCrossCheck } from "../shared/archive-wire";
@@ -37,10 +34,7 @@ interface Offender {
   reason: string;
 }
 
-export function gridCrossCheck(
-  reader: ArchiveQuery,
-  limit = 200,
-): ArchiveGridCrossCheck {
+export function gridCrossCheck(reader: ArchiveQuery, limit = 200): ArchiveGridCrossCheck {
   // Pre-ledger archive DBs have no `beats` table — degrade to an empty
   // result (the SQLiteError would otherwise break every caller).
   const hasBeats = reader.rows<{ name: string }>(
@@ -88,17 +82,12 @@ export function gridCrossCheck(
     try {
       const parsed: unknown = JSON.parse(r.beats_json);
       if (!isFiniteNumberArray(parsed)) {
-        console.warn(
-          `beat record ${r.video_id} has invalid beats_json — skipping`,
-        );
+        console.warn(`beat record ${r.video_id} has invalid beats_json — skipping`);
         continue;
       }
       beats = parsed;
     } catch (error) {
-      console.warn(
-        `beat record ${r.video_id} has invalid beats_json — skipping`,
-        error,
-      );
+      console.warn(`beat record ${r.video_id} has invalid beats_json — skipping`, error);
       continue;
     }
     if (beats.length < 8 || !r.duration_s) continue;

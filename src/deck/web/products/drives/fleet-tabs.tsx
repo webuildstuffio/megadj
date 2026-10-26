@@ -13,14 +13,7 @@ import { errMessage } from "../../../../shared/leaf/fmt";
 import { api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { useFetched } from "../../ui/useFetched";
-import {
-  StatCard,
-  CountStat,
-  DataTable,
-  SearchBar,
-  copyList,
-  ListHead,
-} from "../../ui/data";
+import { StatCard, CountStat, DataTable, SearchBar, copyList, ListHead } from "../../ui/data";
 import { TabIntro } from "../../ui/InfoTip";
 import { FixNote } from "../../ui/ListHead";
 import { Verdict } from "../shared";
@@ -54,9 +47,7 @@ export function CoverageTab() {
     setSearching(true);
     setLookupErr(null);
     try {
-      const r = await api<TrackHit>(
-        `/api/fleet/track?q=${encodeURIComponent(q)}`,
-      );
+      const r = await api<TrackHit>(`/api/fleet/track?q=${encodeURIComponent(q)}`);
       setHit(r);
       if (!r.drives.length) toast("Not found on any scanned drive", "info");
     } catch (e) {
@@ -131,11 +122,7 @@ export function CoverageTab() {
           icon="warn"
           title="Tracks on fewer drives than the copy floor. Each one is one dead stick away from gone — the at-risk list below is the work queue."
         />
-        <StatCard
-          v={`${data.drives.length}`}
-          l="drives with a track inventory"
-          icon="usb"
-        />
+        <StatCard v={`${data.drives.length}`} l="drives with a track inventory" icon="usb" />
       </div>
 
       <SearchBar
@@ -152,8 +139,7 @@ export function CoverageTab() {
             type="button"
             class="btn ghostbtn"
             onClick={() => setHit(null)}
-            title="Clear the lookup result"
-          >
+            title="Clear the lookup result">
             <Icon name="x" size={13} /> Clear
           </button>
         </div>
@@ -170,9 +156,8 @@ export function CoverageTab() {
           <Icon name={hit.drives.length > 1 ? "check" : "warn"} size={14} />
           <span>
             <b>{hit.identity?.title ?? hit.identity?.path}</b>
-            {hit.identity?.artist ? ` — ${hit.identity.artist}` : ""}: on{" "}
-            {hit.drives.length} drive{hit.drives.length === 1 ? "" : "s"} (
-            {hit.drives.map((d) => d.name).join(", ")})
+            {hit.identity?.artist ? ` — ${hit.identity.artist}` : ""}: on {hit.drives.length} drive
+            {hit.drives.length === 1 ? "" : "s"} ({hit.drives.map((d) => d.name).join(", ")})
           </span>
         </div>
       )}
@@ -180,13 +165,12 @@ export function CoverageTab() {
       {data.drives.length === 0 ? (
         <div class="note-card">
           <Icon name="scan" size={20} />
-          No track inventories yet — run a Scan on a mounted rekordbox drive,
-          then come back.
+          No track inventories yet — run a Scan on a mounted rekordbox drive, then come back.
         </div>
       ) : atRisk === 0 ? (
         <div class="note ok">
-          <Icon name="check" size={14} /> Every track lives on ≥
-          {data.min_copies} drives. This is the whole point of the mirror.
+          <Icon name="check" size={14} /> Every track lives on ≥{data.min_copies} drives. This is
+          the whole point of the mirror.
         </div>
       ) : (
         <>
@@ -206,13 +190,10 @@ export function CoverageTab() {
                 cell: (r) => (
                   <>
                     <b>{r.identity.title ?? r.identity.path}</b>
-                    {r.identity.artist && (
-                      <span class="covartist"> — {r.identity.artist}</span>
-                    )}
+                    {r.identity.artist && <span class="covartist"> — {r.identity.artist}</span>}
                   </>
                 ),
-                sortValue: (r) =>
-                  (r.identity.title ?? r.identity.path).toLowerCase(),
+                sortValue: (r) => (r.identity.title ?? r.identity.path).toLowerCase(),
               },
               {
                 key: "copies",
@@ -220,9 +201,7 @@ export function CoverageTab() {
                 align: "center",
                 min: 64,
                 grow: 0,
-                cell: (r) => (
-                  <span class={r.copies <= 1 ? "bad" : ""}>{r.copies}</span>
-                ),
+                cell: (r) => <span class={r.copies <= 1 ? "bad" : ""}>{r.copies}</span>,
                 sortValue: (r) => r.copies,
               },
               {
@@ -240,8 +219,8 @@ export function CoverageTab() {
             copyLines={(rows) => rows.map(atRiskLine)}
           />
           <FixNote>
-            run <code>Mirror</code> (topbar or <code>deckctl run mirror</code>)
-            — it copies the master's new music to the mirror
+            run <code>Mirror</code> (topbar or <code>deckctl run mirror</code>) — it copies the
+            master's new music to the mirror
           </FixNote>
         </>
       )}
@@ -250,10 +229,7 @@ export function CoverageTab() {
 }
 
 export function RedundancyTab() {
-  const page = useFetched<RedundancyResult>(
-    () => api("/api/fleet/redundancy"),
-    [],
-  );
+  const page = useFetched<RedundancyResult>(() => api("/api/fleet/redundancy"), []);
   const data = page.status === "ok" ? page.data : null;
   const err = page.status === "error" ? page.message : null;
   const [open, setOpen] = useState<string | null>(null);
@@ -275,9 +251,7 @@ export function RedundancyTab() {
   // risky-first: at-risk playlists on top, unknowns pinned last — the order
   // IS the work queue (the first render was server order, whichever that was)
   const order = { fail: 0, warn: 1, pass: 2, unknown: 3 };
-  const sorted = [...data.playlists].toSorted(
-    (a, b) => order[a.verdict] - order[b.verdict],
-  );
+  const sorted = [...data.playlists].toSorted((a, b) => order[a.verdict] - order[b.verdict]);
   const gapCount = data.playlists.reduce(
     (s, p) => s + p.tracks.filter((t) => t.copies < 2).length,
     0,
@@ -298,11 +272,8 @@ export function RedundancyTab() {
           gapCount > 0 ? (
             <>
               {gapCount} gap track{gapCount === 1 ? "" : "s"} across{" "}
-              {data.playlists.filter((p) => p.verdict !== "pass").length}{" "}
-              playlist
-              {data.playlists.filter((p) => p.verdict !== "pass").length === 1
-                ? ""
-                : "s"}
+              {data.playlists.filter((p) => p.verdict !== "pass").length} playlist
+              {data.playlists.filter((p) => p.verdict !== "pass").length === 1 ? "" : "s"}
             </>
           ) : undefined
         }
@@ -328,16 +299,14 @@ export function RedundancyTab() {
                 onClick={() => setOpen(isOpen ? null : p.playlist)}
                 onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === "Enter") setOpen(isOpen ? null : p.playlist);
-                }}
-              >
+                }}>
                 <Icon name={icon[p.verdict]} size={12} />
               </span>
               <span class="check-body">
                 <button
                   type="button"
                   class="pl-link"
-                  onClick={() => setOpen(isOpen ? null : p.playlist)}
-                >
+                  onClick={() => setOpen(isOpen ? null : p.playlist)}>
                   <b>{p.playlist}</b>
                 </button>
                 <span class="check-detail">
@@ -345,24 +314,16 @@ export function RedundancyTab() {
                 </span>
                 {isOpen &&
                   (gaps.length === 0 ? (
-                    <span class="check-detail ok-text">
-                      every track redundant — nothing to fix
-                    </span>
+                    <span class="check-detail ok-text">every track redundant — nothing to fix</span>
                   ) : (
                     <>
                       <span class="gaplist">
                         {gaps.slice(0, 100).map((t) => (
                           <span class="gaprow" key={t.identity.path}>
-                            <Icon
-                              name={t.copies <= 1 ? "warn" : "dot"}
-                              size={11}
-                            />
+                            <Icon name={t.copies <= 1 ? "warn" : "dot"} size={11} />
                             <b>{t.identity.title ?? t.identity.path}</b>
                             {t.identity.artist && (
-                              <span class="covartist">
-                                {" "}
-                                — {t.identity.artist}
-                              </span>
+                              <span class="covartist"> — {t.identity.artist}</span>
                             )}
                             <span class="covdrives">
                               on {t.drives.join(", ") || "no scanned drive"}
@@ -370,9 +331,7 @@ export function RedundancyTab() {
                           </span>
                         ))}
                         {gaps.length > 100 && (
-                          <span class="gaprow">
-                            …and {gaps.length - 100} more
-                          </span>
+                          <span class="gaprow">…and {gaps.length - 100} more</span>
                         )}
                       </span>
                       <button
@@ -387,8 +346,7 @@ export function RedundancyTab() {
                                 `${t.identity.title ?? t.identity.path}${t.identity.artist ? ` — ${t.identity.artist}` : ""} (${t.copies}: ${t.drives.join(", ") || "nowhere"})`,
                             ),
                           )
-                        }
-                      >
+                        }>
                         <Icon name="copy" size={12} /> Copy gaps
                       </button>
                     </>
@@ -410,8 +368,7 @@ export function RedundancyTab() {
 
       {gapCount > 0 && (
         <FixNote>
-          run <code>Mirror</code> — every gap here is a track the mirror is
-          missing from the master
+          run <code>Mirror</code> — every gap here is a track the mirror is missing from the master
         </FixNote>
       )}
     </div>

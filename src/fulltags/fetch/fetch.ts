@@ -51,11 +51,9 @@ const walkArchive = walkAudioDir;
 
 /** Ground-truth audit of every audio file in the archive (player-compat
  * included — the gate is async because the codec probe is a process). */
-export async function auditArchive(musicDir: string): Promise<{
-  total: number;
-  complete: number;
-  rows: AuditRow[];
-}> {
+export async function auditArchive(
+  musicDir: string,
+): Promise<{ total: number; complete: number; rows: AuditRow[] }> {
   const files = walkArchive(musicDir);
   const rows: AuditRow[] = [];
   for (const p of files) {
@@ -99,11 +97,7 @@ export async function auditArchive(musicDir: string): Promise<{
     row.complete = tagDims.complete && row.playable && row.readable;
     rows.push(row);
   }
-  return {
-    total: rows.length,
-    complete: rows.filter((r) => r.complete).length,
-    rows,
-  };
+  return { total: rows.length, complete: rows.filter((r) => r.complete).length, rows };
 }
 
 export async function fetch(opts: FetchOptions): Promise<void> {
@@ -114,9 +108,7 @@ export async function fetch(opts: FetchOptions): Promise<void> {
   // ride every `megadj` CLI boot. (#89: aims at fetch-pipeline directly —
   // re-exporting runFetch through the exports barrel closed a madge
   // cycle exports → fetch-pipeline → archive-ledger → exports.)
-  const { runFetch } = await import("./fetch-pipeline").then((m) => ({
-    runFetch: m.runFetch,
-  }));
+  const { runFetch } = await import("./fetch-pipeline").then((m) => ({ runFetch: m.runFetch }));
   await runFetch({
     all: opts.all ?? false,
     only: opts.only ?? "all",

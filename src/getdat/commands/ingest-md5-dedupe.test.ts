@@ -24,26 +24,17 @@ afterAll(() => {
 describe("ingest content-hash dedupe", () => {
   test("byte-identical twin under a different name quarantines", async () => {
     const dump = join(DB_DIR, "dump");
-    byteTwinPair(dump, ["Track [Radio Edit].wav", "Track [Extended Mix].wav"], {
-      title: "Track",
-    });
+    byteTwinPair(dump, ["Track [Radio Edit].wav", "Track [Extended Mix].wav"], { title: "Track" });
 
     const { state } = ts.next();
-    await ingest({
-      state,
-      musicDir: ARCHIVE,
-      folder: dump,
-      minDuration: 10,
-    });
+    await ingest({ state, musicDir: ARCHIVE, folder: dump, minDuration: 10 });
     state.close();
 
     const batch = readdirSync(ARCHIVE, { withFileTypes: true })
       .filter((e) => e.isDirectory() && !e.name.startsWith("."))
       .map((e) => e.name);
     expect(batch.length).toBe(1);
-    const files = readdirSync(join(ARCHIVE, batch[0]!)).filter((f) =>
-      f.endsWith(".aiff"),
-    );
+    const files = readdirSync(join(ARCHIVE, batch[0]!)).filter((f) => f.endsWith(".aiff"));
     // Exactly ONE of the twins survived in the batch folder.
     expect(files.length).toBe(1);
     // The twin was dropped in the dedupe phase — quarantined as-is (a WAV),
@@ -64,20 +55,13 @@ describe("ingest content-hash dedupe", () => {
       ffmpegTone(join(dump, name), { freq, title: name });
     }
     const { state } = ts.next();
-    await ingest({
-      state,
-      musicDir: ARCHIVE,
-      folder: dump,
-      minDuration: 10,
-    });
+    await ingest({ state, musicDir: ARCHIVE, folder: dump, minDuration: 10 });
     state.close();
     const batch = readdirSync(ARCHIVE, { withFileTypes: true })
       .filter((e) => e.isDirectory() && e.name.includes("diff dump"))
       .map((e) => e.name)[0]!;
     // Both survive — different audio, same size must keep both.
-    const files = readdirSync(join(ARCHIVE, batch)).filter((f) =>
-      f.endsWith(".aiff"),
-    );
+    const files = readdirSync(join(ARCHIVE, batch)).filter((f) => f.endsWith(".aiff"));
     expect(files.length).toBe(2);
   }, 240000);
 });

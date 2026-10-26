@@ -49,12 +49,7 @@ describe("sync", () => {
     const logs: string[] = [];
     // isolated ShelfSyncOptions (no real volumes touched)
     const run = () =>
-      shelfSync({
-        musicDir: src,
-        shelfVolume: vol,
-        stickVolumes: [],
-        log: (s) => logs.push(s),
-      });
+      shelfSync({ musicDir: src, shelfVolume: vol, stickVolumes: [], log: (s) => logs.push(s) });
 
     return run().then(() => {
       const copied = join(vol, "Contents", "Artist One", "track one.mp3");
@@ -78,11 +73,9 @@ describe("sync", () => {
       log: (s) => logs.push(s),
     });
     // resolving at all = the dead stick wasn't fatal; the skip is reported
-    expect(
-      logs.some((l) =>
-        l.includes("/tmp/megadj-shelf-not-mounted-zz: not mounted"),
-      ),
-    ).toBe(true);
+    expect(logs.some((l) => l.includes("/tmp/megadj-shelf-not-mounted-zz: not mounted"))).toBe(
+      true,
+    );
   });
 
   test("--json emits one parseable summary (P1 contract)", async () => {
@@ -92,12 +85,7 @@ describe("sync", () => {
     let out = "";
     console.log = (s: string) => (out += `${s}\n`);
     try {
-      await shelfSync({
-        musicDir: src,
-        shelfVolume: vol,
-        stickVolumes: [],
-        json: true,
-      });
+      await shelfSync({ musicDir: src, shelfVolume: vol, stickVolumes: [], json: true });
     } finally {
       console.log = orig;
     }
@@ -147,10 +135,7 @@ describe("sync", () => {
     const vol = t8.dir();
     mkdirSync(join(vol, "Contents", "Nina Simone"), { recursive: true });
     // write the shelf copy NFC (as the archive/mac would produce)
-    writeFileSync(
-      join(vol, "Contents", "Nina Simone", accented.normalize("NFC")),
-      "data",
-    );
+    writeFileSync(join(vol, "Contents", "Nina Simone", accented.normalize("NFC")), "data");
 
     const logs: string[] = [];
     await shelfSync({
@@ -169,21 +154,16 @@ describe("sync", () => {
 
     const vol = t10.dir();
     mkdirSync(join(vol, "Contents", "Artist"), { recursive: true });
-    writeFileSync(
-      join(vol, "Contents", "Artist", "track.mp3"),
-      "shelf version",
-    );
+    writeFileSync(join(vol, "Contents", "Artist", "track.mp3"), "shelf version");
 
     await shelfSync({ musicDir: src, shelfVolume: vol, log: () => {} });
 
-    expect(
-      await Bun.file(join(vol, "Contents", "Artist", "track.mp3")).text(),
-    ).toBe("shelf version");
-    expect(
-      await Bun.file(
-        join(vol, "Contents", "Artist", "track [archive].mp3"),
-      ).text(),
-    ).toBe("archive version");
+    expect(await Bun.file(join(vol, "Contents", "Artist", "track.mp3")).text()).toBe(
+      "shelf version",
+    );
+    expect(await Bun.file(join(vol, "Contents", "Artist", "track [archive].mp3")).text()).toBe(
+      "archive version",
+    );
   });
 
   test("does NOT re-sync [archive] / [BACKUP2] files from the archive dir", async () => {
@@ -204,25 +184,13 @@ describe("sync", () => {
     mkdirSync(join(volDir, "Contents", "Batch"), { recursive: true });
 
     const logs: string[] = [];
-    await shelfSync({
-      musicDir: srcDir,
-      shelfVolume: volDir,
-      log: (s) => logs.push(s),
-    });
+    await shelfSync({ musicDir: srcDir, shelfVolume: volDir, log: (s) => logs.push(s) });
 
     // Only the original should be copied — artifacts filtered out
-    expect(existsSync(join(volDir, "Contents", "Batch", "track.mp3"))).toBe(
-      true,
-    );
-    expect(
-      existsSync(join(volDir, "Contents", "Batch", "track [archive].mp3")),
-    ).toBe(false);
-    expect(
-      existsSync(join(volDir, "Contents", "Batch", "track [archive 2].mp3")),
-    ).toBe(false);
-    expect(
-      existsSync(join(volDir, "Contents", "Batch", "remix [BACKUP2].mp3")),
-    ).toBe(false);
+    expect(existsSync(join(volDir, "Contents", "Batch", "track.mp3"))).toBe(true);
+    expect(existsSync(join(volDir, "Contents", "Batch", "track [archive].mp3"))).toBe(false);
+    expect(existsSync(join(volDir, "Contents", "Batch", "track [archive 2].mp3"))).toBe(false);
+    expect(existsSync(join(volDir, "Contents", "Batch", "remix [BACKUP2].mp3"))).toBe(false);
     // Summary: 1 copied, not 4
     expect(logs.some((l) => l.includes("copied 1"))).toBe(true);
   });

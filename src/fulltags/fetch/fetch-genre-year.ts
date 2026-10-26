@@ -5,13 +5,7 @@
 // claims a value the file doesn't carry) is the convention every arm
 // keeps, with the source stamp on each note.
 
-import {
-  bpGenre,
-  db,
-  setFileTags,
-  type BpTrack,
-  type Row,
-} from "../core/archive-ledger";
+import { bpGenre, db, setFileTags, type BpTrack, type Row } from "../core/archive-ledger";
 import { imprintVote } from "../sources/imprint-prior";
 import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre/genre-vote";
 
@@ -33,10 +27,7 @@ export interface GenreYearCtx {
   aiYearBatch: Row[];
   aiAllowed: boolean;
   bpBest: BpTrack | null;
-  stats: Pick<
-    StatsShape,
-    "genreSc" | "genreBp" | "genreImprint" | "yearBp" | "yearSc"
-  >;
+  stats: Pick<StatsShape, "genreSc" | "genreBp" | "genreImprint" | "yearBp" | "yearSc">;
   notes: string[];
   /** #173 vote ladder: every genre rung that fires ADDS a vote here;
    *  the single write happens once in applyGenreVotes at stage end (the
@@ -57,10 +48,7 @@ interface StatsShape {
 /** One BP genre win: file tag + DB row + stat + note (write-first). */
 function applyBpGenre(t: GenreYearCtx, g: string): void {
   if (setFileTags(t.row.file_path, { genre: g })) {
-    db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-      g,
-      t.row.video_id,
-    );
+    db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, t.row.video_id);
     t.stats.genreBp++;
     t.notes.push(`genre:${g} (bp)`);
   } else {
@@ -127,11 +115,7 @@ export function stageGenreArm(
     if (t.bpBest) {
       const g = bpGenre(t.bpBest);
       if (g) {
-        t.genreVotes.push({
-          rung: "bp",
-          genre: g,
-          weight: GENRE_VOTE_WEIGHTS.bp,
-        });
+        t.genreVotes.push({ rung: "bp", genre: g, weight: GENRE_VOTE_WEIGHTS.bp });
         t.stats.genreBp++;
         t.notes.push(`genre:${g} (bp, vote)`);
       }
@@ -165,10 +149,7 @@ export function stageGenreArm(
  *  discipline with the bp source stamp). */
 function applyBpYear(t: GenreYearCtx, year: number): void {
   if (setFileTags(t.row.file_path, { year })) {
-    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-      String(year),
-      t.row.video_id,
-    );
+    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(String(year), t.row.video_id);
     t.stats.yearBp++;
     t.notes.push(`year:${year} (bp)`);
   } else {
@@ -192,10 +173,7 @@ function applyScYearArm(t: GenreYearCtx, year: number): void {
     t.notes.push("year:WRITE-FAILED");
     return;
   }
-  db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-    String(year),
-    t.row.video_id,
-  );
+  db.query("UPDATE tracks SET year=? WHERE video_id=?").run(String(year), t.row.video_id);
   t.stats.yearSc++;
   t.notes.push(`year:${year}`);
 }

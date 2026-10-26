@@ -44,10 +44,7 @@ async function api<T = unknown>(
 beforeAll(async () => {
   // fixture "drive" with Contents/ junk for the light scan
   mkdirSync(`${FIX_DRIVE}/Contents/YTMusic Liked`, { recursive: true });
-  writeFileSync(
-    `${FIX_DRIVE}/Contents/YTMusic Liked/a.m4a`,
-    new Uint8Array(1024),
-  );
+  writeFileSync(`${FIX_DRIVE}/Contents/YTMusic Liked/a.m4a`, new Uint8Array(1024));
   writeFileSync(`${FIX_DRIVE}/Contents/b.m4a`, new Uint8Array(0));
   // fixture data dir with a pre-registered drive (ghost path)
   mkdirSync(DATA, { recursive: true });
@@ -70,13 +67,11 @@ beforeAll(async () => {
   const pump = async (side: "stdout" | "stderr"): Promise<void> => {
     const dec = new TextDecoder();
     const stream = side === "stdout" ? serverProc.stdout : serverProc.stderr;
-    const reader =
-      stream.getReader() as ReadableStreamDefaultReader<Uint8Array>;
+    const reader = stream.getReader() as ReadableStreamDefaultReader<Uint8Array>;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (side === "stdout")
-        serverStdout += dec.decode(value, { stream: true });
+      if (side === "stdout") serverStdout += dec.decode(value, { stream: true });
       else serverStderr += dec.decode(value, { stream: true });
     }
   };
@@ -116,9 +111,7 @@ import { join } from "node:path";
 
 describe("cratedeck e2e", () => {
   it("interlock endpoint responds", async () => {
-    const { status, body } = await api<{ rekordbox_running: unknown }>(
-      "/interlock",
-    );
+    const { status, body } = await api<{ rekordbox_running: unknown }>("/interlock");
     expect(status).toBe(200);
     expect(typeof body?.rekordbox_running).toBe("boolean");
   });

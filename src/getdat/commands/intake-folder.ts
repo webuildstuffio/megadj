@@ -25,13 +25,9 @@ import { basename, isAbsolute, join } from "node:path";
  * ("new dump sept 9") → date "2026-09-09" + slug "new dump" (the month/day
  * text is consumed by the date); generic folders ("Downloads") →
  * "2026-09-09 intake". */
-export function intakeFolderName(
-  sourceFolder: string,
-  now = new Date(),
-): string {
+export function intakeFolderName(sourceFolder: string, now = new Date()): string {
   const raw = basename(sourceFolder).replace(/\.+$/, "").trim();
-  const slug =
-    raw && !/^(downloads?|desktop|ingest|music)$/i.test(raw) ? raw : "intake";
+  const slug = raw && !/^(downloads?|desktop|ingest|music)$/i.test(raw) ? raw : "intake";
   const fromName = dumpDateFromNameParts(raw, now);
   const date = fromName?.date ?? isoDate(now);
   const cleanSlug = (fromName ? fromName.rest || "intake" : slug).trim();
@@ -46,10 +42,7 @@ interface DateParts {
 
 /** Last month-name + day in a folder name ("new dump sept 9"). Null when no
  *  month is present. */
-export function dumpDateFromName(
-  name: string,
-  now = new Date(),
-): string | null {
+export function dumpDateFromName(name: string, now = new Date()): string | null {
   return dumpDateFromNameParts(name, now)?.date ?? null;
 }
 
@@ -74,9 +67,7 @@ function dumpDateFromNameParts(name: string, now: Date): DateParts | null {
     if (!m || m.index === undefined) continue;
     const day = Number(m[1]);
     if (day < 1 || day > 31) continue;
-    const rest = `${name.slice(0, m.index)} ${name.slice(
-      m.index + m[0].length,
-    )}`
+    const rest = `${name.slice(0, m.index)} ${name.slice(m.index + m[0].length)}`
       .replace(/[-–_\s]+/g, " ")
       .trim();
     return {
@@ -92,9 +83,7 @@ function dumpDateFromNameParts(name: string, now: Date): DateParts | null {
  *  ingested in early January); anything else is this year. */
 function yearFor(monthIdx: number, day: number, now: Date): number {
   const year = now.getFullYear();
-  const diffDays =
-    (new Date(year, monthIdx, day).getTime() - now.getTime()) /
-    (24 * 3600 * 1000);
+  const diffDays = (new Date(year, monthIdx, day).getTime() - now.getTime()) / (24 * 3600 * 1000);
   return diffDays > 180 ? year + 1 : year;
 }
 
@@ -111,11 +100,7 @@ function isoDate(d: Date): string {
  *  empty-env trap made MUSIC_DIR="" resolve CWD-relative and drop a batch
  *  folder in the repo root). Download batches live under the archive
  *  mount or $HOME — throw loudly instead of writing into CWD. */
-export function downloadBatchDir(
-  archiveDir: string,
-  label: string,
-  now = new Date(),
-): string {
+export function downloadBatchDir(archiveDir: string, label: string, now = new Date()): string {
   if (!isAbsolute(archiveDir)) {
     throw new Error(
       `download batch dir: archiveDir must be an absolute path (got "${archiveDir}") — MEGADJ_MUSIC_DIR is empty or relative; refusing to write into CWD`,

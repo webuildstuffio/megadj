@@ -50,9 +50,7 @@ db.exec("ALTER TABLE tracks ADD COLUMN genre TEXT");
 db.exec("ALTER TABLE tracks ADD COLUMN genre_flag TEXT");
 db.exec("ALTER TABLE tracks ADD COLUMN genre_votes TEXT");
 const { serializeVotes } = await import("./genre-vote");
-db.query(
-  "UPDATE tracks SET genre='Techno', genre_votes=? WHERE video_id='vid1'",
-).run(
+db.query("UPDATE tracks SET genre='Techno', genre_votes=? WHERE video_id='vid1'").run(
   serializeVotes([
     { rung: "sc", genre: "Tech House", weight: 0.35 },
     { rung: "bp", genre: "Techno", weight: 0.6 },
@@ -90,10 +88,7 @@ describe("#215 genre-why: the vote breakdown's production reader", () => {
   });
 
   test("unknown id: exit 1 with a json error object (failure class)", async () => {
-    const { code, stdout } = await runCli(
-      ["genre-why", "no-such-id", "--json"],
-      env,
-    );
+    const { code, stdout } = await runCli(["genre-why", "no-such-id", "--json"], env);
     expect(code).toBe(1);
     const parsed = lastJsonLine(stdout);
     expect(parsed.command).toBe("genre-why");
@@ -112,16 +107,12 @@ describe("#215 genre-why: the vote breakdown's production reader", () => {
     // 0.6 + sc 0.35 = 0.95) but the row stores 'Techno' — the exact
     // hand-edit class the drift flag exists to catch.
     const drift = new Database(env.MEGADJ_DB);
-    drift
-      .query(
-        "UPDATE tracks SET genre='Techno', genre_votes=? WHERE video_id='vid2'",
-      )
-      .run(
-        serializeVotes([
-          { rung: "sc", genre: "House", weight: 0.35 },
-          { rung: "bp", genre: "House", weight: 0.6 },
-        ]),
-      );
+    drift.query("UPDATE tracks SET genre='Techno', genre_votes=? WHERE video_id='vid2'").run(
+      serializeVotes([
+        { rung: "sc", genre: "House", weight: 0.35 },
+        { rung: "bp", genre: "House", weight: 0.6 },
+      ]),
+    );
     drift.close();
 
     const { code, stdout } = await runCli(["genre-why", "vid2", "--json"], env);

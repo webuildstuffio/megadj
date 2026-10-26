@@ -1,17 +1,8 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "categories": {
-    "correctness": "error",
-    "suspicious": "warn",
-    "style": "error"
-  },
+  "categories": { "correctness": "error", "suspicious": "warn", "style": "error" },
   "rules": {
-    "eslint/no-underscore-dangle": [
-      "warn",
-      {
-        "allow": ["_received", "__test"]
-      }
-    ],
+    "eslint/no-underscore-dangle": ["warn", { "allow": ["_received", "__test"] }],
     "eslint/capitalized-comments": "off",
     "eslint/id-length": "off",
     "eslint/one-var": "off",

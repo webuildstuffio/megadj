@@ -46,13 +46,7 @@ export const PRODUCTION_ROOTS = ["src", "tools"];
 // cratedeck folded into src/deck (Sep 2026) — "src" already covers it,
 // as fulltags did after #193.
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
-const TEST_DIRECTORIES = new Set([
-  "test",
-  "tests",
-  "__tests__",
-  "fixtures",
-  "test-support",
-]);
+const TEST_DIRECTORIES = new Set(["test", "tests", "__tests__", "fixtures", "test-support"]);
 
 export function isProductionSourcePath(path: string): boolean {
   const normalized = path.replaceAll("\\", "/");
@@ -100,11 +94,7 @@ export function isFunctionBoundary(node: Node): boolean {
 }
 
 export function ownerOf(node: Node): string {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  ) {
+  for (let parent: Node | undefined = node.parent; parent; parent = parent.parent) {
     if (
       ((isFunctionDeclaration(parent) ||
         isMethodDeclaration(parent) ||
@@ -119,9 +109,7 @@ export function ownerOf(node: Node): string {
         | FunctionExpression
         | ArrowFunction;
       if (
-        (isFunctionDeclaration(decl) ||
-          isMethodDeclaration(decl) ||
-          isFunctionExpression(decl)) &&
+        (isFunctionDeclaration(decl) || isMethodDeclaration(decl) || isFunctionExpression(decl)) &&
         decl.name !== undefined
       )
         return decl.name.getText();
@@ -136,11 +124,7 @@ export function ownerOf(node: Node): string {
   return "<module>";
 }
 
-export function callSite(
-  sourceFile: SourceFile,
-  node: CallExpression,
-  file: string,
-): BoundaryCall {
+export function callSite(sourceFile: SourceFile, node: CallExpression, file: string): BoundaryCall {
   const source = node.getText(sourceFile).replace(/\s+/g, " ");
   const owner = ownerOf(node);
   return {

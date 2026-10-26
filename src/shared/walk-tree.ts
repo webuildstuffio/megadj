@@ -70,9 +70,7 @@ export interface WalkTreeResult {
 }
 
 function isUnderPrefix(path: string, prefixes: readonly string[]): boolean {
-  return prefixes.some(
-    (p) => path === p || path.startsWith(p.endsWith("/") ? p : `${p}/`),
-  );
+  return prefixes.some((p) => path === p || path.startsWith(p.endsWith("/") ? p : `${p}/`));
 }
 
 export function walkTree(root: string, opts?: WalkTreeOptions): WalkTreeResult {

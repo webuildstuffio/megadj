@@ -36,10 +36,7 @@ describe("quarantine census (#36)", () => {
   test("counts the applied copy: N files / X bytes; keeper untouched", async () => {
     const f = fixture();
     await detectAndApply(f, fixtureMd5);
-    const r = await shelfQuarantineCensus({
-      dbPath: f.db,
-      shelfVolume: f.shelf,
-    });
+    const r = await shelfQuarantineCensus({ dbPath: f.db, shelfVolume: f.shelf });
     expect(r.ok).toBe(true);
     expect(r.files).toBe(1);
     expect(r.bytes).toBe("same bytes".length);
@@ -49,10 +46,7 @@ describe("quarantine census (#36)", () => {
 
   test("an empty quarantine answers zeros (missing dir is zeros, not error)", async () => {
     const f = fixture(); // no scan/apply — no quarantine dir at all
-    const r = await shelfQuarantineCensus({
-      dbPath: f.db,
-      shelfVolume: f.shelf,
-    });
+    const r = await shelfQuarantineCensus({ dbPath: f.db, shelfVolume: f.shelf });
     expect(r).toMatchObject({ ok: true, files: 0, bytes: 0, stale: 0 });
   });
 });
@@ -61,17 +55,10 @@ describe("quarantine empty (#36)", () => {
   test("deletes the copy, flips applied → archived, keeps the receipt", async () => {
     const f = fixture();
     const id = await detectAndApply(f, fixtureMd5);
-    const qFile = join(
-      f.shelf,
-      ".hygiene-quarantine",
-      "Artist · track copy.mp3",
-    );
+    const qFile = join(f.shelf, ".hygiene-quarantine", "Artist · track copy.mp3");
     expect(existsSync(qFile)).toBe(true);
 
-    const r = await shelfQuarantineEmpty({
-      dbPath: f.db,
-      shelfVolume: f.shelf,
-    });
+    const r = await shelfQuarantineEmpty({ dbPath: f.db, shelfVolume: f.shelf });
     expect(r.ok).toBe(true);
     expect(r.deleted).toBe(1);
     expect(r.failed).toEqual([]);
@@ -88,10 +75,7 @@ describe("quarantine empty (#36)", () => {
       db.close();
     }
     // the census agrees: nothing recoverable remains
-    const after = await shelfQuarantineCensus({
-      dbPath: f.db,
-      shelfVolume: f.shelf,
-    });
+    const after = await shelfQuarantineCensus({ dbPath: f.db, shelfVolume: f.shelf });
     expect(after.files).toBe(0);
   });
 
@@ -102,18 +86,13 @@ describe("quarantine empty (#36)", () => {
     const store = new HygieneStore(db);
     expect(store.acquireOperation("other-op")).toBe(true);
     try {
-      const r = await shelfQuarantineEmpty({
-        dbPath: f.db,
-        shelfVolume: f.shelf,
-      });
+      const r = await shelfQuarantineEmpty({ dbPath: f.db, shelfVolume: f.shelf });
       expect(r.ok).toBe(false);
       expect(r.error).toContain("already in flight");
       // the copy survived the refused empty
-      expect(
-        existsSync(
-          join(f.shelf, ".hygiene-quarantine", "Artist · track copy.mp3"),
-        ),
-      ).toBe(true);
+      expect(existsSync(join(f.shelf, ".hygiene-quarantine", "Artist · track copy.mp3"))).toBe(
+        true,
+      );
     } finally {
       store.releaseOperation("other-op");
       db.close();

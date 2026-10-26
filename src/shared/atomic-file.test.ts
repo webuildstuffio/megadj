@@ -1,18 +1,7 @@
 import { describe, expect, test, afterAll } from "bun:test";
-import {
-  chmodSync,
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import {
-  atomicReplace,
-  tempSiblingPath,
-  withTempSiblingSync,
-} from "./atomic-file";
+import { atomicReplace, tempSiblingPath, withTempSiblingSync } from "./atomic-file";
 import { tempDir } from "../test-support/testutil";
 
 // Leak guard (#236 pattern → #248 seam): every scratch() dir lands on
@@ -80,9 +69,7 @@ describe("atomic-file seam (#162)", () => {
     expect(basename(a).startsWith(".")).toBe(true);
     expect(a).toContain(`tmp-${process.pid}-`);
     // keepExt preserves the extension (muxer-inference rule)
-    expect(tempSiblingPath(target, { keepExt: true }).endsWith(".xml")).toBe(
-      true,
-    );
+    expect(tempSiblingPath(target, { keepExt: true }).endsWith(".xml")).toBe(true);
   });
 
   test("mode bit: incumbent rwx group stays through the swap", () => {

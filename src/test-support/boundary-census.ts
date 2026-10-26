@@ -40,9 +40,7 @@ function scanSources(
 ): { calls: BoundaryCall[]; guarded: Set<BoundaryCall> } {
   const calls: BoundaryCall[] = [];
   const guarded = new Set<BoundaryCall>();
-  for (const [file, text] of Object.entries(sources).toSorted(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
+  for (const [file, text] of Object.entries(sources).toSorted(([a], [b]) => a.localeCompare(b))) {
     const sourceFile = parseSource(file, text);
     const visit = (node: Node): void => {
       if (isCallExpression(node) && matches(node)) {
@@ -57,11 +55,7 @@ function scanSources(
   return { calls, guarded };
 }
 
-function scanOne(
-  file: string,
-  text: string,
-  matches: CallPredicate,
-): BoundaryCall[] {
+function scanOne(file: string, text: string, matches: CallPredicate): BoundaryCall[] {
   return scanSources({ [file]: text }, matches).calls;
 }
 
@@ -119,9 +113,7 @@ function census(
   return {
     calls: calls.toSorted((a, b) => a.key.localeCompare(b.key)),
     violations,
-    unusedAllowlist: Object.keys(allowlist).filter(
-      (key) => !actualKeys.has(key),
-    ),
+    unusedAllowlist: Object.keys(allowlist).filter((key) => !actualKeys.has(key)),
     redundantAllowlist: Object.keys(allowlist).filter(
       (key) => actualKeys.has(key) && guardedKeys.has(key),
     ),
@@ -169,19 +161,12 @@ export function persistedJsonCensusForSources(
   return census(calls, guarded, allowlist);
 }
 
-export function formatCensusFailure(
-  kind: string,
-  result: CensusResult,
-): string {
+export function formatCensusFailure(kind: string, result: CensusResult): string {
   return [
     `${kind} boundary census failed`,
-    ...result.violations.map(
-      (call) => `  ${call.file}:${call.line} ${call.source}`,
-    ),
+    ...result.violations.map((call) => `  ${call.file}:${call.line} ${call.source}`),
     ...result.unusedAllowlist.map((key) => `  stale allowlist: ${key}`),
-    ...result.redundantAllowlist.map(
-      (key) => `  redundant allowlist (now guarded): ${key}`,
-    ),
+    ...result.redundantAllowlist.map((key) => `  redundant allowlist (now guarded): ${key}`),
     ...result.duplicateKeys.map((key) => `  duplicate fingerprint: ${key}`),
     `audited=${result.audited} guarded=${result.guarded} sanctioned=${result.sanctioned}`,
   ].join("\n");

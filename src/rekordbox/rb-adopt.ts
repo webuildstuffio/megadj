@@ -15,11 +15,7 @@
 import { existsSync } from "node:fs";
 import type { ArchiveState } from "../core/state";
 import { rbPythonFile } from "./rb-python-file.js";
-import {
-  applyConfirmationRefusal,
-  lastJsonLine,
-  makeFail,
-} from "./rb-command-kit.js";
+import { applyConfirmationRefusal, lastJsonLine, makeFail } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 import {
@@ -99,17 +95,9 @@ export function rbAdopt(opts: RbAdoptOptions): RbAdoptResult {
 
   let result: ReconcileRekordboxResult;
   try {
-    result = reconcileRekordboxRows({
-      state: opts.state,
-      sourceDb,
-      rows,
-      apply,
-    });
+    result = reconcileRekordboxRows({ state: opts.state, sourceDb, rows, apply });
   } catch (error) {
-    return {
-      ...fail(`archive reconciliation failed: ${errorText(error)}`),
-      backedUpTo,
-    };
+    return { ...fail(`archive reconciliation failed: ${errorText(error)}`), backedUpTo };
   }
   if (apply && result.ok) {
     const verification = opts.state.db
@@ -133,10 +121,7 @@ export function rbAdopt(opts: RbAdoptOptions): RbAdoptResult {
   return { ...result, backedUpTo };
 }
 
-export function printRbAdoptReport(
-  result: RbAdoptResult,
-  out: (line: string) => void,
-): void {
+export function printRbAdoptReport(result: RbAdoptResult, out: (line: string) => void): void {
   if (!result.ok) {
     out(`rb-adopt: FAILED — ${result.error ?? "unknown error"}`);
     if (result.backedUpTo) out(`  archive backup: ${result.backedUpTo}`);
@@ -176,11 +161,8 @@ export function readRekordboxContent(dbPath: string): RekordboxContentRow[] {
   try {
     parsed = JSON.parse(line);
   } catch (error) {
-    throw new Error(`pyrekordbox returned invalid JSON: ${errorText(error)}`, {
-      cause: error,
-    });
+    throw new Error(`pyrekordbox returned invalid JSON: ${errorText(error)}`, { cause: error });
   }
-  if (!Array.isArray(parsed))
-    throw new Error("pyrekordbox Content payload is not an array");
+  if (!Array.isArray(parsed)) throw new Error("pyrekordbox Content payload is not an array");
   return parsed as RekordboxContentRow[];
 }

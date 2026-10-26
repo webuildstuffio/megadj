@@ -35,9 +35,7 @@ export function useScanApply<T>(props: {
   }, [props.readPath, props.label.thing]);
 
   useEffect(() => {
-    load().catch((e: unknown) =>
-      console.error(`${props.label.thing} initial load failed`, e),
-    );
+    load().catch((e: unknown) => console.error(`${props.label.thing} initial load failed`, e));
     const onJob = () => {
       load().catch((e: unknown) =>
         console.error(`${props.label.thing} job-event reload failed`, e),
@@ -52,12 +50,7 @@ export function useScanApply<T>(props: {
     setBusy(kind);
     try {
       await apiPost(`${props.actionPath}/${kind}`, {});
-      toast(
-        kind === "scan"
-          ? props.label.scanDone
-          : (applyToast ?? props.label.applyDone),
-        "ok",
-      );
+      toast(kind === "scan" ? props.label.scanDone : (applyToast ?? props.label.applyDone), "ok");
     } catch {
       /* toast already surfaced the failure */
     } finally {
@@ -74,22 +67,11 @@ export function useScanApply<T>(props: {
       /* toast already surfaced the failure */
     } finally {
       setBusy(null);
-      load().catch((e: unknown) =>
-        console.error(`post-${kind} reload failed`, e),
-      );
+      load().catch((e: unknown) => console.error(`post-${kind} reload failed`, e));
     }
   };
 
-  return {
-    payload,
-    setPayload,
-    loadErr,
-    busy,
-    setBusy,
-    load,
-    enqueue,
-    runAction,
-  };
+  return { payload, setPayload, loadErr, busy, setBusy, load, enqueue, runAction };
 }
 
 /** ScanApplyGate — the load-error / loading early-return both job-remote
@@ -139,8 +121,7 @@ export function ScanApplyActions(props: {
         class="btn"
         disabled={props.busy !== null}
         onClick={props.onScan}
-        title={props.scanTitle}
-      >
+        title={props.scanTitle}>
         <Icon name="scan" size={14} />
         {props.busy === "scan" ? "Scanning…" : "Scan shelf"}
       </button>
@@ -149,12 +130,9 @@ export function ScanApplyActions(props: {
         class="btn primary"
         disabled={props.busy !== null || props.applyDisabled}
         onClick={props.onApply}
-        title={props.applyTitle}
-      >
+        title={props.applyTitle}>
         <Icon name="check" size={14} />
-        {props.busy === "apply"
-          ? "Applying…"
-          : props.applyLabel(props.busy === "apply")}
+        {props.busy === "apply" ? "Applying…" : props.applyLabel(props.busy === "apply")}
       </button>
     </>
   );

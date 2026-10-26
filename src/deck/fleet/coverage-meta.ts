@@ -14,10 +14,7 @@ export const fold = nameKey;
 
 /** Fallback identity: "artist - title". null when neither side exists.
  *  Fields optional: manifests (DiffSource) carry no metadata at all. */
-export function metaKey(t: {
-  title?: string | null;
-  artist?: string | null;
-}): string | null {
+export function metaKey(t: { title?: string | null; artist?: string | null }): string | null {
   const artist = (t.artist ?? "").trim();
   const title = (t.title ?? "").trim();
   if (!artist && !title) return null;

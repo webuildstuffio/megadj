@@ -50,19 +50,14 @@ describe("loadGiantStepsTempo", () => {
       .query("SELECT * FROM answer_keys WHERE field = 'bpm' AND key_id = 'AK1'")
       .all() as { track_id: string; value: string }[];
     expect(rows).toHaveLength(2);
-    expect(rows.find((r) => r.track_id === "giantsteps:1001")!.value).toBe(
-      "128",
-    );
+    expect(rows.find((r) => r.track_id === "giantsteps:1001")!.value).toBe("128");
     db.close();
   });
 
   test("returns zeros for missing directory", () => {
     const db = new Database(":memory:");
     migrateBenchTables(db);
-    expect(loadGiantStepsTempo(db, "/nonexistent")).toEqual({
-      loaded: 0,
-      errors: 0,
-    });
+    expect(loadGiantStepsTempo(db, "/nonexistent")).toEqual({ loaded: 0, errors: 0 });
     db.close();
   });
 });
@@ -79,12 +74,8 @@ describe("loadGiantStepsKey", () => {
       .query("SELECT * FROM answer_keys WHERE field = 'key' AND key_id = 'AK1'")
       .all() as { track_id: string; value: string }[];
     expect(rows).toHaveLength(2);
-    expect(rows.find((r) => r.track_id === "giantsteps:1001")!.value).toBe(
-      "C major",
-    );
-    expect(rows.find((r) => r.track_id === "giantsteps:1002")!.value).toBe(
-      "D minor",
-    );
+    expect(rows.find((r) => r.track_id === "giantsteps:1001")!.value).toBe("C major");
+    expect(rows.find((r) => r.track_id === "giantsteps:1002")!.value).toBe("D minor");
     db.close();
   });
 });
@@ -96,9 +87,10 @@ describe("loadEdm98Structure", () => {
     const result = loadEdm98Structure(db, join(tmpDir, "edm-98"));
     expect(result.loaded).toBe(1);
 
-    const rows = db
-      .query("SELECT * FROM answer_keys WHERE field = 'structure'")
-      .all() as { track_id: string; value: string }[];
+    const rows = db.query("SELECT * FROM answer_keys WHERE field = 'structure'").all() as {
+      track_id: string;
+      value: string;
+    }[];
     expect(rows).toHaveLength(1);
     const sections = JSON.parse(rows[0]!.value) as { label: string }[];
     expect(sections).toHaveLength(3);

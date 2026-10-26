@@ -2,12 +2,7 @@
 // integrity (provenance, live families, census from the producer) and
 // the vote/arbitration contract (abstain-never-guess).
 import { describe, expect, test } from "bun:test";
-import {
-  IMPRINT_COUNT,
-  IMPRINT_FAMILIES,
-  imprintStands,
-  imprintVote,
-} from "./imprint-prior";
+import { IMPRINT_COUNT, IMPRINT_FAMILIES, imprintStands, imprintVote } from "./imprint-prior";
 import { familyOf } from "../genre/genre-vocab";
 
 describe("imprint prior (#128): the map is data with provenance", () => {

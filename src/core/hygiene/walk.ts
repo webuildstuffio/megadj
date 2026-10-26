@@ -49,8 +49,7 @@ export function walkShelf(volume: string): {
 } {
   const { entries, unreadable } = walkTree(join(volume, "Contents"), {
     exts: AUDIO_EXTS,
-    skip: (name, isDir) =>
-      (isDir && SKIP_DIRS.has(name)) || (!isDir && isJunkName(name)),
+    skip: (name, isDir) => (isDir && SKIP_DIRS.has(name)) || (!isDir && isJunkName(name)),
   });
   const files: ShelfFile[] = entries.map((e) => ({
     path: e.abs,

@@ -33,12 +33,7 @@ describe("portView", () => {
   test("emits one row per physical port, preferring its mounted drive", () => {
     const ports = portView([
       drive({ id: "ghost", name: "Old crate", last_seen_at: 200 }),
-      drive({
-        id: "mounted",
-        name: "New crate",
-        mounted: true,
-        last_seen_at: 100,
-      }),
+      drive({ id: "mounted", name: "New crate", mounted: true, last_seen_at: 100 }),
     ]);
 
     expect(ports).toEqual([

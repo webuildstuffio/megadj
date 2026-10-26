@@ -17,10 +17,7 @@ describe("numeric option validation: invalid input aborts, never runs", () => {
 
   for (const bad of ["abc", "-5", "10o", ""]) {
     test(`sync --limit ${JSON.stringify(bad)} refuses to start`, async () => {
-      const { code, stderr, stdout } = await runCli(
-        ["sync", "--limit", bad, "--json"],
-        env,
-      );
+      const { code, stderr, stdout } = await runCli(["sync", "--limit", bad, "--json"], env);
       // --json run: the error object goes to STDOUT (the one parseable
       // channel), nothing on the human channel (#160 ring 3).
       expect(stderr).toBe("");
@@ -40,17 +37,10 @@ describe("numeric option validation: invalid input aborts, never runs", () => {
   }
 
   test("sync --target-total 10o refuses to start", async () => {
-    const { code, stdout } = await runCli(
-      ["sync", "--target-total", "10o", "--json"],
-      env,
-    );
+    const { code, stdout } = await runCli(["sync", "--target-total", "10o", "--json"], env);
     // json mode: error object on stdout, stderr clean (#160 ring 3)
-    const parsed = JSON.parse(stdout.trim().split("\n").pop() ?? "") as {
-      error?: string;
-    };
-    expect(parsed.error).toContain(
-      "--target-total must be a non-negative number",
-    );
+    const parsed = JSON.parse(stdout.trim().split("\n").pop() ?? "") as { error?: string };
+    expect(parsed.error).toContain("--target-total must be a non-negative number");
     expect(code).toBe(2);
   });
 
@@ -64,10 +54,7 @@ describe("numeric option validation: invalid input aborts, never runs", () => {
   );
 
   test("valid limit still works (cues --limit 0 = derive nothing, exit 0)", async () => {
-    const { code, stderr } = await runCli(
-      ["cues", "--limit", "0", "--json"],
-      env,
-    );
+    const { code, stderr } = await runCli(["cues", "--limit", "0", "--json"], env);
     expect(stderr).not.toContain("must be a non-negative number");
     expect(code).toBe(0);
   });

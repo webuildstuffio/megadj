@@ -16,10 +16,7 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import {
-  allFunctions,
-  type FunctionSpan,
-} from "../test-support/source-metrics";
+import { allFunctions, type FunctionSpan } from "../test-support/source-metrics";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const CEILING = 60;
@@ -27,9 +24,7 @@ const CEILING = 60;
 function trackedFiles(): string[] {
   let out: Buffer;
   try {
-    out = execFileSync("git", ["ls-files", "*.ts", "*.tsx"], {
-      cwd: ROOT,
-    });
+    out = execFileSync("git", ["ls-files", "*.ts", "*.tsx"], { cwd: ROOT });
   } catch (err) {
     // Parallel-suite git spawn collision (index.lock): empty would read as
     // "no files to measure" — fail loud instead.

@@ -23,10 +23,7 @@ export {
  *  Only the exact value "1" opens the hatch (#514) — bare truthiness
  *  let MEGADJ_ALLOW_LINUX=0 / =false unlock production commands. */
 function assertMac(): void {
-  if (
-    process.platform !== "darwin" &&
-    process.env["MEGADJ_ALLOW_LINUX"] !== "1"
-  ) {
+  if (process.platform !== "darwin" && process.env["MEGADJ_ALLOW_LINUX"] !== "1") {
     console.error(
       "megadj is macOS-only by design (docs/PRINCIPLES.md §2) — it drives rekordbox, Pioneer hardware, and macOS browser cookies.",
     );
@@ -48,9 +45,7 @@ async function configureBoothFleet(): Promise<void> {
       .filter(Boolean);
     const { setBoothFleet } = await import("./fulltags/booth/player-compat");
     setBoothFleet(
-      environmentFleet && environmentFleet.length > 0
-        ? environmentFleet
-        : config.boothFleet,
+      environmentFleet && environmentFleet.length > 0 ? environmentFleet : config.boothFleet,
     );
   } catch (error) {
     console.error(

@@ -31,19 +31,13 @@ export function useDriveActions(props: {
 
   const rename = async (nickname: string | null) => {
     try {
-      await apiPost(`/api/drives/${props.driveId}/name`, {
-        nickname: nickname || null,
-      });
+      await apiPost(`/api/drives/${props.driveId}/name`, { nickname: nickname || null });
     } catch {
       return;
     }
     setRenaming(false);
     toast(nickname ? "Drive renamed" : "Nickname cleared", "ok");
-    props
-      .refresh()
-      .catch((error: unknown) =>
-        console.error("post-rename refresh failed", error),
-      );
+    props.refresh().catch((error: unknown) => console.error("post-rename refresh failed", error));
   };
 
   const searchPhotos = async () => {
@@ -68,11 +62,7 @@ export function useDriveActions(props: {
   };
 
   const refreshAfterPhotoSave = () =>
-    props
-      .refresh()
-      .catch((error: unknown) =>
-        console.error("post-save refresh failed", error),
-      );
+    props.refresh().catch((error: unknown) => console.error("post-save refresh failed", error));
 
   const choosePhoto = async (hit: PhotoHit) => {
     try {
@@ -86,9 +76,7 @@ export function useDriveActions(props: {
 
   const chooseDriveImage = async (relativePath: string) => {
     try {
-      await apiPost(`/api/drives/${props.driveId}/photo`, {
-        drive_rel: relativePath,
-      });
+      await apiPost(`/api/drives/${props.driveId}/photo`, { drive_rel: relativePath });
       toast("Cover set from the drive — saved to Mac too", "ok");
       refreshAfterPhotoSave();
     } catch {
@@ -115,10 +103,9 @@ export function useDriveActions(props: {
     }
     try {
       setDriveImages(
-        await api<DriveImage[]>(
-          `/api/drives/${encodeURIComponent(props.driveId)}/drive-images`,
-          { quiet: true },
-        ),
+        await api<DriveImage[]>(`/api/drives/${encodeURIComponent(props.driveId)}/drive-images`, {
+          quiet: true,
+        }),
       );
     } catch (error) {
       // null = "not loaded" (the tab's tri-state contract) — a load failure

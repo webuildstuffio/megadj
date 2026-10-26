@@ -1,13 +1,7 @@
 /** Restore a hygiene-quarantined loser without trusting a free-form path.
  * The findings ledger is the source of truth; the quarantine is only the
  * recoverable byte store. Sources are never deleted or overwritten. */
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  unlinkSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { openLedger } from "../shared/sqlite-ledger";
 import { HygieneStore } from "../core/hygiene/store";
@@ -50,11 +44,7 @@ function quarantineSource(f: Finding, shelfVolume: string): string | null {
   const expected = flattenedLoserPath(loser);
   const candidates = readdirSync(qDir)
     .filter((name) => name === expected || /^.+ \(\d+\)(\.[^.]*)?$/.test(name))
-    .filter(
-      (name) =>
-        name === expected ||
-        name.startsWith(expected.replace(/(\.[^.]*)?$/, "")),
-    )
+    .filter((name) => name === expected || name.startsWith(expected.replace(/(\.[^.]*)?$/, "")))
     .map((name) => join(qDir, name))
     .filter((path) => existsSync(path));
   if (candidates.length !== 1) return null;
@@ -72,17 +62,11 @@ function relativeLoserPath(f: Finding): string | null {
 function destinationFor(f: Finding, into?: string): string | null {
   const rel = relativeLoserPath(f);
   if (!rel) return null;
-  return into === undefined
-    ? (f.paths[1] ?? null)
-    : join(into, "Contents", rel);
+  return into === undefined ? (f.paths[1] ?? null) : join(into, "Contents", rel);
 }
 
 function matchesInput(f: Finding, input: string, source: string): boolean {
-  return (
-    f.id === input ||
-    resolve(input) === resolve(source) ||
-    f.paths.includes(input)
-  );
+  return f.id === input || resolve(input) === resolve(source) || f.paths.includes(input);
 }
 
 /** #88 diet: the guard ladder is data. Each entry either fails the run
@@ -116,28 +100,18 @@ function findOwningFinding(
     .map((f) => ({ f, source: quarantineSource(f, scope.shelfVolume) }))
     .find(
       (candidate) =>
-        candidate.source !== null &&
-        matchesInput(candidate.f, scope.input, candidate.source),
+        candidate.source !== null && matchesInput(candidate.f, scope.input, candidate.source),
     );
-  if (!match?.source)
-    return {
-      error: "no applied ledger finding owns that quarantine source",
-    };
+  if (!match?.source) return { error: "no applied ledger finding owns that quarantine source" };
   return { f: match.f, source: match.source };
 }
 
 /** The post-match guard chain: destination resolvable + free, source
  *  hashable, and the bytes still identical to the ledger keeper. */
-function guardMatch(
-  scope: RestoreScope,
-  f: Finding,
-  source: string,
-): GuardResult {
+function guardMatch(scope: RestoreScope, f: Finding, source: string): GuardResult {
   const destination = destinationFor(f, scope.into);
-  if (!destination)
-    return { error: "ledger finding has no restorable loser path" };
-  if (existsSync(destination))
-    return { error: `destination exists: ${destination}` };
+  if (!destination) return { error: "ledger finding has no restorable loser path" };
+  if (existsSync(destination)) return { error: `destination exists: ${destination}` };
   const sourceMd5 = md5Cli(source);
   if (!sourceMd5) return { error: "source MD5 unavailable" };
   const keeper = f.paths[0];
@@ -162,9 +136,7 @@ function copyVerified(match: RestoreMatch): { error: string } | null {
   return null;
 }
 
-export async function shelfRestore(
-  opts: ShelfRestoreOptions,
-): Promise<ShelfRestoreResult> {
+export async function shelfRestore(opts: ShelfRestoreOptions): Promise<ShelfRestoreResult> {
   return await restoreOne(opts, false);
 }
 
@@ -188,8 +160,7 @@ export async function shelfRestoreAll(
   for (const f of store.list({ status: "applied" })) {
     const r = await restoreOne({ ...opts, input: f.id }, true);
     restored.push(r);
-    if (!r.ok)
-      failed.push({ findingId: r.findingId, error: r.error ?? "unknown" });
+    if (!r.ok) failed.push({ findingId: r.findingId, error: r.error ?? "unknown" });
   }
   return {
     command: "restore-all",
@@ -202,19 +173,13 @@ export async function shelfRestoreAll(
 
 /** Shared body of restore-one / restore-all. `quiet` suppresses the
  *  per-row human log under restore-all (the batch summary reports). */
-async function restoreOne(
-  opts: ShelfRestoreOptions,
-  quiet: boolean,
-): Promise<ShelfRestoreResult> {
+async function restoreOne(opts: ShelfRestoreOptions, quiet: boolean): Promise<ShelfRestoreResult> {
   const shelfVolume = resolveShelfVolume(opts.shelfVolume);
   const dbPath = opts.dbPath ?? DB_PATH;
   const log = opts.log ?? ((message: string) => console.error(message));
-  const result = async (
-    value: ShelfRestoreResult,
-  ): Promise<ShelfRestoreResult> => {
+  const result = async (value: ShelfRestoreResult): Promise<ShelfRestoreResult> => {
     if (opts.json) await writeJson(value);
-    else if (value.ok)
-      log(`restore: restored ${value.source} → ${value.destination}`);
+    else if (value.ok) log(`restore: restored ${value.source} → ${value.destination}`);
     else if (!quiet) log(`restore: ${value.error ?? "restore failed"}`);
     return value;
   };
@@ -246,12 +211,7 @@ async function restoreOne(
     });
   }
   try {
-    const scope: RestoreScope = {
-      store,
-      shelfVolume,
-      input: opts.input,
-      into: opts.into,
-    };
+    const scope: RestoreScope = { store, shelfVolume, input: opts.input, into: opts.into };
     const owned = findOwningFinding(scope);
     if ("error" in owned) {
       return await result({

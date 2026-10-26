@@ -29,8 +29,7 @@ export const VERIFY_HELP: VerifyHelpDoc = {
       label: "Audio files on disk",
       what: "Confirms every track row in the DB points at a file that exists on the drive.",
       why: "Databases can outlive their files (a failed copy, an interrupted move).",
-      if_fail:
-        "Those tracks show in the browser but won't load — dead entries mid-set.",
+      if_fail: "Those tracks show in the browser but won't load — dead entries mid-set.",
       fix: "Delete/replace the missing tracks in rekordbox, then re-export.",
     },
     {
@@ -38,8 +37,7 @@ export const VERIFY_HELP: VerifyHelpDoc = {
       label: "Waveforms + beatgrids (ANLZ)",
       what: "Checks each track has its .ANLZ analysis files at both the DB path and the hashed sub-directory hardware actually uses.",
       why: "ANLZ files ARE the waveform and the beatgrid on hardware.",
-      if_fail:
-        "Affected tracks load with no waveform, no Beat Sync, no Beat Jump.",
+      if_fail: "Affected tracks load with no waveform, no Beat Sync, no Beat Jump.",
       fix: "In rekordbox: select tracks → Track → Analyze, then re-export.",
     },
     {

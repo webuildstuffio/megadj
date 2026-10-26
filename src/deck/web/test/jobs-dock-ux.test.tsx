@@ -5,10 +5,7 @@ import render from "preact-render-to-string";
 import type { Job } from "../../shared/types";
 import { JobsDock } from "../ui/JobsDock";
 
-const jobsCss = readFileSync(
-  join(import.meta.dir, "../styles/jobs.css"),
-  "utf8",
-);
+const jobsCss = readFileSync(join(import.meta.dir, "../styles/jobs.css"), "utf8");
 
 const job = (status: Job["status"]): Job => ({
   id: `job-${status}`,
@@ -29,13 +26,7 @@ const job = (status: Job["status"]): Job => ({
 
 describe("Recent jobs dock UX", () => {
   test("finished history starts collapsed so it cannot cover page actions", () => {
-    const html = render(
-      <JobsDock
-        jobs={[job("done")]}
-        drives={[]}
-        focusDrive={() => undefined}
-      />,
-    );
+    const html = render(<JobsDock jobs={[job("done")]} drives={[]} focusDrive={() => undefined} />);
 
     expect(html).toContain('class="jobdock collapsed"');
     expect(html).toContain("Recent jobs");
@@ -46,11 +37,7 @@ describe("Recent jobs dock UX", () => {
 
   test("active work starts expanded so progress remains visible", () => {
     const html = render(
-      <JobsDock
-        jobs={[job("running")]}
-        drives={[]}
-        focusDrive={() => undefined}
-      />,
+      <JobsDock jobs={[job("running")]} drives={[]} focusDrive={() => undefined} />,
     );
 
     expect(html).toContain('class="jobdock"');

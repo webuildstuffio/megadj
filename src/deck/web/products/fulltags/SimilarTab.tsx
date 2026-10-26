@@ -20,17 +20,14 @@ const similarHitLine = (h: {
   artist: string | null;
   title: string | null;
   video_id: string;
-}): string =>
-  `${h.score.toFixed(4)}  ${h.artist ?? "?"} — ${h.title ?? h.video_id}`;
+}): string => `${h.score.toFixed(4)}  ${h.artist ?? "?"} — ${h.title ?? h.video_id}`;
 
 export function SimilarTab() {
   const [picked, setPicked] = useState<TrackPick | null>(null);
   const hits = useFetched<ArchiveSimilar | null>(
     () =>
       picked
-        ? api<ArchiveSimilar>(
-            `/api/archive/similar?id=${encodeURIComponent(picked.video_id)}&k=10`,
-          )
+        ? api<ArchiveSimilar>(`/api/archive/similar?id=${encodeURIComponent(picked.video_id)}&k=10`)
         : Promise.resolve(null),
     [picked],
   );
@@ -46,11 +43,7 @@ export function SimilarTab() {
             title={`Sounds like ${picked.title ?? picked.video_id}`}
             n={(hits.status === "ok" && hits.data?.hits.length) || 0}
             hint="Ranked by cosine similarity of the audio embeddings — 1.0 is identical, higher is more similar."
-            lines={
-              hits.status === "ok" && hits.data
-                ? hits.data.hits.map(similarHitLine)
-                : []
-            }
+            lines={hits.status === "ok" && hits.data ? hits.data.hits.map(similarHitLine) : []}
           />
           {hits.status !== "ok" ? (
             <FetchedGate page={hits} loading="searching the embeddings…" />
@@ -72,19 +65,15 @@ export function SimilarTab() {
                   </KVRow>
                 ))}
               </KVRows>
-              <button
-                type="button"
-                class="btn sm ghostbtn"
-                onClick={() => setPicked(null)}
-              >
+              <button type="button" class="btn sm ghostbtn" onClick={() => setPicked(null)}>
                 pick a different track
               </button>
             </>
           ) : (
             <div class="note-card">
               <Icon name="bolt" size={20} />
-              No embeddings yet — <code>megadj mood --embeddings</code> computes
-              them (same pass as the mood heads, no extra model).
+              No embeddings yet — <code>megadj mood --embeddings</code> computes them (same pass as
+              the mood heads, no extra model).
             </div>
           )}
         </Card>

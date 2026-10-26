@@ -23,9 +23,7 @@ export type StopCause = "budget" | "deadend" | "exhausted";
 
 const candidateDuration = (c: SetCandidate): number => {
   const seconds = c.durationS;
-  return seconds !== null && Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : 300;
+  return seconds !== null && Number.isFinite(seconds) && seconds > 0 ? seconds : 300;
 };
 
 /** Beam-search state: one partial chain with its running clock and score.
@@ -92,10 +90,7 @@ export const greedyChain = (
     chain.push({ candidate: next, transition: bestScore });
     elapsedS += candidateDuration(next);
   }
-  return {
-    chain,
-    stopCause: elapsedS >= budget ? "budget" : "exhausted",
-  };
+  return { chain, stopCause: elapsedS >= budget ? "budget" : "exhausted" };
 };
 
 /** Beam state → committable picked chain (the wire shape minus census). */
@@ -104,10 +99,7 @@ function toPicked(
   stopCause: StopCause,
 ): { chain: PickedStep[]; stopCause: StopCause } {
   return {
-    chain: st.chain.map((candidate, i) => ({
-      candidate,
-      transition: st.transitions[i] ?? null,
-    })),
+    chain: st.chain.map((candidate, i) => ({ candidate, transition: st.transitions[i] ?? null })),
     stopCause,
   };
 }

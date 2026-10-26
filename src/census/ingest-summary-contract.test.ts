@@ -10,14 +10,8 @@
  * knew it existed — a counter silently invisible to the dashboard.
  */
 import { describe, expect, test } from "bun:test";
-import {
-  INTAKE_COUNTER_KEYS,
-  type IntakeCounterKey,
-} from "../deck/shared/types";
-import {
-  counterSummary,
-  type IngestCounters,
-} from "../getdat/commands/ingest-register";
+import { INTAKE_COUNTER_KEYS, type IntakeCounterKey } from "../deck/shared/types";
+import { counterSummary, type IngestCounters } from "../getdat/commands/ingest-register";
 
 /** Every counter the producer can emit, keyed by the SSOT. TypeScript
  *  enforces the shape statically (counterSummary's mapped type); this
@@ -52,25 +46,16 @@ describe("#159 ingest summary key contract (emit ↔ parse round-trip)", () => {
   test("counterSummary derives every counter-backed SSOT key", () => {
     const full = fullCounterSet();
     for (const key of INTAKE_COUNTER_KEYS) {
-      expect(
-        full[key],
-        `producer emits counter "${key}" (IntakeCounterKey)`,
-      ).toBeNumber();
+      expect(full[key], `producer emits counter "${key}" (IntakeCounterKey)`).toBeNumber();
     }
   });
 
   test("every emitted key parses through cratedeck's parseIngestSummary", async () => {
     const { parseIngestSummary } = await import("../deck/jobs/job-legs");
-    const summary = {
-      command: "ingest",
-      dryRun: false,
-      ...fullCounterSet(),
-    };
+    const summary = { command: "ingest", dryRun: false, ...fullCounterSet() };
     const parsed = parseIngestSummary(summary);
     // No key dropped, no key fabricated: exact SSOT equality both ways.
-    expect(Object.keys(parsed).toSorted()).toEqual(
-      [...INTAKE_COUNTER_KEYS].toSorted(),
-    );
+    expect(Object.keys(parsed).toSorted()).toEqual([...INTAKE_COUNTER_KEYS].toSorted());
   });
 
   test("a key the producer stops emitting fails the parse (named, not silent)", async () => {

@@ -3,12 +3,7 @@
 // these tests pin the notation form, the open-key table, the compat
 // scores and the UI relation labels in one place.
 import { describe, expect, test } from "bun:test";
-import {
-  camelotOf,
-  keyCompatScore,
-  keyRelation,
-  keySortToken,
-} from "../shared/camelot";
+import { camelotOf, keyCompatScore, keyRelation, keySortToken } from "../shared/camelot";
 
 describe("camelotOf (shared SSOT)", () => {
   test("parses Camelot notation, case-insensitive", () => {
@@ -136,38 +131,20 @@ describe("camelotOf (shared SSOT)", () => {
 
 describe("keyCompatScore", () => {
   test("same key / energy flow / mood lift → 1", () => {
-    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 8, letter: "A" })).toBe(
-      1,
-    );
-    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 9, letter: "A" })).toBe(
-      1,
-    );
-    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 8, letter: "B" })).toBe(
-      1,
-    );
+    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 8, letter: "A" })).toBe(1);
+    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 9, letter: "A" })).toBe(1);
+    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 8, letter: "B" })).toBe(1);
   });
   test("diagonal → 0.9, clash → 0, unparsable either side → 0.5", () => {
-    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 9, letter: "B" })).toBe(
-      0.9,
-    );
-    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 2, letter: "B" })).toBe(
-      0,
-    );
+    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 9, letter: "B" })).toBe(0.9);
+    expect(keyCompatScore({ n: 8, letter: "A" }, { n: 2, letter: "B" })).toBe(0);
     expect(keyCompatScore(null, { n: 8, letter: "A" })).toBe(0.5);
   });
   test("wheel wraps: 12↔1 is ±1, not an 11-step clash", () => {
-    expect(keyCompatScore({ n: 12, letter: "A" }, { n: 1, letter: "A" })).toBe(
-      1,
-    );
-    expect(keyCompatScore({ n: 12, letter: "B" }, { n: 1, letter: "B" })).toBe(
-      1,
-    );
-    expect(keyCompatScore({ n: 1, letter: "A" }, { n: 12, letter: "A" })).toBe(
-      1,
-    );
-    expect(keyCompatScore({ n: 12, letter: "A" }, { n: 1, letter: "B" })).toBe(
-      0.9,
-    );
+    expect(keyCompatScore({ n: 12, letter: "A" }, { n: 1, letter: "A" })).toBe(1);
+    expect(keyCompatScore({ n: 12, letter: "B" }, { n: 1, letter: "B" })).toBe(1);
+    expect(keyCompatScore({ n: 1, letter: "A" }, { n: 12, letter: "A" })).toBe(1);
+    expect(keyCompatScore({ n: 12, letter: "A" }, { n: 1, letter: "B" })).toBe(0.9);
     expect(keyRelation("1A", { n: 12, letter: "A" })).toBe("compat");
   });
 });
@@ -190,13 +167,8 @@ describe("keyRelation (the crate glow labels)", () => {
 
 describe("keySortToken", () => {
   test("zero-padded so 10B sorts after 8B lexicographically", () => {
-    const rows = ["12B", "8A", "10B", "1A"].map((k) => ({
-      k,
-      t: keySortToken(k),
-    }));
-    const sorted = [...rows]
-      .toSorted((a, b) => (a.t! < b.t! ? -1 : 1))
-      .map((r) => r.k);
+    const rows = ["12B", "8A", "10B", "1A"].map((k) => ({ k, t: keySortToken(k) }));
+    const sorted = [...rows].toSorted((a, b) => (a.t! < b.t! ? -1 : 1)).map((r) => r.k);
     expect(sorted).toEqual(["1A", "8A", "10B", "12B"]);
   });
   test("unparsable → null (sorts last via the table's nulls-last contract)", () => {

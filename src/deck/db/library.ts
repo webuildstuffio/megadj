@@ -1,10 +1,6 @@
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
 import type { LedgerRow as ArchiveLedgerRow } from "../megaset/sweep";
-import type {
-  ManifestRow,
-  PlaylistEntryRow,
-  TrackRow,
-} from "../fleet/coverage";
+import type { ManifestRow, PlaylistEntryRow, TrackRow } from "../fleet/coverage";
 import { FleetStore } from "../fleet/db";
 import { DBCore } from "./core";
 
@@ -54,12 +50,7 @@ export class DBLibrary extends DBCore {
   }
 
   upsertDrive(drive: Partial<Drive> & { id: string }): void {
-    this.driveStore.upsert(
-      drive,
-      this.masterName,
-      this.mirrorName,
-      this.shelfName,
-    );
+    this.driveStore.upsert(drive, this.masterName, this.mirrorName, this.shelfName);
   }
 
   setMounted(id: string, mounted: boolean): void {

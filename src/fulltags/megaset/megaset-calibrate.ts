@@ -24,16 +24,8 @@ import { commandLog } from "../../shared/progress";
 import { round3 } from "../../shared/leaf/fmt";
 import { loadConfig } from "../../deck/config";
 import { crateDeckRoot } from "../../shared/volume";
-import {
-  writeJson,
-  finishCommandError,
-  setExit,
-} from "../../shared/cli-output";
-import {
-  buildMegaset,
-  parseMegasetQuery,
-  SET_PRESETS,
-} from "../../deck/megaset/engine";
+import { writeJson, finishCommandError, setExit } from "../../shared/cli-output";
+import { buildMegaset, parseMegasetQuery, SET_PRESETS } from "../../deck/megaset/engine";
 import { clampMegasetPool, MEGASET_PRESET_IDS } from "../../deck/shared/types";
 import { openMegasetArchive } from "./archive-open";
 
@@ -49,8 +41,7 @@ export interface MegasetCalibrateOptions {
 }
 
 /** Per-hop score at 3dp — the same rounding the wire uses. */
-const t3 = (n: number | null): string =>
-  n === null ? "-" : round3(n).toFixed(3);
+const t3 = (n: number | null): string => (n === null ? "-" : round3(n).toFixed(3));
 
 /** One scenario's build → the digest lines. Mirrors the census test's
  *  fingerprint: chain ids + scores + arc clock + honest counters. */
@@ -60,9 +51,7 @@ function scenarioDigest(r: ReturnType<typeof buildMegaset>): string[] {
     `  search=${r.search} minutes=${r.minutes} actual=${r.actualMinutes} complete=${r.complete} steps=${r.steps.length}`,
   );
   for (const s of r.steps) {
-    lines.push(
-      `  S ${s.videoId} @${s.atMin} t=${t3(s.transition)} lm=${s.landmark ? 1 : 0}`,
-    );
+    lines.push(`  S ${s.videoId} @${s.atMin} t=${t3(s.transition)} lm=${s.landmark ? 1 : 0}`);
   }
   lines.push(
     `  excluded_total=${r.excluded_total} pairs=${r.same_artist_pairs} lmMissing=${r.landmarks_missing.join(",")}`,
@@ -70,9 +59,7 @@ function scenarioDigest(r: ReturnType<typeof buildMegaset>): string[] {
   return lines;
 }
 
-export async function megasetCalibrate(
-  opts: MegasetCalibrateOptions,
-): Promise<void> {
+export async function megasetCalibrate(opts: MegasetCalibrateOptions): Promise<void> {
   const log = commandLog(opts);
   const cfg = loadConfig(crateDeckRoot());
   const archive = openMegasetArchive();
@@ -94,10 +81,7 @@ export async function megasetCalibrate(
     });
     return;
   }
-  const parsed = parseMegasetQuery({
-    preset: requestedPreset,
-    minutes: opts.minutes ?? null,
-  });
+  const parsed = parseMegasetQuery({ preset: requestedPreset, minutes: opts.minutes ?? null });
   if ("error" in parsed) {
     await finishCommandError({
       command: "megaset-calibrate",
@@ -120,8 +104,10 @@ export async function megasetCalibrate(
 
   const reader = archive;
   log("megaset-calibrate: scoring the live archive (propose-only, read-only)");
-  const { candidates, total, missingFiles, metadataOnly, duplicateFiles } =
-    reader.setCandidates(clampMegasetPool(opts.limit ?? null), undefined);
+  const { candidates, total, missingFiles, metadataOnly, duplicateFiles } = reader.setCandidates(
+    clampMegasetPool(opts.limit ?? null),
+    undefined,
+  );
   log(
     `  pool: ${total} candidates (missing ${missingFiles}, metadata-only ${metadataOnly}, dupes ${duplicateFiles})`,
   );
@@ -137,26 +123,17 @@ export async function megasetCalibrate(
         minutes: parsed.minutes,
         searchOverride: search,
       });
-      scenarios.push({
-        name: `${presetId}/${search}`,
-        lines: scenarioDigest(built),
-      });
+      scenarios.push({ name: `${presetId}/${search}`, lines: scenarioDigest(built) });
     }
   }
 
   // combined digest: one hash over all scenarios (the single number a
   // before/after diff compares first)
-  const allText = scenarios
-    .map((s) => `${s.name}\n${s.lines.join("\n")}`)
-    .join("\n");
-  const combined = createHash("sha256")
-    .update(allText)
-    .digest("hex")
-    .slice(0, 16);
+  const allText = scenarios.map((s) => `${s.name}\n${s.lines.join("\n")}`).join("\n");
+  const combined = createHash("sha256").update(allText).digest("hex").slice(0, 16);
 
   const today = new Date().toISOString().slice(0, 10);
-  const outPath =
-    opts.out ?? join(cfg.dataDir, "megaset-calibration", `digest-${today}.txt`);
+  const outPath = opts.out ?? join(cfg.dataDir, "megaset-calibration", `digest-${today}.txt`);
   const body = [
     `# megaset calibration digest — ${new Date().toISOString()}`,
     `# archive pool=${total} minutes=${parsed.minutes} presets=${presets.join(",")}`,

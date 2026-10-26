@@ -13,9 +13,7 @@ describe("mapStoreGenre", () => {
       expect(mapStoreGenre("traxsource", "Tech House")).toBe("tech house");
     });
     test("melodic house & techno → techno", () => {
-      expect(mapStoreGenre("traxsource", "Melodic House & Techno")).toBe(
-        "techno",
-      );
+      expect(mapStoreGenre("traxsource", "Melodic House & Techno")).toBe("techno");
     });
     test("drum & bass → drum and bass", () => {
       expect(mapStoreGenre("traxsource", "Drum & Bass")).toBe("drum and bass");

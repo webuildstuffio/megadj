@@ -14,16 +14,9 @@
 // shortfall visible and drops the exit to 1.
 import { DB_PATH } from "../../cli-env";
 import { commandLog } from "../../shared/progress";
-import {
-  writeJson,
-  finishCommandError,
-  setExit,
-} from "../../shared/cli-output";
+import { writeJson, finishCommandError, setExit } from "../../shared/cli-output";
 import { parseMegasetQuery } from "../../deck/megaset/engine";
-import {
-  buildCohortPlan,
-  parseCohortFamilies,
-} from "../../deck/megaset/cohorts";
+import { buildCohortPlan, parseCohortFamilies } from "../../deck/megaset/cohorts";
 import { openMegasetArchive } from "./archive-open";
 
 export interface MegasetCohortsOptions {
@@ -36,17 +29,12 @@ export interface MegasetCohortsOptions {
   onProgress?: ((msg: string) => void) | undefined;
 }
 
-export async function megasetCohorts(
-  opts: MegasetCohortsOptions,
-): Promise<void> {
+export async function megasetCohorts(opts: MegasetCohortsOptions): Promise<void> {
   const log = commandLog(opts);
   const archive = openMegasetArchive();
 
   // minutes: same clamp/parse as the single-set command (10–240)
-  const parsed = parseMegasetQuery({
-    preset: "peak",
-    minutes: opts.minutes ?? null,
-  });
+  const parsed = parseMegasetQuery({ preset: "peak", minutes: opts.minutes ?? null });
   if ("error" in parsed) {
     await finishCommandError({
       command: "megaset-cohorts",
@@ -101,9 +89,7 @@ export async function megasetCohorts(
     families: plan.families,
     cohorts: plan.cohorts,
     allComplete: plan.allComplete,
-    outsideScope: {
-      blankGenreNote: plan.blankGenreNote,
-    },
+    outsideScope: { blankGenreNote: plan.blankGenreNote },
     stagesMs: { plan: plan.elapsedMs },
   });
   archive.close();

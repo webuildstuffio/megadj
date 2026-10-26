@@ -12,17 +12,12 @@ import { crateDeckRoot } from "./volume";
 import { DECK_SERVICE_LABEL, classifyDeckService } from "../ops/deck-service";
 import { resolveServerPort } from "../deck/server/server-port";
 
-export const MUSIC_DIR =
-  nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${homedir()}/Music/DJ-Imports`;
+export const MUSIC_DIR = nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${homedir()}/Music/DJ-Imports`;
 export const CRATEDECK_DIR = crateDeckRoot();
 
 export function have(bin: string): string | null {
   try {
-    const p = Bun.spawnSync({
-      cmd: ["which", bin],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const p = Bun.spawnSync({ cmd: ["which", bin], stdout: "pipe", stderr: "pipe" });
     const out = new TextDecoder().decode(p.stdout).trim();
     return out || null;
   } catch {
@@ -34,13 +29,8 @@ export function binVersion(bin: string, args: string[]): string | null {
   const path = have(bin);
   if (!path) return null;
   try {
-    const p = Bun.spawnSync({
-      cmd: [bin, ...args],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const out =
-      new TextDecoder().decode(p.stdout) || new TextDecoder().decode(p.stderr);
+    const p = Bun.spawnSync({ cmd: [bin, ...args], stdout: "pipe", stderr: "pipe" });
+    const out = new TextDecoder().decode(p.stdout) || new TextDecoder().decode(p.stderr);
     const m = out.match(/[\d]+\.[\d]+[^\s]*/);
     return m?.[0] ?? "present";
   } catch {
@@ -67,10 +57,7 @@ export function checkPlatform(): CheckResult {
   let ver = "";
   if (mac) {
     try {
-      const p = Bun.spawnSync({
-        cmd: ["sw_vers", "-productVersion"],
-        stdout: "pipe",
-      });
+      const p = Bun.spawnSync({ cmd: ["sw_vers", "-productVersion"], stdout: "pipe" });
       ver = new TextDecoder().decode(p.stdout).trim();
     } catch (e) {
       // cosmetic version probe — the pass/fail verdict (mac) is unchanged;
@@ -124,13 +111,7 @@ export function checkBun(): CheckResult {
 }
 
 export function checkFfmpeg(): CheckResult {
-  return checkBin(
-    "ffmpeg",
-    "ffmpeg + ffprobe",
-    "ffmpeg",
-    ["-version"],
-    "brew install ffmpeg",
-  );
+  return checkBin("ffmpeg", "ffmpeg + ffprobe", "ffmpeg", ["-version"], "brew install ffmpeg");
 }
 
 export function checkYtdlp(): CheckResult {
@@ -193,8 +174,7 @@ export function checkUvPython(): CheckResult {
       label: "uv + python (ground-truth tag readers)",
       required: true,
       ok: false,
-      detail:
-        "uv not found — tag ground-truth reads use `uv run --with mutagen python`",
+      detail: "uv not found — tag ground-truth reads use `uv run --with mutagen python`",
       fix: "curl -LsSf https://astral.sh/uv/install.sh | sh",
     };
   }
@@ -204,9 +184,7 @@ export function checkUvPython(): CheckResult {
     label: "uv + python + mutagen",
     required: true,
     ok: mutagen,
-    detail: mutagen
-      ? `${uv}, mutagen imports`
-      : "mutagen failed to import via uv",
+    detail: mutagen ? `${uv}, mutagen imports` : "mutagen failed to import via uv",
     fix: mutagen
       ? undefined
       : "uv run --with mutagen python -c 'import mutagen'  (inspect the error)",
@@ -248,9 +226,7 @@ export function checkCookies(): CheckResult {
       label: "yt-dlp cookies",
       required: false,
       ok,
-      detail: ok
-        ? `file: ${file}`
-        : `MEGADJ_COOKIES_FILE set but missing: ${file}`,
+      detail: ok ? `file: ${file}` : `MEGADJ_COOKIES_FILE set but missing: ${file}`,
       fix: ok ? undefined : "check the path, or run tools/export-cookies.sh",
     };
   }
@@ -269,8 +245,7 @@ export function checkCookies(): CheckResult {
     label: `yt-dlp cookies (browser: ${browser})`,
     required: false,
     ok: true,
-    detail:
-      "will use browser cookies at sync time — verified live on first sync",
+    detail: "will use browser cookies at sync time — verified live on first sync",
     fix: "if sync hits age/consent walls: tools/export-cookies.sh, then set MEGADJ_COOKIES_FILE",
   };
 }
@@ -284,8 +259,7 @@ export interface CrateTomlInfo {
 
 export function readCrateConfig(): CrateTomlInfo {
   const p = join(CRATEDECK_DIR, "config.toml");
-  if (!existsSync(p))
-    return { exists: false, master: null, mirror: null, placeholder: false };
+  if (!existsSync(p)) return { exists: false, master: null, mirror: null, placeholder: false };
   const src = readFileSync(p, "utf8");
   const grab = (key: string): string | null =>
     src.match(new RegExp(`${key}\\s*=\\s*"([^"]+)"`))?.[1] ?? null;
@@ -303,8 +277,7 @@ export function checkCrateConfig(): CheckResult {
       label: "src/deck/config.toml",
       required: false,
       ok: false,
-      detail:
-        "missing — CrateDeck sync status needs your master/mirror volume names",
+      detail: "missing — CrateDeck sync status needs your master/mirror volume names",
       fix: "run `megadj init` (copies the sample; edit master_drive/mirror_drive)",
     };
   }
@@ -357,10 +330,7 @@ export function checkMusicDir(): CheckResult {
  *  env value and surfaces honestly otherwise (bad CRATEDECK_PORT is a
  *  real config error doctor SHOULD report, not swallow). */
 function deckProbePort(): number {
-  return resolveServerPort(
-    process.env.CRATEDECK_PORT,
-    join(CRATEDECK_DIR, "config.toml"),
-  );
+  return resolveServerPort(process.env.CRATEDECK_PORT, join(CRATEDECK_DIR, "config.toml"));
 }
 
 async function deckHttpProbe(port: number): Promise<boolean> {
@@ -409,17 +379,12 @@ function deckServiceStatus(): { loaded: boolean; pid: number | null } {
     });
     if (p.exitCode !== 0) return { loaded: false, pid: null };
     const out = new TextDecoder().decode(p.stdout);
-    const pid =
-      /state = \d+\. running.*?pid = (\d+)/s.exec(out) ??
-      /pid = (\d+)/.exec(out);
+    const pid = /state = \d+\. running.*?pid = (\d+)/s.exec(out) ?? /pid = (\d+)/.exec(out);
     const raw = pid?.[1];
     // finite-gated (boundary-number census): digits-only capture, but the
     // gate is cheap and keeps this file off the sanction list.
     const parsed = raw !== undefined ? Number(raw) : Number.NaN;
-    return {
-      loaded: true,
-      pid: Number.isFinite(parsed) ? parsed : null,
-    };
+    return { loaded: true, pid: Number.isFinite(parsed) ? parsed : null };
   } catch {
     return { loaded: false, pid: null };
   }
@@ -479,14 +444,6 @@ const setTomlKey = (c: string, key: string, val: string): string =>
     ? c.replace(new RegExp(`^(\\s*${key}\\s*=\\s*).*$`, "m"), `$1"${val}"`)
     : c;
 
-export function applyDriveNames(
-  cfg: string,
-  master: string,
-  mirror: string,
-): string {
-  return setTomlKey(
-    setTomlKey(cfg, "master_drive", master),
-    "mirror_drive",
-    mirror,
-  );
+export function applyDriveNames(cfg: string, master: string, mirror: string): string {
+  return setTomlKey(setTomlKey(cfg, "master_drive", master), "mirror_drive", mirror);
 }

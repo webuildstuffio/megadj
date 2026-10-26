@@ -39,9 +39,7 @@ export function fuzzyFilter<T extends object>(
     },
     index,
   );
-  const hits = opts?.limit
-    ? fuse.search(query, { limit: opts.limit })
-    : fuse.search(query);
+  const hits = opts?.limit ? fuse.search(query, { limit: opts.limit }) : fuse.search(query);
   return hits.map((h) => h.item);
 }
 

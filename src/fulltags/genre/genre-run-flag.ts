@@ -14,20 +14,12 @@ export async function runGenreFlag(
   minAgreement: number,
 ): Promise<boolean> {
   if (!opts.flag) return false;
-  const { sourceRows, seeds, durations } = parseEvalPopulation(
-    opts.state,
-    "flag",
-  );
-  const result = classifyDisputes(
-    evalLeaveOneOut(seeds, k, minAgreement, durations),
-  );
+  const { sourceRows, seeds, durations } = parseEvalPopulation(opts.state, "flag");
+  const result = classifyDisputes(evalLeaveOneOut(seeds, k, minAgreement, durations));
   const disputeIds = new Set(result.rows.map((row) => row.videoId));
   if (opts.apply)
     for (const row of sourceRows)
-      opts.state.setGenreFlag(
-        row.video_id,
-        disputeIds.has(row.video_id) ? "disputed" : null,
-      );
+      opts.state.setGenreFlag(row.video_id, disputeIds.has(row.video_id) ? "disputed" : null);
   log(
     `genre flag: ${result.disputed} disputed of ${result.evaluated} assessed (${result.upheld} upheld by unanimous consensus, ${result.noQuorum} no quorum) — ${opts.apply ? "FLAGS WRITTEN (labels untouched)" : "proposals only (use --apply to write flags)"}`,
   );

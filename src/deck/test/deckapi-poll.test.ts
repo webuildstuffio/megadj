@@ -28,9 +28,7 @@ function job(status: Job["status"]): Job {
 }
 
 function jsonOf(j: Job): Response {
-  return Response.json(j, {
-    headers: { "Content-Type": "application/json" },
-  });
+  return Response.json(j, { headers: { "Content-Type": "application/json" } });
 }
 
 describe("pollJob transient-failure tolerance", () => {

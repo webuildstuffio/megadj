@@ -60,11 +60,7 @@ describe("organize (move-failure honesty)", () => {
 
     const logs: string[] = [];
     try {
-      await organize({
-        state,
-        musicDir,
-        onProgress: (m) => logs.push(m),
-      });
+      await organize({ state, musicDir, onProgress: (m) => logs.push(m) });
     } finally {
       // Restored in finally: an organize() throw used to strand the
       // read-only dir, and rm -rf cannot delete it later — five such
@@ -77,11 +73,7 @@ describe("organize (move-failure honesty)", () => {
     expect(row?.file_path).toBe(src); // unchanged — no phantom path
     // The hardened mkdir skips before mv; either way the move must be
     // reported as failed, never silently "succeed" in the DB.
-    expect(
-      logs.some(
-        (m) => m.includes("move failed") || m.includes("cannot create"),
-      ),
-    ).toBe(true);
+    expect(logs.some((m) => m.includes("move failed") || m.includes("cannot create"))).toBe(true);
     expect(logs.some((m) => m.includes("move-failed"))).toBe(true);
   }, 20_000);
 
@@ -137,9 +129,7 @@ describe("organize F5 move-or-merge", () => {
     // the row repoints at the destination — compared case-insensitively
     // (the row keeps its own case-spelling of the same APFS file, which
     // is exactly the F5 rule: byte identity, not string identity)
-    expect(row?.file_path?.toLowerCase()).toBe(
-      join(destDir, "Track M.m4a").toLowerCase(),
-    );
+    expect(row?.file_path?.toLowerCase()).toBe(join(destDir, "Track M.m4a").toLowerCase());
     expect(logs.some((m) => m.includes("merged into"))).toBe(true);
   });
 

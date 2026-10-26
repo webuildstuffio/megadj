@@ -93,12 +93,7 @@ export async function dedupeWithinFolder(
   // same recording re-rip under a different name/container/bitrate.
   // fp-equal + name-similar → dupe; fp-equal + name-dissimilar → possible
   // long-mix fp collision, kept for human review (never auto-quarantined).
-  folderDupes += await dedupeByFingerprint(
-    survivors,
-    quarantineDir,
-    dryRun,
-    log,
-  );
+  folderDupes += await dedupeByFingerprint(survivors, quarantineDir, dryRun, log);
   return { survivors, folderDupes };
 }
 
@@ -128,9 +123,7 @@ async function dedupeByContent(
       }
       const { keep, drop } = keepDrop(twin, rec);
       contentDupes++;
-      log(
-        `  [dupe] ${basename(drop.file)} — byte-identical twin of ${basename(keep.file)} (md5)`,
-      );
+      log(`  [dupe] ${basename(drop.file)} — byte-identical twin of ${basename(keep.file)} (md5)`);
       dropFrom(survivors, drop);
       await quarantine(drop.file, quarantineDir, dryRun, log);
       if (hashes.get(digest) === drop) hashes.set(digest, keep);
@@ -162,8 +155,7 @@ async function dedupeByFingerprint(
       byFp.set(v.fp, rec);
       continue;
     }
-    const similar =
-      nameSimilarityTokens(basename(rec.file), basename(seen.file)) >= 0.5;
+    const similar = nameSimilarityTokens(basename(rec.file), basename(seen.file)) >= 0.5;
     if (!similar) {
       // fp collision across dissimilar names → likely different recordings
       // (long-mix), never auto-quarantine — surface it and keep both.
@@ -207,9 +199,7 @@ async function quarantineMp3Twins(
     (rec) => /\.mp3$/i.test(rec.file) && losslessStems.has(stemOf(rec.file)),
   );
   for (const loser of mp3Losers) {
-    log(
-      `  [dupe] ${basename(loser.file)} — mp3 twin of the same-stem lossless copy`,
-    );
+    log(`  [dupe] ${basename(loser.file)} — mp3 twin of the same-stem lossless copy`);
     dropFrom(survivors, loser);
     await quarantine(loser.file, quarantineDir, dryRun, log);
     twins++;
@@ -251,9 +241,7 @@ export async function dedupeAgainstArchive(
     // survived in quarantine, but the archive pointer broke). A self-match
     // means "already ingested, nothing to do": skip in place.
     if (existing.file_path === rec.file) {
-      log(
-        `  [dupe] already in archive (self): ${basename(rec.file)} — unchanged`,
-      );
+      log(`  [dupe] already in archive (self): ${basename(rec.file)} — unchanged`);
       archiveDupes++;
       continue;
     }

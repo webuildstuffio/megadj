@@ -25,10 +25,7 @@ export function DiffTab() {
   useEffect(() => {
     api<{ id: string; nickname: string | null; name: string }[]>("/api/drives")
       .then((ds) => {
-        const refs = ds.map((d) => ({
-          id: d.id,
-          name: d.nickname ?? d.name,
-        }));
+        const refs = ds.map((d) => ({ id: d.id, name: d.nickname ?? d.name }));
         setDrives(refs);
         if (refs.length >= 2 && !aId && !bId) {
           setA(refs[0]!.id);
@@ -68,11 +65,7 @@ export function DiffTab() {
     if (!result) return null;
     const f = (rows: FleetDiff["added"]) =>
       q ? fuzzyFilter(rows, q, ["path", "title", "artist"]) : rows;
-    return {
-      added: f(result.added),
-      removed: f(result.removed),
-      changed: f(result.changed),
-    };
+    return { added: f(result.added), removed: f(result.removed), changed: f(result.changed) };
   }, [result, q]);
 
   return (
@@ -83,10 +76,7 @@ export function DiffTab() {
         next="A healthy master→mirror diff reads: added on mirror ≈ your recent imports, missing on mirror = 0, changed = 0."
       />
       <div class="pl-tools">
-        <select
-          value={aId}
-          onInput={(e) => setA((e.target as HTMLSelectElement).value)}
-        >
+        <select value={aId} onInput={(e) => setA((e.target as HTMLSelectElement).value)}>
           {drives.map((d) => (
             <option value={d.id} key={d.id}>
               {d.name}
@@ -94,10 +84,7 @@ export function DiffTab() {
           ))}
         </select>
         <span class="diff-arrow">→</span>
-        <select
-          value={bId}
-          onInput={(e) => setB((e.target as HTMLSelectElement).value)}
-        >
+        <select value={bId} onInput={(e) => setB((e.target as HTMLSelectElement).value)}>
           {drives.map((d) => (
             <option value={d.id} key={d.id}>
               {d.name}
@@ -109,8 +96,7 @@ export function DiffTab() {
           class="btn primary"
           disabled={busy}
           onClick={run}
-          title="Compare the two selected drives track-by-track"
-        >
+          title="Compare the two selected drives track-by-track">
           <Icon name="sort" size={14} /> {busy ? "Diffing…" : "Diff"}
         </button>
       </div>
@@ -118,17 +104,15 @@ export function DiffTab() {
       {diffErr && (
         <div class="note bad">
           <Icon name="warn" size={14} /> Diff failed: {diffErr}
-          {result && (
-            <span> — the tables below are the PREVIOUS run, not current.</span>
-          )}
+          {result && <span> — the tables below are the PREVIOUS run, not current.</span>}
         </div>
       )}
 
       {!result && !diffErr && (
         <div class="note-card">
           <Icon name="sort" size={20} />
-          Pick two drives and diff their inventories — added / removed / changed
-          (byte-level when a file manifest exists).
+          Pick two drives and diff their inventories — added / removed / changed (byte-level when a
+          file manifest exists).
         </div>
       )}
 
@@ -144,8 +128,7 @@ export function DiffTab() {
             const { a } = result;
             const { b } = result;
             const aIsMaster = /master/i.test(a);
-            const healthyDirection =
-              aIsMaster || (added > 0 && missing === 0 && changed === 0);
+            const healthyDirection = aIsMaster || (added > 0 && missing === 0 && changed === 0);
             const verdict =
               missing === 0 && changed === 0
                 ? {
@@ -185,8 +168,8 @@ export function DiffTab() {
             empty="none — nothing dropped"
             fix={
               <>
-                these are on <code>{result.a}</code> but not{" "}
-                <code>{result.b}</code> — <code>Mirror</code> closes the gap
+                these are on <code>{result.a}</code> but not <code>{result.b}</code> —{" "}
+                <code>Mirror</code> closes the gap
               </>
             }
           />
@@ -197,8 +180,8 @@ export function DiffTab() {
             extraHead="bytes"
             fix={
               <>
-                same path, different size — re-copy the file, or investigate
-                which copy is the good one before overwriting
+                same path, different size — re-copy the file, or investigate which copy is the good
+                one before overwriting
               </>
             }
             renderExtra={(r) =>
@@ -260,9 +243,7 @@ function DiffSection(props: {
               key: "extra",
               head: props.extraHead ?? "",
               grow: 1,
-              cell: (r) => (
-                <span class="dt-sub">{props.renderExtra?.(r) ?? ""}</span>
-              ),
+              cell: (r) => <span class="dt-sub">{props.renderExtra?.(r) ?? ""}</span>,
               sortValue: (r) => props.renderExtra?.(r) ?? "",
             },
           ]}

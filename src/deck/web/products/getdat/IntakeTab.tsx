@@ -70,9 +70,7 @@ export function IntakeTab() {
   const { candidates } = folders.data;
   const active =
     selected ??
-    folders.data.candidates.find(
-      (c) => c.path === folders.data.watch && c.exists,
-    )?.path ??
+    folders.data.candidates.find((c) => c.path === folders.data.watch && c.exists)?.path ??
     null;
 
   const start = async () => {
@@ -81,11 +79,7 @@ export function IntakeTab() {
     try {
       // quiet: the caller owns the error message — a double toast (generic
       // + specific) repeated the same refusal twice.
-      const started = await apiPost<Job>(
-        "/api/intake/start",
-        { folder: active },
-        { quiet: true },
-      );
+      const started = await apiPost<Job>("/api/intake/start", { folder: active }, { quiet: true });
       setRunId(started.id);
       toast("Intake started", "ok");
     } catch (e) {
@@ -121,14 +115,11 @@ export function IntakeTab() {
                 }`}
                 onClick={() => setSelected(c.path)}
                 disabled={!c.exists}
-                title={c.path}
-              >
+                title={c.path}>
                 <Icon name={active === c.path ? "folder" : "dot"} size={15} />
                 <span class="intake-folder-label">{c.label}</span>
                 <span class="intake-folder-meta">
-                  {c.exists
-                    ? `${c.files} file${c.files === 1 ? "" : "s"}`
-                    : "missing"}
+                  {c.exists ? `${c.files} file${c.files === 1 ? "" : "s"}` : "missing"}
                 </span>
               </button>
             ))}
@@ -139,30 +130,23 @@ export function IntakeTab() {
             type="button"
             class="intake-go"
             disabled={!active || starting || runRunning(job)}
-            onClick={start}
-          >
+            onClick={start}>
             <Icon name={runRunning(job) ? "refresh" : "play"} size={16} />
-            {runRunning(job)
-              ? "processing…"
-              : starting
-                ? "starting…"
-                : "Process folder"}
+            {runRunning(job) ? "processing…" : starting ? "starting…" : "Process folder"}
           </button>
           {job && <IntakeVerdict job={job} />}
         </div>
       </div>
 
-      {job && (
-        <IntakeRun job={job} folder={jobStatusFolder(job)} onDone={() => {}} />
-      )}
+      {job && <IntakeRun job={job} folder={jobStatusFolder(job)} onDone={() => {}} />}
 
       <IntakeDumps />
 
       {!job && (
         <div class="card">
           <div class="empty">
-            <Icon name="info" size={14} /> Pick a folder and press Process —
-            steps, errors and the per-file verify appear here live.
+            <Icon name="info" size={14} /> Pick a folder and press Process — steps, errors and the
+            per-file verify appear here live.
           </div>
         </div>
       )}

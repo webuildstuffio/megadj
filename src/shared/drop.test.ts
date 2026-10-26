@@ -58,12 +58,7 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
         { mode: 0o755 },
       );
       const { code, stdout } = await runDrop(
-        [
-          "https://soundcloud.com/artist/track",
-          "--no-fetch",
-          "--no-mood",
-          "--json",
-        ],
+        ["https://soundcloud.com/artist/track", "--no-fetch", "--no-mood", "--json"],
         { ...env, PATH: `${bin}:${process.env.PATH ?? ""}` },
       );
       const parsed = JSON.parse(stdout.trim().split("\n").at(-1) ?? "") as {
@@ -72,15 +67,10 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
       };
       expect(code).toBe(0);
       expect(parsed.ok).toBe(true);
-      expect(parsed.stages[0]).toMatchObject({
-        stage: "download",
-        status: "skipped",
-      });
+      expect(parsed.stages[0]).toMatchObject({ stage: "download", status: "skipped" });
       expect(parsed.stages[0]?.detail).toContain(link);
       expect(parsed.stages).toHaveLength(10);
-      expect(parsed.stages.every((stage) => stage.status === "skipped")).toBe(
-        true,
-      );
+      expect(parsed.stages.every((stage) => stage.status === "skipped")).toBe(true);
       expect(stdout.trim().split("\n")).toHaveLength(1);
       expect(readdirSync(env.MEGADJ_MUSIC_DIR)).toEqual(["keep.mp3"]);
       expect(readFileSync(marker, "utf8")).toBe("existing archive contents");
@@ -106,9 +96,7 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
     };
     expect(parsed.command).toBe("drop");
     expect(parsed.ok).toBe(true);
-    const byStage = Object.fromEntries(
-      parsed.stages.map((s) => [s.stage, s.status]),
-    );
+    const byStage = Object.fromEntries(parsed.stages.map((s) => [s.stage, s.status]));
     expect(byStage.ingest).toBe("ok");
     expect(byStage.fetch).toBe("ok");
     expect(byStage.years).toBe("ok");
@@ -174,10 +162,7 @@ esac
 exit 1`,
       { mode: 0o755 },
     );
-    const restore = setScSetIdsForTest({
-      ok: true,
-      trackIds: ["1", "2", "3"],
-    });
+    const restore = setScSetIdsForTest({ ok: true, trackIds: ["1", "2", "3"] });
     const logs: string[] = [];
     try {
       await drop({
@@ -226,10 +211,7 @@ exit 1`,
     );
     // Re-run with a captured console.log (writeJson's in-process seam:
     // console.log !== native → writeJson routes through console.log).
-    const restore = setScSetIdsForTest({
-      ok: true,
-      trackIds: ["1", "2", "3"],
-    });
+    const restore = setScSetIdsForTest({ ok: true, trackIds: ["1", "2", "3"] });
     const origLog = console.log;
     const captured: string[] = [];
     console.log = (line: string) => {
@@ -260,8 +242,7 @@ exit 1`,
       {
         trackId: "2",
         class: "permanent",
-        detail:
-          "ERROR: [soundcloud] a/b: This track is not available (PROTECTED-CCS)",
+        detail: "ERROR: [soundcloud] a/b: This track is not available (PROTECTED-CCS)",
       },
     ]);
   });
@@ -270,17 +251,13 @@ exit 1`,
     const gone = missedEntry(
       "9",
       1,
-      enc(
-        "ERROR: [soundcloud] x/y: Unable to download JSON metadata: HTTP Error 404: Not Found",
-      ),
+      enc("ERROR: [soundcloud] x/y: Unable to download JSON metadata: HTTP Error 404: Not Found"),
     );
     expect(gone.class).toBe("gone");
     const walled = missedEntry(
       "8",
       1,
-      enc(
-        "ERROR: [soundcloud] x/y: This track is not available (PROTECTED-CCS)",
-      ),
+      enc("ERROR: [soundcloud] x/y: This track is not available (PROTECTED-CCS)"),
     );
     expect(walled.class).toBe("permanent");
     const retry = missedEntry("7", 1, enc("HTTP Error 500: server choked"));

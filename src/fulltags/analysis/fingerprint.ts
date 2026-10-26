@@ -11,21 +11,17 @@ import { nonEmptyEnv, parseJsonOrNull } from "../../shared/leaf/guards";
 
 /** Parse fpcalc's JSON boundary. Null is an explicit malformed/schema-failed
  * result; callers preserve their documented degrade-to-null contract. */
-export function parseFpcalcJson(raw: string): {
-  fingerprint: string | null;
-  durationS: number | null;
-} | null {
+export function parseFpcalcJson(
+  raw: string,
+): { fingerprint: string | null; durationS: number | null } | null {
   const value = parseJsonOrNull(raw);
   if (!value) return null;
-  const fingerprint =
-    typeof value.fingerprint === "string" ? value.fingerprint : null;
+  const fingerprint = typeof value.fingerprint === "string" ? value.fingerprint : null;
   const duration = value.duration;
   return {
     fingerprint,
     durationS:
-      typeof duration === "number" && Number.isFinite(duration)
-        ? Math.round(duration)
-        : null,
+      typeof duration === "number" && Number.isFinite(duration) ? Math.round(duration) : null,
   };
 }
 
@@ -47,17 +43,10 @@ export function keyscanDir(): string {
  *  abort the caller's pass. All three fpcalc call sites (json
  *  fingerprint, `-length` dedupe fingerprint, duration companion) ride
  *  this frame; only the arg vector and parser differ. */
-function runFpcalc<T>(
-  args: string[],
-  parse: (stdout: string) => T | null,
-): T | null {
+function runFpcalc<T>(args: string[], parse: (stdout: string) => T | null): T | null {
   let pr: Bun.SyncSubprocess;
   try {
-    pr = Bun.spawnSync({
-      cmd: ["fpcalc", ...args],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    pr = Bun.spawnSync({ cmd: ["fpcalc", ...args], stdout: "pipe", stderr: "pipe" });
   } catch (error) {
     void error;
     return null; // fpcalc not installed
@@ -109,10 +98,5 @@ export function fingerprintWithDuration(path: string): {
   durationS: number | null;
 } {
   if (!existsSync(path)) return { fingerprint: null, durationS: null };
-  return (
-    runFpcalc(["-json", path], parseFpcalcJson) ?? {
-      fingerprint: null,
-      durationS: null,
-    }
-  );
+  return runFpcalc(["-json", path], parseFpcalcJson) ?? { fingerprint: null, durationS: null };
 }

@@ -2,11 +2,7 @@
  * discogs.test.ts — Tests for Discogs dump genre mapping (B4.2).
  */
 import { describe, expect, test } from "bun:test";
-import {
-  mapDiscogsRelease,
-  parseDiscogsYear,
-  type DiscogsRelease,
-} from "./discogs";
+import { mapDiscogsRelease, parseDiscogsYear, type DiscogsRelease } from "./discogs";
 
 describe("mapDiscogsRelease", () => {
   test("maps styles to L2 families", () => {

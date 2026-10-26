@@ -243,9 +243,7 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
   {
     name: "enrich",
     group: "fulltags",
-    block: [
-      "  megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz",
-    ],
+    block: ["  megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz"],
   },
   {
     name: "organize",

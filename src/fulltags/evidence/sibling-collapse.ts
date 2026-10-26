@@ -48,13 +48,7 @@ export function collapseEvidence(
   }
 
   if (siblings.length === 0) {
-    return {
-      trackId,
-      collapsed: [],
-      direct,
-      siblingRowsIn: 0,
-      siblingRowsOut: 0,
-    };
+    return { trackId, collapsed: [], direct, siblingRowsIn: 0, siblingRowsOut: 0 };
   }
 
   // Group siblings by family, pick the one with most mass
@@ -64,11 +58,7 @@ export function collapseEvidence(
   >();
   for (const r of siblings) {
     const key = r.genreFamily.toLowerCase();
-    const group = familyGroups.get(key) ?? {
-      rows: [],
-      totalConf: 0,
-      maxConf: 0,
-    };
+    const group = familyGroups.get(key) ?? { rows: [], totalConf: 0, maxConf: 0 };
     group.rows.push(r);
     group.totalConf += r.confidence;
     group.maxConf = Math.max(group.maxConf, r.confidence);
@@ -107,11 +97,7 @@ export function collapseEvidenceBatch(
   evidenceByTrack: ReadonlyMap<string, readonly GenreEvidence[]>,
 ): {
   rows: GenreEvidence[];
-  stats: {
-    tracksProcessed: number;
-    siblingRowsIn: number;
-    siblingRowsOut: number;
-  };
+  stats: { tracksProcessed: number; siblingRowsIn: number; siblingRowsOut: number };
 } {
   const allRows: GenreEvidence[] = [];
   let totalSibIn = 0;
@@ -135,14 +121,7 @@ export function collapseEvidenceBatch(
 }
 
 /** Version types that qualify for the remixer prior. */
-const REMIXER_VERSION_TYPES = new Set([
-  "remix",
-  "edit",
-  "bootleg",
-  "flip",
-  "vip",
-  "rework",
-]);
+const REMIXER_VERSION_TYPES = new Set(["remix", "edit", "bootleg", "flip", "vip", "rework"]);
 
 /**
  * Build remixer prior evidence for a track.

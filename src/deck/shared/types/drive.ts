@@ -136,19 +136,14 @@ export interface SnapshotData {
   total_bytes?: number | undefined;
   folders?: { name: string; files: number; bytes: number }[] | undefined;
   junk?:
-    | {
-        zero_byte: string[];
-        case_collisions: string[];
-        orphan_resource_forks: number;
-      }
+    | { zero_byte: string[]; case_collisions: string[]; orphan_resource_forks: number }
     | undefined;
   // space analysis
   free_bytes?: number | null | undefined;
   capacity_bytes?: number | undefined;
   by_ext?: { ext: string; files: number; bytes: number }[] | undefined;
   largest?: { path: string; bytes: number }[] | undefined;
-  age?:
-    { fresh: number; recent: number; old: number; ancient: number } | undefined;
+  age?: { fresh: number; recent: number; old: number; ancient: number } | undefined;
   // full (rekordbox) scan
   track_count?: number | undefined;
   total_duration_ms?: number | undefined;
@@ -174,8 +169,7 @@ export interface SnapshotData {
       }[]
     | undefined;
   /** Playlist membership: one row per (playlist, track). */
-  playlist_entries?:
-    { playlist_name: string; track_path: string }[] | undefined;
+  playlist_entries?: { playlist_name: string; track_path: string }[] | undefined;
   /** Audio files from the walk — byte truth for fleet diffs. */
   manifest?: { path: string; bytes: number; mtime_ms: number }[] | undefined;
 }
@@ -189,18 +183,8 @@ export interface DjStats {
   bpm_histogram?: { bucket: string; count: number }[];
   keys?: { name: string; count: number }[];
   artists_top?: { name: string; count: number }[];
-  duration?: {
-    shortest_s: number;
-    longest_s: number;
-    median_s: number;
-    average_s: number;
-  };
-  bitrate?: {
-    lossless: number;
-    lossy_high: number;
-    lossy: number;
-    unknown: number;
-  };
+  duration?: { shortest_s: number; longest_s: number; median_s: number; average_s: number };
+  bitrate?: { lossless: number; lossy_high: number; lossy: number; unknown: number };
   artwork_missing?: number;
   artwork_total?: number;
 }

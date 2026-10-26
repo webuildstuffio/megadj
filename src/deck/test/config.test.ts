@@ -3,10 +3,7 @@ import { tempDir } from "./testutil";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config";
-import {
-  parseBoothFleetRequest,
-  writeConfigBoothFleet,
-} from "../server/booth-routes";
+import { parseBoothFleetRequest, writeConfigBoothFleet } from "../server/booth-routes";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("cratedeck-config-").rippable();
@@ -117,9 +114,9 @@ describe("config", () => {
   it("rejects malformed and unknown booth fleet requests", () => {
     for (const value of [null, {}, { selected: "xdj-xz" }, { selected: [7] }])
       expect(() => parseBoothFleetRequest(value)).toThrow("selected");
-    expect(() =>
-      parseBoothFleetRequest({ selected: ["not-a-player"] }),
-    ).toThrow("unknown player id");
+    expect(() => parseBoothFleetRequest({ selected: ["not-a-player"] })).toThrow(
+      "unknown player id",
+    );
     expect(parseBoothFleetRequest({ selected: [] })).not.toEqual([]);
   });
 });

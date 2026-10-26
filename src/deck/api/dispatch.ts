@@ -27,15 +27,10 @@ export async function driveDispatch(
 
 /** The dynamic /jobs family: /jobs/:id (status) + /jobs/:id/cancel
  *  (POST cancels). */
-export function jobDispatch(
-  deps: ApiDeps,
-  req: Request,
-  route: string,
-): Response | null {
+export function jobDispatch(deps: ApiDeps, req: Request, route: string): Response | null {
   const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/u);
   if (!jobMatch?.[1]) return null;
-  if (jobMatch[2] && req.method === "POST")
-    return deps.json({ ok: deps.jobs.cancel(jobMatch[1]) });
+  if (jobMatch[2] && req.method === "POST") return deps.json({ ok: deps.jobs.cancel(jobMatch[1]) });
   return deps.json(deps.db.getJob(jobMatch[1]));
 }
 
@@ -87,14 +82,10 @@ export async function hygieneFixesDispatch(
   if (route === "/hygiene") return deps.hygieneApi.list(url);
   if (route === "/hygiene/scan" && post) return deps.hygieneApi.scan();
   if (route === "/hygiene/apply" && post) return deps.hygieneApi.apply();
-  if (route === "/hygiene/decide" && post)
-    return await deps.hygieneApi.decide(req);
-  if (route === "/hygiene/bucket-confirm" && post)
-    return await deps.hygieneApi.bucketConfirm(req);
-  if (route === "/hygiene/restore" && post)
-    return await deps.hygieneApi.restore(req);
-  if (route === "/hygiene/restore-all" && post)
-    return await deps.hygieneApi.restoreAll();
+  if (route === "/hygiene/decide" && post) return await deps.hygieneApi.decide(req);
+  if (route === "/hygiene/bucket-confirm" && post) return await deps.hygieneApi.bucketConfirm(req);
+  if (route === "/hygiene/restore" && post) return await deps.hygieneApi.restore(req);
+  if (route === "/hygiene/restore-all" && post) return await deps.hygieneApi.restoreAll();
   if (route === "/hygiene/quarantine") return deps.hygieneApi.quarantine();
   if (route === "/hygiene/quarantine/empty" && post)
     return await deps.hygieneApi.quarantineEmpty(req);

@@ -133,9 +133,7 @@ export function loadEdm98Structure(
 ): { loaded: number; errors: number } {
   if (!existsSync(annotationsDir)) return { loaded: 0, errors: 0 };
 
-  const files = readdirSync(annotationsDir).filter(
-    (f) => f.endsWith(".txt") || f.endsWith(".lab"),
-  );
+  const files = readdirSync(annotationsDir).filter((f) => f.endsWith(".txt") || f.endsWith(".lab"));
   const rows: AnswerKeyRow[] = [];
   let errors = 0;
 
@@ -199,10 +197,5 @@ export function loadAllAK1(
   const tempo = loadGiantStepsTempo(db, join(baseDir, "giantsteps-tempo"));
   const key = loadGiantStepsKey(db, join(baseDir, "giantsteps-key"));
   const structure = loadEdm98Structure(db, join(baseDir, "edm-98"));
-  return {
-    tempo,
-    key,
-    structure,
-    total: tempo.loaded + key.loaded + structure.loaded,
-  };
+  return { tempo, key, structure, total: tempo.loaded + key.loaded + structure.loaded };
 }

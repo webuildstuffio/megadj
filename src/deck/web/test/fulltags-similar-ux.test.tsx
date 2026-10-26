@@ -8,11 +8,7 @@ import { MegasetChain } from "../products/fulltags/megaset-chain";
 import { MegasetResult } from "../products/fulltags/MegasetResult";
 import { StageTimings } from "../products/fulltags/megaset-proposal";
 import { parseDraft } from "../products/fulltags/megaset-draft";
-import {
-  MegasetLoading,
-  ReproLine,
-  ExcludedBreakdown,
-} from "../products/fulltags/MegasetStatus";
+import { MegasetLoading, ReproLine, ExcludedBreakdown } from "../products/fulltags/MegasetStatus";
 import {
   MEGASET_PRESET_DEFS,
   groupMegasetExcluded,
@@ -48,9 +44,7 @@ const source = [
   "megaset-actions.tsx",
   "megaset-builder.ts",
 ]
-  .map((file) =>
-    readFileSync(join(import.meta.dir, "../products/fulltags", file), "utf8"),
-  )
+  .map((file) => readFileSync(join(import.meta.dir, "../products/fulltags", file), "utf8"))
   .join("\n");
 const builderSource = readFileSync(
   join(import.meta.dir, "../products/fulltags/megaset-builder.ts"),
@@ -68,37 +62,19 @@ const megasetPageSource = readFileSync(
   join(import.meta.dir, "../products/megaset/MegasetPage.tsx"),
   "utf8",
 );
-const routerSource = readFileSync(
-  join(import.meta.dir, "../app/router.ts"),
-  "utf8",
-);
-const sharedSource = readFileSync(
-  join(import.meta.dir, "../products/shared/index.tsx"),
-  "utf8",
-);
+const routerSource = readFileSync(join(import.meta.dir, "../app/router.ts"), "utf8");
+const sharedSource = readFileSync(join(import.meta.dir, "../products/shared/index.tsx"), "utf8");
 const productMetaSource = readFileSync(
   join(import.meta.dir, "../products/shared/product-meta.tsx"),
   "utf8",
 );
 const appSource = readFileSync(join(import.meta.dir, "../app/App.tsx"), "utf8");
-const helpCss = readFileSync(
-  join(import.meta.dir, "../styles/help.css"),
-  "utf8",
-);
-const shellCss = readFileSync(
-  join(import.meta.dir, "../styles/shell.css"),
-  "utf8",
-);
+const helpCss = readFileSync(join(import.meta.dir, "../styles/help.css"), "utf8");
+const shellCss = readFileSync(join(import.meta.dir, "../styles/shell.css"), "utf8");
 
 describe("FullTags Similar and Set Builder UX", () => {
   test("the search input and clear button have accessible names", () => {
-    const html = render(
-      <SearchBar
-        value="acid"
-        onInput={noop}
-        placeholder="Search the archive"
-      />,
-    );
+    const html = render(<SearchBar value="acid" onInput={noop} placeholder="Search the archive" />);
     expect(html).toContain('aria-label="Search the archive"');
     expect(html).toContain('aria-label="Clear search"');
   });
@@ -135,16 +111,12 @@ describe("FullTags Similar and Set Builder UX", () => {
     // (#/megaset; legacy #/set + #/fulltags/set still resolve).
     // (#89/#90 split: the PRODUCTS/LEDE tables live in product-meta.tsx,
     // re-exported through shared.tsx — the pin follows the SSOT.)
-    expect(routerSource).toContain(
-      '"drives" | "fleet" | "getdat" | "fulltags" | "megaset"',
-    );
+    expect(routerSource).toContain('"drives" | "fleet" | "getdat" | "fulltags" | "megaset"');
     expect(sharedSource).toContain('from "./product-meta"');
     expect(productMetaSource).toContain('id: "megaset"');
     expect(productMetaSource).toContain('label: "MegaSet"');
     expect(productMetaSource).toContain("the library gets played");
-    expect(productMetaSource).toContain(
-      "The payoff. MegaSet turns every measurement",
-    );
+    expect(productMetaSource).toContain("The payoff. MegaSet turns every measurement");
     // the canvas switch renders MegasetPage on the megaset route, and the
     // page actually mounts the panel
     expect(appSource).toContain('route.product === "megaset"');
@@ -189,18 +161,14 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("optional · otherwise auto-picked");
     expect(source).toContain("invalidateProposal");
     expect(source).toContain('build.stale ? "Update"');
-    expect(source).toContain(
-      "if (!props.model.build.loading) void props.model.run()",
-    );
+    expect(source).toContain("if (!props.model.build.loading) void props.model.run()");
     expect(source).toContain("Proposal settings changed");
   });
 
   test("minutes stay editable before normalizing to the supported range", () => {
     expect(source).toContain('useState("60")');
     expect(source).toContain("setMinutesInput(next)");
-    expect(source).toContain(
-      "commitMinutes: () => setMinutesInput(String(minutes))",
-    );
+    expect(source).toContain("commitMinutes: () => setMinutesInput(String(minutes))");
   });
 
   test("the advanced drawer exposes the pool cap and the engine's real numbers", () => {
@@ -276,11 +244,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     // and the truncation note when the wire preview is capped
     const capped = render(
       <ExcludedBreakdown
-        data={{
-          ...data,
-          excluded: data.excluded.slice(0, 4),
-          excluded_total: 260,
-        }}
+        data={{ ...data, excluded: data.excluded.slice(0, 4), excluded_total: 260 }}
       />,
     );
     expect(capped).toContain("the group counts above cover all");
@@ -373,11 +337,7 @@ describe("FullTags Similar and Set Builder UX", () => {
       },
     ];
     const html = render(
-      <MegasetArcChart
-        steps={steps}
-        preset={MEGASET_PRESET_DEFS[1]!}
-        keyGlide="8A → 5A"
-      />,
+      <MegasetArcChart steps={steps} preset={MEGASET_PRESET_DEFS[1]!} keyGlide="8A → 5A" />,
     );
     expect(html).toContain('class="megaset-arcchart"');
     expect(html).toContain('class="arc-envelope"');
@@ -417,11 +377,7 @@ describe("FullTags Similar and Set Builder UX", () => {
 
   test("a successful zero-step build keeps the accessible chain table", () => {
     const html = render(
-      <MegasetChain
-        steps={[]}
-        preset={MEGASET_PRESET_DEFS[0]!}
-        keyGlide={null}
-      />,
+      <MegasetChain steps={[]} preset={MEGASET_PRESET_DEFS[0]!} keyGlide={null} />,
     );
     expect(html).toContain('role="table"');
     expect(html).toContain('aria-label="MegaSet builder chain"');
@@ -431,24 +387,15 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("S13 (#107): pinned steps carry the ★ pin marker in table + copy lines", () => {
-    const pinned: MegasetStep = {
-      ...baseData.steps[0]!,
-      landmark: true,
-    };
+    const pinned: MegasetStep = { ...baseData.steps[0]!, landmark: true };
     const html = render(
-      <MegasetChain
-        steps={[pinned]}
-        preset={MEGASET_PRESET_DEFS[0]!}
-        keyGlide={null}
-      />,
+      <MegasetChain steps={[pinned]} preset={MEGASET_PRESET_DEFS[0]!} keyGlide={null} />,
     );
     expect(html).toContain("★ pin");
     expect(html).toContain("Landmark must-play");
     // copy lines lead with the star so pasted chains keep the pin visible
     expect(stepLineOf(pinned).startsWith("★ ")).toBe(true);
-    expect(stepLineOf({ ...pinned, landmark: false }).startsWith("★ ")).toBe(
-      false,
-    );
+    expect(stepLineOf({ ...pinned, landmark: false }).startsWith("★ ")).toBe(false);
   });
 
   test("#286: the build result renders the measured stage split (stages_ms)", () => {
@@ -481,17 +428,9 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("#284/#294: the mix pill shows the inline magnitude and hover carries the evidence breakdown", () => {
-    const step: MegasetStep = {
-      ...baseData.steps[0]!,
-      transition: null,
-      evidence: null,
-    };
+    const step: MegasetStep = { ...baseData.steps[0]!, transition: null, evidence: null };
     const opener = render(
-      <MegasetChain
-        steps={[step]}
-        preset={MEGASET_PRESET_DEFS[0]!}
-        keyGlide={null}
-      />,
+      <MegasetChain steps={[step]} preset={MEGASET_PRESET_DEFS[0]!} keyGlide={null} />,
     );
     expect(opener).toContain("open");
     const transitioned: MegasetStep = {
@@ -510,11 +449,7 @@ describe("FullTags Similar and Set Builder UX", () => {
       },
     };
     const direct = render(
-      <MegasetChain
-        steps={[transitioned]}
-        preset={MEGASET_PRESET_DEFS[0]!}
-        keyGlide={null}
-      />,
+      <MegasetChain steps={[transitioned]} preset={MEGASET_PRESET_DEFS[0]!} keyGlide={null} />,
     );
     // #294: the score magnitude is INLINE on the pill (band label alone
     // carried no information)
@@ -525,12 +460,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     // the B8 lane is named when the hop used it
     const halftime = render(
       <MegasetChain
-        steps={[
-          {
-            ...transitioned,
-            evidence: { ...transitioned.evidence!, halftime: true },
-          },
-        ]}
+        steps={[{ ...transitioned, evidence: { ...transitioned.evidence!, halftime: true } }]}
         preset={MEGASET_PRESET_DEFS[0]!}
         keyGlide={null}
       />,
@@ -632,9 +562,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).not.toContain("small pool");
     expect(html).not.toContain("large pool");
 
-    const htmlBeam = render(
-      <MegasetResult data={{ ...baseData, search: "beam" }} />,
-    );
+    const htmlBeam = render(<MegasetResult data={{ ...baseData, search: "beam" }} />);
     expect(htmlBeam).toContain("deep beam search");
   });
 
@@ -708,9 +636,7 @@ describe("FullTags Similar and Set Builder UX", () => {
 
   test("FullTags stays usable on a phone before the archive rail", () => {
     expect(helpCss).toContain('.app[data-prod="fulltags"] .rail');
-    expect(helpCss).toMatch(
-      /\.app\[data-prod="fulltags"\] \.rail\s*\{\s*display: none;/,
-    );
+    expect(helpCss).toMatch(/\.app\[data-prod="fulltags"\] \.rail\s*\{\s*display: none;/);
     expect(shellCss).toMatch(
       /@media \(max-width: 720px\)[\s\S]*\.topbar \.search,[\s\S]*display: none;/,
     );
@@ -749,9 +675,7 @@ describe("FullTags Similar and Set Builder UX", () => {
       landmarkIds: ["pin-1", "pin-2"],
     });
     // old-format draft (pre-request{}): payload fallbacks still restore
-    const legacy = parseDraft(
-      JSON.stringify({ preset: "warmup", minutes: 45, steps: [] }),
-    );
+    const legacy = parseDraft(JSON.stringify({ preset: "warmup", minutes: 45, steps: [] }));
     expect(legacy.ok).toBe(true);
     if (!legacy.ok) return;
     expect(legacy.knobs.preset).toBe("warmup");
@@ -763,9 +687,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(junk.ok).toBe(false);
     if (junk.ok) return;
     expect(junk.error).toContain("not valid JSON");
-    const wrongKind = parseDraft(
-      JSON.stringify({ kind: "some-other-export", preset: "peak" }),
-    );
+    const wrongKind = parseDraft(JSON.stringify({ kind: "some-other-export", preset: "peak" }));
     expect(wrongKind.ok).toBe(false);
     if (wrongKind.ok) return;
     expect(wrongKind.error).toContain("wrong file kind");

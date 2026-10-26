@@ -1,10 +1,6 @@
 // candidates.test.ts — S14 (#288): N-candidates compare mode.
 import { describe, expect, test } from "bun:test";
-import {
-  buildMegasetCandidates,
-  MAX_CANDIDATES,
-  MIN_CANDIDATES,
-} from "./candidates";
+import { buildMegasetCandidates, MAX_CANDIDATES, MIN_CANDIDATES } from "./candidates";
 import type { SetCandidate } from "./scoring";
 import { MEGASET_PRESET_DEFS } from "../shared/types";
 
@@ -44,23 +40,15 @@ const preset = MEGASET_PRESET_DEFS[0]!;
 
 describe("buildMegasetCandidates", () => {
   test("returns N variants sorted by quality (best first)", () => {
-    const variants = buildMegasetCandidates(
-      { candidates: pool(60), preset, minutes: 30 },
-      3,
-    );
+    const variants = buildMegasetCandidates({ candidates: pool(60), preset, minutes: 30 }, 3);
     expect(variants).toHaveLength(3);
     for (let i = 1; i < variants.length; i++) {
-      expect(variants[i]!.quality.total).toBeLessThanOrEqual(
-        variants[i - 1]!.quality.total,
-      );
+      expect(variants[i]!.quality.total).toBeLessThanOrEqual(variants[i - 1]!.quality.total);
     }
   });
 
   test("each variant has a unique seed and label", () => {
-    const variants = buildMegasetCandidates(
-      { candidates: pool(60), preset, minutes: 30 },
-      4,
-    );
+    const variants = buildMegasetCandidates({ candidates: pool(60), preset, minutes: 30 }, 4);
     const seeds = variants.map((v) => v.seed);
     const labels = variants.map((v) => v.label);
     expect(new Set(seeds).size).toBe(4);
@@ -73,10 +61,7 @@ describe("buildMegasetCandidates", () => {
 
   test("seed 0 reproduces the default build", () => {
     const candidates = pool(60);
-    const [defaultBuild] = buildMegasetCandidates(
-      { candidates, preset, minutes: 30 },
-      1,
-    );
+    const [defaultBuild] = buildMegasetCandidates({ candidates, preset, minutes: 30 }, 1);
     expect(defaultBuild!.seed).toBe(0);
     expect(defaultBuild!.result.seed).toBe(0);
   });
@@ -94,43 +79,32 @@ describe("buildMegasetCandidates", () => {
 
   test("different seeds produce different chains", () => {
     const candidates = pool(60);
-    const variants = buildMegasetCandidates(
-      { candidates, preset, minutes: 30 },
-      4,
-    );
-    const chains = variants.map((v) =>
-      v.result.steps.map((s) => s.videoId).join(","),
-    );
+    const variants = buildMegasetCandidates({ candidates, preset, minutes: 30 }, 4);
+    const chains = variants.map((v) => v.result.steps.map((s) => s.videoId).join(","));
     const unique = new Set(chains);
     expect(unique.size).toBeGreaterThan(1);
   });
 
   test("clamps to MIN_CANDIDATES / MAX_CANDIDATES", () => {
     const candidates = pool(30);
-    expect(
-      buildMegasetCandidates({ candidates, preset, minutes: 30 }, 0),
-    ).toHaveLength(MIN_CANDIDATES);
-    expect(
-      buildMegasetCandidates({ candidates, preset, minutes: 30 }, 100),
-    ).toHaveLength(MAX_CANDIDATES);
+    expect(buildMegasetCandidates({ candidates, preset, minutes: 30 }, 0)).toHaveLength(
+      MIN_CANDIDATES,
+    );
+    expect(buildMegasetCandidates({ candidates, preset, minutes: 30 }, 100)).toHaveLength(
+      MAX_CANDIDATES,
+    );
   });
 
   test("pinned opener skips seed rotation", () => {
     const candidates = pool(60);
-    const variants = buildMegasetCandidates(
-      { candidates, preset, minutes: 30, openerId: "v0" },
-      3,
-    );
+    const variants = buildMegasetCandidates({ candidates, preset, minutes: 30, openerId: "v0" }, 3);
     for (const v of variants) {
       expect(v.result.steps[0]?.videoId).toBe("v0");
     }
   });
 
   test("variant results carry the seed field", () => {
-    const variants = buildMegasetCandidates(
-      { candidates: pool(40), preset, minutes: 30 },
-      3,
-    );
+    const variants = buildMegasetCandidates({ candidates: pool(40), preset, minutes: 30 }, 3);
     for (const v of variants) {
       expect(v.result.seed).toBe(v.seed);
     }
@@ -138,10 +112,7 @@ describe("buildMegasetCandidates", () => {
 
   test("odd seeds alternate strategy when no searchOverride", () => {
     const candidates = pool(60);
-    const variants = buildMegasetCandidates(
-      { candidates, preset, minutes: 30 },
-      4,
-    );
+    const variants = buildMegasetCandidates({ candidates, preset, minutes: 30 }, 4);
     const seed0 = variants.find((v) => v.seed === 0)!;
     const seed1 = variants.find((v) => v.seed === 1)!;
     expect(seed0.result.search).not.toBe(seed1.result.search);

@@ -23,12 +23,7 @@ import { DECK_MCP_SURFACES } from "./surfaces";
 // ports 59999/59997 (PPID 1), one with the production SQLite open.
 const MCP_CMD = ["bun", "run", join("src", "deck", "mcp.ts")];
 const proc = Bun.spawn(
-  [
-    "python3",
-    "-c",
-    "import os,sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])",
-    ...MCP_CMD,
-  ],
+  ["python3", "-c", "import os,sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])", ...MCP_CMD],
   {
     cwd: join(import.meta.dir, "..", "..", ".."),
     env: {
@@ -45,20 +40,9 @@ const proc = Bun.spawn(
       CRATEDECK_NO_AUTOSTART: "1",
       CRATEDECK_OFFLINE: "1",
       CRATEDECK_PORT: "59999",
-      CRATEDECK_DATA: join(
-        import.meta.dir,
-        "..",
-        "..",
-        "data-test-mcp-protocol",
-      ),
+      CRATEDECK_DATA: join(import.meta.dir, "..", "..", "data-test-mcp-protocol"),
       CRATEDECK_ROOT: join(import.meta.dir, "..", "..", ".."),
-      CRATEDECK_VOLUMES: join(
-        import.meta.dir,
-        "..",
-        "..",
-        "data-test-mcp-protocol",
-        "volumes",
-      ),
+      CRATEDECK_VOLUMES: join(import.meta.dir, "..", "..", "data-test-mcp-protocol", "volumes"),
     },
     stdin: "pipe",
     stdout: "pipe",
@@ -81,12 +65,7 @@ function parseJsonRpc(line: string): JsonRpcResponse | null {
   try {
     const raw = JSON.parse(line) as Partial<JsonRpcResponse> | null;
     if (raw === null || typeof raw !== "object") return null;
-    return {
-      jsonrpc: "2.0",
-      id: raw.id ?? null,
-      result: raw.result,
-      error: raw.error,
-    };
+    return { jsonrpc: "2.0", id: raw.id ?? null, result: raw.result, error: raw.error };
   } catch {
     return null;
   }
@@ -94,20 +73,14 @@ function parseJsonRpc(line: string): JsonRpcResponse | null {
 
 /** Extract the first text block from a tools/call result ("" if absent). */
 function resultText(res: JsonRpcResponse): string {
-  const content = (res.result as { content?: { text?: unknown }[] } | undefined)
-    ?.content;
+  const content = (res.result as { content?: { text?: unknown }[] } | undefined)?.content;
   return typeof content?.[0]?.text === "string" ? content[0].text : "";
 }
 
 /** Send one JSON-RPC request, read lines until its id answers. */
-async function rpc(
-  method: string,
-  params: Record<string, unknown>,
-): Promise<JsonRpcResponse> {
+async function rpc(method: string, params: Record<string, unknown>): Promise<JsonRpcResponse> {
   const id = nextId++;
-  proc.stdin.write(
-    `${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`,
-  );
+  proc.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
   await proc.stdin.flush();
   const deadline = Date.now() + 15_000;
   for (;;) {
@@ -232,9 +205,7 @@ describe("mcp stdio protocol", () => {
   it("tools/list exposes the full deckctl surface incl. help + dismiss (rev 4)", async () => {
     const res = await rpc("tools/list", {});
     const tools = (
-      res.result as {
-        tools?: { name: string; annotations?: { readOnlyHint?: boolean } }[];
-      }
+      res.result as { tools?: { name: string; annotations?: { readOnlyHint?: boolean } }[] }
     )?.tools;
     expect(Array.isArray(tools)).toBeTrue();
     const byName = new Map((tools ?? []).map((t) => [t.name as string, t]));
@@ -256,9 +227,7 @@ describe("mcp stdio protocol", () => {
     const listedDeck = (tools ?? [])
       .map((t) => t.name as string)
       .filter((n) => n.startsWith("deck_"));
-    expect(new Set(listedDeck)).toEqual(
-      new Set(DECK_MCP_SURFACES.map((s2) => s2.tool)),
-    );
+    expect(new Set(listedDeck)).toEqual(new Set(DECK_MCP_SURFACES.map((s2) => s2.tool)));
   }, 15_000);
 
   it("tools/list exposes GetDat intake tools with mutating schemas", async () => {
@@ -268,10 +237,7 @@ describe("mcp stdio protocol", () => {
         res.result as {
           tools?: {
             name: string;
-            inputSchema?: {
-              required?: string[];
-              properties?: Record<string, unknown>;
-            };
+            inputSchema?: { required?: string[]; properties?: Record<string, unknown> };
             annotations?: { readOnlyHint?: boolean };
           }[];
         }
@@ -290,10 +256,7 @@ describe("mcp stdio protocol", () => {
   }, 15_000);
 
   it("GetDat ingest validates its required folder before spawning", async () => {
-    const res = await rpc("tools/call", {
-      name: "getdat_ingest",
-      arguments: {},
-    });
+    const res = await rpc("tools/call", { name: "getdat_ingest", arguments: {} });
     expect(res.error?.code).toBe(-32602);
     expect(res.error?.message).toContain("folder is required");
   }, 15_000);

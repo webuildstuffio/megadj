@@ -24,8 +24,7 @@ export function migrateArchiveLedger(sqlite: Database): void {
     ["known_good_blake2b", "TEXT"],
     ["known_good_size_bytes", "INTEGER"],
   ] as const) {
-    if (!cols.includes(c))
-      sqlite.exec(`ALTER TABLE archive_ledger ADD COLUMN ${c} ${t}`);
+    if (!cols.includes(c)) sqlite.exec(`ALTER TABLE archive_ledger ADD COLUMN ${c} ${t}`);
   }
 }
 

@@ -110,8 +110,7 @@ export function searchPhrases(
     const internalSim = simCount > 0 ? simSum / simCount : 0;
 
     // Boundary contrast at the end
-    const contrast =
-      end < novelty.length ? (novelty[end - 1] ?? 0) - (novelty[end] ?? 0) : 0;
+    const contrast = end < novelty.length ? (novelty[end - 1] ?? 0) - (novelty[end] ?? 0) : 0;
 
     phrases.push({
       startBar: start,

@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  parseVersion,
-  versionCompatible,
-  type VersionIdentity,
-} from "./version";
+import { parseVersion, versionCompatible, type VersionIdentity } from "./version";
 
 describe("parseVersion — remix patterns", () => {
   test("(Artist Remix)", () => {
@@ -259,10 +255,7 @@ describe("versionCompatible", () => {
     parser: "regex",
   };
 
-  const differentSong: VersionIdentity = {
-    ...original,
-    baseTitle: "other song",
-  };
+  const differentSong: VersionIdentity = { ...original, baseTitle: "other song" };
 
   test("exact — same version, same artist", () => {
     expect(versionCompatible(remix, sameRemix)).toBe("exact");

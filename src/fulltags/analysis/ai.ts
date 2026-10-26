@@ -37,10 +37,7 @@ const isItem = (x: unknown): x is AiItem => typeof x === "object" && x !== null;
 
 /** OpenRouter classifier. With withYear=true, asks for the remix/edit year
  * (the year THIS version came out, not the original track's) alongside genre. */
-export async function aiGenres(
-  batch: AiRow[],
-  withYear = false,
-): Promise<AiTagResult> {
+export async function aiGenres(batch: AiRow[], withYear = false): Promise<AiTagResult> {
   const key = process.env.OPENROUTER_API_KEY;
   const out: AiTagResult = new Map();
   if (!key || !batch.length) return out;
@@ -56,10 +53,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: AI_MODEL_PIN,
         messages: [{ role: "user", content: prompt }],
@@ -74,9 +68,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
       console.error(`genre AI → HTTP ${res.status}`);
       return out;
     }
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
+    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const parsed: unknown = JSON.parse(
       json.choices?.[0]?.message?.content?.match(/\[[\s\S]*\]/)?.[0] ?? "[]",
     );
@@ -86,9 +78,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
       const row = batch[item.id ?? -1];
       if (!row) continue;
       const genre =
-        item.genre && item.genre !== "Unknown" && (item.confidence ?? 0) >= 0.7
-          ? item.genre
-          : null;
+        item.genre && item.genre !== "Unknown" && (item.confidence ?? 0) >= 0.7 ? item.genre : null;
       const yearNum = Number(item.year);
       const year =
         withYear &&
@@ -97,8 +87,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
         yearNum <= new Date().getFullYear()
           ? yearNum
           : null;
-      if (genre || year)
-        out.set(row.video_id, [genre, year, item.confidence ?? 1]);
+      if (genre || year) out.set(row.video_id, [genre, year, item.confidence ?? 1]);
     }
   } catch (e) {
     // AI classification is best-effort by design (ladder: SC tag → canonical

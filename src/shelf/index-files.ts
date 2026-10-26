@@ -60,8 +60,7 @@ export class ShelfIndex {
   }
 
   private indexDir(dir: string): void {
-    for (const e of walkTree(dir, { skip: (name) => isSkippedName(name) })
-      .entries) {
+    for (const e of walkTree(dir, { skip: (name) => isSkippedName(name) }).entries) {
       const rel = relative(this.contents, e.abs);
       const d = dirname(rel);
       const n = basename(rel);
@@ -70,11 +69,10 @@ export class ShelfIndex {
       // "<stem> [<suffix>]<ext>" twins also answer to their original stem
       const m = n.match(/^(.*) \[([^\]]+)\](\.[^.]*)$/);
       if (m)
-        this.push(
-          this.variant,
-          [key(d), key(m[1] ?? ""), key(m[3] ?? "")].join("/"),
-          { rel, bytes },
-        );
+        this.push(this.variant, [key(d), key(m[1] ?? ""), key(m[3] ?? "")].join("/"), {
+          rel,
+          bytes,
+        });
     }
   }
 
@@ -87,12 +85,7 @@ export class ShelfIndex {
 
   /** Register a just-created variant so later same-family files in this
    *  run see it (multi-file sweeps, re-run idempotence within a run). */
-  addVariant(
-    dKey: string,
-    stemKey: string,
-    extKey: string,
-    entry: ShelfEntry,
-  ): void {
+  addVariant(dKey: string, stemKey: string, extKey: string, entry: ShelfEntry): void {
     this.push(this.variant, [dKey, stemKey, extKey].join("/"), entry);
   }
 }

@@ -41,13 +41,7 @@ import { makeFail, printResult } from "./rb-command-kit.js";
 import { commandLog } from "../shared/progress";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 import { nonEmptyEnv } from "../shared/leaf/guards";
-import {
-  join,
-  basename,
-  dirname,
-  relative,
-  resolve as resolvePath,
-} from "node:path";
+import { join, basename, dirname, relative, resolve as resolvePath } from "node:path";
 import { createHash } from "node:crypto";
 import {
   parseAnlzGrid,
@@ -117,8 +111,7 @@ export interface SpikeSnapshot {
   error?: string;
 }
 
-const sha256 = (b: Uint8Array): string =>
-  createHash("sha256").update(b).digest("hex");
+const sha256 = (b: Uint8Array): string => createHash("sha256").update(b).digest("hex");
 
 /** Baseline JSON lives in persistent local state so snapshot and compare may
  * happen across sessions. Tests and isolated probes inject a temporary root;
@@ -129,10 +122,7 @@ function baselinePath(mount: string, tag: string, spikeDir?: string): string {
     nonEmptyEnv("MEGADJ_SPIKE_DIR") ??
     join(nonEmptyEnv("HOME") ?? "/tmp", ".local", "state", "megadj", "spike");
   mkdirSync(root, { recursive: true });
-  return join(
-    root,
-    `${basename(mount)}-${tag.replace(/[^A-Za-z0-9_-]/gu, "_")}.json`,
-  );
+  return join(root, `${basename(mount)}-${tag.replace(/[^A-Za-z0-9_-]/gu, "_")}.json`);
 }
 
 /** Walk every ANLZ*.DAT under both possible sidecar roots. RECURSIVE
@@ -169,9 +159,7 @@ function sidecarKeys(mount: string): string[] {
     } catch (e) {
       // unreadable dir is a console-visible miss, not a crash — vs the
       // baseline it reads as "removed", which is true on disk
-      console.error(
-        `rb-anlz-spike: unreadable dir ${rel || "."}: ${errorText(e)}`,
-      );
+      console.error(`rb-anlz-spike: unreadable dir ${rel || "."}: ${errorText(e)}`);
       return;
     }
     for (const ent of entries.toSorted((a, b) => (a.name < b.name ? -1 : 1))) {
@@ -191,11 +179,7 @@ function sidecarKeys(mount: string): string[] {
   return out;
 }
 
-function measure(mount: string): {
-  recs: SidecarRec[];
-  scanned: number;
-  undecodable: number;
-} {
+function measure(mount: string): { recs: SidecarRec[]; scanned: number; undecodable: number } {
   const recs: SidecarRec[] = [];
   let scanned = 0;
   let undecodable = 0;
@@ -207,12 +191,7 @@ function measure(mount: string): {
       undecodable++;
       continue; // tracked by hash anyway when it reappears
     }
-    recs.push({
-      file: key,
-      sha256: sha256(bytes),
-      bytes: bytes.length,
-      sections: inv.sections,
-    });
+    recs.push({ file: key, sha256: sha256(bytes), bytes: bytes.length, sections: inv.sections });
   }
   return { recs, scanned, undecodable };
 }
@@ -261,13 +240,10 @@ export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
 
   // compare
   const bp = baselinePath(mount, opts.tag, opts.spikeDir);
-  if (!existsSync(bp))
-    return fail(`no baseline for tag "${opts.tag}" — run snapshot first`);
+  if (!existsSync(bp)) return fail(`no baseline for tag "${opts.tag}" — run snapshot first`);
   let base: SpikeSnapshot & { recs: SidecarRec[] };
   try {
-    base = JSON.parse(readFileSync(bp, "utf8")) as SpikeSnapshot & {
-      recs: SidecarRec[];
-    };
+    base = JSON.parse(readFileSync(bp, "utf8")) as SpikeSnapshot & { recs: SidecarRec[] };
   } catch (e) {
     return fail(`baseline unreadable (${errorText(e)}) — re-snapshot`);
   }
@@ -330,9 +306,7 @@ function logChangedRows(
   log: (s: string) => void,
 ): void {
   for (const c of changed) {
-    const secs = c.sections
-      .map((s) => `${s.tag} ${s.was}→${s.now}B`)
-      .join(", ");
+    const secs = c.sections.map((s) => `${s.tag} ${s.was}→${s.now}B`).join(", ");
     log(`  CHANGED ${c.file}: ${secs}`);
   }
 }
@@ -343,9 +317,7 @@ function containedGridPath(mount: string, path: string): boolean {
   const expected = resolvePath(realMount, relative(resolvePath(mount), path));
   const entry = lstatSync(path, { throwIfNoEntry: false });
   if (entry?.isSymbolicLink()) return false;
-  const actual = entry
-    ? realpathSync(path)
-    : join(realpathSync(dirname(path)), basename(path));
+  const actual = entry ? realpathSync(path) : join(realpathSync(dirname(path)), basename(path));
   return actual === expected && actual.startsWith(`${realMount}/`);
 }
 
@@ -383,9 +355,7 @@ function setGrid(
   if (!existsSync(abs)) return fail(`no such sidecar: ${opts.file}`);
   const backup = `${abs}.pre-grid-${opts.tag.replace(/[^A-Za-z0-9_-]/gu, "_")}`;
   if (!containedGridPath(mount, abs) || !containedGridPath(mount, backup))
-    return fail(
-      `set-grid: sidecar or backup is a symlink or escapes the mount — refused`,
-    );
+    return fail(`set-grid: sidecar or backup is a symlink or escapes the mount — refused`);
 
   const bytes = new Uint8Array(readFileSync(abs));
   const before = parseAnlzGrid(bytes);
@@ -407,9 +377,7 @@ function setGrid(
     log(
       `DRY RUN ${opts.file}: ${before.beats.length} beats (${inv.sections.find((s) => s.tag === "PQTZ")?.bytes ?? 0}B PQTZ) → ${opts.beats.length} beats (${24 + opts.beats.length * 8}B PQTZ, ${beatDelta >= 0 ? "+" : ""}${beatDelta}); hash ${oldHash.slice(0, 12)} → ${newHash.slice(0, 12)}`,
     );
-    log(
-      `next: re-run with --apply --yes to write (a pre-edit backup is kept automatically)`,
-    );
+    log(`next: re-run with --apply --yes to write (a pre-edit backup is kept automatically)`);
     return done({ edited: opts.file, wasHash: oldHash });
   }
 
@@ -422,8 +390,7 @@ function setGrid(
   const ok = (() => {
     if (sha256(reread) !== newHash) return false;
     const g = parseAnlzGrid(reread);
-    if (!g || JSON.stringify(g.beats) !== JSON.stringify(opts.beats))
-      return false;
+    if (!g || JSON.stringify(g.beats) !== JSON.stringify(opts.beats)) return false;
     const invNow = parseAnlzInventory(reread);
     if (!invNow) return false;
     const was = new Map(inv.sections.map((s) => [s.tag, s.bytes] as const));
@@ -436,25 +403,16 @@ function setGrid(
   })();
   if (!ok) {
     copyFileSync(backup, abs); // restore — one bad write never stays
-    return fail(
-      `post-write verification failed — ${opts.file} restored from ${backup}`,
-    );
+    return fail(`post-write verification failed — ${opts.file} restored from ${backup}`);
   }
   log(
     `set-grid ${opts.file}: ${before.beats.length} → ${opts.beats.length} beats written; backup ${backup}; re-verified OK`,
   );
-  return done({
-    edited: opts.file,
-    backupPath: backup,
-    wasHash: oldHash,
-  });
+  return done({ edited: opts.file, backupPath: backup, wasHash: oldHash });
 }
 
 /** Human report (non-json mode) — thin over the log lines. */
-export function printSpikeReport(
-  r: SpikeSnapshot,
-  log: (s: string) => void,
-): void {
+export function printSpikeReport(r: SpikeSnapshot, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     if (body.mode === "snapshot") {
       log(

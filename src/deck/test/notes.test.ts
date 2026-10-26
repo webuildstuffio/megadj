@@ -27,15 +27,11 @@ describe("agent notes (O88)", () => {
   });
 
   it("rejects empty and oversized notes with clean messages", () => {
-    expect(() => normalizeNote({ drive_id: "d1", note: "   " })).toThrow(
-      "note is required",
+    expect(() => normalizeNote({ drive_id: "d1", note: "   " })).toThrow("note is required");
+    expect(() => normalizeNote({ drive_id: "", note: "x" })).toThrow("drive_id is required");
+    expect(() => normalizeNote({ drive_id: "d1", note: "a".repeat(NOTE_MAX + 1) })).toThrow(
+      "note too long",
     );
-    expect(() => normalizeNote({ drive_id: "", note: "x" })).toThrow(
-      "drive_id is required",
-    );
-    expect(() =>
-      normalizeNote({ drive_id: "d1", note: "a".repeat(NOTE_MAX + 1) }),
-    ).toThrow("note too long");
   });
 
   it("round-trips through the timeline event shape", () => {
@@ -73,22 +69,10 @@ describe("agent notes (O88)", () => {
 
   it("non-note events and corrupt payloads read as null/defaults", () => {
     expect(
-      noteFromEvent({
-        id: "e2",
-        drive_id: "d1",
-        at: 1,
-        kind: "job-queued",
-        data: {},
-      }),
+      noteFromEvent({ id: "e2", drive_id: "d1", at: 1, kind: "job-queued", data: {} }),
     ).toBeNull();
     expect(
-      noteFromEvent({
-        id: "e3",
-        drive_id: "d1",
-        at: 1,
-        kind: "agent-note",
-        data: {},
-      }),
+      noteFromEvent({ id: "e3", drive_id: "d1", at: 1, kind: "agent-note", data: {} }),
     ).toBeNull(); // missing note text
   });
 
@@ -126,22 +110,12 @@ describe("agent notes (O88)", () => {
     const store: NotesStore = {
       event(driveId: string, kind: string, data?: Record<string, unknown>) {
         const id = `row-${storeRows.length + 1}`;
-        storeRows.push({
-          id,
-          drive_id: driveId,
-          at: 42,
-          kind,
-          data_json: JSON.stringify(data),
-        });
+        storeRows.push({ id, drive_id: driveId, at: 42, kind, data_json: JSON.stringify(data) });
         return id;
       },
       sqlite: {
         query() {
-          return {
-            all: () => storeRows,
-            get: () => storeRows[0],
-            run: () => {},
-          };
+          return { all: () => storeRows, get: () => storeRows[0], run: () => {} };
         },
       },
     };

@@ -82,11 +82,7 @@ export const stalePointer: CheckDef = {
   },
 };
 
-function buildFinding(
-  ctx: CheckCtx,
-  row: DbContentRow,
-  match: ShelfFile,
-): Finding {
+function buildFinding(ctx: CheckCtx, row: DbContentRow, match: ShelfFile): Finding {
   return {
     ...baseFinding(ctx, "stale-pointer", "review", false),
     paths: [match.path],

@@ -32,9 +32,7 @@ export interface FastBenchResult {
  * @param fixtures - Cached prediction/expected pairs
  * @returns Per-stage results
  */
-export function runFastBench(
-  fixtures: readonly BenchFixture[],
-): FastBenchResult[] {
+export function runFastBench(fixtures: readonly BenchFixture[]): FastBenchResult[] {
   // Group by stage
   const byStage = new Map<string, BenchFixture[]>();
   for (const f of fixtures) {
@@ -75,9 +73,7 @@ export function checkRegressions(
   for (const r of results) {
     const baseline = baselines.get(r.stage);
     if (baseline !== undefined && r.accuracy < baseline) {
-      regressions.push(
-        `${r.stage}: accuracy ${r.accuracy} < baseline ${baseline}`,
-      );
+      regressions.push(`${r.stage}: accuracy ${r.accuracy} < baseline ${baseline}`);
     }
   }
   return regressions;

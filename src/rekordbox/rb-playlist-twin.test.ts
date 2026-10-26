@@ -29,12 +29,7 @@ describe("playlist DB/XML twin mutation", () => {
         return { playlistId: "9007199254740993" };
       },
       nodes: ({ playlistId }) => [
-        {
-          id: playlistId,
-          name: "64-bit & safe",
-          parentId: "0",
-          attribute: 0,
-        },
+        { id: playlistId, name: "64-bit & safe", parentId: "0", attribute: 0 },
       ],
       verifyDb: () => expect(readFileSync(dbPath, "utf8")).toBe("mutated-db"),
       testHooks: { assertClosed: () => {}, sleep: () => {} },
@@ -61,12 +56,7 @@ describe("playlist DB/XML twin mutation", () => {
           return { playlistId: "42" };
         },
         nodes: ({ playlistId }) => [
-          {
-            id: playlistId,
-            name: "will fail",
-            parentId: "0",
-            attribute: 0,
-          },
+          { id: playlistId, name: "will fail", parentId: "0", attribute: 0 },
         ],
         verifyDb: () => {},
         testHooks: {
@@ -98,14 +88,7 @@ describe("playlist DB/XML twin mutation", () => {
       dbPath,
       what: "test playlist repair",
       mutateDb: () => ({ playlistId: "42" }),
-      nodes: ({ playlistId }) => [
-        {
-          id: playlistId,
-          name: "Current",
-          parentId: "7",
-          attribute: 0,
-        },
-      ],
+      nodes: ({ playlistId }) => [{ id: playlistId, name: "Current", parentId: "7", attribute: 0 }],
       verifyDb: () => {},
       testHooks: { assertClosed: () => {}, sleep: () => {} },
     });
@@ -131,10 +114,7 @@ describe("playlist DB/XML twin mutation", () => {
   });
 
   test("reconcile compares XML metadata, not only node ids", () => {
-    const source = readFileSync(
-      join(import.meta.dir, "rb-playlist-reconcile.ts"),
-      "utf8",
-    );
+    const source = readFileSync(join(import.meta.dir, "rb-playlist-reconcile.ts"), "utf8");
     expect(source).toContain("xmlNode.name !== p.name");
     expect(source).toContain("xmlNode.parentId !== p.parentId");
     expect(source).toContain("xmlNode.attribute !== p.attribute");

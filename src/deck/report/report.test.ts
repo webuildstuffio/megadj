@@ -2,12 +2,7 @@ import { afterAll, beforeAll, describe, it, expect } from "bun:test";
 import { ageBucket, freeBytes, nfcCasefold, scanVolume } from "../tools/scan";
 import { buildChecks, buildReportSummary, overall } from "./report";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import type {
-  CheckStatus,
-  Drive,
-  HealthCheck,
-  SnapshotData,
-} from "../shared/types";
+import type { CheckStatus, Drive, HealthCheck, SnapshotData } from "../shared/types";
 
 const ROOT = `/tmp/cratedeck-scan-test-${process.pid}`;
 
@@ -143,10 +138,7 @@ describe("report checks", () => {
   });
 
   it("fails the hardware gate when pdb rows diverge", () => {
-    const checks = buildChecks({
-      ...baseInput,
-      snapshot: snapFixture({ pdb_live_rows: 90 }),
-    });
+    const checks = buildChecks({ ...baseInput, snapshot: snapFixture({ pdb_live_rows: 90 }) });
     const dual = checks.find((c) => c.id === "dual-db")!;
     expect(dual.status).toBe("fail");
     expect(dual.detail).toContain("90");
@@ -230,12 +222,7 @@ describe("report checks", () => {
   it("artwork coverage check from dj stats", () => {
     const checks = buildChecks({
       ...baseInput,
-      snapshot: snapFixture({
-        dj: {
-          artwork_missing: 30,
-          artwork_total: 100,
-        },
-      }),
+      snapshot: snapFixture({ dj: { artwork_missing: 30, artwork_total: 100 } }),
     });
     const art = checks.find((c) => c.id === "artwork")!;
     expect(art.status).toBe("fail");
@@ -252,27 +239,12 @@ describe("report checks", () => {
 /** Health-check list synth for the summary scorer. Module-level —
  *  captures nothing from the enclosing describe. */
 const checksOf = (statuses: CheckStatus[]): HealthCheck[] =>
-  statuses.map((status, i) => ({
-    id: `c${i}`,
-    label: `check ${i}`,
-    status,
-    detail: "",
-  }));
+  statuses.map((status, i) => ({ id: `c${i}`, label: `check ${i}`, status, detail: "" }));
 
 describe("buildReportSummary", () => {
   it("scores pass/warn/fail/unknown counts — not a binary yes/no", () => {
     const s = buildReportSummary(
-      checksOf([
-        "pass",
-        "pass",
-        "pass",
-        "pass",
-        "pass",
-        "pass",
-        "pass",
-        "warn",
-        "fail",
-      ]),
+      checksOf(["pass", "pass", "pass", "pass", "pass", "pass", "pass", "warn", "fail"]),
     );
     expect(s.passed).toBe(7);
     expect(s.checks).toBe(9);

@@ -125,21 +125,15 @@ export function hydrateHygieneFinding(row: HygieneFindingRow): Finding {
     bytes: JSON.parse(row.bytes) as number[],
     md5s: row.md5s ? (JSON.parse(row.md5s) as (string | null)[]) : [],
     fps: row.fps ? (JSON.parse(row.fps) as (string | null)[]) : [],
-    evidence: row.evidence
-      ? (JSON.parse(row.evidence) as Record<string, unknown>)
-      : {},
-    proposedAction: JSON.parse(
-      row.proposed_action,
-    ) as Finding["proposedAction"],
+    evidence: row.evidence ? (JSON.parse(row.evidence) as Record<string, unknown>) : {},
+    proposedAction: JSON.parse(row.proposed_action) as Finding["proposedAction"],
     keeperPath: row.keeper_path,
     walkToken: row.walk_token,
     autoSafe: row.auto_safe === 1,
     createdAt: row.created_at,
     decidedAt: row.decided_at,
     appliedAt: row.applied_at,
-    validation: row.validation
-      ? (JSON.parse(row.validation) as ValidationReceipt)
-      : null,
+    validation: row.validation ? (JSON.parse(row.validation) as ValidationReceipt) : null,
   };
 }
 
@@ -212,11 +206,7 @@ export interface HygieneBadge {
  * history views (opt-in, exact-value match). */
 export function hygieneWhere(
   filter:
-    | {
-        status?: string | undefined;
-        kind?: string | undefined;
-        severity?: string | undefined;
-      }
+    | { status?: string | undefined; kind?: string | undefined; severity?: string | undefined }
     | undefined,
 ): { whereSql: string; params: string[] } {
   const where: string[] = [];
@@ -236,10 +226,7 @@ export function hygieneWhere(
     where.push("severity = ?");
     params.push(filter.severity);
   }
-  return {
-    whereSql: `WHERE ${where.join(" AND ")}`,
-    params,
-  };
+  return { whereSql: `WHERE ${where.join(" AND ")}`, params };
 }
 
 /** Worst-first status ordering for hygiene_findings queries (see hygieneWhere). */

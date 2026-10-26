@@ -11,9 +11,6 @@ test("#45: DrivePage and App stay below their hotspot ceilings", () => {
   );
   const app = functionMetrics(join(webDir, "app", "App.tsx"), "App");
 
-  expect(
-    drivePage.lines,
-    "DrivePage must be at most 400 lines",
-  ).toBeLessThanOrEqual(400);
+  expect(drivePage.lines, "DrivePage must be at most 400 lines").toBeLessThanOrEqual(400);
   expect(app.lines, "App must be at most 300 lines").toBeLessThanOrEqual(300);
 });

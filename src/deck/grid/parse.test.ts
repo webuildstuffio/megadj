@@ -8,9 +8,7 @@ import { summarizeGridHealth } from "./parse";
 
 /** A faithful copy of `megadj rb-grid-triage --json`'s summary shape
  *  (GridTriageResult in src/rekordbox/grid-triage.ts). */
-function cliSummary(
-  over: Record<string, unknown> = {},
-): Record<string, unknown> {
+function cliSummary(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     command: "rb-grid-triage",
     mount: "/Volumes/SHELF1",
@@ -18,14 +16,7 @@ function cliSummary(
     compareDrive: null,
     total: 2,
     audited: 2,
-    buckets: {
-      "A-OK": 1,
-      SHIFT: 1,
-      PHASE: 0,
-      TEMPO: 0,
-      DRIFT: 0,
-      CHAOS: 0,
-    },
+    buckets: { "A-OK": 1, SHIFT: 1, PHASE: 0, TEMPO: 0, DRIFT: 0, CHAOS: 0 },
     synced: null,
     syncIssues: null,
     noAnlz: 0,
@@ -66,20 +57,16 @@ describe("grid-health parse (#167)", () => {
 
   it("rejects a failed CLI run (ok:false) — never a fake clean card", () => {
     expect(() =>
-      summarizeGridHealth(
-        cliSummary({ ok: false, error: "no master DB at /x" }),
-        "d",
-        "D",
-      ),
+      summarizeGridHealth(cliSummary({ ok: false, error: "no master DB at /x" }), "d", "D"),
     ).toThrow(/no master DB/);
   });
 
   it("rejects non-object and bucket-less summaries", () => {
     expect(() => summarizeGridHealth(null, "d", "D")).toThrow();
     expect(() => summarizeGridHealth("nope", "d", "D")).toThrow();
-    expect(() =>
-      summarizeGridHealth(cliSummary({ buckets: undefined }), "d", "D"),
-    ).toThrow(/buckets/);
+    expect(() => summarizeGridHealth(cliSummary({ buckets: undefined }), "d", "D")).toThrow(
+      /buckets/,
+    );
   });
 
   it("coerces hostile field types instead of trusting the boundary", () => {

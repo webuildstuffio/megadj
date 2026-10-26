@@ -130,21 +130,14 @@ describe("freezeSignals", () => {
 
   test("marks dead signals (IQR < threshold)", () => {
     const rows = Array.from({ length: 50 }, (_, i) =>
-      makeRow({
-        videoId: `t${i}`,
-        bpm: 128,
-        onsetsPerBeat: 2.5 + i * 0.001,
-        aggressive: 0.98,
-      }),
+      makeRow({ videoId: `t${i}`, bpm: 128, onsetsPerBeat: 2.5 + i * 0.001, aggressive: 0.98 }),
     );
     const frozen = freezeSignals(rows);
     expect(frozen.deadSignals).toContain("aggressive");
   });
 
   test("all-constant signals → all dead", () => {
-    const rows = Array.from({ length: 30 }, (_, i) =>
-      makeRow({ videoId: `t${i}` }),
-    );
+    const rows = Array.from({ length: 30 }, (_, i) => makeRow({ videoId: `t${i}` }));
     const frozen = freezeSignals(rows);
     expect(frozen.deadSignals.length).toBe(SIGNAL_NAMES.length);
     expect(Object.keys(frozen.values).length).toBe(0);
@@ -286,28 +279,19 @@ describe("blocPercentiles", () => {
 
 describe("compositeScore", () => {
   test("all blocs at 0.5 → composite ~0.5", () => {
-    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 0.5])) as Record<
-      BlocName,
-      number
-    >;
+    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 0.5])) as Record<BlocName, number>;
     const score = compositeScore(blocs, WEIGHT_PRESETS[1]!);
     expect(score).toBeCloseTo(0.5, 1);
   });
 
   test("all blocs at 1.0 → composite ~1.0", () => {
-    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 1.0])) as Record<
-      BlocName,
-      number
-    >;
+    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 1.0])) as Record<BlocName, number>;
     const score = compositeScore(blocs, WEIGHT_PRESETS[1]!);
     expect(score).toBeCloseTo(1.0, 1);
   });
 
   test("all blocs at 0 → composite 0", () => {
-    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 0])) as Record<
-      BlocName,
-      number
-    >;
+    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 0])) as Record<BlocName, number>;
     const score = compositeScore(blocs, WEIGHT_PRESETS[1]!);
     expect(score).toBe(0);
   });
@@ -317,9 +301,7 @@ describe("compositeScore", () => {
       BLOC_NAMES.map((b) => [b, b === "perceptual" ? 1.0 : 0.0]),
     ) as Record<BlocName, number>;
     const equal = WEIGHT_PRESETS.find((p) => p.name === "equal")!;
-    const percPreset = WEIGHT_PRESETS.find(
-      (p) => p.name === "perceptual-heavy",
-    )!;
+    const percPreset = WEIGHT_PRESETS.find((p) => p.name === "perceptual-heavy")!;
     const scoreEqual = compositeScore(perceptualHigh, equal);
     const scorePerc = compositeScore(perceptualHigh, percPreset);
     expect(scorePerc).toBeGreaterThan(scoreEqual);
@@ -330,34 +312,19 @@ describe("compositeScore", () => {
 
 describe("energyConfidence", () => {
   test("agreement → high", () => {
-    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 0.5])) as Record<
-      BlocName,
-      number
-    >;
+    const blocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, 0.5])) as Record<BlocName, number>;
     expect(energyConfidence(blocs)).toBe("high");
   });
 
   test("large tier disagreement → low", () => {
     expect(
-      energyConfidence({
-        rhythm: 0.9,
-        brightness: 0.9,
-        body: 0.9,
-        activity: 0.9,
-        perceptual: 0.2,
-      }),
+      energyConfidence({ rhythm: 0.9, brightness: 0.9, body: 0.9, activity: 0.9, perceptual: 0.2 }),
     ).toBe("low");
   });
 
   test("borderline (exactly 0.3 gap) → high", () => {
     expect(
-      energyConfidence({
-        rhythm: 0.6,
-        brightness: 0.6,
-        body: 0.6,
-        activity: 0.6,
-        perceptual: 0.3,
-      }),
+      energyConfidence({ rhythm: 0.6, brightness: 0.6, body: 0.6, activity: 0.6, perceptual: 0.3 }),
     ).toBe("high");
   });
 

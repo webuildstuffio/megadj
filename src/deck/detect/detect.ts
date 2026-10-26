@@ -69,18 +69,14 @@ export function isPhysicalExternal(v: {
 // writes, Spotlight reindexes, etc. that don't change the volume set).
 let volumeCache: { key: string; volumes: MountedVolume[] } | null = null;
 
-export async function listMountedVolumes(
-  cfgRoot = "/Volumes",
-): Promise<MountedVolume[]> {
+export async function listMountedVolumes(cfgRoot = "/Volumes"): Promise<MountedVolume[]> {
   let names: string[] = [];
   try {
     names = readdirSync(cfgRoot);
   } catch {
     return [];
   }
-  const eligible = names
-    .filter((n) => !IGNORED.has(n) && !n.startsWith("."))
-    .toSorted();
+  const eligible = names.filter((n) => !IGNORED.has(n) && !n.startsWith(".")).toSorted();
   const key = `${cfgRoot}\0${eligible.join("\0")}`;
   if (volumeCache && volumeCache.key === key) return volumeCache.volumes;
 
@@ -123,9 +119,7 @@ export function usbLinkClass(
 function applyWholeDiskInfo(v: MountedVolume, treePath: string | null): void {
   const whole = v.disk ? v.disk.replace(/s\d+$/, "") : null;
   if (!whole) return;
-  const pw = Bun.spawnSync(["diskutil", "info", "-plist", whole], {
-    stdout: "pipe",
-  });
+  const pw = Bun.spawnSync(["diskutil", "info", "-plist", whole], { stdout: "pipe" });
   const winfo = parsePlist(pw.stdout.toString());
   v.virtual =
     winfo.VirtualOrPhysical === "Virtual"
@@ -133,35 +127,24 @@ function applyWholeDiskInfo(v: MountedVolume, treePath: string | null): void {
       : winfo.VirtualOrPhysical === "Physical"
         ? false
         : null;
-  v.busProtocol =
-    typeof winfo.BusProtocol === "string" ? winfo.BusProtocol : null;
-  if (v.internal === null && typeof winfo.Internal === "boolean")
-    v.internal = winfo.Internal;
+  v.busProtocol = typeof winfo.BusProtocol === "string" ? winfo.BusProtocol : null;
+  if (v.internal === null && typeof winfo.Internal === "boolean") v.internal = winfo.Internal;
   if (treePath && /^IODeviceTree:\/?$/.test(treePath)) v.virtual = true;
 }
 
 /** diskutil info for the volume slice itself: device, uuid, fs, capacity. */
-function applyVolumeSliceInfo(
-  v: MountedVolume,
-  info: Record<string, unknown>,
-): void {
-  v.disk =
-    typeof info.DeviceIdentifier === "string" ? info.DeviceIdentifier : null;
+function applyVolumeSliceInfo(v: MountedVolume, info: Record<string, unknown>): void {
+  v.disk = typeof info.DeviceIdentifier === "string" ? info.DeviceIdentifier : null;
   v.volumeUuid = typeof info.VolumeUUID === "string" ? info.VolumeUUID : null;
   v.fs = typeof info.FileSystemType === "string" ? info.FileSystemType : null;
   const rawCapacity = info.TotalSize;
   const capacityBytes =
-    typeof rawCapacity === "string" || typeof rawCapacity === "number"
-      ? Number(rawCapacity)
-      : 0;
+    typeof rawCapacity === "string" || typeof rawCapacity === "number" ? Number(rawCapacity) : 0;
   v.capacityBytes = Number.isFinite(capacityBytes) ? capacityBytes : 0;
   v.internal = typeof info.Internal === "boolean" ? info.Internal : null;
 }
 
-export async function volumeDetail(
-  name: string,
-  mountPoint: string,
-): Promise<MountedVolume> {
+export async function volumeDetail(name: string, mountPoint: string): Promise<MountedVolume> {
   const v: MountedVolume = {
     name,
     mountPoint,
@@ -181,15 +164,12 @@ export async function volumeDetail(
   let mediaName: string | null = null;
   let treePath: string | null = null;
   try {
-    const p = Bun.spawnSync(["diskutil", "info", "-plist", mountPoint], {
-      stdout: "pipe",
-    });
+    const p = Bun.spawnSync(["diskutil", "info", "-plist", mountPoint], { stdout: "pipe" });
     const info = parsePlist(p.stdout.toString());
     applyVolumeSliceInfo(v, info);
     const rawMediaName = info["Device / Media Name"] ?? info.DeviceMediaName;
     mediaName = typeof rawMediaName === "string" ? rawMediaName : null;
-    treePath =
-      typeof info.DeviceTreePath === "string" ? info.DeviceTreePath : null;
+    treePath = typeof info.DeviceTreePath === "string" ? info.DeviceTreePath : null;
     applyWholeDiskInfo(v, treePath);
   } catch (e) {
     // a volume whose diskutil probe fails still appears on the rail (name +
@@ -262,10 +242,7 @@ export function parsePlist(xml: string): DiskutilInfo {
 }
 
 /** Watch the volumes root; call onChange on any appearance/disappearance. */
-export function watchVolumes(
-  root: string,
-  onChange: () => void,
-): { stop: () => void } {
+export function watchVolumes(root: string, onChange: () => void): { stop: () => void } {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let poll: ReturnType<typeof setInterval> | null = null;
   try {

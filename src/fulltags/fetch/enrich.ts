@@ -31,10 +31,7 @@ export type GenreResolver = (artist: string) => Promise<string | null>;
 /** Injectable for tests: write the genre tag into a file; false = failure. */
 export type TagWriter = (filePath: string, genre: string) => Promise<boolean>;
 
-async function rewriteGenreTag(
-  filePath: string,
-  genre: string,
-): Promise<boolean> {
+async function rewriteGenreTag(filePath: string, genre: string): Promise<boolean> {
   // FullTags writePatch is atomic (tmp + rename), format-aware (mutagen for
   // AIFF/WAV/m4a — the ffmpeg muxers drop ID3/freeform atoms), and cleans
   // up after itself.
@@ -50,12 +47,7 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
   const log = commandLog(opts);
   const tracks = opts.state
     .allTracks()
-    .filter(
-      (t) =>
-        t.status === "downloaded" &&
-        t.file_path &&
-        (!t.genre || t.genre === "Music"),
-    );
+    .filter((t) => t.status === "downloaded" && t.file_path && (!t.genre || t.genre === "Music"));
   log(`${tracks.length} track(s) with weak/missing genre to enrich`);
 
   let upgraded = 0;
@@ -81,10 +73,7 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
     // `megadj audit`/`organize` act on a DB genre the file never got.
     let fileOk = true;
     if (track.file_path) {
-      fileOk = await (opts.tagWriter ?? rewriteGenreTag)(
-        track.file_path,
-        genre,
-      );
+      fileOk = await (opts.tagWriter ?? rewriteGenreTag)(track.file_path, genre);
       if (!fileOk) writeFailed++;
     }
     if (fileOk) {

@@ -19,9 +19,7 @@ describe("auditBpmSources", () => {
     ];
     const result = auditBpmSources(provenances, new Map());
     expect(result.sourceBreakdown).toHaveLength(2);
-    const btSummary = result.sourceBreakdown.find(
-      (s) => s.source === "beat_this",
-    );
+    const btSummary = result.sourceBreakdown.find((s) => s.source === "beat_this");
     expect(btSummary!.count).toBe(2);
   });
 
@@ -35,9 +33,7 @@ describe("auditBpmSources", () => {
       ["t2", 128],
     ]);
     const result = auditBpmSources(provenances, answerKeys);
-    const btSummary = result.sourceBreakdown.find(
-      (s) => s.source === "beat_this",
-    );
+    const btSummary = result.sourceBreakdown.find((s) => s.source === "beat_this");
     expect(btSummary!.accuracy).toBe(0.5); // t1 exact, t2 off by ~1.6%
   });
 

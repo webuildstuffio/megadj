@@ -252,26 +252,17 @@ describe("rb-fix-paths", () => {
     expect(r1.via).toBe("basename");
     expect(r1.fixPath).toContain("Old Track.mp3");
     // fully absent dir with a unique live basename → basename step
-    const r2 = __test.matchLadder(
-      join(mount, "Contents", "Elsewhere", "Old Track.mp3"),
-      mount,
-    );
+    const r2 = __test.matchLadder(join(mount, "Contents", "Elsewhere", "Old Track.mp3"), mount);
     expect(r2.via).toBe("basename");
     // nothing remotely similar → dead, no fix proposed
-    const r3 = __test.matchLadder(
-      join(mount, "Contents", "Ghost", "Nope.wav"),
-      mount,
-    );
+    const r3 = __test.matchLadder(join(mount, "Contents", "Ghost", "Nope.wav"), mount);
     expect(r3.via).toBe("unresolved");
     expect(r3.fixPath).toBeNull();
   });
 
   test("copy-suffix folding: 'Old Track - 1.mp3' → the plain file", () => {
     const mount = makeMount();
-    const r = __test.matchLadder(
-      "/Volumes/NOPE/Contents/Artist B/Old Track - 1.mp3",
-      mount,
-    );
+    const r = __test.matchLadder("/Volumes/NOPE/Contents/Artist B/Old Track - 1.mp3", mount);
     expect(r.via).toBe("copy-suffix");
     expect(r.fixPath).toContain("Old Track.mp3");
   });
@@ -295,9 +286,7 @@ describe("rb-fix-paths", () => {
     expect(() => __test.parseRewriteResult("not-json")).toThrow(
       "pyrekordbox rewrite returned malformed JSON",
     );
-    expect(() => __test.parseRewriteResult('{"applied":"2"}')).toThrow(
-      "invalid applied count",
-    );
+    expect(() => __test.parseRewriteResult('{"applied":"2"}')).toThrow("invalid applied count");
   });
 
   test("malformed read output includes the pyrekordbox boundary context", () => {
@@ -308,17 +297,10 @@ describe("rb-fix-paths", () => {
 
   test("content ids cross Python JSON as decimal strings without 64-bit rounding", () => {
     const id = "9007199254740993";
-    expect(__test.parseReadRows(`[["${id}","/music/a.aiff"]]`)).toEqual([
-      [id, "/music/a.aiff"],
-    ]);
-    expect(() => __test.parseReadRows(`[[${id},"/music/a.aiff"]]`)).toThrow(
-      "decimal string id",
-    );
+    expect(__test.parseReadRows(`[["${id}","/music/a.aiff"]]`)).toEqual([[id, "/music/a.aiff"]]);
+    expect(() => __test.parseReadRows(`[[${id},"/music/a.aiff"]]`)).toThrow("decimal string id");
     expect(
-      readFileSync(
-        join(import.meta.dir, "rb-scripts", "fix-paths-read.py"),
-        "utf8",
-      ),
+      readFileSync(join(import.meta.dir, "rb-scripts", "fix-paths-read.py"), "utf8"),
     ).toContain("str(c.ID)");
   });
 

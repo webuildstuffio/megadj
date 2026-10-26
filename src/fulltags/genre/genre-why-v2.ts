@@ -11,11 +11,7 @@
  * Wire shape is a superset of genre-why v1 — the `votes` array is replaced
  * by `evidence` with richer fields, and `posterior` + `annotators` are added.
  */
-import type {
-  Annotation,
-  AnnotatorReliability,
-  TrackPosterior,
-} from "./dawid-skene";
+import type { Annotation, AnnotatorReliability, TrackPosterior } from "./dawid-skene";
 import type { L3Ranked } from "./l3-rank";
 
 /** A single evidence row in the v2 breakdown. */
@@ -71,11 +67,7 @@ export function evidenceToAnnotations(
 ): Annotation[] {
   return evidence
     .filter((e) => e.family !== null)
-    .map((e) => ({
-      trackId,
-      annotatorId: `${e.source}:${e.scope}`,
-      label: e.family!,
-    }));
+    .map((e) => ({ trackId, annotatorId: `${e.source}:${e.scope}`, label: e.family! }));
 }
 
 /**
@@ -96,11 +88,7 @@ export function formatGenreWhyV2(result: GenreWhyV2Result): string[] {
     for (const e of result.evidence) {
       const scope = e.collapsed ? `${e.scope}↓` : e.scope;
       const verified =
-        e.verification === "verified"
-          ? " ✓"
-          : e.verification === "disputed"
-            ? " ✗"
-            : "";
+        e.verification === "verified" ? " ✓" : e.verification === "disputed" ? " ✗" : "";
       lines.push(
         `  ${e.source.padEnd(12)} ${scope.padEnd(28)} → ${e.rawGenre} (${e.family ?? "?"}) w=${e.weight.toFixed(2)}${verified}`,
       );
@@ -128,9 +116,7 @@ export function formatGenreWhyV2(result: GenreWhyV2Result): string[] {
     lines.push("");
     lines.push("L3 Subgenres:");
     for (const l3 of result.l3Ranked) {
-      lines.push(
-        `  ${l3.subgenre} (${(l3.probability * 100).toFixed(1)}%, ${l3.voteCount} votes)`,
-      );
+      lines.push(`  ${l3.subgenre} (${(l3.probability * 100).toFixed(1)}%, ${l3.voteCount} votes)`);
     }
   }
 
@@ -138,9 +124,7 @@ export function formatGenreWhyV2(result: GenreWhyV2Result): string[] {
     lines.push("");
     lines.push("Annotator Reliability:");
     for (const a of result.annotators) {
-      lines.push(
-        `  ${a.annotatorId.padEnd(30)} accuracy=${(a.accuracy * 100).toFixed(1)}%`,
-      );
+      lines.push(`  ${a.annotatorId.padEnd(30)} accuracy=${(a.accuracy * 100).toFixed(1)}%`);
     }
   }
 

@@ -43,18 +43,11 @@ describe("archive", () => {
     });
     const shelf = makeShelf();
     await run({ volumes: [drive], shelfVolume: shelf });
-    expect(
-      existsSync(join(shelf, "Contents", "Artist", "Album", "track.mp3")),
-    ).toBe(true);
-    expect(existsSync(join(shelf, "Contents", "PIONEER REC", "set.wav"))).toBe(
-      true,
+    expect(existsSync(join(shelf, "Contents", "Artist", "Album", "track.mp3"))).toBe(true);
+    expect(existsSync(join(shelf, "Contents", "PIONEER REC", "set.wav"))).toBe(true);
+    expect(readFileSync(join(shelf, "Contents", "Artist", "Album", "track.mp3"), "utf8")).toBe(
+      "audio-bytes",
     );
-    expect(
-      readFileSync(
-        join(shelf, "Contents", "Artist", "Album", "track.mp3"),
-        "utf8",
-      ),
-    ).toBe("audio-bytes");
   });
 
   test("skips AppleDouble/DS_Store junk and PIONEER device trees", async () => {
@@ -67,112 +60,68 @@ describe("archive", () => {
     });
     const shelf = makeShelf();
     await run({ volumes: [drive], shelfVolume: shelf });
-    expect(existsSync(join(shelf, "Contents", "Artist", "real.mp3"))).toBe(
-      true,
-    );
-    expect(existsSync(join(shelf, "Contents", "Artist", "._real.mp3"))).toBe(
-      false,
-    );
+    expect(existsSync(join(shelf, "Contents", "Artist", "real.mp3"))).toBe(true);
+    expect(existsSync(join(shelf, "Contents", "Artist", "._real.mp3"))).toBe(false);
     expect(existsSync(join(shelf, "Contents", "export.pdb"))).toBe(false);
     expect(existsSync(join(shelf, "Contents", "ANLZ0000.DAT"))).toBe(false);
   });
 
   test("re-run is a no-op (idempotent coverage)", async () => {
-    const drive = makeDrive(t6.dir(), {
-      "Contents/A/one.mp3": "1",
-      "Contents/A/two.mp3": "2",
-    });
+    const drive = makeDrive(t6.dir(), { "Contents/A/one.mp3": "1", "Contents/A/two.mp3": "2" });
     const shelf = makeShelf();
     await run({ volumes: [drive], shelfVolume: shelf });
     await run({ volumes: [drive], shelfVolume: shelf });
     // no [drive] variant copies should exist after a clean re-run
-    const listed = [
-      ...new Bun.Glob("**/*").scanSync({ cwd: join(shelf, "Contents") }),
-    ];
+    const listed = [...new Bun.Glob("**/*").scanSync({ cwd: join(shelf, "Contents") })];
     expect(listed.filter((f) => f.includes("[")).length).toBe(0);
     expect(listed.filter((f) => f.endsWith(".mp3")).length).toBe(2);
   });
 
   test("case-variant names count as covered (exFAT is case-insensitive)", async () => {
-    const drive = makeDrive(t7.dir(), {
-      "Contents/ARTIST/song.MP3": "x",
-    });
+    const drive = makeDrive(t7.dir(), { "Contents/ARTIST/song.MP3": "x" });
     const shelf = makeShelf({ "Contents/artist/Song.mp3": "x" });
     await run({ volumes: [drive], shelfVolume: shelf });
-    const listed = [
-      ...new Bun.Glob("**/*.mp3").scanSync({ cwd: join(shelf, "Contents") }),
-    ];
+    const listed = [...new Bun.Glob("**/*.mp3").scanSync({ cwd: join(shelf, "Contents") })];
     expect(listed).toHaveLength(1); // no duplicate written
   });
 
   test("same name + different size is preserved as <stem> [drive] copy — shelf original untouched", async () => {
-    const drive = makeDrive(t8.dir(), {
-      "Contents/A/track.mp3": "drive-version-bytes",
-    });
+    const drive = makeDrive(t8.dir(), { "Contents/A/track.mp3": "drive-version-bytes" });
     const shelf = makeShelf({ "Contents/A/track.mp3": "shelf-original" });
     await run({ volumes: [drive], shelfVolume: shelf, suffix: "bang" });
-    expect(
-      readFileSync(join(shelf, "Contents", "A", "track.mp3"), "utf8"),
-    ).toBe("shelf-original"); // NEVER overwritten
-    expect(
-      readFileSync(join(shelf, "Contents", "A", "track [bang].mp3"), "utf8"),
-    ).toBe("drive-version-bytes");
+    expect(readFileSync(join(shelf, "Contents", "A", "track.mp3"), "utf8")).toBe("shelf-original"); // NEVER overwritten
+    expect(readFileSync(join(shelf, "Contents", "A", "track [bang].mp3"), "utf8")).toBe(
+      "drive-version-bytes",
+    );
   });
 
   test("same size but different content: default trusts size; --deep preserves", async () => {
-    const drive = makeDrive(t9.dir(), {
-      "Contents/A/track.mp3": "aaaaXXXX",
-    });
+    const drive = makeDrive(t9.dir(), { "Contents/A/track.mp3": "aaaaXXXX" });
     // shelf twin has the SAME byte count (8) but different bytes
     const shelf = makeShelf({ "Contents/A/track.mp3": "bbbbYYYY" });
     await run({ volumes: [drive], shelfVolume: shelf });
-    expect(
-      existsSync(join(shelf, "Contents", "A", "track [").replace(/ \[$/, "")),
-    ).toBe(false); // nothing extra written without --deep
-    await run({
-      volumes: [drive],
-      shelfVolume: shelf,
-      deep: true,
-      suffix: "d",
-    });
-    expect(
-      readFileSync(join(shelf, "Contents", "A", "track [d].mp3"), "utf8"),
-    ).toBe("aaaaXXXX");
+    expect(existsSync(join(shelf, "Contents", "A", "track [").replace(/ \[$/, ""))).toBe(false); // nothing extra written without --deep
+    await run({ volumes: [drive], shelfVolume: shelf, deep: true, suffix: "d" });
+    expect(readFileSync(join(shelf, "Contents", "A", "track [d].mp3"), "utf8")).toBe("aaaaXXXX");
   });
 
   test("--trashes + --into lands trashed files flat under Contents/<into>/", async () => {
     const drive = t10.dir();
-    makeDrive(drive, {
-      ".Trashes/501/Cool Mix.mp3": "mix-bytes",
-    });
+    makeDrive(drive, { ".Trashes/501/Cool Mix.mp3": "mix-bytes" });
     const shelf = makeShelf();
-    await run({
-      volumes: [drive],
-      shelfVolume: shelf,
-      trashes: true,
-      into: "DJ Sets & Mixes",
-    });
-    expect(
-      existsSync(join(shelf, "Contents", "DJ Sets & Mixes", "Cool Mix.mp3")),
-    ).toBe(true);
+    await run({ volumes: [drive], shelfVolume: shelf, trashes: true, into: "DJ Sets & Mixes" });
+    expect(existsSync(join(shelf, "Contents", "DJ Sets & Mixes", "Cool Mix.mp3"))).toBe(true);
   });
 
   test("unmounted drive is skipped, run stays ok, mounted one still works", async () => {
-    const drive = makeDrive(t11.dir(), {
-      "Contents/A/x.mp3": "x",
-    });
+    const drive = makeDrive(t11.dir(), { "Contents/A/x.mp3": "x" });
     const shelf = makeShelf();
-    await run({
-      volumes: [drive, "/tmp/megadj-sa-not-mounted-zzz"],
-      shelfVolume: shelf,
-    });
+    await run({ volumes: [drive, "/tmp/megadj-sa-not-mounted-zzz"], shelfVolume: shelf });
     expect(existsSync(join(shelf, "Contents", "A", "x.mp3"))).toBe(true);
   });
 
   test("unmounted shelf is a hard error (exit 1)", async () => {
-    const drive = makeDrive(t12.dir(), {
-      "Contents/A/x.mp3": "x",
-    });
+    const drive = makeDrive(t12.dir(), { "Contents/A/x.mp3": "x" });
     const logs: string[] = [];
     await run({
       volumes: [drive],
@@ -189,9 +138,7 @@ describe("archive", () => {
   });
 
   test("--json emits one parseable summary (P1 contract) with ok flag", async () => {
-    const drive = makeDrive(t13.dir(), {
-      "Contents/A/y.mp3": "y",
-    });
+    const drive = makeDrive(t13.dir(), { "Contents/A/y.mp3": "y" });
     const shelf = makeShelf();
     const orig = console.log;
     let out = "";
@@ -297,14 +244,7 @@ describe("shelf sweep ledger", () => {
     const id = sweeps.start({ drive: "X", shelf: "SHELF1" });
     sweeps.finish(
       id,
-      {
-        filesSeen: 10,
-        coveredExact: 8,
-        preserved: 0,
-        copied: 1,
-        bytesCopied: 1,
-        failed: 1,
-      },
+      { filesSeen: 10, coveredExact: 8, preserved: 0, copied: 1, bytesCopied: 1, failed: 1 },
       "hash mismatch: a.mp3",
     );
     expect(sweeps.latestPerDrive()[0]?.verdict).toBe("failed");
@@ -340,9 +280,7 @@ describe("shelf sweep ledger", () => {
 
 describe("shelf sweep ledger wiring", () => {
   test("a real sweep records a complete row in the ledger DB", async () => {
-    const drive = makeDrive(t14.dir(), {
-      "Contents/A/z.mp3": "z",
-    });
+    const drive = makeDrive(t14.dir(), { "Contents/A/z.mp3": "z" });
     const shelf = makeShelf();
     const ledgerDb = join(t15.dir(), "state.db");
     await shelfArchive({
@@ -365,17 +303,10 @@ describe("shelf sweep ledger wiring", () => {
   });
 
   test("ledgerPath: null disables recording (no DB anywhere)", async () => {
-    const drive = makeDrive(t16.dir(), {
-      "Contents/A/w.mp3": "w",
-    });
+    const drive = makeDrive(t16.dir(), { "Contents/A/w.mp3": "w" });
     const shelf = makeShelf();
     // no ledgerPath → default would write the real DB; null disables
-    await shelfArchive({
-      volumes: [drive],
-      shelfVolume: shelf,
-      ledgerPath: null,
-      log: () => {},
-    });
+    await shelfArchive({ volumes: [drive], shelfVolume: shelf, ledgerPath: null, log: () => {} });
     expect(existsSync(join(shelf, "Contents", "A", "w.mp3"))).toBe(true);
   });
 });

@@ -19,11 +19,7 @@ interface EnergyRow {
   energy: number | null;
 }
 
-function runEnergyStage(
-  db: Database,
-  answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runEnergyStage(db: Database, answerKey: string, _split: BenchSplit): StageResult {
   const rows = db
     .query(
       `SELECT t.video_id, t.energy
@@ -84,16 +80,9 @@ function runEnergyStage(
     metrics.ak5_pairs = pairs.length;
   }
 
-  metrics.gate =
-    spreadOk >= 8 && (n === 0 || deciles[9]! / n <= 0.15) ? "PASS" : "FAIL";
+  metrics.gate = spreadOk >= 8 && (n === 0 || deciles[9]! / n <= 0.15) ? "PASS" : "FAIL";
 
-  return {
-    stage: "energy",
-    answerKey,
-    rows: benchRows,
-    metrics,
-    configHash: "energy-v1",
-  };
+  return { stage: "energy", answerKey, rows: benchRows, metrics, configHash: "energy-v1" };
 }
 
 registerStage("energy", runEnergyStage);

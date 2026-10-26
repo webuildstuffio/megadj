@@ -102,11 +102,7 @@ export interface MegasetResult {
    *  second bucket list). Examples cap at 4 per group. #291: budget-fill
    *  is NOT a bucket here — it is a status (`budget_filled`), so the
    *  groups carry only genuine quality reasons. */
-  excluded_groups: {
-    reason: string;
-    count: number;
-    examples: string[];
-  }[];
+  excluded_groups: { reason: string; count: number; examples: string[] }[];
   /** #291: how many candidates the time budget itself squeezed out —
    *  a STATUS, not a quality exclusion. Reported beside the groups so
    *  the real quality shape is never drowned by 3.5k true-but-noise
@@ -167,18 +163,13 @@ export function isShelfOffline(
   result: { steps: readonly unknown[] },
   census: Pick<
     MegasetPayload,
-    | "source_total"
-    | "pool"
-    | "missing_files"
-    | "relocated_files"
-    | "metadata_only"
+    "source_total" | "pool" | "missing_files" | "relocated_files" | "metadata_only"
   >,
 ): boolean {
   return (
     result.steps.length === 0 &&
     census.source_total > 0 &&
-    census.missing_files + census.pool + census.metadata_only ===
-      census.source_total &&
+    census.missing_files + census.pool + census.metadata_only === census.source_total &&
     census.relocated_files === 0
   );
 }
@@ -222,12 +213,7 @@ export interface MegasetPayload extends MegasetResult {
    *  fileCheck = path existence/rebase, keyFills = key cache misses +
    *  live reads, engine = buildMegaset. The web phase list and the CLI
    *  epilogue render these — honest timing, not a fixed schedule. */
-  stages_ms: {
-    sql: number;
-    fileCheck: number;
-    keyFills: number;
-    engine: number;
-  };
+  stages_ms: { sql: number; fileCheck: number; keyFills: number; engine: number };
   /** Ledger ages for the newest beats/mood analysis — a stale pool is
    *  VISIBLE ("proposed from analysis older than your latest drops"),
    *  never silent. Null when that ledger is empty. */
@@ -302,9 +288,7 @@ export function buildMegasetPayload(args: {
     // #283: matched rows when a --genre filter ran (0 = unfiltered)
     genre_filtered: census.genreFiltered,
     // #290: nearest known genre family when the filter matched 0 rows
-    ...(args.genreSuggestion !== undefined
-      ? { genre_suggestion: args.genreSuggestion }
-      : {}),
+    ...(args.genreSuggestion !== undefined ? { genre_suggestion: args.genreSuggestion } : {}),
     // #286: measured per-stage timings (ms) — the CLI epilogue and the
     // web phase list quote these, never a fixed schedule
     stages_ms: census.stagesMs,
@@ -383,9 +367,7 @@ export type MegasetPresetId = MegasetPresetDef["id"];
 /** The `?preset=` guard rail: the engine clamps minutes, but an unknown
  *  preset id is a caller bug — surfaced, never silently re-scored as
  *  peak-time (the old `SET_PRESETS[bad] ?? peak` fallback hid it). */
-export const MEGASET_PRESET_IDS: MegasetPresetId[] = MEGASET_PRESET_DEFS.map(
-  (p) => p.id,
-);
+export const MEGASET_PRESET_IDS: MegasetPresetId[] = MEGASET_PRESET_DEFS.map((p) => p.id);
 
 export const DEFAULT_MEGASET_PRESET: MegasetPresetId = "peak";
 
@@ -407,11 +389,7 @@ export const MEGASET_TEMPO_WINDOW = 0.06;
 
 /** Transition score weights: tempo + key are the mixable core, arc fit is
  *  the soft bonus. Exported for the surfaces' scoring-evidence panels. */
-export const MEGASET_TRANSITION_WEIGHTS = {
-  tempo: 0.45,
-  key: 0.3,
-  arcFit: 0.25,
-} as const;
+export const MEGASET_TRANSITION_WEIGHTS = { tempo: 0.45, key: 0.3, arcFit: 0.25 } as const;
 
 // ---- B2 tempo-anchor seam (issue #105): a ±6%-per-step chain COMPOUNDS
 // (measured 100 → 187.9 BPM in one 12-step climb) because each hop is
@@ -472,8 +450,7 @@ export function megasetReasonClass(reason: string): string {
     return "too short — audio sample, not a track";
   if (reason.includes("exceeds the") && reason.includes("track cap"))
     return "too long — continuous mix, not a single track";
-  if (reason.includes("no beats-ledger BPM"))
-    return "no measured tempo — run `megadj beats`";
+  if (reason.includes("no beats-ledger BPM")) return "no measured tempo — run `megadj beats`";
   if (reason.includes("no compatible transition"))
     return "no compatible transition (key clash / tempo / drift)";
   if (reason.includes("requested opener")) {
@@ -511,16 +488,9 @@ export function megasetTransitionBand(score: number): {
 }
 
 export function groupMegasetExcluded(
-  excluded: readonly {
-    videoId: string;
-    title: string | null;
-    reason: string;
-  }[],
+  excluded: readonly { videoId: string; title: string | null; reason: string }[],
 ): { reason: string; count: number; examples: string[] }[] {
-  const byReason = new Map<
-    string,
-    { reason: string; count: number; examples: string[] }
-  >();
+  const byReason = new Map<string, { reason: string; count: number; examples: string[] }>();
   for (const e of excluded) {
     // one CLASS per exclusion — the raw string (with per-track numbers)
     // stays on the excluded[] rows. #291: budget-fill is a status, not a
@@ -541,12 +511,8 @@ export function groupMegasetExcluded(
 /** #291: the budget-fill COUNT — how many candidates the time budget
  *  squeezed out (a status, reported beside the quality groups; these
  *  rows are true but carry no quality signal). */
-export function megasetBudgetFilledCount(
-  excluded: readonly { reason: string }[],
-): number {
-  return excluded.filter(
-    (e) => megasetReasonClass(e.reason) === "set budget filled",
-  ).length;
+export function megasetBudgetFilledCount(excluded: readonly { reason: string }[]): number {
+  return excluded.filter((e) => megasetReasonClass(e.reason) === "set budget filled").length;
 }
 
 // ---- Phase D handoff derivation (#106) -------------------------------------
@@ -579,10 +545,7 @@ export function nearestMegasetCue(
     // written in ascending bar order, so first-seen == earlier boundary.
     // (An equal-distance later bar would flip only with `<=` — the tie
     // regression test pins the earlier-bar outcome either way.)
-    if (
-      dist < bestDist ||
-      (dist === bestDist && cue.bar < (best?.bar ?? cue.bar))
-    ) {
+    if (dist < bestDist || (dist === bestDist && cue.bar < (best?.bar ?? cue.bar))) {
       bestDist = dist;
       best = { bar: cue.bar, position: cue.position };
     }
@@ -597,8 +560,7 @@ export function megasetMixOutCue(
   cues: readonly MegasetCue[],
   durationS: number | null,
 ): MegasetCuePoint | null {
-  if (cues.length === 0 || durationS === null || !Number.isFinite(durationS))
-    return null;
+  if (cues.length === 0 || durationS === null || !Number.isFinite(durationS)) return null;
   return nearestMegasetCue(cues, durationS - MEGASET_HANDOFF_OVERLAP_S);
 }
 
@@ -606,9 +568,7 @@ export function megasetMixOutCue(
  *  overlap target (MEGASET_HANDOFF_INTRO_S from the start — the first
  *  phrases are usually intro, so the takeover landmark sits a phrase or
  *  two in). Works without a duration (the intro side never needs one). */
-export function megasetMixInCue(
-  cues: readonly MegasetCue[],
-): MegasetCuePoint | null {
+export function megasetMixInCue(cues: readonly MegasetCue[]): MegasetCuePoint | null {
   return nearestMegasetCue(cues, MEGASET_HANDOFF_INTRO_S);
 }
 
@@ -649,12 +609,7 @@ export const MEGASET_GENRE_FAMILIES: Record<string, string[]> = {
  *  House 328 rows). Small cohorts (Deep House 134, Afro House 75) stay
  *  opt-in via `--families` — a 134-row pool can fill ONE arm but starves
  *  the pair. Order = spread order (biggest first). */
-export const MEGASET_COHORT_FAMILIES: readonly string[] = [
-  "edm",
-  "house",
-  "techno",
-  "tech house",
-];
+export const MEGASET_COHORT_FAMILIES: readonly string[] = ["edm", "house", "techno", "tech house"];
 
 /** Resolve a raw `?genre=` / `--genre` / MCP `genre` value to a match-term
  *  list. Exact family id wins ("tropical house"); then a family whose id or
@@ -664,8 +619,7 @@ export const MEGASET_COHORT_FAMILIES: readonly string[] = [
 export function megasetGenreTerms(raw: string | null | undefined): string[] {
   const trimmed = raw?.trim().toLowerCase() ?? "";
   if (trimmed === "") return [];
-  if (trimmed in MEGASET_GENRE_FAMILIES)
-    return [trimmed, ...MEGASET_GENRE_FAMILIES[trimmed]!];
+  if (trimmed in MEGASET_GENRE_FAMILIES) return [trimmed, ...MEGASET_GENRE_FAMILIES[trimmed]!];
   for (const [family, synonyms] of Object.entries(MEGASET_GENRE_FAMILIES)) {
     if (trimmed.includes(family) || synonyms.some((s) => trimmed.includes(s))) {
       return [family, ...synonyms];
@@ -711,9 +665,7 @@ export function megasetNearestGenreFamily(
       const d = boundedEditDistance(needle, word, 3);
       if (
         d !== null &&
-        (best === null ||
-          d < best.distance ||
-          (d === best.distance && family < best.family))
+        (best === null || d < best.distance || (d === best.distance && family < best.family))
       ) {
         best = { family, distance: d };
       }
@@ -750,13 +702,10 @@ function boundedEditDistance(a: string, b: string, max: number): number | null {
  *  house"` did — the same pool, two different starvation behavior.
  *  Free-form values with no family still return null (literal stays
  *  literal). */
-export function megasetGenreFallbackTerms(
-  raw: string | null | undefined,
-): string[] | null {
+export function megasetGenreFallbackTerms(raw: string | null | undefined): string[] | null {
   const trimmed = raw?.trim().toLowerCase() ?? "";
   if (trimmed === "") return null;
-  if (trimmed in MEGASET_GENRE_FALLBACKS)
-    return MEGASET_GENRE_FALLBACKS[trimmed]!;
+  if (trimmed in MEGASET_GENRE_FALLBACKS) return MEGASET_GENRE_FALLBACKS[trimmed]!;
   // a synonym/substring hit resolves to its family ("tropical" →
   // tropical house) so the widening rule follows the matcher, not the
   // caller's spelling
@@ -801,9 +750,8 @@ export type SetSearchOverride = MegasetResult["search"];
  * unlike preset, which IS a contract and 400s); stricter CLI/MCP callers
  * pre-check with this predicate so a typo'd A/B compare fails loudly
  * instead of silently comparing auto-vs-forced. */
-export const isMegasetSearchOverride = (
-  raw: string | null | undefined,
-): raw is SetSearchOverride => raw === "greedy" || raw === "beam";
+export const isMegasetSearchOverride = (raw: string | null | undefined): raw is SetSearchOverride =>
+  raw === "greedy" || raw === "beam";
 
 export function clampMegasetPool(raw: number | null | undefined): number {
   // Number(null) is 0, NOT NaN — null/undefined must be checked before
@@ -845,8 +793,7 @@ export const MEGASET_HALFTIME_TOLERANCE = 0.06;
  *  future surfaces; transitionScore is the production consumer. */
 export function isMegasetHalfTimePair(a: number, b: number): boolean {
   for (const factor of [2, 0.5, 1.5, 2 / 3]) {
-    if (Math.abs(b / (a * factor) - 1) <= MEGASET_HALFTIME_TOLERANCE)
-      return true;
+    if (Math.abs(b / (a * factor) - 1) <= MEGASET_HALFTIME_TOLERANCE) return true;
   }
   return false;
 }

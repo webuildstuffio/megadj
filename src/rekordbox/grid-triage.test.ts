@@ -53,11 +53,7 @@ function fakeShelf(): { shelf: string; anlzDir: string } {
  * state API — no raw db access. The state's DB is rippled with the
  * fixture tree (close is the caller's job — both command tests close
  * in their finally). */
-function seedLedger(
-  musicDir: string,
-  rel: string,
-  beats: number[],
-): ArchiveState {
+function seedLedger(musicDir: string, rel: string, beats: number[]): ArchiveState {
   const dir = t.dir();
   const state = stateIn(dir, "db.sqlite");
   state.upsertTrackFromPlaylist("v1", 1, "Track");
@@ -89,9 +85,7 @@ function seedLedger(
 describe("anlzBpm", () => {
   test("median of the tempo column, ÷100", () => {
     expect(anlzBpm([{ bpmx100: 12800 }, { bpmx100: 12800 }])).toBe(128);
-    expect(
-      anlzBpm([{ bpmx100: 12799 }, { bpmx100: 12800 }, { bpmx100: 12801 }]),
-    ).toBe(128);
+    expect(anlzBpm([{ bpmx100: 12799 }, { bpmx100: 12800 }, { bpmx100: 12801 }])).toBe(128);
     expect(anlzBpm([])).toBeNull();
   });
 });
@@ -101,9 +95,9 @@ describe("resolveCollectionAnlz", () => {
     const { shelf, anlzDir } = fakeShelf();
     writeFileSync(join(anlzDir, "A.DAT"), "x");
     expect(resolveCollectionAnlz(shelf, "A.DAT")).toBe(join(anlzDir, "A.DAT"));
-    expect(
-      resolveCollectionAnlz(shelf, "/PIONEER/Master/share/ANLZ/A.DAT"),
-    ).toBe(join(shelf, "PIONEER/Master/share/ANLZ/A.DAT"));
+    expect(resolveCollectionAnlz(shelf, "/PIONEER/Master/share/ANLZ/A.DAT")).toBe(
+      join(shelf, "PIONEER/Master/share/ANLZ/A.DAT"),
+    );
     expect(resolveCollectionAnlz(shelf, "missing.DAT")).toBeNull();
   });
 
@@ -113,13 +107,9 @@ describe("resolveCollectionAnlz", () => {
     // absolute row read as NO-ANLZ before the basename fallback existed.
     const { shelf, anlzDir } = fakeShelf();
     writeFileSync(join(anlzDir, "B.DAT"), "y");
-    expect(resolveCollectionAnlz(shelf, "/Contents/share/ANLZ/B.DAT")).toBe(
-      join(anlzDir, "B.DAT"),
-    );
+    expect(resolveCollectionAnlz(shelf, "/Contents/share/ANLZ/B.DAT")).toBe(join(anlzDir, "B.DAT"));
     // truly-gone absolute paths still read as missing
-    expect(
-      resolveCollectionAnlz(shelf, "/Contents/share/ANLZ/GONE.DAT"),
-    ).toBeNull();
+    expect(resolveCollectionAnlz(shelf, "/Contents/share/ANLZ/GONE.DAT")).toBeNull();
   });
 });
 
@@ -127,19 +117,13 @@ describe("buildLedgerIndex + ledgerBeatsFor", () => {
   test("joins by shelf Contents rel path (NFC+casefold) then basename", () => {
     const musicDir = t.dir();
     mkdirSync(join(musicDir, "Artist"), { recursive: true });
-    const state = seedLedger(
-      musicDir,
-      join("Artist", "Track.aiff"),
-      ledgerBeats(16),
-    );
+    const state = seedLedger(musicDir, join("Artist", "Track.aiff"), ledgerBeats(16));
     try {
       const prev = process.env.MEGADJ_MUSIC_DIR;
       process.env.MEGADJ_MUSIC_DIR = musicDir;
       try {
         const idx = buildLedgerIndex(state);
-        expect(
-          ledgerBeatsFor("/Contents/artist/track.AIFF", idx),
-        ).not.toBeNull();
+        expect(ledgerBeatsFor("/Contents/artist/track.AIFF", idx)).not.toBeNull();
         expect(
           ledgerBeatsFor("/Contents/Other/Track.aiff", idx), // unique basename
         ).not.toBeNull();
@@ -201,10 +185,7 @@ describe("triageRow", () => {
   });
 
   test("RB grid one beat late → PHASE with anchor ≈ 1 beat", () => {
-    const bytes = buildAnlz({
-      path: row.path,
-      beats: anlzBeats(256, Math.round(step)),
-    });
+    const bytes = buildAnlz({ path: row.path, beats: anlzBeats(256, Math.round(step)) });
     const res = triageRow({
       row,
       shelfAnlzBytes: bytes,
@@ -265,25 +246,13 @@ describe("gridTriage command", () => {
       expect(missing.ok).toBe(false);
 
       mkdirSync(join(musicDir, "Artist"), { recursive: true });
-      state = seedLedger(
-        musicDir,
-        join("Artist", "Track.aiff"),
-        ledgerBeats(256),
-      );
+      state = seedLedger(musicDir, join("Artist", "Track.aiff"), ledgerBeats(256));
       writeFileSync(
         join(anlzDir, "one.DAT"),
-        buildAnlz({
-          path: "/Contents/Artist/Track.aiff",
-          beats: anlzBeats(256),
-        }),
+        buildAnlz({ path: "/Contents/Artist/Track.aiff", beats: anlzBeats(256) }),
       );
       const rows: MasterRow[] = [
-        {
-          id: 10,
-          path: "/Contents/Artist/Track.aiff",
-          anlz: "one.DAT",
-          hashDir: "P001/0000000A",
-        },
+        { id: 10, path: "/Contents/Artist/Track.aiff", anlz: "one.DAT", hashDir: "P001/0000000A" },
       ];
       const r = await gridTriage({ mount: shelf, state, rows, json: true });
       expect(r.ok).toBe(true);
@@ -306,43 +275,22 @@ describe("gridTriage command", () => {
     let state: ArchiveState | null = null;
     try {
       mkdirSync(join(musicDir, "Artist"), { recursive: true });
-      state = seedLedger(
-        musicDir,
-        join("Artist", "Track.aiff"),
-        ledgerBeats(256),
-      );
+      state = seedLedger(musicDir, join("Artist", "Track.aiff"), ledgerBeats(256));
       writeFileSync(
         join(anlzDir, "one.DAT"),
-        buildAnlz({
-          path: "/Contents/Artist/Track.aiff",
-          beats: anlzBeats(256),
-        }),
+        buildAnlz({ path: "/Contents/Artist/Track.aiff", beats: anlzBeats(256) }),
       );
       // stick sidecar at the hash path — different anchor → SYNC issue
       const stickDir = join(stick, "PIONEER", "USBANLZ", "P001", "0000000A");
       mkdirSync(stickDir, { recursive: true });
       writeFileSync(
         join(stickDir, "ANLZ0000.DAT"),
-        buildAnlz({
-          path: "/Contents/Artist/Track.aiff",
-          beats: anlzBeats(256, 30),
-        }),
+        buildAnlz({ path: "/Contents/Artist/Track.aiff", beats: anlzBeats(256, 30) }),
       );
       const rows: MasterRow[] = [
-        {
-          id: 11,
-          path: "/Contents/Artist/Track.aiff",
-          anlz: "one.DAT",
-          hashDir: "P001/0000000A",
-        },
+        { id: 11, path: "/Contents/Artist/Track.aiff", anlz: "one.DAT", hashDir: "P001/0000000A" },
       ];
-      const r = await gridTriage({
-        mount: shelf,
-        state,
-        rows,
-        compareDrive: stick,
-        json: true,
-      });
+      const r = await gridTriage({ mount: shelf, state, rows, compareDrive: stick, json: true });
       expect(r.ok).toBe(true);
       expect(r.syncIssues).toBe(1);
       expect(r.synced).toBe(0);

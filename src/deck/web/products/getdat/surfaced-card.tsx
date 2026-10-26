@@ -53,9 +53,8 @@ export function ScSetsStrip(props: { sets: ArchiveIngestStatus["sc_sets"] }) {
           <div class="sc-set-row" key={s.slug}>
             <b>{s.slug}</b>
             <span class="sc-set-progress">
-              <i class="have">{handled}</i> in archive ·{" "}
-              <i class="surf">{s.surfaced}</i> links open ·{" "}
-              <i class="gone">{s.gone}</i> gone · {s.pending} queued —{" "}
+              <i class="have">{handled}</i> in archive · <i class="surf">{s.surfaced}</i> links open
+              · <i class="gone">{s.gone}</i> gone · {s.pending} queued —{" "}
               {handled + s.surfaced + s.gone + s.pending} of {s.total} tracked
             </span>
             {url && (
@@ -63,8 +62,7 @@ export function ScSetsStrip(props: { sets: ArchiveIngestStatus["sc_sets"] }) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="btn btn-sm surfaced-link"
-              >
+                class="btn btn-sm surfaced-link">
                 open set ↗
               </a>
             )}
@@ -92,8 +90,7 @@ function renderLinks(s: ArchiveIngestStatus["surfaced"][number]) {
           href={l.url}
           target="_blank"
           rel="noopener noreferrer"
-          class="btn btn-sm surfaced-link"
-        >
+          class="btn btn-sm surfaced-link">
           {l.url.replace(/^https?:\/\//, "")} ↗
         </a>
       ))}
@@ -118,10 +115,7 @@ export function SurfacedLinksCard(props: {
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(props.rows.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
-  const pagedRows = props.rows.slice(
-    safePage * PAGE_SIZE,
-    (safePage + 1) * PAGE_SIZE,
-  );
+  const pagedRows = props.rows.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
   const scSets = props.sets ?? [];
   // Default batch folder: the user's real downloads home (the intake
   // watch dir, ~/Music/Downloads — editable to wherever the saved files
@@ -155,16 +149,9 @@ export function SurfacedLinksCard(props: {
     try {
       // Job-based now: the route enqueues the intake job and returns at
       // once — no 600s client deadline, progress/cancel live in the dock.
-      const batch = await apiPost<{
-        ok: boolean;
-        jobId?: string;
-        submitted: number;
-      }>(
+      const batch = await apiPost<{ ok: boolean; jobId?: string; submitted: number }>(
         `/api/archive/surfaced-batch`,
-        {
-          folder,
-          ids: props.rows.filter((row) => row.done).map((row) => row.video_id),
-        },
+        { folder, ids: props.rows.filter((row) => row.done).map((row) => row.video_id) },
         { timeoutMs: 30_000 },
       );
       if (batch.jobId)
@@ -175,10 +162,7 @@ export function SurfacedLinksCard(props: {
       navigateProduct("getdat", "intake");
       props.onChanged?.();
     } catch (e: unknown) {
-      toast(
-        `batch refused: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
+      toast(`batch refused: ${e instanceof Error ? e.message : String(e)}`, "err");
     } finally {
       setBatchBusy(false);
     }
@@ -192,9 +176,7 @@ export function SurfacedLinksCard(props: {
         hint={copy.hint}
         lines={[
           `${doneCount} checked off · ${openRows.length} open`,
-          ...props.rows
-            .slice(0, 3)
-            .map((s) => `${s.title ?? s.video_id} — ${s.url ?? "link"}`),
+          ...props.rows.slice(0, 3).map((s) => `${s.title ?? s.video_id} — ${s.url ?? "link"}`),
         ]}
       />
       <ScSetsStrip sets={scSets} />
@@ -207,20 +189,13 @@ export function SurfacedLinksCard(props: {
                   type="checkbox"
                   checked={s.done}
                   disabled={busy === s.video_id}
-                  onChange={(e) =>
-                    setDone(s.video_id, (e.target as HTMLInputElement).checked)
-                  }
+                  onChange={(e) => setDone(s.video_id, (e.target as HTMLInputElement).checked)}
                 />
-                <TrackTitle
-                  title={s.title}
-                  videoId={s.video_id}
-                  artist={s.artist}
-                />
+                <TrackTitle title={s.title} videoId={s.video_id} artist={s.artist} />
                 {s.source.startsWith("soundcloud:") && (
                   <span
                     class="surfaced-src"
-                    title={`from the ${setDisplayName(s.source)} SoundCloud set`}
-                  >
+                    title={`from the ${setDisplayName(s.source)} SoundCloud set`}>
                     {setDisplayName(s.source)}
                   </span>
                 )}
@@ -232,21 +207,13 @@ export function SurfacedLinksCard(props: {
       </KVRows>
       {pageCount > 1 && (
         <div class="surfaced-pager">
-          <button
-            class="btn sm"
-            disabled={page === 0}
-            onClick={() => setPage(page - 1)}
-          >
+          <button class="btn sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
             ← prev
           </button>
           <span>
             page {page + 1} / {pageCount} · {n} rows
           </span>
-          <button
-            class="btn sm"
-            disabled={page >= pageCount - 1}
-            onClick={() => setPage(page + 1)}
-          >
+          <button class="btn sm" disabled={page >= pageCount - 1} onClick={() => setPage(page + 1)}>
             next →
           </button>
         </div>
@@ -261,11 +228,7 @@ export function SurfacedLinksCard(props: {
               onInput={(e) => setFolder((e.target as HTMLInputElement).value)}
             />
           </label>
-          <button
-            class="btn primary"
-            disabled={batchBusy}
-            onClick={() => void finalizeBatch()}
-          >
+          <button class="btn primary" disabled={batchBusy} onClick={() => void finalizeBatch()}>
             {batchBusy
               ? "processing…"
               : `Fulltags-process ${doneCount} saved file${doneCount === 1 ? "" : "s"}`}
@@ -273,8 +236,8 @@ export function SurfacedLinksCard(props: {
         </div>
       )}
       <div class="arch-fix">
-        click a link → save the file into the downloads folder → check it off →
-        run the batch. Ledger: <code>megadj surfaced-note &lt;id&gt;</code>
+        click a link → save the file into the downloads folder → check it off → run the batch.
+        Ledger: <code>megadj surfaced-note &lt;id&gt;</code>
       </div>
     </div>
   );

@@ -3,17 +3,11 @@
 // byte-identical clampMinutes/minutesFrom copies. The bounds ride the
 // shared MEGASET_MINUTES_MIN/MAX constants — the same window the plan
 // engine clamps to server-side.
-import {
-  MEGASET_MINUTES_MAX,
-  MEGASET_MINUTES_MIN,
-} from "../../../shared/types";
+import { MEGASET_MINUTES_MAX, MEGASET_MINUTES_MIN } from "../../../shared/types";
 
 function clampMinutes(raw: number): number {
   return Number.isFinite(raw)
-    ? Math.min(
-        MEGASET_MINUTES_MAX,
-        Math.max(MEGASET_MINUTES_MIN, Math.round(raw)),
-      )
+    ? Math.min(MEGASET_MINUTES_MAX, Math.max(MEGASET_MINUTES_MIN, Math.round(raw)))
     : 60;
 }
 

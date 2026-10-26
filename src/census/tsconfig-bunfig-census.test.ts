@@ -18,10 +18,7 @@ const repo = join(import.meta.dir, "..", "..");
 
 test("src/deck/tsconfig.json is an extends shim, never an options twin", () => {
   const raw = readFileSync(join(repo, "src/deck/tsconfig.json"), "utf8");
-  const json = JSON.parse(raw) as {
-    extends?: string;
-    compilerOptions?: Record<string, unknown>;
-  };
+  const json = JSON.parse(raw) as { extends?: string; compilerOptions?: Record<string, unknown> };
   // The extends target resolves relative to the config's own directory,
   // so "../../tsconfig.json" from src/deck/ is the repo-root config.
   expect(
@@ -35,10 +32,9 @@ test("src/deck/tsconfig.json is an extends shim, never an options twin", () => {
   // scoped run created base/cache/tsbuildinfo). The override makes the
   // poison structurally impossible instead of merely unused.
   const overrides = Object.keys(json.compilerOptions ?? {});
-  expect(
-    overrides,
-    "the one sanctioned override is incremental:false",
-  ).toStrictEqual(["incremental"]);
+  expect(overrides, "the one sanctioned override is incremental:false").toStrictEqual([
+    "incremental",
+  ]);
   expect(
     json.compilerOptions?.["incremental"],
     "scoped runs must never write the shared root tsBuildInfoFile",
@@ -46,9 +42,9 @@ test("src/deck/tsconfig.json is an extends shim, never an options twin", () => {
 });
 
 test("src/deck/web/tsconfig.json stays the extends shim it already was", () => {
-  const json = JSON.parse(
-    readFileSync(join(repo, "src/deck/web/tsconfig.json"), "utf8"),
-  ) as { extends?: string };
+  const json = JSON.parse(readFileSync(join(repo, "src/deck/web/tsconfig.json"), "utf8")) as {
+    extends?: string;
+  };
   expect(json.extends).toBe("../tsconfig.json");
 });
 
@@ -65,10 +61,7 @@ test("src/deck/bunfig.toml stays visibly dead: its timeout differs from root", (
   const root = readFileSync(join(repo, "bunfig.toml"), "utf8");
   const nestedTimeout = /^timeout\s*=\s*(\d+)/mu.exec(nested)?.[1];
   const rootTimeout = /^timeout\s*=\s*(\d+)/mu.exec(root)?.[1];
-  expect(
-    nestedTimeout,
-    "nested tripwire file must pin a timeout",
-  ).toBeDefined();
+  expect(nestedTimeout, "nested tripwire file must pin a timeout").toBeDefined();
   expect(rootTimeout, "root bunfig must pin a timeout").toBeDefined();
   expect(
     nestedTimeout,
@@ -80,9 +73,7 @@ test("src/fulltags/bunfig.toml stays deleted — no third mirror regrows", () =>
   // Deleted in #273 (unreferenced fossil; src/fulltags is not a bun
   // workspace and no script ever cd'd there). If a scoped bunfig is ever
   // genuinely needed, restore it WITH a parity test proving bun reads it.
-  expect(Bun.file(join(repo, "src/fulltags/bunfig.toml")).size, "regrown").toBe(
-    0,
-  );
+  expect(Bun.file(join(repo, "src/fulltags/bunfig.toml")).size, "regrown").toBe(0);
 });
 
 test("src/deck/package.json test script documents the root-run reality", () => {
@@ -92,9 +83,9 @@ test("src/deck/package.json test script documents the root-run reality", () => {
   // No repo gate uses this script (they run `bun test` from the root), so
   // the root bunfig governs everything that matters. Pin the shape so a
   // rewrite that silently changes the run directory cannot slip past.
-  const cratePkg = JSON.parse(
-    readFileSync(join(repo, "src/deck/package.json"), "utf8"),
-  ) as { scripts?: Record<string, string> };
+  const cratePkg = JSON.parse(readFileSync(join(repo, "src/deck/package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
   const testScript = cratePkg.scripts?.test ?? "";
   expect(testScript).toContain("bun test");
   expect(testScript).toContain("../deck/");

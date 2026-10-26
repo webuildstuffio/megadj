@@ -32,9 +32,7 @@ const DEFAULTS = {
 } as const;
 
 export class RateLimiter {
-  private readonly opts: Required<
-    Omit<RateLimiterOptions, "onBackoff" | "onPace" | "sleepFn">
-  >;
+  private readonly opts: Required<Omit<RateLimiterOptions, "onBackoff" | "onPace" | "sleepFn">>;
   private readonly onBackoff?: RateLimiterOptions["onBackoff"];
   private readonly onPace?: RateLimiterOptions["onPace"];
   private readonly sleepFn: (ms: number) => Promise<void>;
@@ -48,8 +46,7 @@ export class RateLimiter {
     this.onBackoff = onBackoff;
     this.onPace = onPace;
     this.sleepFn =
-      injectedSleep ??
-      ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+      injectedSleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
   /** Uniform random in [-f, +f] * value. */
@@ -87,8 +84,7 @@ export class RateLimiter {
   async failure(reason = "transient"): Promise<number> {
     this.consecutiveFailures += 1;
     const raw =
-      this.opts.baseBackoffMs *
-      this.opts.backoffMultiplier ** (this.consecutiveFailures - 1);
+      this.opts.baseBackoffMs * this.opts.backoffMultiplier ** (this.consecutiveFailures - 1);
     const capped = Math.min(raw, this.opts.maxBackoffMs);
     const wait = this.jitter(capped);
     this.onBackoff?.(this.consecutiveFailures, wait, reason);

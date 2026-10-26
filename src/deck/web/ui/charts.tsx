@@ -19,12 +19,7 @@ export interface Scale {
 }
 
 /** Linear scale over [min..max] data → [a..b] pixels, zero-guarded. */
-export function linearScale(
-  min: number,
-  max: number,
-  a: number,
-  b: number,
-): Scale {
+export function linearScale(min: number, max: number, a: number, b: number): Scale {
   const lo = Math.min(min, max);
   const hi = Math.max(min, max);
   const span = hi - lo || 1;
@@ -62,19 +57,13 @@ export function LineChart(props: {
   const PAD_R = 8;
   const PAD_T = 8;
   const PAD_B = 8;
-  const all = props.series.flatMap((s) =>
-    s.values.filter((v): v is number => v !== null),
-  );
+  const all = props.series.flatMap((s) => s.values.filter((v): v is number => v !== null));
   if (all.length === 0) return null;
   const max = Math.max(...all);
   const rawMin = Math.min(...all);
-  const min =
-    rawMin >= 0 && max > 0
-      ? Math.max(0, rawMin - (max - rawMin) * 0.1)
-      : rawMin;
+  const min = rawMin >= 0 && max > 0 ? Math.max(0, rawMin - (max - rawMin) * 0.1) : rawMin;
   const n = Math.max(...props.series.map((s) => s.values.length));
-  const x = (i: number) =>
-    PAD_L + (n <= 1 ? 0 : (i / (n - 1)) * (W - PAD_L - PAD_R));
+  const x = (i: number) => PAD_L + (n <= 1 ? 0 : (i / (n - 1)) * (W - PAD_L - PAD_R));
   const y = linearScale(min, max, H - PAD_B, PAD_T);
   const line = (vals: (number | null)[]) => {
     let d = "";
@@ -130,21 +119,14 @@ export function LineChart(props: {
         width="100%"
         height={H}
         role="img"
-        aria-label={`${props.series.map((s) => s.name).join(" and ")} chart`}
-      >
+        aria-label={`${props.series.map((s) => s.name).join(" and ")} chart`}>
         {/* y gridlines + labels — the eye needs a scale, not just a shape */}
         {Array.from({ length: ticks + 1 }, (_, i) => {
           const v = min + ((max - min) / ticks) * i;
           const py = y(v);
           return (
             <g key={i}>
-              <line
-                x1={PAD_L}
-                x2={W - PAD_R}
-                y1={py}
-                y2={py}
-                class="chart-grid"
-              />
+              <line x1={PAD_L} x2={W - PAD_R} y1={py} y2={py} class="chart-grid" />
               <text x={PAD_L - 4} y={py + 3} class="chart-tick">
                 {fmtNum(v)}
               </text>
@@ -169,13 +151,7 @@ export function LineChart(props: {
         {props.series.map((s) =>
           s.values.map((v, i) =>
             v === null ? null : (
-              <circle
-                key={`${s.name}/${i}`}
-                cx={x(i)}
-                cy={y(v)}
-                r="3"
-                fill={s.color}
-              >
+              <circle key={`${s.name}/${i}`} cx={x(i)} cy={y(v)} r="3" fill={s.color}>
                 <title>{s.tip(v, i)}</title>
               </circle>
             ),
@@ -203,8 +179,7 @@ export function Sparkline(props: {
   const sy = linearScale(min, max, H - 2, 2);
   const pts = props.values
     .map(
-      (v, i) =>
-        `${((i / (props.values.length - 1)) * (W - 4) + 2).toFixed(1)},${sy(v).toFixed(1)}`,
+      (v, i) => `${((i / (props.values.length - 1)) * (W - 4) + 2).toFixed(1)},${sy(v).toFixed(1)}`,
     )
     .join(" ");
   return (
@@ -214,11 +189,7 @@ export function Sparkline(props: {
       height={H}
       viewBox={`0 0 ${W} ${H}`}
       aria-hidden
-      title={
-        props.title ??
-        `${fmtNum(min)}–${fmtNum(max)} across ${props.values.length} points`
-      }
-    >
+      title={props.title ?? `${fmtNum(min)}–${fmtNum(max)} across ${props.values.length} points`}>
       <polyline points={pts} />
     </svg>
   );
@@ -247,14 +218,9 @@ export function Histogram(props: {
         class="bpmhist"
         style={{ height: props.height ?? 56 }}
         role="img"
-        aria-label={`Histogram: ${props.buckets.length} buckets, peak ${max}${props.unit ? ` ${props.unit}` : ""}`}
-      >
+        aria-label={`Histogram: ${props.buckets.length} buckets, peak ${max}${props.unit ? ` ${props.unit}` : ""}`}>
         {props.buckets.map((b) => (
-          <div
-            class="bpmcol"
-            key={b.label}
-            title={`${b.label}: ${b.count.toLocaleString()}`}
-          >
+          <div class="bpmcol" key={b.label} title={`${b.label}: ${b.count.toLocaleString()}`}>
             <i style={{ height: `${Math.max(2, (b.count / max) * 100)}%` }} />
           </div>
         ))}
@@ -262,9 +228,7 @@ export function Histogram(props: {
       {(props.labelEvery ?? 0) > 0 && (
         <div class="hist-labels">
           {props.buckets.map((b, i) => (
-            <span key={b.label}>
-              {i % (props.labelEvery ?? 1) === 0 ? b.label : ""}
-            </span>
+            <span key={b.label}>{i % (props.labelEvery ?? 1) === 0 ? b.label : ""}</span>
           ))}
         </div>
       )}
@@ -275,6 +239,4 @@ export function Histogram(props: {
 // ---- fmt ----------------------------------------------------------------------
 
 const fmtNum = (v: number): string =>
-  Math.abs(v) >= 1000
-    ? `${(v / 1000).toFixed(1)}k`
-    : `${Math.round(v * 10) / 10}`;
+  Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v * 10) / 10}`;

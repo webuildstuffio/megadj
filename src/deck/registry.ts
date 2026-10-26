@@ -40,9 +40,7 @@ export class Registry {
   }
 
   /** Called by detect on every sweep. Reconciles mounted volumes ↔ registry. */
-  async reconcile(
-    current: Awaited<ReturnType<typeof listMountedVolumes>>,
-  ): Promise<void> {
+  async reconcile(current: Awaited<ReturnType<typeof listMountedVolumes>>): Promise<void> {
     const seen = new Set<string>();
     for (const vol of current) {
       seen.add(this.reconcileVolume(vol));
@@ -54,8 +52,7 @@ export class Registry {
   private reconcileVolume(vol: MountedVolume): string {
     const id = identity(vol.volumeUuid, vol.name, vol.capacityBytes);
     const drive =
-      (vol.volumeUuid ? this.db.getDriveByUuid(vol.volumeUuid) : null) ??
-      this.db.getDrive(id);
+      (vol.volumeUuid ? this.db.getDriveByUuid(vol.volumeUuid) : null) ?? this.db.getDrive(id);
     if (!drive) {
       this.adoptDrive(id, vol);
       return vol.volumeUuid ?? id;
@@ -67,16 +64,8 @@ export class Registry {
 
   /** First-seen adoption: upsert + timeline event + drive-list refresh. */
   private adoptDrive(id: string, vol: MountedVolume): void {
-    this.db.upsertDrive({
-      id,
-      volume_uuid: vol.volumeUuid,
-      ...volPatch(vol),
-      mounted: true,
-    });
-    this.db.event(id, "first-seen", {
-      name: vol.name,
-      capacity: vol.capacityBytes,
-    });
+    this.db.upsertDrive({ id, volume_uuid: vol.volumeUuid, ...volPatch(vol), mounted: true });
+    this.db.event(id, "first-seen", { name: vol.name, capacity: vol.capacityBytes });
     this.emit("drives", this.list());
   }
 
@@ -97,21 +86,14 @@ export class Registry {
     ) {
       return;
     }
-    this.db.upsertDrive({
-      id: drive.id,
-      ...volPatch(vol),
-      mounted: true,
-    });
+    this.db.upsertDrive({ id: drive.id, ...volPatch(vol), mounted: true });
   }
 
   /** Mount flip ghost → mounted: session count + timeline + scheduler pickup. */
   private recordRemount(driveId: string, portKey: string | null): void {
     this.db.bumpPlugCount(driveId);
     const fresh = this.db.getDrive(driveId)!;
-    this.db.event(driveId, "mounted", {
-      port: portKey,
-      plug_count: fresh.plug_count,
-    });
+    this.db.event(driveId, "mounted", { port: portKey, plug_count: fresh.plug_count });
     this.justMountedIds.add(driveId); // auto-scheduler picks this up
     this.emit("drives", this.list());
   }
@@ -130,14 +112,15 @@ export class Registry {
   }
 
   list(): Drive[] {
-    return this.db.allDrives().map((d) => ({
-      ...d,
-      state: d.mounted ? ("mounted" as const) : ("ghost" as const),
-    }));
+    return this.db
+      .allDrives()
+      .map((d) => ({ ...d, state: d.mounted ? ("mounted" as const) : ("ghost" as const) }));
   }
 
   /** Full detail: drive + latest snapshot + sync verdict vs master. */
-  detail(driveId: string): {
+  detail(
+    driveId: string,
+  ): {
     drive: Drive;
     snapshot: SnapshotData | null;
     sync: { verdict: string; missing?: number } | null;
@@ -148,12 +131,8 @@ export class Registry {
     const snap = decodeSnapshot(drive.last_snapshot_json, drive.id);
     const master = this.db.masterDrive();
     const isMirror =
-      drive.role === "mirror" ||
-      drive.name.toUpperCase() === this.cfg.mirrorDrive.toUpperCase();
-    const masterSnap = decodeSnapshot(
-      master?.last_snapshot_json ?? null,
-      master?.id ?? "master",
-    );
+      drive.role === "mirror" || drive.name.toUpperCase() === this.cfg.mirrorDrive.toUpperCase();
+    const masterSnap = decodeSnapshot(master?.last_snapshot_json ?? null, master?.id ?? "master");
     const sync: { verdict: string; missing?: number } | null = isMirror
       ? legacySyncVerdict(true, snap?.file_count, masterSnap?.file_count)
       : null;
@@ -187,11 +166,7 @@ export class Registry {
       const matches: SearchResult["matches"] = [];
       for (const pl of snap?.playlists ?? []) {
         if (pl.name.toLowerCase().includes(needle)) {
-          matches.push({
-            type: "playlist",
-            name: pl.name,
-            entries: pl.entries,
-          });
+          matches.push({ type: "playlist", name: pl.name, entries: pl.entries });
         }
       }
       for (const f of snap?.folders ?? []) {
@@ -200,11 +175,7 @@ export class Registry {
         }
       }
       if (driveHit) {
-        matches.unshift({
-          type: "drive",
-          name: label,
-          entries: snap?.track_count ?? 0,
-        });
+        matches.unshift({ type: "drive", name: label, entries: snap?.track_count ?? 0 });
       }
       if (matches.length) {
         out.push({
@@ -230,11 +201,7 @@ export class Registry {
   }
 }
 
-export function identity(
-  volumeUuid: string | null,
-  name: string,
-  capacity: number,
-): string {
+export function identity(volumeUuid: string | null, name: string, capacity: number): string {
   if (volumeUuid) return volumeUuid;
   // fallback fingerprint (cheap sticks w/o UUID): name+capacity+fs-ish
   return `fp:${name}:${capacity}`;

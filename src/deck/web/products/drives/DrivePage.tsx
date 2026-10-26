@@ -51,38 +51,13 @@ const JOB_BUTTONS: {
     primary: true,
     hint: jobHint("scan"),
   },
-  {
-    kind: "verify",
-    label: "Verify",
-    icon: "shield",
-    interlockHint: true,
-    hint: jobHint("verify"),
-  },
-  {
-    kind: "benchmark",
-    label: "Benchmark",
-    icon: "pulse",
-    hint: jobHint("benchmark"),
-  },
-  {
-    kind: "speedtest",
-    label: "Speed probe",
-    icon: "zap",
-    hint: jobHint("speedtest"),
-  },
-  {
-    kind: "checksum",
-    label: "Checksum",
-    icon: "hash",
-    hint: jobHint("checksum"),
-  },
+  { kind: "verify", label: "Verify", icon: "shield", interlockHint: true, hint: jobHint("verify") },
+  { kind: "benchmark", label: "Benchmark", icon: "pulse", hint: jobHint("benchmark") },
+  { kind: "speedtest", label: "Speed probe", icon: "zap", hint: jobHint("speedtest") },
+  { kind: "checksum", label: "Checksum", icon: "hash", hint: jobHint("checksum") },
 ];
 
-export function DrivePage(props: {
-  driveId: string;
-  tab: string;
-  interlock: InterlockState;
-}) {
+export function DrivePage(props: { driveId: string; tab: string; interlock: InterlockState }) {
   const { driveId, interlock } = props;
   const {
     page,
@@ -172,9 +147,7 @@ export function DrivePage(props: {
   // unknown tab → overview; the hoisted conf kills per-tab casts in JSX
   const tabConf = DRIVE_TABS.find((t) => t.id === props.tab) ?? DRIVE_TABS[0];
   const counts: Partial<Record<TabId, number>> = {
-    ...(snap?.playlists?.length === undefined
-      ? {}
-      : { playlists: snap.playlists.length }),
+    ...(snap?.playlists?.length === undefined ? {} : { playlists: snap.playlists.length }),
     timeline: timeline.length,
   };
   const { failing, warning } = countCheckVerdicts(checks);
@@ -183,14 +156,7 @@ export function DrivePage(props: {
       case "playlists":
         return <PlaylistsTab snap={snap} />;
       case "health":
-        return (
-          <HealthTab
-            drive={detail.drive}
-            snap={snap}
-            bench={bench}
-            probes={probes}
-          />
-        );
+        return <HealthTab drive={detail.drive} snap={snap} bench={bench} probes={probes} />;
       case "verify":
         return <VerifyTab driveId={driveId} report={verify} />;
       case "timeline":
@@ -213,22 +179,13 @@ export function DrivePage(props: {
           />
         );
       case "hygiene":
-        return isShelf ? (
-          <HygieneTab driveId={driveId} driveName={nameGuess(detail)} />
-        ) : null;
+        return isShelf ? <HygieneTab driveId={driveId} driveName={nameGuess(detail)} /> : null;
       case "fixes":
-        return isShelf ? (
-          <FixesTab driveId={driveId} driveName={nameGuess(detail)} />
-        ) : null;
+        return isShelf ? <FixesTab driveId={driveId} driveName={nameGuess(detail)} /> : null;
       case "overview":
       default:
         return (
-          <OverviewTab
-            name={nameGuess(detail)}
-            snap={snap}
-            dj={snap?.dj ?? null}
-            checks={checks}
-          />
+          <OverviewTab name={nameGuess(detail)} snap={snap} dj={snap?.dj ?? null} checks={checks} />
         );
     }
   })();
@@ -243,11 +200,7 @@ export function DrivePage(props: {
           <Icon name="warn" size={14} />{" "}
           {`some panels are stale — refresh failed for: ${[...degraded]
             .map((leg) =>
-              leg === "detail"
-                ? "drive info"
-                : leg === "verify"
-                  ? "verify report"
-                  : leg,
+              leg === "detail" ? "drive info" : leg === "verify" ? "verify report" : leg,
             )
             .join(", ")}`}
         </div>
@@ -277,10 +230,8 @@ export function DrivePage(props: {
               locked && b.interlockHint
                 ? `${b.hint} — blocked right now: rekordbox is running`
                 : b.hint
-            }
-          >
-            <Icon name={b.icon} size={14} />{" "}
-            {busy === b.kind ? (b.busy ?? b.label) : b.label}
+            }>
+            <Icon name={b.icon} size={14} /> {busy === b.kind ? (b.busy ?? b.label) : b.label}
           </button>
         ))}
         {detail.drive.role === "mirror" && (
@@ -290,41 +241,36 @@ export function DrivePage(props: {
             disabled={!detail.drive.mounted || locked || busy === "mirror"}
             onClick={() => run("mirror")}
             title={
-              locked
-                ? "rekordbox is running"
-                : jobHint("mirror") || "Copy master → this mirror"
-            }
-          >
-            <Icon name="copy" size={14} />{" "}
-            {busy === "mirror" ? "Mirroring…" : "Mirror"}
+              locked ? "rekordbox is running" : jobHint("mirror") || "Copy master → this mirror"
+            }>
+            <Icon name="copy" size={14} /> {busy === "mirror" ? "Mirroring…" : "Mirror"}
           </button>
         )}
         <a
           class="btn"
           href={`/api/drives/${driveId}/export`}
           download
-          title="Download a full status dossier (report, playlists, checks) as a file"
-        >
+          title="Download a full status dossier (report, playlists, checks) as a file">
           <Icon name="download" size={14} /> Export dossier
         </a>
       </div>
 
       {locked && detail.drive.mounted && (
         <div class="note bad">
-          <Icon name="warn" size={14} /> Drive ops locked — rekordbox is
-          running. Hands off until it quits.
+          <Icon name="warn" size={14} /> Drive ops locked — rekordbox is running. Hands off until it
+          quits.
         </div>
       )}
       {!detail.drive.mounted && (
         <div class="note">
-          <Icon name="history" size={14} /> Ghost view — data from the last
-          scan. Plug it in to refresh.
+          <Icon name="history" size={14} /> Ghost view — data from the last scan. Plug it in to
+          refresh.
         </div>
       )}
       {detail.drive.role === "shelf" && (
         <div class="note arch">
-          <Icon name="database" size={14} /> <strong>Archive tier</strong> —
-          storage, not a gig stick. {TIER_EXPLANATION.archive}
+          <Icon name="database" size={14} /> <strong>Archive tier</strong> — storage, not a gig
+          stick. {TIER_EXPLANATION.archive}
         </div>
       )}
 
@@ -335,13 +281,10 @@ export function DrivePage(props: {
             key={t.id}
             class={tabConf.id === t.id ? "on" : ""}
             onClick={() => navigate(driveId, t.id)}
-            title={t.title}
-          >
+            title={t.title}>
             <Icon name={t.icon} size={14} />
             {t.label}
-            {counts[t.id] !== undefined && (
-              <span class="tabn">{counts[t.id]}</span>
-            )}
+            {counts[t.id] !== undefined && <span class="tabn">{counts[t.id]}</span>}
           </button>
         ))}
       </div>

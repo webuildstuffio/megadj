@@ -41,9 +41,7 @@ async function makeSilent(
     String(duration),
   ];
   const codecArgs =
-    codec === "wav"
-      ? ["-c:a", "pcm_s16le"]
-      : ["-c:a", "libmp3lame", "-b:a", "128k"];
+    codec === "wav" ? ["-c:a", "pcm_s16le"] : ["-c:a", "libmp3lame", "-b:a", "128k"];
   await $`ffmpeg ${common} ${codecArgs} ${p}`.quiet().nothrow();
   return p;
 }
@@ -56,16 +54,9 @@ describe("same-stem mp3+lossless pair dedupe", () => {
       await makeSilent(dir, "Play Hard (Remix).wav", "wav");
       await makeSilent(dir, "Play Hard (Remix).mp3", "mp3");
       const q = join(dir, ".ingest-duplicates");
-      const { survivors, dupes } = await dedupeWithinFolderForTest(
-        dir,
-        q,
-        false,
-        () => {},
-      );
+      const { survivors, dupes } = await dedupeWithinFolderForTest(dir, q, false, () => {});
       expect(dupes).toBe(1);
-      expect(survivors.map((s) => s.file.split("/").pop())).toEqual([
-        "Play Hard (Remix).wav",
-      ]);
+      expect(survivors.map((s) => s.file.split("/").pop())).toEqual(["Play Hard (Remix).wav"]);
       expect(existsSync(join(dir, "Play Hard (Remix).mp3"))).toBe(false);
       expect(existsSync(join(q, "Play Hard (Remix).mp3"))).toBe(true);
     } finally {
@@ -81,12 +72,7 @@ describe("same-stem mp3+lossless pair dedupe", () => {
       await makeSilent(dir, "Track One.wav", "wav", 0.4);
       await makeSilent(dir, "Track One.aiff", "wav", 0.9);
       const q = join(dir, ".ingest-duplicates");
-      const { survivors, dupes } = await dedupeWithinFolderForTest(
-        dir,
-        q,
-        false,
-        () => {},
-      );
+      const { survivors, dupes } = await dedupeWithinFolderForTest(dir, q, false, () => {});
       // two lossless same-stem files collapse in the identity pass
       // (same normalized title) — exactly ONE survives either way
       expect(survivors.length).toBe(1);

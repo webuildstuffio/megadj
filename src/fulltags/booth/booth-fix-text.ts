@@ -4,11 +4,7 @@
 // path update lands against the final name.
 import { basename, dirname, join } from "node:path";
 import { existsSync, renameSync } from "node:fs";
-import {
-  cp1252Bytes,
-  hasControlChars,
-  type TextCompatResult,
-} from "./booth-text";
+import { cp1252Bytes, hasControlChars, type TextCompatResult } from "./booth-text";
 import { writePatchSync } from "../write/writer";
 import type { BoothFixRow } from "./booth-fix-types";
 
@@ -89,9 +85,7 @@ export function sanitizeDisplayText(text: string): string {
 /** Sanitize a filename: same repertoire as display text plus the path
  * separators and rekordbox's illegal set. */
 export function sanitizeFilename(name: string): string {
-  let cleaned = sanitizeDisplayText(name)
-    .replace(/;/g, ",")
-    .replace(/[/\\]/g, "-");
+  let cleaned = sanitizeDisplayText(name).replace(/;/g, ",").replace(/[/\\]/g, "-");
   // C1 bytes too (sanitizeDisplayText strips C0 + DEL inline; the C1 range
   // is export-hostile on exFAT as well). Same code-point checks as the
   // booth-text SSOT — no literal control chars in a pattern, no suppression.
@@ -128,11 +122,7 @@ export function repairMojibake(text: string): string | null {
 }
 
 /** Build + optionally apply the rename fix for path-illegal names. */
-function planRename(
-  p: string,
-  name: string,
-  reasons: string[],
-): { row: BoothFixRow; to: string } {
+function planRename(p: string, name: string, reasons: string[]): { row: BoothFixRow; to: string } {
   const to = join(dirname(p), sanitizeFilename(name));
   return {
     to,
@@ -141,8 +131,7 @@ function planRename(
       gate: "booth-text",
       reasons: [...reasons],
       action: "rename",
-      plan:
-        to !== p ? `rename → ${basename(to)}` : "rename (name already safe?)",
+      plan: to !== p ? `rename → ${basename(to)}` : "rename (name already safe?)",
       rename: { from: p, to },
     },
   };
@@ -154,8 +143,7 @@ function applyRename(
   to: string,
   sink: ApplySink,
 ): { workFile: string; renamed: boolean } {
-  if (!sink.apply || to === from || existsSync(to))
-    return { workFile: from, renamed: false };
+  if (!sink.apply || to === from || existsSync(to)) return { workFile: from, renamed: false };
   renameSync(from, to);
   sink.applied++;
   sink.log(`  [renamed] ${basename(from)} → ${basename(to)}`);
@@ -190,9 +178,7 @@ function planTags(
   if (sink.apply && hasPatch) {
     writePatchSync(workFile, patch);
     sink.applied++;
-    sink.log(
-      `  [tags] ${basename(workFile)}: ${Object.keys(patch).join(", ")}`,
-    );
+    sink.log(`  [tags] ${basename(workFile)}: ${Object.keys(patch).join(", ")}`);
   }
   return row;
 }

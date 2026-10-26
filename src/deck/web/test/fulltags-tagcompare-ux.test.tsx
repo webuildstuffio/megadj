@@ -9,10 +9,7 @@ import { TagCompareTab } from "../products/fulltags/TagCompareTab";
 // #233 moved the compare card to its own module — the import follows it.
 import { CompareCard } from "../products/fulltags/TagCompareRows";
 import { FreshnessLine } from "../ui/freshness";
-import type {
-  ArchiveTagCensus,
-  ArchiveTrackTagCompare,
-} from "../../shared/types";
+import type { ArchiveTagCensus, ArchiveTrackTagCompare } from "../../shared/types";
 
 const censusFixture: ArchiveTagCensus = {
   available: true,
@@ -20,10 +17,7 @@ const censusFixture: ArchiveTagCensus = {
   matched: 3563,
   differing: 2,
   unmatched: 101,
-  freshness: {
-    beatsAt: "2026-09-16T01:00:00Z",
-    moodAt: "2026-09-16T01:00:00Z",
-  },
+  freshness: { beatsAt: "2026-09-16T01:00:00Z", moodAt: "2026-09-16T01:00:00Z" },
   fieldCounts: [
     { field: "bpm", count: 2 },
     { field: "genre", count: 1 },
@@ -109,12 +103,7 @@ const compareFixture: ArchiveTrackTagCompare = {
     metadata: { ID: "1", Title: "Track One", KeyName: "9A" },
   },
   differences: [
-    {
-      field: "genre",
-      file: "House",
-      archive: "House",
-      rekordbox: "Tech House",
-    },
+    { field: "genre", file: "House", archive: "House", rekordbox: "Tech House" },
     { field: "key", file: "8A", archive: "8A", rekordbox: "9A" },
   ],
 };
@@ -129,9 +118,7 @@ describe("FullTags tag-compare UX (Tags tab)", () => {
     );
     expect(html).toContain("Three sources");
     expect(html).toContain("FILE is ground truth");
-    expect(html).toContain(
-      "Fields listed in Differences have ≥2 sources disagreeing",
-    );
+    expect(html).toContain("Fields listed in Differences have ≥2 sources disagreeing");
     // per-source genre pills render
     expect(html).toContain("Tech House");
     // the lossless RB payload is expandable, not hidden
@@ -141,10 +128,7 @@ describe("FullTags tag-compare UX (Tags tab)", () => {
   test("an unreadable file says so instead of silently omitting truth", () => {
     const html = render(
       <CompareCard
-        compare={{
-          status: "ok",
-          data: { ...compareFixture, file: null },
-        }}
+        compare={{ status: "ok", data: { ...compareFixture, file: null } }}
         picked={{ video_id: "x1", title: "Track One", artist: null }}
       />,
     );
@@ -186,9 +170,7 @@ describe("FullTags tag-compare UX (Tags tab)", () => {
     expect(src).toContain("<FreshnessLine");
     expect(src).toContain("c.freshness.beatsAt");
     // empty ledger renders the explicit honest state, never a fake age
-    const emptyHtml = render(
-      <FreshnessLine ages={[{ name: "beats", at: null }]} />,
-    );
+    const emptyHtml = render(<FreshnessLine ages={[{ name: "beats", at: null }]} />);
     expect(emptyHtml).toContain("no beats analysis yet");
     // banded classes: stale stamps get the red rail
     const staleHtml = render(

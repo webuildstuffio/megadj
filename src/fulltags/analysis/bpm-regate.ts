@@ -29,33 +29,28 @@ export interface BpmRegateResult {
 }
 
 /** Genre-specific BPM ranges (for sanity gating). */
-const GENRE_BPM_RANGES: ReadonlyMap<string, { min: number; max: number }> =
-  new Map([
-    ["house", { min: 118, max: 132 }],
-    ["tech house", { min: 122, max: 132 }],
-    ["techno", { min: 125, max: 150 }],
-    ["trance", { min: 128, max: 145 }],
-    ["drum and bass", { min: 160, max: 180 }],
-    ["dubstep", { min: 138, max: 142 }],
-    ["hip hop", { min: 70, max: 110 }],
-    ["pop", { min: 90, max: 140 }],
-    ["disco", { min: 110, max: 130 }],
-    ["ambient", { min: 60, max: 120 }],
-    ["downtempo", { min: 70, max: 110 }],
-    ["hardstyle", { min: 148, max: 155 }],
-    ["hardcore", { min: 160, max: 200 }],
-    ["garage", { min: 128, max: 140 }],
-    ["breakbeat", { min: 120, max: 140 }],
-  ]);
+const GENRE_BPM_RANGES: ReadonlyMap<string, { min: number; max: number }> = new Map([
+  ["house", { min: 118, max: 132 }],
+  ["tech house", { min: 122, max: 132 }],
+  ["techno", { min: 125, max: 150 }],
+  ["trance", { min: 128, max: 145 }],
+  ["drum and bass", { min: 160, max: 180 }],
+  ["dubstep", { min: 138, max: 142 }],
+  ["hip hop", { min: 70, max: 110 }],
+  ["pop", { min: 90, max: 140 }],
+  ["disco", { min: 110, max: 130 }],
+  ["ambient", { min: 60, max: 120 }],
+  ["downtempo", { min: 70, max: 110 }],
+  ["hardstyle", { min: 148, max: 155 }],
+  ["hardcore", { min: 160, max: 200 }],
+  ["garage", { min: 128, max: 140 }],
+  ["breakbeat", { min: 120, max: 140 }],
+]);
 
 /**
  * Gate a BPM value against an expected value.
  */
-export function gateBpm(
-  current: number,
-  expected: number,
-  tolerancePct = 1,
-): BpmGateVerdict {
+export function gateBpm(current: number, expected: number, tolerancePct = 1): BpmGateVerdict {
   const errorPct = (Math.abs(current - expected) / expected) * 100;
   if (errorPct <= tolerancePct) return "pass";
 
@@ -64,8 +59,7 @@ export function gateBpm(
   const halved = expected / 2;
   const octaveErrorA = (Math.abs(current - doubled) / doubled) * 100;
   const octaveErrorB = (Math.abs(current - halved) / halved) * 100;
-  if (octaveErrorA <= tolerancePct || octaveErrorB <= tolerancePct)
-    return "octave";
+  if (octaveErrorA <= tolerancePct || octaveErrorB <= tolerancePct) return "octave";
 
   return "fail";
 }
@@ -73,10 +67,7 @@ export function gateBpm(
 /**
  * Check if a BPM is within the genre-expected range.
  */
-export function bpmInGenreRange(
-  bpm: number,
-  genreFamily: string | null,
-): boolean {
+export function bpmInGenreRange(bpm: number, genreFamily: string | null): boolean {
   if (genreFamily === null) return true; // no genre = can't gate
   const range = GENRE_BPM_RANGES.get(genreFamily);
   if (range === undefined) return true; // unknown genre = can't gate
@@ -91,11 +82,7 @@ export function bpmInGenreRange(
  * @returns Regate results
  */
 export function regateBpm(
-  tracks: readonly {
-    trackId: string;
-    bpm: number;
-    genreFamily: string | null;
-  }[],
+  tracks: readonly { trackId: string; bpm: number; genreFamily: string | null }[],
   answerKeys: ReadonlyMap<string, number>,
 ): BpmRegateResult[] {
   return tracks.map((t) => {

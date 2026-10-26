@@ -31,17 +31,11 @@ describe("targetFor — per-row source routing (#267 Bug A)", () => {
 
 describe("ytdlpCookieArgs — the ONE cookie-order seam (#81)", () => {
   test("explicit jar wins over browser extraction", () => {
-    expect(ytdlpCookieArgs("/tmp/jar.txt", "chrome")).toEqual([
-      "--cookies",
-      "/tmp/jar.txt",
-    ]);
+    expect(ytdlpCookieArgs("/tmp/jar.txt", "chrome")).toEqual(["--cookies", "/tmp/jar.txt"]);
   });
 
   test("browser extraction when no jar", () => {
-    expect(ytdlpCookieArgs(null, "chrome")).toEqual([
-      "--cookies-from-browser",
-      "chrome",
-    ]);
+    expect(ytdlpCookieArgs(null, "chrome")).toEqual(["--cookies-from-browser", "chrome"]);
   });
 
   test("empty when unconfigured — callers spread it", () => {
@@ -51,19 +45,13 @@ describe("ytdlpCookieArgs — the ONE cookie-order seam (#81)", () => {
   });
 
   test("empty-string jar does not shadow a browser config (falsy = absent)", () => {
-    expect(ytdlpCookieArgs("", "firefox")).toEqual([
-      "--cookies-from-browser",
-      "firefox",
-    ]);
+    expect(ytdlpCookieArgs("", "firefox")).toEqual(["--cookies-from-browser", "firefox"]);
   });
 
   test("MEGADJ_COOKIES default shape (chrome, no jar) — the sync 403 case", () => {
     // Regression pin: the old inline twin skipped browser extraction and
     // made `megadj sync` fail every auth-required liked list.
-    expect(ytdlpCookieArgs(undefined, "chrome")).toEqual([
-      "--cookies-from-browser",
-      "chrome",
-    ]);
+    expect(ytdlpCookieArgs(undefined, "chrome")).toEqual(["--cookies-from-browser", "chrome"]);
   });
 });
 
@@ -103,8 +91,6 @@ describe("parseDownloadOutput — SC mp3 fallback shapes (#258-superfix)", () =>
       "hls_aac_160k",
     ].join("\n");
     const parsed = Downloader.parseDownloadOutput(out, { soundcloud: true });
-    expect(parsed.filePath).toBe(
-      "/music/Unknown Genre/Artist - [EP] Title.m4a",
-    );
+    expect(parsed.filePath).toBe("/music/Unknown Genre/Artist - [EP] Title.m4a");
   });
 });

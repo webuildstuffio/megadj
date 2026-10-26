@@ -45,11 +45,7 @@ describe("parseFilename — junk prefix stripping", () => {
       artist: null,
       title: "Track Only",
     });
-    expect(parseFilename("01 - Intro.mp3")).toEqual({
-      trackNo: 1,
-      artist: null,
-      title: "Intro",
-    });
+    expect(parseFilename("01 - Intro.mp3")).toEqual({ trackNo: 1, artist: null, title: "Intro" });
     expect(parseFilename("01 - CamelPhat - Hypercube.aiff")).toEqual({
       trackNo: 1,
       artist: "CamelPhat",

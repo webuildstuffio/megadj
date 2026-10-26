@@ -32,11 +32,7 @@ interface VoteEntry {
   weight?: number;
 }
 
-function runVersionMatchStage(
-  db: Database,
-  _answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runVersionMatchStage(db: Database, _answerKey: string, _split: BenchSplit): StageResult {
   const tracks = db
     .query(
       `SELECT video_id, title, artist, genre_votes FROM tracks
@@ -67,8 +63,7 @@ function runVersionMatchStage(
       totalVotes++;
       const cTitle = v.candidateTitle ?? v.genre ?? "";
       const cArtists: string[] =
-        v.candidateArtists ??
-        (v.candidateArtist !== undefined ? [v.candidateArtist] : []);
+        v.candidateArtists ?? (v.candidateArtist !== undefined ? [v.candidateArtist] : []);
 
       if (cTitle === "" && cArtists.length === 0) {
         // No candidate metadata — can't classify
@@ -85,8 +80,7 @@ function runVersionMatchStage(
     }
 
     // One bench row per track: truth = "version_ok", pred = dominant match
-    const dominant =
-      rejectVotes > exactVotes + siblingVotes ? "wrong_version" : "version_ok";
+    const dominant = rejectVotes > exactVotes + siblingVotes ? "wrong_version" : "version_ok";
     rows.push({
       runId: "",
       trackId: t.video_id,
@@ -97,8 +91,7 @@ function runVersionMatchStage(
     });
   }
 
-  const wrongVersionRate =
-    totalVotes > 0 ? round4(rejectVotes / totalVotes) : null;
+  const wrongVersionRate = totalVotes > 0 ? round4(rejectVotes / totalVotes) : null;
   const siblingRate = totalVotes > 0 ? round4(siblingVotes / totalVotes) : null;
 
   return {

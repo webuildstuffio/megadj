@@ -37,9 +37,7 @@ export type DeckMcpTool = (typeof DECK_MCP_SURFACES)[number]["tool"];
 /** Build the MCP registry names from the canonical CLI/MCP capability map.
  * The caller supplies implementations keyed by CLI verb, so it cannot
  * independently retype a `deck_*` tool id. */
-export function deriveDeckTools<T>(
-  handlers: Record<DeckMcpVerb, T>,
-): Record<DeckMcpTool, T> {
+export function deriveDeckTools<T>(handlers: Record<DeckMcpVerb, T>): Record<DeckMcpTool, T> {
   return Object.fromEntries(
     DECK_MCP_SURFACES.map(({ verb, tool }) => [tool, handlers[verb]]),
   ) as Record<DeckMcpTool, T>;

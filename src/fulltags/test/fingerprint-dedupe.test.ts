@@ -1,16 +1,12 @@
 import { describe, test, expect } from "bun:test";
-import {
-  nameSimilarityTokens,
-  type FpVerdict,
-} from "../analysis/fingerprint-dedupe";
+import { nameSimilarityTokens, type FpVerdict } from "../analysis/fingerprint-dedupe";
 
 /** The verdict rules are pure functions over (fp equality, name tokens);
  * fpcalc itself is exercised end-to-end in the ingest e2e tests. */
 
 describe("nameSimilarityTokens", () => {
   test("mislabeled twin of the same rip scores high", () => {
-    const a =
-      "Back To Friends (MilesPerHour & Alexa Play Music Remix) [Radio Edit].aiff";
+    const a = "Back To Friends (MilesPerHour & Alexa Play Music Remix) [Radio Edit].aiff";
     const b = "back to friends radio edit.wav";
     expect(nameSimilarityTokens(a, b)).toBeGreaterThanOrEqual(0.5);
   });

@@ -37,13 +37,9 @@ export const DISCOGS_400_VOTE_WEIGHT = 0.4;
 /**
  * Derive L3 votes from Discogs-400 head predictions.
  */
-export function deriveVotes(
-  outputs: readonly Discogs400Output[],
-): Discogs400Vote[] {
+export function deriveVotes(outputs: readonly Discogs400Output[]): Discogs400Vote[] {
   return outputs.map((o) => {
-    const sorted = o.predictions.toSorted(
-      (a, b) => b.probability - a.probability,
-    );
+    const sorted = o.predictions.toSorted((a, b) => b.probability - a.probability);
 
     let family: GenreFamily | null = null;
     let subgenre: string | null = null;
@@ -85,10 +81,7 @@ export interface Discogs400EvalResult {
  */
 export function evaluateDiscogs400(
   votes: readonly Discogs400Vote[],
-  groundTruth: ReadonlyMap<
-    string,
-    { family: GenreFamily; subgenre: string | null }
-  >,
+  groundTruth: ReadonlyMap<string, { family: GenreFamily; subgenre: string | null }>,
 ): Discogs400EvalResult {
   if (votes.length === 0) {
     return { total: 0, familyAgreement: 0, l3Agreement: 0, unmappedRate: 0 };
@@ -110,12 +103,7 @@ export function evaluateDiscogs400(
     }
 
     if (v.family === gt.family) familyMatch++;
-    if (
-      v.subgenre !== null &&
-      gt.subgenre !== null &&
-      v.subgenre === gt.subgenre
-    )
-      l3Match++;
+    if (v.subgenre !== null && gt.subgenre !== null && v.subgenre === gt.subgenre) l3Match++;
   }
 
   return {

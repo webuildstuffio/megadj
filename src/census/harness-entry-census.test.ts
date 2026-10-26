@@ -31,8 +31,7 @@ test("no bun-shebang scripts outside the three CLI entry files", () => {
   for (const f of ["src", "tools"])
     // fulltags -> src/fulltags (#193); cratedeck -> src/deck (Sep 2026)
     for (const line of walkShebangs(join(repo, f)))
-      if (!allowed.has(line.path))
-        offenders.push(`${line.path}: ${line.firstLine.trim()}`);
+      if (!allowed.has(line.path)) offenders.push(`${line.path}: ${line.firstLine.trim()}`);
   expect(offenders).toEqual([]);
 });
 
@@ -59,9 +58,7 @@ test("knip lists no library module as a workspace entry point", () => {
   // bench.ts was knip-listed only so knip could SEE it — a library file
   // dressed as an entry point. Entries are executables or public API
   // leaves; a module imported by another module belongs to neither list.
-  const knip: {
-    workspaces: Record<string, { entry?: string[] }>;
-  } = JSON.parse(read("knip.json"));
+  const knip: { workspaces: Record<string, { entry?: string[] }> } = JSON.parse(read("knip.json"));
   // bench.ts is the regression: cratedeck library code that once rode
   // the entry list.
   for (const [ws, cfg] of Object.entries(knip.workspaces)) {
@@ -83,9 +80,7 @@ test("fulltags verify-key verb exists and is documented", () => {
   // the gate contract is in the help text (agent-facing surface)
   expect(help).toContain("80% exact agreement");
   // the old bare path is gone everywhere operators look
-  expect(read("src/fulltags/README.md")).not.toContain(
-    "fulltags/utils/verify-key.ts",
-  );
+  expect(read("src/fulltags/README.md")).not.toContain("fulltags/utils/verify-key.ts");
 });
 
 // --- tiny walkers (test-local; the prod walker is sync/fs-rooted too) ---
@@ -94,9 +89,7 @@ function* walkTs(dir: string): Generator<string> {
   for (const e of walkEntries(dir)) yield e;
 }
 
-function* walkShebangs(
-  dir: string,
-): Generator<{ path: string; firstLine: string }> {
+function* walkShebangs(dir: string): Generator<{ path: string; firstLine: string }> {
   for (const p of walkEntries(dir)) {
     const first = read(p).split("\n")[0] ?? "";
     if (first.startsWith("#!")) yield { path: p, firstLine: first };
@@ -124,7 +117,6 @@ function* walk(dir: string): Generator<string> {
       continue;
     }
     if (st.isDirectory()) yield* walk(full);
-    else if (e.endsWith(".ts") && !e.endsWith(".d.ts"))
-      yield full.replace(`${repo}/`, "");
+    else if (e.endsWith(".ts") && !e.endsWith(".d.ts")) yield full.replace(`${repo}/`, "");
   }
 }

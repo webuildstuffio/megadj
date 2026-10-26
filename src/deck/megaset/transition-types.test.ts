@@ -63,38 +63,23 @@ describe("classifyTransition (M5 #329)", () => {
   test("high arousal + early cue → drop-entry", () => {
     const r = classifyTransition(
       step({ mixOutCue: { bar: 57, position: 110 } }),
-      step({
-        arousal: 7.5,
-        mixInCue: { bar: 1, position: 0 },
-      }),
+      step({ arousal: 7.5, mixInCue: { bar: 1, position: 0 } }),
     );
     expect(r.type).toBe("drop-entry");
   });
 
   test("large arousal delta with cues → energy-swap", () => {
     const r = classifyTransition(
-      step({
-        arousal: 3,
-        mixOutCue: { bar: 57, position: 110 },
-      }),
-      step({
-        arousal: 7,
-        mixInCue: { bar: 9, position: 16 },
-      }),
+      step({ arousal: 3, mixOutCue: { bar: 57, position: 110 } }),
+      step({ arousal: 7, mixInCue: { bar: 9, position: 16 } }),
     );
     expect(r.type).toBe("energy-swap");
   });
 
   test("cues present, no special condition → phrase-cut", () => {
     const r = classifyTransition(
-      step({
-        arousal: 5,
-        mixOutCue: { bar: 57, position: 110 },
-      }),
-      step({
-        arousal: 5.5,
-        mixInCue: { bar: 49, position: 95 },
-      }),
+      step({ arousal: 5, mixOutCue: { bar: 57, position: 110 } }),
+      step({ arousal: 5.5, mixInCue: { bar: 49, position: 95 } }),
     );
     expect(r.type).toBe("phrase-cut");
   });
@@ -123,11 +108,7 @@ describe("classifyChain", () => {
   });
 
   test("multi-step chain has one classification per step", () => {
-    const chain = [
-      step({ transition: null, atMin: 5 }),
-      step({ atMin: 10 }),
-      step({ atMin: 15 }),
-    ];
+    const chain = [step({ transition: null, atMin: 5 }), step({ atMin: 10 }), step({ atMin: 15 })];
     const r = classifyChain(chain);
     expect(r).toHaveLength(3);
     expect(r[0]?.type).toBe("hold"); // opener

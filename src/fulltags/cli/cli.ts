@@ -26,12 +26,7 @@
  */
 import { parseArgs, type CliCtx } from "./cli-args";
 import { setExit } from "../../shared/cli-output";
-import {
-  cmdAudit,
-  cmdEnrich,
-  cmdEnsureModels,
-  cmdVerifyKey,
-} from "./cli-verbs";
+import { cmdAudit, cmdEnrich, cmdEnsureModels, cmdVerifyKey } from "./cli-verbs";
 
 function printHelp(): void {
   console.log(`fulltags — fully enrich any mp3/wav/aiff/flac/m4a with one command

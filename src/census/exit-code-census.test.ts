@@ -49,8 +49,7 @@ describe("exit-code census: one mutation point (#160 ring 3)", () => {
           .split("\n")
           .filter((l) => !l.trim().startsWith("//"))
           .join("\n");
-        if (/process\.exitCode\s*(?:[-+]?=(?![=>])|\.value\s*=)/.test(code))
-          offenders.push(file);
+        if (/process\.exitCode\s*(?:[-+]?=(?![=>])|\.value\s*=)/.test(code)) offenders.push(file);
       }
     }
     expect(

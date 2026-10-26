@@ -36,12 +36,8 @@ describe("discogs-ingest", () => {
         "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (1, 'Test Artist', ?)",
         [nameKey("Test Artist")],
       );
-      db.run(
-        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (1, 'Electronic')",
-      );
-      db.run(
-        "INSERT INTO discogs_release_styles (release_id, style) VALUES (1, 'Deep House')",
-      );
+      db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (1, 'Electronic')");
+      db.run("INSERT INTO discogs_release_styles (release_id, style) VALUES (1, 'Deep House')");
 
       const result = discogsLookup(db, "Test Artist", "Test Track");
       expect(result).not.toBeNull();
@@ -60,12 +56,8 @@ describe("discogs-ingest", () => {
         "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (2, 'DJ Pierre', ?)",
         [nameKey("DJ Pierre")],
       );
-      db.run(
-        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (2, 'Electronic')",
-      );
-      db.run(
-        "INSERT INTO discogs_release_styles (release_id, style) VALUES (2, 'Acid House')",
-      );
+      db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (2, 'Electronic')");
+      db.run("INSERT INTO discogs_release_styles (release_id, style) VALUES (2, 'Acid House')");
 
       // Different case should still match
       const result = discogsLookup(db, "dj pierre", "acid rain");
@@ -83,9 +75,7 @@ describe("discogs-ingest", () => {
         "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (4, 'Test', ?)",
         [nameKey("Test")],
       );
-      db.run(
-        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (4, 'Rock')",
-      );
+      db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (4, 'Rock')");
 
       // Should match even though the DB title has decoded &
       const result = discogsLookup(db, "Test", "Rock & Roll");
@@ -119,9 +109,7 @@ describe("discogs-ingest", () => {
         "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (5, 'Björk', ?)",
         [nameKey("Björk")],
       );
-      db.run(
-        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (5, 'Electronic')",
-      );
+      db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (5, 'Electronic')");
 
       const result = discogsLookup(db, "björk", "début");
       expect(result).not.toBeNull();
@@ -138,9 +126,7 @@ describe("discogs-ingest", () => {
         "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (6, 'DJ A', ?)",
         [nameKey("DJ A")],
       );
-      db.run(
-        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (6, 'Electronic')",
-      );
+      db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (6, 'Electronic')");
 
       // Multiple lookups should work (prepared statements reused)
       const r1 = discogsLookup(db, "DJ A", "Track A");
@@ -162,18 +148,10 @@ describe("discogs-ingest", () => {
         "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (7, 'Artist', ?)",
         [nameKey("Artist")],
       );
-      db.run(
-        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (7, 'Electronic')",
-      );
-      db.run(
-        "INSERT INTO discogs_release_genres (release_id, genre) VALUES (7, 'Hip Hop')",
-      );
-      db.run(
-        "INSERT INTO discogs_release_styles (release_id, style) VALUES (7, 'Deep House')",
-      );
-      db.run(
-        "INSERT INTO discogs_release_styles (release_id, style) VALUES (7, 'Ambient')",
-      );
+      db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (7, 'Electronic')");
+      db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (7, 'Hip Hop')");
+      db.run("INSERT INTO discogs_release_styles (release_id, style) VALUES (7, 'Deep House')");
+      db.run("INSERT INTO discogs_release_styles (release_id, style) VALUES (7, 'Ambient')");
 
       const result = discogsLookup(db, "Artist", "Multi");
       expect(result).not.toBeNull();

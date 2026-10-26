@@ -27,17 +27,11 @@ import { isLowq } from "./commands/upgrade";
 import { storageReport, printStorageReport } from "../shared/storage";
 import type { ArchiveState } from "../core/state";
 import type { TrackRow } from "../core/state-types";
-import {
-  writeJson,
-  writeJsonText,
-  finishCommandError,
-  setExit,
-} from "../shared/cli-output";
+import { writeJson, writeJsonText, finishCommandError, setExit } from "../shared/cli-output";
 
 const doctor: CliCommandHandler = async (rest) => {
   const flags = parseFlags(rest, [], ["json"]);
-  const { runDoctor, printDoctor, doctorJson } =
-    await import("../shared/doctor");
+  const { runDoctor, printDoctor, doctorJson } = await import("../shared/doctor");
   // The deck-service check is async (launchctl + an HTTP probe) — run it
   // alongside the sync checks and append so both output formats carry it.
   const { checkDeckService } = await import("../shared/doctor-checks");
@@ -67,8 +61,7 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
     ["dry-run", "music-only", "json", "force-rip", "repair-identity"],
   );
   const limiter = new RateLimiter({
-    onPace: (ms) =>
-      process.stderr.write(`  (pacing ${Math.round(ms / 100) / 10}s)\n`),
+    onPace: (ms) => process.stderr.write(`  (pacing ${Math.round(ms / 100) / 10}s)\n`),
     onBackoff: (attempt, ms, reason) =>
       process.stderr.write(
         `  (backoff #${attempt}: ${(ms / 1000).toFixed(1)}s — ${reason.slice(0, 60)})\n`,
@@ -76,14 +69,8 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
   });
   if (nonNegOptInvalid(flags, "limit", "sync", flags.bools.has("json"))) return;
   const limit = nonNegOpt(flags, "limit", "sync", flags.bools.has("json"));
-  if (nonNegOptInvalid(flags, "target-total", "sync", flags.bools.has("json")))
-    return;
-  const targetTotal = nonNegOpt(
-    flags,
-    "target-total",
-    "sync",
-    flags.bools.has("json"),
-  );
+  if (nonNegOptInvalid(flags, "target-total", "sync", flags.bools.has("json"))) return;
+  const targetTotal = nonNegOpt(flags, "target-total", "sync", flags.bools.has("json"));
 
   // #255/--sc-url: a direct SoundCloud URL (single track or set) becomes
   // the run's only source — user-directed intake through the ledgered,
@@ -119,11 +106,7 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
       });
       return;
     }
-    sources = scUrls.map((u) => ({
-      kind: scSourceKindFor(u),
-      url: u,
-      label: SC_SOURCE,
-    }));
+    sources = scUrls.map((u) => ({ kind: scSourceKindFor(u), url: u, label: SC_SOURCE }));
   }
   await sync({
     state: context.state,
@@ -152,23 +135,14 @@ function buildSources(raw: string | undefined): PlaylistSource[] {
     .filter(Boolean)
     .map((id): PlaylistSource => {
       if (id === "LM") return { kind: "ytm-playlist", id, label: "liked" };
-      if (id === "LL")
-        return { kind: "ytm-playlist", id, label: "liked-videos" };
+      if (id === "LL") return { kind: "ytm-playlist", id, label: "liked-videos" };
       if (id.startsWith("sc-user:")) {
         const name = id.slice("sc-user:".length).replace(/^@/, "").trim();
-        return {
-          kind: "sc-user",
-          url: `https://soundcloud.com/${name}/tracks`,
-          label: SC_SOURCE,
-        };
+        return { kind: "sc-user", url: `https://soundcloud.com/${name}/tracks`, label: SC_SOURCE };
       }
       if (id.startsWith("sc-likes:")) {
         const name = id.slice("sc-likes:".length).replace(/^@/, "").trim();
-        return {
-          kind: "sc-likes",
-          url: `https://soundcloud.com/${name}/likes`,
-          label: SC_SOURCE,
-        };
+        return { kind: "sc-likes", url: `https://soundcloud.com/${name}/likes`, label: SC_SOURCE };
       }
       return { kind: "ytm-playlist", id, label: id };
     });
@@ -256,13 +230,7 @@ const surfacedNote: CliCommandHandler = async (rest, { state }) => {
     } else unknown.push(id);
   }
   if (json) {
-    await writeJson({
-      command: "surfaced-note",
-      done,
-      marked,
-      unknown,
-      count: marked.length,
-    });
+    await writeJson({ command: "surfaced-note", done, marked, unknown, count: marked.length });
   } else {
     for (const id of marked)
       console.log(`  ${done ? "✓" : "○"} ${done ? "done" : "reopened"}: ${id}`);
@@ -275,14 +243,8 @@ const organizeOrEnrich =
   (command: "organize" | "enrich"): CliCommandHandler =>
   async (rest, { state, musicDir }) => {
     const flags = parseFlags(rest, [], ["dry-run", "json"]);
-    const mod: Record<
-      "organize" | "enrich",
-      (options: OrganizeOptions) => Promise<void>
-    > = await import(
-      command === "organize"
-        ? "./commands/organize"
-        : "../fulltags/fetch/enrich"
-    );
+    const mod: Record<"organize" | "enrich", (options: OrganizeOptions) => Promise<void>> =
+      await import(command === "organize" ? "./commands/organize" : "../fulltags/fetch/enrich");
     await mod[command]({
       state,
       musicDir,
@@ -292,17 +254,10 @@ const organizeOrEnrich =
   };
 
 const adopt: CliCommandHandler = async (rest, { state, musicDir }) => {
-  const { adopt: adoptLocal, adoptFromShelf } =
-    await import("./commands/adopt");
+  const { adopt: adoptLocal, adoptFromShelf } = await import("./commands/adopt");
   const json = rest.includes("--json");
   if (rest.includes("--shelf")) {
-    await adoptFromShelf({
-      state,
-      musicDir,
-      json,
-      shelf: true,
-      dryRun: !rest.includes("--apply"),
-    });
+    await adoptFromShelf({ state, musicDir, json, shelf: true, dryRun: !rest.includes("--apply") });
     return;
   }
   await adoptLocal({ state, musicDir, json });
@@ -330,16 +285,8 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
   // input = json-safe exit-2 epilogue, zero work. The hand-rolled
   // Number()+isFinite pair let "-30" and "" slip through as 0 (and a
   // bare Number("-30") is finite, so the old guard never fired).
-  if (
-    nonNegOptInvalid(flags, "min-duration", "ingest", flags.bools.has("json"))
-  )
-    return;
-  const minDuration = nonNegOpt(
-    flags,
-    "min-duration",
-    "ingest",
-    flags.bools.has("json"),
-  );
+  if (nonNegOptInvalid(flags, "min-duration", "ingest", flags.bools.has("json"))) return;
+  const minDuration = nonNegOpt(flags, "min-duration", "ingest", flags.bools.has("json"));
   const { ingest: ingestFolder } = await import("./commands/ingest");
   await ingestFolder({
     state,
@@ -354,8 +301,7 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
 
 const upgrade: CliCommandHandler = async (rest, context) => {
   const flags = parseFlags(rest, ["limit"], ["dry-run", "json"]);
-  if (nonNegOptInvalid(flags, "limit", "upgrade", flags.bools.has("json")))
-    return;
+  if (nonNegOptInvalid(flags, "limit", "upgrade", flags.bools.has("json"))) return;
   const limit = nonNegOpt(flags, "limit", "upgrade", flags.bools.has("json"));
   const { upgrade: upgradeTracks } = await import("./commands/upgrade");
   await upgradeTracks({
@@ -500,10 +446,7 @@ export function listTracks(state: ArchiveState, filter?: string): void {
   console.log(`\n${tracks.length} track(s)`);
 }
 
-export async function listJson(
-  state: ArchiveState,
-  filter?: string,
-): Promise<void> {
+export async function listJson(state: ArchiveState, filter?: string): Promise<void> {
   const tracks = filterTracks(state, filter);
   await writeJson({ count: tracks.length, tracks });
 }

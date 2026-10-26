@@ -34,10 +34,7 @@ export abstract class ArchiveLedgerReader {
     } catch (e) {
       // missing/corrupt archive DB: a logged boundary + empty answers —
       // the route this feeds must answer, not fail
-      console.error(
-        `${this.label}: archive DB unavailable at ${this.path}`,
-        errMessage(e),
-      );
+      console.error(`${this.label}: archive DB unavailable at ${this.path}`, errMessage(e));
       this.db = null;
     }
     return this.db;
@@ -126,9 +123,7 @@ export class ShelfSweepReader extends ArchiveLedgerReader {
     for (const r of rows) {
       out.set(r.drive.toUpperCase(), {
         ...r,
-        ageDays: r.finished_at
-          ? (Date.now() - Date.parse(r.finished_at)) / 86_400_000
-          : null,
+        ageDays: r.finished_at ? (Date.now() - Date.parse(r.finished_at)) / 86_400_000 : null,
       });
     }
     return out;

@@ -41,9 +41,7 @@ export const reDownload: CheckDef = {
     if (rows.length === 0) return [];
     const walkedKeys = new Set(files.map((f) => nameKey(f.path)));
     const walkedFps = new Set(
-      files
-        .map((f) => ctx.fp(f.path, f.bytes))
-        .filter((fp): fp is string => fp !== null),
+      files.map((f) => ctx.fp(f.path, f.bytes)).filter((fp): fp is string => fp !== null),
     );
 
     // Scope gate: a row whose FolderPath lives OUTSIDE this walk's volume

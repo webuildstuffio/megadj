@@ -16,9 +16,7 @@ import { spawnSync } from "node:child_process";
 const CLI = join(import.meta.dir, "../cli.ts");
 
 function renderHelp(): string {
-  const proc = spawnSync(process.execPath, ["run", CLI, "--help"], {
-    encoding: "utf8",
-  });
+  const proc = spawnSync(process.execPath, ["run", CLI, "--help"], { encoding: "utf8" });
   expect(proc.status).toBe(0);
   return proc.stdout;
 }
@@ -32,12 +30,8 @@ describe("#143: help renders byte-identical from COMMAND_DOCS", () => {
       ),
     ).toBeTrue();
     expect(help).toContain("getdat — pull every track from everywhere:");
-    expect(help).toContain(
-      "fulltags — 100% accuracy, 100% coverage, zero manual labour:",
-    );
-    expect(help.indexOf("getdat — pull")).toBeLessThan(
-      help.indexOf("fulltags — 100%"),
-    );
+    expect(help).toContain("fulltags — 100% accuracy, 100% coverage, zero manual labour:");
+    expect(help.indexOf("getdat — pull")).toBeLessThan(help.indexOf("fulltags — 100%"));
     expect(help.trimEnd().endsWith("— PRINCIPLES.md §1.")).toBeTrue();
   });
 
@@ -58,9 +52,7 @@ describe("#143: help renders byte-identical from COMMAND_DOCS", () => {
     // flag the command arm never parsed (rekordbox/cli-commands.ts parses
     // --batch only). The registry holds ONE block; this pins it.
     const help = renderHelp();
-    const lines = help
-      .split("\n")
-      .filter((l) => l.startsWith("  megadj rb-comment-sync"));
+    const lines = help.split("\n").filter((l) => l.startsWith("  megadj rb-comment-sync"));
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain("--batch TOKEN");
     expect(lines.join("\n")).not.toContain("--limit");

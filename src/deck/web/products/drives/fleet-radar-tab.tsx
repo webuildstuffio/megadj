@@ -7,11 +7,7 @@
 // per-drive row: a stale snapshot reads as stale (amber/red via
 // FreshnessLine), never as "drive is current".
 import { useMemo, useState } from "preact/hooks";
-import type {
-  FleetRadar,
-  InterlockState,
-  RadarResult,
-} from "../../../shared/types";
+import type { FleetRadar, InterlockState, RadarResult } from "../../../shared/types";
 import { api, apiPost, toast } from "../../ui/toast";
 import { useFetched, FetchedGate } from "../../ui/useFetched";
 import { DataTable, ListHead, type DataTableColumn } from "../../ui/data";
@@ -40,8 +36,7 @@ function radarColumns(): DataTableColumn<RadarRow>[] {
           {t.title ?? t.path}
         </b>
       ),
-      sortValue: (t) =>
-        `${t.artist ?? ""} ${t.title ?? t.path}`.trim().toLowerCase(),
+      sortValue: (t) => `${t.artist ?? ""} ${t.title ?? t.path}`.trim().toLowerCase(),
     },
     {
       key: "path",
@@ -68,11 +63,7 @@ const radarCopy = (rows: RadarRow[]): string[] =>
 /** Sync-button disable reason, or null when the action is available.
  *  Only mirror-role drives can be synced — the mirror job copies
  *  MASTER→MIRROR, not an arbitrary per-drive copy (#411). */
-function syncDisableReason(
-  r: RadarResult,
-  locked: boolean,
-  syncing: boolean,
-): string | null {
+function syncDisableReason(r: RadarResult, locked: boolean, syncing: boolean): string | null {
   if (syncing) return "sync already queued";
   if (locked) return "rekordbox is running — close it first";
   if (!r.mounted) return "drive not mounted";
@@ -105,8 +96,10 @@ function RadarDriveCard(props: {
         />
         <div class="note-card">
           <Icon name="pulse" size={20} />
-          Light scan only — radar unknown for this drive.{" "}
-          <code>deckctl run {r.driveId} scan</code> for the full inventory.
+          Light scan only — radar unknown for this drive. <code>
+            deckctl run {r.driveId} scan
+          </code>{" "}
+          for the full inventory.
         </div>
         <FreshnessLine
           label="snapshot freshness"
@@ -123,13 +116,7 @@ function RadarDriveCard(props: {
   return (
     <div class="card">
       <ListHead
-        icon={
-          !r.inventoryAvailable
-            ? "pulse"
-            : r.missingCount > 0
-              ? "download"
-              : "check"
-        }
+        icon={!r.inventoryAvailable ? "pulse" : r.missingCount > 0 ? "download" : "check"}
         title={r.driveName}
         n={r.missingCount}
         hint={
@@ -170,14 +157,10 @@ function RadarDriveCard(props: {
                     reason ??
                     `Mirror master → ${r.driveName} — copies ${r.missingCount} missing track(s)`
                   }
-                  onClick={() => onSync(r.driveId)}
-                >
-                  <Icon name="copy" size={13} />{" "}
-                  {syncing ? "Queued…" : "Mirror from master"}
+                  onClick={() => onSync(r.driveId)}>
+                  <Icon name="copy" size={13} /> {syncing ? "Queued…" : "Mirror from master"}
                 </button>
-                {reason !== null && (
-                  <span class="arch-fix-reason">{reason}</span>
-                )}
+                {reason !== null && <span class="arch-fix-reason">{reason}</span>}
                 <span class="arch-fix-alt">
                   or CLI: <code>{radarSyncCommand()}</code>
                 </span>
@@ -198,10 +181,7 @@ function RadarDriveCard(props: {
 }
 
 export function RadarTab(props: { interlock: InterlockState }) {
-  const page = useFetched<FleetRadar>(
-    () => api<FleetRadar>("/api/fleet/radar"),
-    [],
-  );
+  const page = useFetched<FleetRadar>(() => api<FleetRadar>("/api/fleet/radar"), []);
   const [onlyMissing, setOnlyMissing] = useState(true);
   const [syncingDrive, setSyncingDrive] = useState<string | null>(null);
   const locked = props.interlock.rekordbox_running;
@@ -210,17 +190,13 @@ export function RadarTab(props: { interlock: InterlockState }) {
     if (page.status !== "ok") return null;
     return onlyMissing
       ? page.data.drives.filter(
-          (d) =>
-            d.missingCount > 0 || !d.archiveAvailable || !d.inventoryAvailable,
+          (d) => d.missingCount > 0 || !d.archiveAvailable || !d.inventoryAvailable,
         )
       : page.data.drives;
   }, [page, onlyMissing]);
 
   const handleSync = async (driveId: string) => {
-    const drive =
-      page.status === "ok"
-        ? page.data.drives.find((d) => d.driveId === driveId)
-        : null;
+    const drive = page.status === "ok" ? page.data.drives.find((d) => d.driveId === driveId) : null;
     const label = drive?.driveName ?? driveId;
     const n = drive?.missingCount ?? 0;
     if (
@@ -245,8 +221,7 @@ export function RadarTab(props: { interlock: InterlockState }) {
     }
   };
 
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading radar…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading radar…" />;
   const data = page.data;
 
   return (
@@ -257,13 +232,7 @@ export function RadarTab(props: { interlock: InterlockState }) {
         next="Mirror-role drives get a sync button — it copies master → mirror (additive, MD5-verified). Other drives show a CLI hint. The drag step stays manual: you stage USB content. A drive that was never scanned shows no rows — that's 'unknown', not 'current'."
       />
       <Verdict
-        cls={
-          !data.archiveAvailable
-            ? "warn"
-            : data.totalMissing > 0
-              ? "warn"
-              : "ok"
-        }
+        cls={!data.archiveAvailable ? "warn" : data.totalMissing > 0 ? "warn" : "ok"}
         text={data.summary}
         meta={
           data.archiveAvailable
@@ -276,9 +245,7 @@ export function RadarTab(props: { interlock: InterlockState }) {
           <input
             type="checkbox"
             checked={onlyMissing}
-            onChange={(e) =>
-              setOnlyMissing((e.target as HTMLInputElement).checked)
-            }
+            onChange={(e) => setOnlyMissing((e.target as HTMLInputElement).checked)}
           />{" "}
           show only drives with gaps
         </label>

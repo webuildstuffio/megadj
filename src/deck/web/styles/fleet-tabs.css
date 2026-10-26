@@ -22,8 +22,7 @@
   flex-shrink: 0;
   color: var(--prod, var(--accent));
   background: color-mix(in srgb, var(--prod, var(--accent)) 12%, transparent);
-  border: 1px solid
-    color-mix(in srgb, var(--prod, var(--accent)) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--prod, var(--accent)) 30%, transparent);
 }
 .fleet-head h2 {
   margin: 0;

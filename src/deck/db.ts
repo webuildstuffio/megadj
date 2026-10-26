@@ -30,20 +30,11 @@ export class DB extends DBActivity {
     return this.benchStore.manifestBiggest(driveId, limit);
   }
 
-  ledgerPut(
-    driveId: string,
-    path: string,
-    size: number,
-    mtime: number,
-    hash: string,
-  ): void {
+  ledgerPut(driveId: string, path: string, size: number, mtime: number, hash: string): void {
     this.benchStore.ledgerPut(driveId, path, size, mtime, hash);
   }
 
-  ledgerGet(
-    driveId: string,
-    path: string,
-  ): { hash: string; size: number; mtime: number } | null {
+  ledgerGet(driveId: string, path: string): { hash: string; size: number; mtime: number } | null {
     return this.benchStore.ledgerGet(driveId, path);
   }
 

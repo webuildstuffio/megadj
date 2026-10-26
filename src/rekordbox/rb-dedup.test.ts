@@ -21,29 +21,17 @@ afterAll(() => t.rippleAll());
  * to a sibling row with the slightly-different len/size this suite's
  * original fixtures used (181 s / 900 B) — per-field overrides still win.
  */
-const candidate = (
-  id: string,
-  path: string,
-  overrides: Partial<ScanPair> = {},
-): ScanPair =>
+const candidate = (id: string, path: string, overrides: Partial<ScanPair> = {}): ScanPair =>
   scanPair(id, {
     path,
-    other: scanRow(`${id}-other`, {
-      path: `${path}.other`,
-      len: 181,
-      size: 900,
-    }),
+    other: scanRow(`${id}-other`, { path: `${path}.other`, len: 181, size: 900 }),
     ...overrides,
   });
 
 const scanEdge = (
   first: ReturnType<typeof scanRow>,
   second: ReturnType<typeof scanRow>,
-): ScanPair => ({
-  ...first,
-  basis: "candidate",
-  other: second,
-});
+): ScanPair => ({ ...first, basis: "candidate", other: second });
 
 const samePathRow = (id: string): ReturnType<typeof scanRow> =>
   scanRow(id, { path: "/music/shared.aiff", bitrate: 320 });
@@ -51,19 +39,11 @@ const samePathRow = (id: string): ReturnType<typeof scanRow> =>
 const samePathEdge = (
   first: ReturnType<typeof samePathRow>,
   second: ReturnType<typeof samePathRow>,
-): ScanPair => ({
-  ...first,
-  basis: "same-path",
-  other: second,
-});
+): ScanPair => ({ ...first, basis: "same-path", other: second });
 
 describe("rb-dedup keeper selection", () => {
   test("prefers the file under Contents/", () => {
-    const contents = {
-      path: "/Volumes/SHELF1/Contents/Artist/x.aiff",
-      size: 1,
-      bitrate: 1,
-    };
+    const contents = { path: "/Volumes/SHELF1/Contents/Artist/x.aiff", size: 1, bitrate: 1 };
     const intake = {
       path: "/Volumes/SHELF1/Intake/2026-09-11/x.aiff",
       size: 10_000,
@@ -111,29 +91,21 @@ describe("rb-dedup fingerprint judgment", () => {
       [pair.path, "AQID_same-prefix-A_B-1"],
       [pair.other.path, "AQID_same-prefix-A_B-2"],
     ]);
-    expect(
-      buildDupePairs([pair], (path) => fingerprints.get(path) ?? null),
-    ).toEqual([]);
+    expect(buildDupePairs([pair], (path) => fingerprints.get(path) ?? null)).toEqual([]);
   });
 
   test("stem-twin basis requires fingerprint match like candidate", () => {
     const stemPair = scanPair("a", {
       path: "/music/track.aiff",
       basis: "stem-twin" as const,
-      other: scanRow("b", {
-        path: "/music/track (1).aiff",
-        len: 181,
-        size: 900,
-      }),
+      other: scanRow("b", { path: "/music/track (1).aiff", len: 181, size: 900 }),
     });
     // Distinct fingerprints → no pair
     const distinctFp = new Map([
       [stemPair.path, "fp-A"],
       [stemPair.other.path, "fp-B"],
     ]);
-    expect(
-      buildDupePairs([stemPair], (p) => distinctFp.get(p) ?? null),
-    ).toEqual([]);
+    expect(buildDupePairs([stemPair], (p) => distinctFp.get(p) ?? null)).toEqual([]);
     // Same fingerprint → pair accepted
     const result = buildDupePairs([stemPair], () => "fp-same");
     expect(result).toHaveLength(1);
@@ -191,9 +163,7 @@ describe("rb-dedup fingerprint judgment", () => {
     ]) {
       const result = buildDupePairs(edges, () => "same-fingerprint");
       expect(result.map(({ keepId }) => keepId)).toEqual(["c", "c"]);
-      expect(new Set(result.map(({ loseId }) => loseId))).toEqual(
-        new Set(["a", "b"]),
-      );
+      expect(new Set(result.map(({ loseId }) => loseId))).toEqual(new Set(["a", "b"]));
     }
   });
 
@@ -213,9 +183,7 @@ describe("rb-dedup fingerprint judgment", () => {
 
 describe("rb-dedup subprocess boundaries", () => {
   test("rejects malformed and structurally invalid scan payloads", () => {
-    expect(() => parseScanResult("not-json")).toThrow(
-      "rb-dedup scan returned malformed JSON",
-    );
+    expect(() => parseScanResult("not-json")).toThrow("rb-dedup scan returned malformed JSON");
     expect(() => parseScanResult('{"scanned":1,"pairs":[{}]}')).toThrow(
       "rb-dedup scan returned invalid JSON",
     );
@@ -230,26 +198,15 @@ describe("rb-dedup subprocess boundaries", () => {
       size: 900,
       bitrate: 320,
       basis: "stem-twin",
-      other: {
-        id: "2",
-        path: "/b.mp3",
-        title: "Track",
-        len: 180,
-        size: 900,
-        bitrate: 320,
-      },
+      other: { id: "2", path: "/b.mp3", title: "Track", len: 180, size: 900, bitrate: 320 },
     };
-    const result = parseScanResult(
-      JSON.stringify({ scanned: 2, pairs: [pair] }),
-    );
+    const result = parseScanResult(JSON.stringify({ scanned: 2, pairs: [pair] }));
     expect(result.pairs).toHaveLength(1);
     expect(result.pairs[0]?.basis).toBe("stem-twin");
   });
 
   test("rejects malformed and structurally invalid delete payloads", () => {
-    expect(() => parseDeleteResult("not-json")).toThrow(
-      "rb-dedup delete returned malformed JSON",
-    );
+    expect(() => parseDeleteResult("not-json")).toThrow("rb-dedup delete returned malformed JSON");
     expect(() => parseDeleteResult('{"removed":"1","errors":[]}')).toThrow(
       "rb-dedup delete returned invalid JSON",
     );
@@ -263,17 +220,10 @@ describe("rb-dedup subprocess boundaries", () => {
 });
 
 const applyPair = candidate("keep", "/mnt/Contents/Artist/keep.aiff", {
-  other: scanRow("lose", {
-    path: "/mnt/Contents/Artist/lose.aiff",
-    size: 900,
-  }),
+  other: scanRow("lose", { path: "/mnt/Contents/Artist/lose.aiff", size: 900 }),
 });
 
-const commandResult = (stdout: string) => ({
-  status: 0,
-  stdout,
-  stderr: "",
-});
+const commandResult = (stdout: string) => ({ status: 0, stdout, stderr: "" });
 
 function applyDeps(
   deletePayload: string,
@@ -285,28 +235,19 @@ function applyDeps(
   const removedIds = deleteValue.removed_ids;
   if (
     Array.isArray(removedIds) &&
-    removedIds.every(
-      (loseId: unknown): loseId is string => typeof loseId === "string",
-    ) &&
+    removedIds.every((loseId: unknown): loseId is string => typeof loseId === "string") &&
     !Array.isArray(deleteValue.associations)
   ) {
     deleteValue.associations = removedIds.map((loseId) => {
       const pair = pairs.find((p) => p.id === loseId || p.other.id === loseId);
       return {
-        keep_id:
-          pair === undefined
-            ? "keep"
-            : pair.id === loseId
-              ? pair.other.id
-              : pair.id,
+        keep_id: pair === undefined ? "keep" : pair.id === loseId ? pair.other.id : pair.id,
         playlists: [],
         cue_signatures: [],
       };
     });
   }
-  const verifyValue = JSON.parse(verifyPayload) as {
-    rows?: Record<string, unknown>[];
-  };
+  const verifyValue = JSON.parse(verifyPayload) as { rows?: Record<string, unknown>[] };
   for (const row of verifyValue.rows ?? []) {
     row.playlists ??= [];
     row.cue_signatures ??= [];
@@ -335,10 +276,7 @@ function applyDeps(
   };
 }
 
-function withSpawnCount(deps: RbDedupDeps): {
-  deps: RbDedupDeps;
-  count: () => number;
-} {
+function withSpawnCount(deps: RbDedupDeps): { deps: RbDedupDeps; count: () => number } {
   let calls = 0;
   const spawn = deps.spawn;
   deps.spawn = (...args) => {
@@ -353,18 +291,12 @@ function associationApplyJson(): string {
     removed_ids: ["lose"],
     errors: [],
     associations: [
-      {
-        keep_id: "keep",
-        playlists: [["playlist-1", 7]],
-        cue_signatures: ["cue-semantic-hash"],
-      },
+      { keep_id: "keep", playlists: [["playlist-1", 7]], cue_signatures: ["cue-semantic-hash"] },
     ],
   });
 }
 
-function associationVerifyJson(
-  overrides: Record<string, unknown> = {},
-): string {
+function associationVerifyJson(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
     rows: [
       {
@@ -418,10 +350,7 @@ describe("rb-dedup apply safety", () => {
       ),
     );
 
-    const result = await rbDedup(
-      { mount: "/mnt", apply: true, yes: true },
-      tracked.deps,
-    );
+    const result = await rbDedup({ mount: "/mnt", apply: true, yes: true }, tracked.deps);
     expect(result.ok).toBe(false);
     expect(result.error).toContain("rekordbox reopened");
     expect(checks).toBe(2);
@@ -430,17 +359,10 @@ describe("rb-dedup apply safety", () => {
   });
 
   test("cross-volume paths are rejected before backup, delete, or rename", async () => {
-    const outside = candidate(
-      "outside-keep",
-      "/Volumes/flip-master/Contents/Artist/keep.aiff",
-      {
-        basis: "path-twin",
-        other: scanRow("inside-lose", {
-          path: "/mnt/Contents/Artist/lose.aiff",
-          size: 900,
-        }),
-      },
-    );
+    const outside = candidate("outside-keep", "/Volumes/flip-master/Contents/Artist/keep.aiff", {
+      basis: "path-twin",
+      other: scanRow("inside-lose", { path: "/mnt/Contents/Artist/lose.aiff", size: 900 }),
+    });
     let backups = 0;
     let renames = 0;
     const tracked = withSpawnCount(
@@ -459,10 +381,7 @@ describe("rb-dedup apply safety", () => {
         [outside],
       ),
     );
-    const result = await rbDedup(
-      { mount: "/mnt", apply: true, yes: true },
-      tracked.deps,
-    );
+    const result = await rbDedup({ mount: "/mnt", apply: true, yes: true }, tracked.deps);
     expect(result.ok).toBe(false);
     expect(result.error).toContain("outside selected Contents root");
     expect(backups).toBe(0);
@@ -473,10 +392,7 @@ describe("rb-dedup apply safety", () => {
   test("casefold path twins retire only the duplicate row and never move shared bytes", async () => {
     const twin = candidate("keep-twin", "/mnt/Contents/Artist/Track.aiff", {
       basis: "path-twin",
-      other: scanRow("lose-twin", {
-        path: "/mnt/Contents/artist/TRACK.aiff",
-        size: 900,
-      }),
+      other: scanRow("lose-twin", { path: "/mnt/Contents/artist/TRACK.aiff", size: 900 }),
     });
     let renames = 0;
     let receipts = 0;
@@ -512,9 +428,7 @@ describe("rb-dedup apply safety", () => {
         '{"rows":[{"id":"keep","path":"/mnt/Contents/Artist/keep.aiff"}]}',
         {
           realpath: (path) =>
-            path === "/mnt/Contents"
-              ? path
-              : "/mnt/Contents/Artist/shared.aiff",
+            path === "/mnt/Contents" ? path : "/mnt/Contents/Artist/shared.aiff",
           rename: () => {
             renames++;
           },
@@ -529,8 +443,7 @@ describe("rb-dedup apply safety", () => {
     const tracked = withSpawnCount(
       applyDeps('{"removed_ids":["lose"],"errors":[]}', '{"rows":[]}', {
         realpath: (path) => {
-          if (path.endsWith("lose.aiff"))
-            throw new Error("identity unreadable");
+          if (path.endsWith("lose.aiff")) throw new Error("identity unreadable");
           return path;
         },
         backup: () => {
@@ -539,10 +452,7 @@ describe("rb-dedup apply safety", () => {
         },
       }),
     );
-    const failedResult = await rbDedup(
-      { mount: "/mnt", apply: true, yes: true },
-      tracked.deps,
-    );
+    const failedResult = await rbDedup({ mount: "/mnt", apply: true, yes: true }, tracked.deps);
     expect(failedResult.ok).toBe(false);
     expect(failedResult.error).toContain("identity unreadable");
     expect(backups).toBe(0);
@@ -564,9 +474,7 @@ describe("rb-dedup apply safety", () => {
     expect(result.error).toContain("lose: locked");
     expect(result.error).toContain("loser rows still present: lose");
     expect(result.error).toContain("restored from backup");
-    expect(restores).toEqual([
-      "/backup/master.db -> /mnt/PIONEER/Master/master.db",
-    ]);
+    expect(restores).toEqual(["/backup/master.db -> /mnt/PIONEER/Master/master.db"]);
   });
 
   test("quarantine rename failure is an honest failed apply", async () => {
@@ -622,10 +530,7 @@ describe("rb-dedup apply safety", () => {
       scripts.push(args[5] ?? "");
       return spawn(command, args, options);
     };
-    const result = await rbDedup(
-      { mount: "/mnt", apply: true, yes: true },
-      deps,
-    );
+    const result = await rbDedup({ mount: "/mnt", apply: true, yes: true }, deps);
     expect(result.ok).toBe(true);
     expect(scripts[1]).toContain("sp.ContentID = keep_id");
     expect(scripts[1]).toContain("cue.ContentID = keep_id");
@@ -640,11 +545,7 @@ describe("rb-dedup apply safety", () => {
       { mount: "/mnt", apply: true, yes: true },
       applyDeps(
         associationApplyJson(),
-        associationVerifyJson({
-          playlists: [],
-          cue_signatures: [],
-          cue_owners_valid: false,
-        }),
+        associationVerifyJson({ playlists: [], cue_signatures: [], cue_owners_valid: false }),
         rollback.overrides,
       ),
     );
@@ -684,16 +585,10 @@ describe("rb-dedup apply safety", () => {
 
   test("two same-basename losers receive collision-proof destinations", async () => {
     const first = candidate("keep-a", "/mnt/Contents/Artist A/keep.aiff", {
-      other: scanRow("lose-a", {
-        path: "/mnt/Contents/Artist A/same.aiff",
-        size: 900,
-      }),
+      other: scanRow("lose-a", { path: "/mnt/Contents/Artist A/same.aiff", size: 900 }),
     });
     const second = candidate("keep-b", "/mnt/Contents/Artist B/keep.aiff", {
-      other: scanRow("lose-b", {
-        path: "/mnt/Contents/Artist B/same.aiff",
-        size: 900,
-      }),
+      other: scanRow("lose-b", { path: "/mnt/Contents/Artist B/same.aiff", size: 900 }),
     });
     const destinations: string[] = [];
     const result = await rbDedup(
@@ -715,16 +610,12 @@ describe("rb-dedup apply safety", () => {
 
   test("a same-day rerun preserves an existing quarantine destination", async () => {
     const mount = t.dir();
-    const pair = candidate(
-      "keep-rerun",
-      join(mount, "Contents", "Artist", "keep.aiff"),
-      {
-        other: scanRow("lose-rerun", {
-          path: join(mount, "Contents", "Artist", "same.aiff"),
-          size: 900,
-        }),
-      },
-    );
+    const pair = candidate("keep-rerun", join(mount, "Contents", "Artist", "keep.aiff"), {
+      other: scanRow("lose-rerun", {
+        path: join(mount, "Contents", "Artist", "same.aiff"),
+        size: 900,
+      }),
+    });
     const qdir = join(mount, "Quarantine", "rb-dedup-2026-09-14");
     mkdirSync(qdir, { recursive: true });
     const existing = join(qdir, "Artist · same.aiff");
@@ -734,9 +625,7 @@ describe("rb-dedup apply safety", () => {
       { mount, apply: true, yes: true },
       applyDeps(
         '{"removed_ids":["lose-rerun"],"errors":[]}',
-        JSON.stringify({
-          rows: [{ id: "keep-rerun", path: pair.path }],
-        }),
+        JSON.stringify({ rows: [{ id: "keep-rerun", path: pair.path }] }),
         {
           fingerprint: () => "same-full-fingerprint",
           rename: (_from, to) => destinations.push(to),

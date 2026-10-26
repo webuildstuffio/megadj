@@ -10,8 +10,7 @@
 import { round3 } from "../../shared/leaf/fmt";
 
 /** Set arc shape classification. */
-export type ArcShape =
-  "buildup" | "drop" | "plateau" | "valley" | "rollercoaster";
+export type ArcShape = "buildup" | "drop" | "plateau" | "valley" | "rollercoaster";
 
 /** Arc descriptors for one track. */
 export interface SetArcDescriptor {
@@ -32,10 +31,7 @@ export interface SetArcDescriptor {
  * @param windowSize - Smoothing window size (default: 4 bars)
  * @returns Arc descriptor, or null if insufficient bars
  */
-export function computeSetArc(
-  barLufs: readonly number[],
-  windowSize = 4,
-): SetArcDescriptor | null {
+export function computeSetArc(barLufs: readonly number[], windowSize = 4): SetArcDescriptor | null {
   if (barLufs.length < windowSize * 2) return null;
 
   // Smooth with moving average
@@ -53,9 +49,7 @@ export function computeSetArc(
   const max = Math.max(...smoothed);
   const range = max - min;
   const normalized =
-    range > 0
-      ? smoothed.map((v) => round3((v - min) / range))
-      : smoothed.map(() => 0.5);
+    range > 0 ? smoothed.map((v) => round3((v - min) / range)) : smoothed.map(() => 0.5);
 
   // Compute dynamic range
   const dynamicRange = round3(range);
@@ -81,10 +75,7 @@ export function computeSetArc(
 /**
  * Classify the energy curve shape.
  */
-function classifyShape(
-  curve: readonly number[],
-  inflections: number,
-): ArcShape {
+function classifyShape(curve: readonly number[], inflections: number): ArcShape {
   if (curve.length < 2) return "plateau";
   if (inflections >= 4) return "rollercoaster";
 
@@ -92,27 +83,18 @@ function classifyShape(
   const lastQuarter = curve.slice(Math.floor((3 * curve.length) / 4));
 
   const avgFirst =
-    firstQuarter.length > 0
-      ? firstQuarter.reduce((a, b) => a + b, 0) / firstQuarter.length
-      : 0.5;
+    firstQuarter.length > 0 ? firstQuarter.reduce((a, b) => a + b, 0) / firstQuarter.length : 0.5;
   const avgLast =
-    lastQuarter.length > 0
-      ? lastQuarter.reduce((a, b) => a + b, 0) / lastQuarter.length
-      : 0.5;
+    lastQuarter.length > 0 ? lastQuarter.reduce((a, b) => a + b, 0) / lastQuarter.length : 0.5;
 
   const diff = avgLast - avgFirst;
   if (diff > 0.2) return "buildup";
   if (diff < -0.2) return "drop";
 
   // Check for valley (dip in the middle)
-  const midSection = curve.slice(
-    Math.floor(curve.length / 4),
-    Math.floor((3 * curve.length) / 4),
-  );
+  const midSection = curve.slice(Math.floor(curve.length / 4), Math.floor((3 * curve.length) / 4));
   const avgMid =
-    midSection.length > 0
-      ? midSection.reduce((a, b) => a + b, 0) / midSection.length
-      : 0.5;
+    midSection.length > 0 ? midSection.reduce((a, b) => a + b, 0) / midSection.length : 0.5;
   if (avgMid < avgFirst - 0.15 && avgMid < avgLast - 0.15) return "valley";
 
   return "plateau";

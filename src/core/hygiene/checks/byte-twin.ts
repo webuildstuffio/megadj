@@ -6,13 +6,7 @@
  * groups only — cheap and decisive, exactly the shelf-dupescan rule.
  */
 import { basename } from "node:path";
-import {
-  baseFinding,
-  type CheckCtx,
-  type CheckDef,
-  type Finding,
-  type ShelfFile,
-} from "../types";
+import { baseFinding, type CheckCtx, type CheckDef, type Finding, type ShelfFile } from "../types";
 import { nameSimilarity } from "./similarity";
 
 export const byteTwin: CheckDef = {
@@ -44,10 +38,7 @@ export const byteTwin: CheckDef = {
       for (const twins of buckets.values()) {
         if (twins.length < 2) continue;
         // keeper: shortest path wins ties (the "original" over the " (1)")
-        twins.sort(
-          (a, b) =>
-            a.path.length - b.path.length || a.path.localeCompare(b.path),
-        );
+        twins.sort((a, b) => a.path.length - b.path.length || a.path.localeCompare(b.path));
         const keeper = twins[0]!;
         for (const loser of twins.slice(1)) {
           out.push({
@@ -56,10 +47,7 @@ export const byteTwin: CheckDef = {
             bytes: [keeper.bytes, loser.bytes],
             md5s: [md5.get(keeper.path) ?? null, md5.get(loser.path) ?? null],
             evidence: {
-              nameSimilarity: nameSimilarity(
-                basename(keeper.path),
-                basename(loser.path),
-              ),
+              nameSimilarity: nameSimilarity(basename(keeper.path), basename(loser.path)),
             },
             proposedAction: { type: "quarantine-loser" },
             keeperPath: keeper.path,

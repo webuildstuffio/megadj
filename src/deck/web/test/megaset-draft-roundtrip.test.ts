@@ -52,9 +52,7 @@ describe("#293 draft round-trip (determinism contract)", () => {
   });
 
   test("minutes ≤ 0 refused", () => {
-    const bad = parseDraft(
-      '{"kind":"megadj-set-draft","request":{"preset":"peak","minutes":0}}',
-    );
+    const bad = parseDraft('{"kind":"megadj-set-draft","request":{"preset":"peak","minutes":0}}');
     expect(bad.ok).toBe(false);
   });
 

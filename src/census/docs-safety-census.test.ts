@@ -40,10 +40,9 @@ function skillFiles(): string[] {
 
 describe("docs safety census (issue #57 regression gate)", () => {
   const skills = skillFiles();
-  const runbooks = [
-    "docs/runbooks/0a-evacuate-extra.md",
-    "docs/getdat/usb-sync.md",
-  ].map((p) => join(ROOT, p));
+  const runbooks = ["docs/runbooks/0a-evacuate-extra.md", "docs/getdat/usb-sync.md"].map((p) =>
+    join(ROOT, p),
+  );
 
   test("the census actually found the active skill prose", () => {
     expect(skills.length).toBeGreaterThan(0);
@@ -61,10 +60,9 @@ describe("docs safety census (issue #57 regression gate)", () => {
         const window = [lines[i - 1], line, lines[i + 1]]
           .filter((l): l is string => l !== undefined)
           .join(" ");
-        const forbids =
-          /\bnever\b|\bdo not\b|\bdon't\b|\bnot use\b|\binstead\b|\bavoid\b/iu.test(
-            window,
-          );
+        const forbids = /\bnever\b|\bdo not\b|\bdon't\b|\bnot use\b|\binstead\b|\bavoid\b/iu.test(
+          window,
+        );
         if (!forbids) hits.push(`${p}:${i + 1}: ${line.trim()}`);
       }
     }
@@ -110,10 +108,7 @@ describe("docs safety census (issue #57 regression gate)", () => {
   });
 
   test("the runbook copy path is foreground tar-pipe, not rsync", () => {
-    const text = readFileSync(
-      join(ROOT, "docs/runbooks/0a-evacuate-extra.md"),
-      "utf8",
-    );
+    const text = readFileSync(join(ROOT, "docs/runbooks/0a-evacuate-extra.md"), "utf8");
     expect(text).toMatch(/foreground tar-pipe/u);
     expect(text).toMatch(/Do not use whole-volume rsync/u);
     expect(text).toMatch(/background jobs may be reaped/u);

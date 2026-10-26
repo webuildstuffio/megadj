@@ -193,8 +193,7 @@ export function intakeStatus(opts: IntakeStatusOptions): IntakeStatusResult {
     filesOnDisk: files.length,
     diskBytes,
     dbRowsWithPaths: downloaded.length,
-    rowsMissingOnDisk: mismatches.filter((m) => m.reason === "missing-on-disk")
-      .length,
+    rowsMissingOnDisk: mismatches.filter((m) => m.reason === "missing-on-disk").length,
     rowsOutsideMusicDir: outside,
     filesWithoutDbRow: orphanFiles.length,
     caseCollisions,
@@ -205,15 +204,10 @@ export function intakeStatus(opts: IntakeStatusOptions): IntakeStatusResult {
   return result;
 }
 
-export function printIntakeStatus(
-  r: IntakeStatusResult,
-  log: (message: string) => void,
-): void {
+export function printIntakeStatus(r: IntakeStatusResult, log: (message: string) => void): void {
   log("megadj intake-status — archive census (files ↔ archive.db)");
   log(`  music dir:            ${r.musicDir}`);
-  log(
-    `  files on disk:        ${r.filesOnDisk}  (${(r.diskBytes / 1e9).toFixed(2)} GB)`,
-  );
+  log(`  files on disk:        ${r.filesOnDisk}  (${(r.diskBytes / 1e9).toFixed(2)} GB)`);
   log(`  db rows w/ paths:     ${r.dbRowsWithPaths}`);
   log(`  rows missing on disk: ${r.rowsMissingOnDisk}`);
   log(`  rows outside dir:     ${r.rowsOutsideMusicDir}`);
@@ -231,13 +225,9 @@ export function printIntakeStatus(
       `  dumps:                ${c.total} (${c.done} done, ${c.partial} partial, ${c.pending} file(s) pending)`,
     );
     for (const d of r.dumps.dumps.slice(0, 5))
-      log(
-        `    ${d.folder} — ${d.status}, ${d.ingested} in, ${d.pending} pending`,
-      );
+      log(`    ${d.folder} — ${d.status}, ${d.ingested} in, ${d.pending} pending`);
   }
   const reconciled =
-    r.rowsMissingOnDisk === 0 &&
-    r.filesWithoutDbRow === 0 &&
-    r.caseCollisions.length === 0;
+    r.rowsMissingOnDisk === 0 && r.filesWithoutDbRow === 0 && r.caseCollisions.length === 0;
   log(`  verdict: ${reconciled ? "RECONCILED" : "DRIFT (see buckets above)"}`);
 }

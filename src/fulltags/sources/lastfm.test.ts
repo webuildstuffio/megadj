@@ -43,11 +43,7 @@ describe("lastfmGenreVote", () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(
         Response.json({
-          track: {
-            name: "Test",
-            artist: { name: "Test Artist" },
-            toptags: { tag: [] },
-          },
+          track: { name: "Test", artist: { name: "Test Artist" }, toptags: { tag: [] } },
         }),
       ),
     ) as unknown as typeof fetch;
@@ -142,9 +138,7 @@ describe("lastfmGenreVote", () => {
           track: {
             name: "CacheTest",
             artist: { name: "CacheArtist" },
-            toptags: {
-              tag: [{ name: "techno", count: 100 }],
-            },
+            toptags: { tag: [{ name: "techno", count: 100 }] },
           },
         }),
       );
@@ -189,9 +183,7 @@ describe("lastfmGenreVote", () => {
   test("returns null when no track in response", async () => {
     const { fetchLastfmTags } = await import("./lastfm");
     const origFetch = globalThis.fetch;
-    globalThis.fetch = mock(() =>
-      Promise.resolve(Response.json({})),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = mock(() => Promise.resolve(Response.json({}))) as unknown as typeof fetch;
     try {
       const result = await fetchLastfmTags("NoTrack", "NoTrack", "key");
       expect(result).toBeNull();

@@ -2,11 +2,7 @@
  * estimator.test.ts — Tests for the genre estimator integration (B5.5).
  */
 import { describe, expect, test } from "bun:test";
-import {
-  estimateGenres,
-  estimatorEnabled,
-  type EstimatorInput,
-} from "./estimator";
+import { estimateGenres, estimatorEnabled, type EstimatorInput } from "./estimator";
 
 describe("estimatorEnabled", () => {
   test("returns false when env not set", () => {

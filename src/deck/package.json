@@ -1,7 +1,7 @@
 {
   "name": "cratedeck",
-  "private": true,
   "version": "0.2.0",
+  "private": true,
   "description": "Local dashboard for every DJ USB drive — mounted or not",
   "type": "module",
   "scripts": {

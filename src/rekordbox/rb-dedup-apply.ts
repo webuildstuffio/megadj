@@ -50,10 +50,7 @@ export function deleteLoserRows(
     "uv",
     pyUvFileArgv({
       file: "dedup-delete.kit.py",
-      args: [
-        dbPath,
-        JSON.stringify(unique.map((pair) => [pair.loseId, pair.keepId])),
-      ],
+      args: [dbPath, JSON.stringify(unique.map((pair) => [pair.loseId, pair.keepId]))],
     }),
     { encoding: "utf8", timeout: 300_000 },
   );
@@ -106,11 +103,7 @@ export function quarantineLosers(
   quarantined: string[],
 ): QuarantineOutcome {
   const stamp = deps.now().toISOString().slice(0, 10);
-  const qdir = join(
-    opts.mount.replace(/\/+$/u, ""),
-    "Quarantine",
-    `rb-dedup-${stamp}`,
-  );
+  const qdir = join(opts.mount.replace(/\/+$/u, ""), "Quarantine", `rb-dedup-${stamp}`);
   const moves: { source: string; destination: string }[] = [];
   for (const p of errors.length === 0 ? unique : []) {
     // Never move a file when its loser row was not confirmed deleted.
@@ -152,15 +145,10 @@ export function verifyRowsFresh(
   let rows: VerifyRow[] | null = null;
   try {
     deps.assertClosed("rb-dedup post-write verification");
-    const ids = [
-      ...new Set(unique.flatMap((pair) => [pair.keepId, pair.loseId])),
-    ];
+    const ids = [...new Set(unique.flatMap((pair) => [pair.keepId, pair.loseId]))];
     const verification = deps.spawn(
       "uv",
-      pyUvFileArgv({
-        file: "dedup-verify.kit.py",
-        args: [dbPath, JSON.stringify(ids)],
-      }),
+      pyUvFileArgv({ file: "dedup-verify.kit.py", args: [dbPath, JSON.stringify(ids)] }),
       { encoding: "utf8", timeout: 120_000 },
     );
     if (verification.status !== 0 || !verification.stdout) {
@@ -168,9 +156,7 @@ export function verifyRowsFresh(
         `verification read failed (exit ${String(verification.status)}): ${(verification.stderr ?? "").slice(-300)}`,
       );
     } else {
-      rows = parseVerifyRows(
-        verification.stdout.trim().split("\n").pop() ?? "",
-      );
+      rows = parseVerifyRows(verification.stdout.trim().split("\n").pop() ?? "");
     }
   } catch (error) {
     errors.push(`verification failed: ${errorText(error)}`);
@@ -191,14 +177,11 @@ function auditFreshRows(
   const rowById = new Map(verifyRows.map((row) => [row.id, row]));
   const survivors = unique.filter((pair) => rowById.has(pair.loseId));
   if (survivors.length)
-    errors.push(
-      `loser rows still present: ${survivors.map((p) => p.loseId).join(", ")}`,
-    );
+    errors.push(`loser rows still present: ${survivors.map((p) => p.loseId).join(", ")}`);
   const missingKeepers = unique
     .filter((pair) => !rowById.has(pair.keepId))
     .map((pair) => pair.keepId);
-  if (missingKeepers.length)
-    errors.push(`keeper rows missing: ${missingKeepers.join(", ")}`);
+  if (missingKeepers.length) errors.push(`keeper rows missing: ${missingKeepers.join(", ")}`);
   const mismatchedKeepers = unique
     .filter((pair) => {
       const row = rowById.get(pair.keepId);
@@ -225,8 +208,7 @@ function auditFreshRows(
     }
     if (
       actual !== undefined &&
-      JSON.stringify(actual.cueSignatures) !==
-        JSON.stringify(expected.cueSignatures)
+      JSON.stringify(actual.cueSignatures) !== JSON.stringify(expected.cueSignatures)
     ) {
       errors.push(`cue associations mismatch: ${keeperId}`);
     }
@@ -256,12 +238,7 @@ export function writeReceipt(
     deps.writeFile(
       receipt,
       JSON.stringify(
-        {
-          date: stamp,
-          pairs: appliedPairs,
-          removedRows: removed,
-          quarantined,
-        },
+        { date: stamp, pairs: appliedPairs, removedRows: removed, quarantined },
         null,
         2,
       ),
@@ -292,11 +269,7 @@ export function compensate(
   let restored = false;
   if (backedUpTo === null) {
     errors.push("no backup to restore from; leaving files and rows as-is");
-    return {
-      removed: removedNow,
-      quarantined: quarantinedNow,
-      receipt: receiptNow,
-    };
+    return { removed: removedNow, quarantined: quarantinedNow, receipt: receiptNow };
   }
   const backupPath: string = backedUpTo;
   try {
@@ -327,15 +300,9 @@ export function compensate(
     try {
       deps.remove(receiptNow);
     } catch (error) {
-      errors.push(
-        `failed to remove compensated receipt ${receiptNow}: ${errorText(error)}`,
-      );
+      errors.push(`failed to remove compensated receipt ${receiptNow}: ${errorText(error)}`);
     }
     receiptNow = null;
   }
-  return {
-    removed: removedNow,
-    quarantined: quarantinedNow,
-    receipt: receiptNow,
-  };
+  return { removed: removedNow, quarantined: quarantinedNow, receipt: receiptNow };
 }

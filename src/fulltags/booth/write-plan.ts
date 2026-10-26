@@ -52,12 +52,7 @@ export function buildWritePlan(changes: readonly WriteChange[]): WritePlan {
     byTrack.set(c.trackId, arr);
   }
 
-  return {
-    changes: filtered,
-    tracksAffected: byTrack.size,
-    byField,
-    byTrack,
-  };
+  return { changes: filtered, tracksAffected: byTrack.size, byField, byTrack };
 }
 
 /**
@@ -65,9 +60,7 @@ export function buildWritePlan(changes: readonly WriteChange[]): WritePlan {
  */
 export function formatWritePlan(plan: WritePlan): string[] {
   const lines: string[] = [];
-  lines.push(
-    `Write plan: ${plan.changes.length} changes across ${plan.tracksAffected} tracks`,
-  );
+  lines.push(`Write plan: ${plan.changes.length} changes across ${plan.tracksAffected} tracks`);
   lines.push("");
 
   // Summary by field

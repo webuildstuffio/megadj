@@ -208,8 +208,7 @@ export const HELP_JOBS: HelpJob[] = [
     icon: "scan",
     what: "Reads the rekordbox library on the drive — tracks, playlists, health stats, free space — and stores a snapshot.",
     when: "After adding music via rekordbox, or any time you want fresh numbers. Safe to run any time.",
-    safety:
-      "Read-only. Allowed while the drive is mounted; no interlock needed.",
+    safety: "Read-only. Allowed while the drive is mounted; no interlock needed.",
     duration: "seconds to ~1 minute",
   },
   {
@@ -238,8 +237,7 @@ export const HELP_JOBS: HelpJob[] = [
     icon: "bolt",
     what: "Dry-runs megadj booth-fix over the shelf Contents against your player fleet (Fleet → Booth): filenames the players can't carry, tags they can't display, audio they can't play. Produces the fix plan without touching anything.",
     when: "After big ingest sweeps, or whenever the fleet changes.",
-    safety:
-      "Read-only — a dry run. Nothing is renamed or rewritten until you apply.",
+    safety: "Read-only — a dry run. Nothing is renamed or rewritten until you apply.",
     duration: "5–12 minutes (walks every file's tags)",
   },
   {
@@ -258,8 +256,7 @@ export const HELP_JOBS: HelpJob[] = [
     icon: "shield",
     what: "Deep integrity audit: dual-DB agreement, every audio file present, ANLZ at hashed paths, grid sanity, playlist integrity, master↔mirror parity.",
     when: "Before a gig, after any rekordbox export, or when a health check turns red.",
-    safety:
-      "Read-only, but requires rekordbox to be closed (it locks the same databases).",
+    safety: "Read-only, but requires rekordbox to be closed (it locks the same databases).",
     duration: "1–3 minutes",
   },
   {
@@ -277,8 +274,7 @@ export const HELP_JOBS: HelpJob[] = [
     icon: "pulse",
     what: "Measures real sequential + random-4k read speed by writing a temp file, reading it back, deleting it.",
     when: "Before buying-in a new stick, or if playback stuttered — the chart watches for drops over time.",
-    safety:
-      "Writes a scratch file into free space, then removes it. Interlocked.",
+    safety: "Writes a scratch file into free space, then removes it. Interlocked.",
     duration: "~30 seconds",
   },
   {
@@ -361,8 +357,7 @@ export const HELP_SURFACES: HelpSurface[] = [
     route: "#/fleet/booth",
     label: "Fleet · Booth",
     where: "Fleet → Booth",
-    question:
-      "Which players do the compat checks enforce — pick the fleet, see the citations?",
+    question: "Which players do the compat checks enforce — pick the fleet, see the citations?",
   },
   {
     route: "#/fleet/archive",
@@ -380,8 +375,7 @@ export const HELP_SURFACES: HelpSurface[] = [
     route: "#/getdat/pipeline",
     label: "GetDat · Pipeline",
     where: "GetDat (top nav) → Pipeline",
-    question:
-      "Is the download machine healthy — what's playable vs stuck, and why?",
+    question: "Is the download machine healthy — what's playable vs stuck, and why?",
   },
   {
     route: "#/getdat/backlog",
@@ -393,8 +387,7 @@ export const HELP_SURFACES: HelpSurface[] = [
     route: "#/getdat/sources",
     label: "GetDat · Sources",
     where: "GetDat → Sources",
-    question:
-      "Which source tags exist, and did two of them drift apart? (click a chip to diff)",
+    question: "Which source tags exist, and did two of them drift apart? (click a chip to diff)",
   },
   {
     route: "#/getdat/library",
@@ -406,8 +399,7 @@ export const HELP_SURFACES: HelpSurface[] = [
     route: "#/getdat/intake",
     label: "GetDat · Intake",
     where: "GetDat → Intake",
-    question:
-      "Turn a dump folder into archive-ready tracks — tags, art, dedupe, audit, live?",
+    question: "Turn a dump folder into archive-ready tracks — tags, art, dedupe, audit, live?",
   },
   {
     route: "#/fulltags/beatgrids",
@@ -419,15 +411,13 @@ export const HELP_SURFACES: HelpSurface[] = [
     route: "#/fulltags/mood",
     label: "FullTags · Mood",
     where: "FullTags → Mood",
-    question:
-      "What does the archive sound like — the vibe map and its extremes?",
+    question: "What does the archive sound like — the vibe map and its extremes?",
   },
   {
     route: "#/fulltags/set",
     label: "FullTags · Set",
     where: "FullTags → Set",
-    question:
-      "How do I get an ordered mix proposal for tonight from the whole shelf?",
+    question: "How do I get an ordered mix proposal for tonight from the whole shelf?",
   },
   {
     route: "#/fulltags/cues",
@@ -453,8 +443,7 @@ export function helpTerm(name: string): HelpTerm | undefined {
 
 /** What each overall verdict promises (drive page pill + rail ring). */
 export const VERDICT_HELP: Record<string, string> = {
-  healthy:
-    "Every measured check passed — this drive is as ready as the data can prove.",
+  healthy: "Every measured check passed — this drive is as ready as the data can prove.",
   attention:
     "Usable, but something needs a look (stale verify, low space, thin grids). Nothing here says 'don't play it' — yet.",
   critical:
@@ -467,13 +456,10 @@ export const VERDICT_HELP: Record<string, string> = {
  *  entry is DERIVED from the check-matrix SSOT's tier explanation so the
  *  tooltip, the drive-page banner and the enforcement code can't drift. */
 export const ROLE_HELP: Record<string, string> = {
-  master:
-    "Master: the gig stick that new music lands on; mirrors are measured against it.",
-  mirror:
-    "Mirror: a deliberate second copy of the master. Parity checks keep it interchangeable.",
+  master: "Master: the gig stick that new music lands on; mirrors are measured against it.",
+  mirror: "Mirror: a deliberate second copy of the master. Parity checks keep it interchangeable.",
   shelf: `Shelf: the archive-grade master master (big HDD). ${TIER_EXPLANATION.archive}`,
-  library:
-    "Library: a real drive with its own music — not part of a master/mirror pair.",
+  library: "Library: a real drive with its own music — not part of a master/mirror pair.",
   unknown:
     "Role unknown: the volume name didn't match your configured master/mirror/shelf names (config.toml).",
 };

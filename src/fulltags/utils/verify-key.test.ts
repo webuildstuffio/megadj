@@ -8,12 +8,7 @@
 import { afterAll, describe, test, expect } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  camelotDist,
-  parseVerifyKeyArgs,
-  runVerifyKey,
-  toCamelot,
-} from "./verify-key";
+import { camelotDist, parseVerifyKeyArgs, runVerifyKey, toCamelot } from "./verify-key";
 import { tempDir } from "../../test-support/testutil";
 
 describe("toCamelot normalization", () => {
@@ -79,11 +74,7 @@ afterAll(() => t.rippleAll());
 
 /** Four synthetic tracks with 9A reference keys + the refs JSON map —
  * module-scope so each test gets a fresh fixture without re-declaring. */
-const makeDir = (): {
-  dir: string;
-  refsPath: string;
-  refs: Record<string, string>;
-} => {
+const makeDir = (): { dir: string; refsPath: string; refs: Record<string, string> } => {
   const dir = t.dir();
   const refs: Record<string, string> = {};
   for (const [name, key] of [
@@ -140,8 +131,7 @@ describe("runVerifyKey gate math (analyzer + refs injected)", () => {
       refsPath,
       analyze: async (paths) => {
         const m = new Map();
-        for (const p of paths)
-          m.set(p, { camelot: "9A", openkey: "", key: "" });
+        for (const p of paths) m.set(p, { camelot: "9A", openkey: "", key: "" });
         return m;
       },
     });
@@ -158,8 +148,7 @@ describe("runVerifyKey gate math (analyzer + refs injected)", () => {
       refsPath,
       analyze: async (paths) => {
         const m = new Map();
-        for (const p of paths)
-          m.set(p, { camelot: "9A", openkey: "", key: "" });
+        for (const p of paths) m.set(p, { camelot: "9A", openkey: "", key: "" });
         return m;
       },
     });
@@ -178,9 +167,9 @@ describe("runVerifyKey gate math (analyzer + refs injected)", () => {
 
   test("no files → throws the no-targets error", async () => {
     const empty = t.dir();
-    await expect(
-      runVerifyKey({ targets: [empty], limit: 5, refsPath: null }),
-    ).rejects.toThrow("no files to verify");
+    await expect(runVerifyKey({ targets: [empty], limit: 5, refsPath: null })).rejects.toThrow(
+      "no files to verify",
+    );
   });
 
   test("malformed refs JSON throws with the flag name", async () => {
@@ -188,8 +177,8 @@ describe("runVerifyKey gate math (analyzer + refs injected)", () => {
     writeFileSync(join(dir, "a.mp3"), "x");
     const bad = join(dir, "bad.json");
     writeFileSync(bad, "{not json");
-    await expect(
-      runVerifyKey({ targets: [dir], limit: 5, refsPath: bad }),
-    ).rejects.toThrow("--refs invalid JSON");
+    await expect(runVerifyKey({ targets: [dir], limit: 5, refsPath: bad })).rejects.toThrow(
+      "--refs invalid JSON",
+    );
   });
 });

@@ -35,8 +35,7 @@ export function reportInput(deps: ReportDeps, driveId: string) {
   const master = db.masterDrive();
   const masterSnap = parseSnap(master?.last_snapshot_json ?? null);
   const isMirror =
-    drive.role === "mirror" ||
-    drive.name.toUpperCase() === cfg.mirrorDrive.toUpperCase();
+    drive.role === "mirror" || drive.name.toUpperCase() === cfg.mirrorDrive.toUpperCase();
   // capacity: prefer live value; falls back to snapshot
   const withCap: Drive = {
     ...drive,
@@ -61,10 +60,7 @@ export function reportInput(deps: ReportDeps, driveId: string) {
 
 /** The full dossier export bundle (GET /drives/:id/export + deck_report
  *  {format:"dossier"}). */
-export function exportDossier(
-  deps: ReportDeps,
-  driveId: string,
-): Response | null {
+export function exportDossier(deps: ReportDeps, driveId: string): Response | null {
   const { db, registry } = deps;
   const detail = registry.detail(driveId);
   if (!detail) return null;
@@ -96,8 +92,7 @@ export function allPreflightInputs(deps: ReportDeps): PreflightInput[] {
     .filter((d) => d.mounted)
     .map((d): PreflightInput => {
       const snap = parseSnap(d.last_snapshot_json);
-      if (snap && !snap.capacity_bytes && d.capacity_bytes)
-        snap.capacity_bytes = d.capacity_bytes;
+      if (snap && !snap.capacity_bytes && d.capacity_bytes) snap.capacity_bytes = d.capacity_bytes;
       return {
         drive: d,
         snapshot: snap,
@@ -106,9 +101,7 @@ export function allPreflightInputs(deps: ReportDeps): PreflightInput[] {
         latestChecksum: db.latestChecksum(d.id),
         ledgerFiles: db.ledgerCount(d.id),
         masterSnapshot: d.id === master?.id ? null : masterSnap,
-        isMirror:
-          d.role === "mirror" ||
-          d.name.toUpperCase() === cfg.mirrorDrive.toUpperCase(),
+        isMirror: d.role === "mirror" || d.name.toUpperCase() === cfg.mirrorDrive.toUpperCase(),
         // N78 rides on preflight: measured dual-DB rows → player verdict
         players: driveCompatibility(snap, extraPlayers()),
         now: Date.now(),

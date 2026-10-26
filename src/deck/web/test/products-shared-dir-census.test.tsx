@@ -46,9 +46,7 @@ test("pages import shared surface through the barrel only (no member leaks)", ()
         walk(p);
       } else if (e.name.endsWith(".tsx")) {
         const src = read(p);
-        const leaks = src.match(
-          /from "\.\.\/shared\/(product-meta|scan-apply|beat-sync)"/g,
-        );
+        const leaks = src.match(/from "\.\.\/shared\/(product-meta|scan-apply|beat-sync)"/g);
         if (leaks) offenders.push(`${p}: ${leaks.join(", ")}`);
       }
     }

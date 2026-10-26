@@ -15,10 +15,7 @@ import type { Record_ } from "./ingest-probe";
 import type { ArtworkOutcome, QueueEntry } from "./ingest-art";
 import type { RemixInfo } from "../../fulltags/sources/remix";
 import type { MarkDownloadedInfo } from "../../core/state-types";
-import {
-  INTAKE_COUNTER_KEYS,
-  type IntakeCounterKey,
-} from "../../deck/shared/types";
+import { INTAKE_COUNTER_KEYS, type IntakeCounterKey } from "../../deck/shared/types";
 
 /** Per-run ingest tallies (the --json summary's counters). Defined HERE —
  *  the leaf seam shared with ingest.ts — so this module never imports its
@@ -50,8 +47,7 @@ export function counterSummary(counters: IngestCounters): {
   [K in Extract<IntakeCounterKey, keyof IngestCounters>]: IngestCounters[K];
 } {
   const keys = INTAKE_COUNTER_KEYS.filter(
-    (key): key is Extract<IntakeCounterKey, keyof IngestCounters> =>
-      key in counters,
+    (key): key is Extract<IntakeCounterKey, keyof IngestCounters> => key in counters,
   );
   // Every counter key is produced — the filter above is pure type
   // narrowing; a missing key is the typecheck error, never a runtime hole.
@@ -78,12 +74,7 @@ export interface IngestOptsLike {
   ledgerSource?: string | undefined;
   state: {
     updateArtworkStatus: (extId: string, status: string) => unknown;
-    upsertTrackFromPlaylist: (
-      extId: string,
-      idx: number,
-      title: string,
-      src: string,
-    ) => unknown;
+    upsertTrackFromPlaylist: (extId: string, idx: number, title: string, src: string) => unknown;
     markDownloaded: (extId: string, row: MarkDownloadedRow) => unknown;
     /** Existing downloaded row pointing at a path (upgrade replacement). */
     trackByFilePath: (filePath: string) => { video_id: string } | null;
@@ -114,11 +105,7 @@ export function extIdFor(file: string): string {
 
 /** The batch-layout destination: `<archive>/<batch>/<name>` for batch
  *  ingests, flat musicDir otherwise. */
-export function destPathFor(
-  musicDir: string,
-  file: string,
-  batchDir: string | null,
-): string {
+export function destPathFor(musicDir: string, file: string, batchDir: string | null): string {
   // New layout: each ingest batch lands in its own subfolder
   // (`<archive>/<batch>` — see intake-folder.ts) so dumps never mix.
   return batchDir && !file.startsWith(`${batchDir}/`)
@@ -142,14 +129,7 @@ export function queueArtworkFallback(
   rec: Pick<Record_, "identity">,
   a: Pick<
     RegisterArgs,
-    | "probe"
-    | "art"
-    | "queuedIdentity"
-    | "queueEntries"
-    | "title"
-    | "artist"
-    | "album"
-    | "remixOf"
+    "probe" | "art" | "queuedIdentity" | "queueEntries" | "title" | "artist" | "album" | "remixOf"
   >,
   extId: string,
   destPath: string,
@@ -225,10 +205,7 @@ async function landingPath(
     const destStat = await stat(destPath);
     if (destStat.size === rec.size) return destPath;
     const fallbackDir = batchDir ?? opts.musicDir;
-    return join(
-      fallbackDir,
-      basename(a.file).replace(/(\.[^.]+)$/, " (ingest)$1"),
-    );
+    return join(fallbackDir, basename(a.file).replace(/(\.[^.]+)$/, " (ingest)$1"));
   } catch {
     return destPath; /* dest missing — normal path */
   }

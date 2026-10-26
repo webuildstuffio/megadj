@@ -26,8 +26,7 @@ import {
  */
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
-const read = (p: string) =>
-  readFileSync(join(ROOT, p), "utf8").split("\n") as string[];
+const read = (p: string) => readFileSync(join(ROOT, p), "utf8").split("\n") as string[];
 
 // ---- census: derive each surface from source -----------------------------
 
@@ -70,18 +69,12 @@ function httpApiRoutes(): string[] {
   // /drives/:id/notes/:id/dismiss is the noteMatch regex in drive_routes;
   // /fleet/prep is the fall-through tail of the fleet router (no guard —
   // the /fleet/ prefix delegator in api_routes.ts routes it there).
-  if (index.includes("const noteMatch = sub.match"))
-    routes.add("/drives/:id/notes/:id/dismiss");
-  if (index.includes('if (route.startsWith("/fleet/"))'))
-    routes.add("/fleet/prep");
+  if (index.includes("const noteMatch = sub.match")) routes.add("/drives/:id/notes/:id/dismiss");
+  if (index.includes('if (route.startsWith("/fleet/"))')) routes.add("/fleet/prep");
   if (index.includes("if (!sub) {")) routes.add("/drives/:id");
   const archive = read("src/deck/api/routes-archive.ts").join("\n");
-  const handlers = archive.match(
-    /function archiveHandlers\(\)[\s\S]*?return \{([\s\S]*?)\n  \};/,
-  );
-  for (const match of handlers?.[1]?.matchAll(
-    /^\s{4}(?:"([a-z-]+)"|([a-z-]+)):/gm,
-  ) ?? []) {
+  const handlers = archive.match(/function archiveHandlers\(\)[\s\S]*?return \{([\s\S]*?)\n  \};/);
+  for (const match of handlers?.[1]?.matchAll(/^\s{4}(?:"([a-z-]+)"|([a-z-]+)):/gm) ?? []) {
     const name = match[1] ?? match[2];
     if (name) routes.add(`/archive/${name}`);
   }
@@ -108,14 +101,11 @@ function uiJobKinds(): string[] {
     "src/deck/web/products/shared/index.tsx",
   ]) {
     for (const line of read(file)) {
-      for (const m of line.matchAll(/run\("([a-z]+)"\)/g))
-        if (m[1]) kinds.push(m[1]);
-      for (const m of line.matchAll(/kind:\s*"([a-z]+)"/g))
-        if (m[1]) kinds.push(m[1]);
+      for (const m of line.matchAll(/run\("([a-z]+)"\)/g)) if (m[1]) kinds.push(m[1]);
+      for (const m of line.matchAll(/kind:\s*"([a-z]+)"/g)) if (m[1]) kinds.push(m[1]);
       // family-route enqueues: the URL tail maps to the job kind (hygiene
       // scan → hygiene-scan, fixes scan → fixes-scan)
-      if (line.includes("/api/hygiene"))
-        kinds.push("hygiene-scan", "hygiene-apply");
+      if (line.includes("/api/hygiene")) kinds.push("hygiene-scan", "hygiene-apply");
       if (line.includes("/api/fixes")) kinds.push("fixes-scan", "fixes-apply");
       if (line.includes("/api/intake/start")) kinds.push("ingest");
       // grid-health scan → the grid-health job kind (#167)
@@ -173,14 +163,12 @@ function uiEndpointFamilies(): string[] {
             }
             if (lit.startsWith("/api/")) {
               const head = lit.split("?")[0];
-              if (head !== undefined)
-                families.add(head.replace(/\$\{[^}]*\}/g, ":x"));
+              if (head !== undefined) families.add(head.replace(/\$\{[^}]*\}/g, ":x"));
             }
           }
         }
         // scaffold-mediated families: actionPath + `/${kind}`
-        for (const m of src.matchAll(/actionPath: "([^"]+)"/g))
-          if (m[1]) families.add(m[1]);
+        for (const m of src.matchAll(/actionPath: "([^"]+)"/g)) if (m[1]) families.add(m[1]);
       }
     }
   };
@@ -198,8 +186,7 @@ const VERB_EXEMPTIONS: Record<string, string> = {
 /** MCP tools with no deckctl verb, with exemption tags. */
 const TOOL_EXEMPTIONS: Record<string, string> = {
   // readonly archive reads are agent-surface by design (doc §4-A3)
-  archive_search_tracks:
-    "A3 — archive reads are agent-facing, not CLI-verb-shaped",
+  archive_search_tracks: "A3 — archive reads are agent-facing, not CLI-verb-shaped",
   archive_track_stats: "A3",
   archive_ingest_status: "A3",
   archive_lowq_queue: "A3",
@@ -214,8 +201,7 @@ const TOOL_EXEMPTIONS: Record<string, string> = {
   archive_analysis_coverage: "A3",
   archive_tag_census: "A3 (FullTags ↔ rekordbox mirror census, readonly)",
   archive_tag_compare: "A3 (per-track three-source tag read, readonly)",
-  archive_sweep:
-    "A3 (also folded into deckctl prep via the D30 digest section)",
+  archive_sweep: "A3 (also folded into deckctl prep via the D30 digest section)",
 };
 
 /** UI job buttons exempt from existing (none today; mirror closes GAP-1). */
@@ -229,8 +215,7 @@ const censusCell = (n: number, unit: string): RegExp =>
   new RegExp(`\\|\\s*[^|]*\\b${n} ${unit}\\b[^|]*\\|`);
 
 /** escapeRegExp hoisted to module scope (oxlint consistent-function-scoping). */
-const escapeRegExp = (s: string): string =>
-  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ---- tests ----------------------------------------------------------------
 
@@ -297,13 +282,9 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // the derived count somewhere, which the three asserts above pin).
     expect(doc).toContain(`${tools.length} tools`);
     console.log(
-      `census: ${megadj.length} megadj commands, ${verbs.length} deckctl verbs (${[
-        ...verbs,
-      ]
+      `census: ${megadj.length} megadj commands, ${verbs.length} deckctl verbs (${[...verbs]
         .slice(0, 3)
-        .join(
-          "/",
-        )}, …), ${tools.length} MCP tools (${deck} deck_* + ${archive} archive_*)`,
+        .join("/")}, …), ${tools.length} MCP tools (${deck} deck_* + ${archive} archive_*)`,
     );
   });
 
@@ -321,13 +302,10 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const docNames = COMMAND_DOCS.map(({ name }) => name);
     const dispatch = megadjCommands();
     const missing = dispatch.filter((cmd) => !docNames.includes(cmd));
-    expect(
-      missing,
-      `commands with handlers but no registry block: ${missing.join(", ")}`,
-    ).toEqual([]);
-    const undocumented = docNames.filter(
-      (cmd) => !dispatch.includes(cmd) && cmd !== "help",
+    expect(missing, `commands with handlers but no registry block: ${missing.join(", ")}`).toEqual(
+      [],
     );
+    const undocumented = docNames.filter((cmd) => !dispatch.includes(cmd) && cmd !== "help");
     expect(
       undocumented,
       `registry blocks with no dispatch entry: ${undocumented.join(", ")}`,
@@ -410,9 +388,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
       expect(app, `nav route for ${product}`).toContain(`"${product}"`);
     // #89/#90 split: PRODUCTS/PRODUCT_TABS live in shared/product-meta.tsx,
     // re-exported through shared.tsx — the pin follows the SSOT.
-    const products = read("src/deck/web/products/shared/product-meta.tsx").join(
-      "\n",
-    );
+    const products = read("src/deck/web/products/shared/product-meta.tsx").join("\n");
     for (const product of ["drives", "getdat", "fulltags"])
       expect(products, `nav tab for ${product}`).toContain(`id: "${product}"`);
     const router = read("src/deck/web/app/router.ts").join("\n");
@@ -425,10 +401,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // Fleet is a CrateDeck scope, not a product: the product list has
     // exactly four rows (MegaSet graduated from a FullTags tab), and
     // Fleet rides the drives scope tabs.
-    expect(
-      (products.match(/id: "(?:drives|getdat|fulltags|megaset)",/g) ?? [])
-        .length,
-    ).toBe(4);
+    expect((products.match(/id: "(?:drives|getdat|fulltags|megaset)",/g) ?? []).length).toBe(4);
     expect(products).toContain('id: "fleet"');
   });
 
@@ -486,9 +459,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     expect(types).toMatch(
       /export const JOB_KINDS = \[[\s\S]*?\] as const;\s+export type JobKind = \(typeof JOB_KINDS\)\[number\];/,
     );
-    expect(types).toMatch(
-      /export const DRIVE_JOB_KINDS = \[[\s\S]*?\] as const satisfies/,
-    );
+    expect(types).toMatch(/export const DRIVE_JOB_KINDS = \[[\s\S]*?\] as const satisfies/);
     for (const f of ["src/deck/deckctl.ts", "src/deck/mcp/action-tools.ts"]) {
       const src = read(f).join("\n");
       // must name the SSOT symbol itself, not just import anything from
@@ -509,9 +480,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
       // JOB_KINDS.includes) — action enums like sEnum(["scan","apply",
       // "confirm","dismiss"]) are subcommand lists, not job-kind twins
       const kindListLiterals = [
-        ...src.matchAll(
-          /(?:const kinds = |JOB_KINDS\.includes\(|kind as )[^;\n]{0,120}/g,
-        ),
+        ...src.matchAll(/(?:const kinds = |JOB_KINDS\.includes\(|kind as )[^;\n]{0,120}/g),
       ].map((m) => m[0]);
       for (const frag of kindListLiterals)
         expect(
@@ -526,21 +495,11 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // Typed behavior check: every mutating entry carries destructive:true
     // on its ToolDef — a verb registered without the flag fails here, not
     // on a user's drive.
-    for (const verb of [
-      "run",
-      "cancel",
-      "booth",
-      "note",
-      "rename",
-      "dismiss",
-    ]) {
+    for (const verb of ["run", "cancel", "booth", "note", "rename", "dismiss"]) {
       expect(DECK_ACTION_HANDLERS[verb]?.destructive, verb).toBe(true);
     }
     // the mutating surface runs the interlock guard before enqueue
-    const src = readFileSync(
-      join(ROOT, "src/deck/mcp/action-tools.ts"),
-      "utf8",
-    );
+    const src = readFileSync(join(ROOT, "src/deck/mcp/action-tools.ts"), "utf8");
     expect(src).toContain("await interlockGuard()");
   });
 
@@ -561,10 +520,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     expect(mcpTools()).toContain("deck_help");
     // every surface imports the SAME SSOT module — wording can't fork
     // (deckctl's help leg lives in deckctl_help.ts, the extraction)
-    const deckctlHelp = readFileSync(
-      join(ROOT, "src/deck/deckctl/help.ts"),
-      "utf8",
-    );
+    const deckctlHelp = readFileSync(join(ROOT, "src/deck/deckctl/help.ts"), "utf8");
     expect(deckctlHelp).toContain('../shared/help"');
     // #89 split: the help handler lives in mcp/read-tools.ts
     const mcp = readFileSync(join(ROOT, "src/deck/mcp/read-tools.ts"), "utf8");
@@ -594,17 +550,11 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // an exemption for a verb/tool that no longer exists is stale — prune it
     const verbs = new Set(deckctlVerbs());
     for (const v of Object.keys(VERB_EXEMPTIONS)) {
-      expect(
-        verbs.has(v),
-        `stale verb exemption: "${v}" no longer exists`,
-      ).toBe(true);
+      expect(verbs.has(v), `stale verb exemption: "${v}" no longer exists`).toBe(true);
     }
     const tools = new Set(mcpTools());
     for (const t of Object.keys(TOOL_EXEMPTIONS)) {
-      expect(
-        tools.has(t),
-        `stale tool exemption: "${t}" no longer exists`,
-      ).toBe(true);
+      expect(tools.has(t), `stale tool exemption: "${t}" no longer exists`).toBe(true);
     }
     for (const k of Object.keys(UI_KIND_EXEMPTIONS)) {
       expect(
@@ -615,9 +565,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
   });
   test("deckctl and MCP derive their shared capability census from one map", () => {
     const deckctlTwinVerbs = deckctlVerbs().filter((verb) => verb !== "stop");
-    expect(deckctlTwinVerbs).toEqual(
-      DECK_MCP_SURFACES.map((surface) => surface.verb).toSorted(),
-    );
+    expect(deckctlTwinVerbs).toEqual(DECK_MCP_SURFACES.map((surface) => surface.verb).toSorted());
     expect(mcpTools().filter((tool) => tool.startsWith("deck_"))).toEqual(
       DECK_MCP_SURFACES.map((surface) => surface.tool).toSorted(),
     );

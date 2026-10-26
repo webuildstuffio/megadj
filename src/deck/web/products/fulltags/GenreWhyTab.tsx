@@ -7,10 +7,7 @@
 // the genre the row carries — "why Techno?" answered from the row, not
 // from code.
 import { useState } from "preact/hooks";
-import {
-  genreVoteRungsInOrder,
-  type ArchiveGenreWhy,
-} from "../../../shared/types";
+import { genreVoteRungsInOrder, type ArchiveGenreWhy } from "../../../shared/types";
 import { api } from "../../ui/toast";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { KVRows, KVRow, KVKey, KVVal, Card, ListHead } from "../../ui/data";
@@ -18,8 +15,7 @@ import { SectionHead, TrackTitle } from "../shared";
 import { PickedTrackSearch, type TrackPick } from "./TrackPickSearch";
 
 /** The read seam: same route as deckctl/MCP (surface-parity hub). */
-const genreWhyUrl = (id: string) =>
-  `/api/archive/genre-why?id=${encodeURIComponent(id)}`;
+const genreWhyUrl = (id: string) => `/api/archive/genre-why?id=${encodeURIComponent(id)}`;
 
 /** Weight as a fraction of the displayed election — the bar width. The
  *  TOTAL of all votes is the honest denominator: a rung's bar is its
@@ -31,19 +27,13 @@ const totalWeight = (votes: { weight: number }[]): number =>
 export function GenreWhyTab() {
   const [picked, setPicked] = useState<TrackPick | null>(null);
   const why = useFetched<ArchiveGenreWhy | null>(
-    () =>
-      picked
-        ? api<ArchiveGenreWhy>(genreWhyUrl(picked.video_id))
-        : Promise.resolve(null),
+    () => (picked ? api<ArchiveGenreWhy>(genreWhyUrl(picked.video_id)) : Promise.resolve(null)),
     [picked],
   );
 
   return (
     <div>
-      <SectionHead
-        icon="info"
-        title="Genre why — the vote ladder's breakdown"
-      />
+      <SectionHead icon="info" title="Genre why — the vote ladder's breakdown" />
       <PickedTrackSearch picked={picked} onPick={setPicked} />
       {picked &&
         (why.status !== "ok" ? (
@@ -54,8 +44,7 @@ export function GenreWhyTab() {
           // missing:true, so FetchedGate cannot catch it.
           <div class="card">
             <div class="empty">
-              No track {picked.video_id} in the archive — pick another or search
-              above.
+              No track {picked.video_id} in the archive — pick another or search above.
             </div>
           </div>
         ) : (
@@ -66,16 +55,13 @@ export function GenreWhyTab() {
               n={why.data.votes.length}
               hint="The full 8-rung ladder, strongest voice first. A rung with a claim votes its fixed weight (bar = share of all weight cast); ★ = the elected winner. Dimmed rungs found nothing — an honest abstain, never a guess."
               lines={why.data.votes.map(
-                (v) =>
-                  `${v.elected ? "★" : " "} ${v.rung}  w=${v.weight.toFixed(2)}  ${v.genre}`,
+                (v) => `${v.elected ? "★" : " "} ${v.rung}  w=${v.weight.toFixed(2)}  ${v.genre}`,
               )}
             />
             {why.data.voted ? (
               <KVRows>
                 {(() => {
-                  const byRung = new Map(
-                    why.data.votes.map((v) => [v.rung, v]),
-                  );
+                  const byRung = new Map(why.data.votes.map((v) => [v.rung, v]));
                   const total = totalWeight(why.data.votes) || 1;
                   return genreVoteRungsInOrder().map((rung) => {
                     const v = byRung.get(rung.id);
@@ -90,8 +76,7 @@ export function GenreWhyTab() {
                           </KVKey>
                           <KVVal>
                             <span class="arch-pill muted">
-                              {rung.docRef} · w={rung.weight.toFixed(2)} — no
-                              claim
+                              {rung.docRef} · w={rung.weight.toFixed(2)} — no claim
                             </span>
                           </KVVal>
                         </KVRow>
@@ -100,9 +85,7 @@ export function GenreWhyTab() {
                     return (
                       <KVRow key={`${v.rung}:${v.genre}`}>
                         <KVKey>
-                          <span
-                            class={v.elected ? "arch-pill ok" : "arch-pill"}
-                          >
+                          <span class={v.elected ? "arch-pill ok" : "arch-pill"}>
                             {v.elected ? "★ " : ""}
                             {rung.name}
                           </span>{" "}
@@ -116,11 +99,7 @@ export function GenreWhyTab() {
                               width: `${Math.max(1, (v.weight / total) * 100).toFixed(1)}%`,
                             }}
                           />
-                          <span
-                            class={
-                              v.elected ? "arch-pill ok" : "arch-pill muted"
-                            }
-                          >
+                          <span class={v.elected ? "arch-pill ok" : "arch-pill muted"}>
                             w={v.weight.toFixed(2)}
                           </span>
                         </KVVal>
@@ -137,19 +116,13 @@ export function GenreWhyTab() {
                     />
                   </KVKey>
                   <KVVal>
-                    <span class="arch-pill ok">
-                      w={(why.data.elected_weight ?? 0).toFixed(2)}
-                    </span>
+                    <span class="arch-pill ok">w={(why.data.elected_weight ?? 0).toFixed(2)}</span>
                   </KVVal>
                 </KVRow>
                 <KVRow>
                   <KVKey>Stored genre (matches replay)</KVKey>
                   <KVVal>
-                    <span
-                      class={
-                        why.data.matches_db ? "arch-pill ok" : "arch-pill warn"
-                      }
-                    >
+                    <span class={why.data.matches_db ? "arch-pill ok" : "arch-pill warn"}>
                       {why.data.db_genre ?? "null"}
                     </span>
                   </KVVal>
@@ -157,20 +130,18 @@ export function GenreWhyTab() {
               </KVRows>
             ) : (
               <div class="note-card">
-                Never voted — run <code>megadj fetch --genres</code> to put it
-                on the ladder. The stored label (if any) predates the vote write
-                path.
+                Never voted — run <code>megadj fetch --genres</code> to put it on the ladder. The
+                stored label (if any) predates the vote write path.
               </div>
             )}
             {why.data.voted && why.data.matches_db === false ? (
               // Drift is the ONE finding this tab exists to surface — a
               // callout, not a pill you might miss.
               <div class="note-card">
-                ⚠ Drift: the replay elects <b>{why.data.elected ?? "—"}</b> but
-                the row stores <b>{why.data.db_genre ?? "null"}</b> — the genre
-                column was edited outside the vote path (hand UPDATE / older
-                write). Re-run <code>megadj fetch --genres</code> to re-elect,
-                or inspect with <code>megadj genre-why {picked.video_id}</code>.
+                ⚠ Drift: the replay elects <b>{why.data.elected ?? "—"}</b> but the row stores{" "}
+                <b>{why.data.db_genre ?? "null"}</b> — the genre column was edited outside the vote
+                path (hand UPDATE / older write). Re-run <code>megadj fetch --genres</code> to
+                re-elect, or inspect with <code>megadj genre-why {picked.video_id}</code>.
               </div>
             ) : null}
           </Card>

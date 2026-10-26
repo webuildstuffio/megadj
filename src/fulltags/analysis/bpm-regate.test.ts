@@ -57,10 +57,7 @@ describe("regateBpm", () => {
   });
 
   test("out of genre range without AK → fail", () => {
-    const results = regateBpm(
-      [{ trackId: "t1", bpm: 90, genreFamily: "house" }],
-      new Map(),
-    );
+    const results = regateBpm([{ trackId: "t1", bpm: 90, genreFamily: "house" }], new Map());
     expect(results[0]!.verdict).toBe("fail");
     expect(results[0]!.needsReanalysis).toBe(true);
   });

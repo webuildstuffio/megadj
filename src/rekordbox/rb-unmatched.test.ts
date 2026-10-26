@@ -62,12 +62,7 @@ describe("rb-unmatched", () => {
     // fake DB via env override so the flag check (which must precede any
     // read attempt semantically) is what the test observes
     const prev = process.env.MEGADJ_RB_MASTER;
-    process.env.MEGADJ_RB_MASTER = join(
-      mount,
-      "PIONEER",
-      "Master",
-      "master.db",
-    );
+    process.env.MEGADJ_RB_MASTER = join(mount, "PIONEER", "Master", "master.db");
     try {
       const r = await rbUnmatched({ mount, quarantine: true });
       expect(r.ok).toBe(false);
@@ -179,12 +174,7 @@ describe("rb-unmatched", () => {
     const { quarantineUnmatched } = await import("./rb-unmatched");
     const mount = makeMount();
     const firstFile = join(mount, "Contents", "UnknownArtist", "01 Intro.mp3");
-    const secondFile = join(
-      mount,
-      "Contents",
-      "UnknownArtist",
-      "02 Backlog.mp3",
-    );
+    const secondFile = join(mount, "Contents", "UnknownArtist", "02 Backlog.mp3");
     const first = await quarantineUnmatched([firstFile], mount, () => {});
     writeFileSync(secondFile, "new");
     const second = await quarantineUnmatched([secondFile], mount, () => {});

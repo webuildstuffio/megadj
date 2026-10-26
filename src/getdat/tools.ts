@@ -19,9 +19,7 @@ async function runGetDatCli(
   dryRun: boolean,
 ): Promise<Record<string, unknown>> {
   const cfg = loadConfig(`${import.meta.dir}/..`);
-  const handle: { cancelled: boolean; proc?: Bun.Subprocess } = {
-    cancelled: false,
-  };
+  const handle: { cancelled: boolean; proc?: Bun.Subprocess } = { cancelled: false };
   return runCliJob(
     {
       cfg,
@@ -41,15 +39,8 @@ async function runGetDatCli(
 
 /** Shared ingest invocation (#316: getdat_intake action=process and
  *  getdat_ingest were byte-twin run bodies). */
-function runIngest(
-  folder: string,
-  dryRun: boolean,
-): Promise<Record<string, unknown>> {
-  return runGetDatCli(
-    "ingest",
-    [folder, ...(dryRun ? ["--dry-run"] : []), "--json"],
-    dryRun,
-  );
+function runIngest(folder: string, dryRun: boolean): Promise<Record<string, unknown>> {
+  return runGetDatCli("ingest", [folder, ...(dryRun ? ["--dry-run"] : []), "--json"], dryRun);
 }
 
 /** The GetDat intake + conversion tools (mutating; async CLI job seam). */
@@ -93,9 +84,7 @@ export function getdatTools(deps?: {
       inputSchema: obj(
         {
           folder: s("source folder to ingest"),
-          dry_run: b(
-            "report what would change without writing (default false)",
-          ),
+          dry_run: b("report what would change without writing (default false)"),
         },
         ["folder"],
       ),
@@ -119,11 +108,7 @@ export function getdatTools(deps?: {
         const noArtwork = args["no_artwork"] === true;
         return runGetDatCli(
           "convert",
-          [
-            ...(dryRun ? ["--dry-run"] : []),
-            ...(noArtwork ? ["--no-artwork"] : []),
-            "--json",
-          ],
+          [...(dryRun ? ["--dry-run"] : []), ...(noArtwork ? ["--no-artwork"] : []), "--json"],
           dryRun,
         );
       },

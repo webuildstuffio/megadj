@@ -28,10 +28,7 @@ export interface HelpPrintHooks {
 }
 
 /** `deckctl help [term|kind]` — the in-app help SSOT as a CLI verb. */
-export async function cmdHelp(
-  h: HelpPrintHooks,
-  topic?: string,
-): Promise<void> {
+export async function cmdHelp(h: HelpPrintHooks, topic?: string): Promise<void> {
   const t = topic?.trim().toLowerCase();
   if (t) {
     // single glossary term or job kind — the `explain`-style deep dive.
@@ -81,11 +78,7 @@ export async function cmdHelp(
     h.exit(2);
   }
   if (h.jsonMode) {
-    await emitJson({
-      terms: HELP_TERMS,
-      jobs: HELP_JOBS,
-      surfaces: HELP_SURFACES,
-    });
+    await emitJson({ terms: HELP_TERMS, jobs: HELP_JOBS, surfaces: HELP_SURFACES });
     return;
   }
   h.log("── vocabulary ──");
@@ -95,8 +88,7 @@ export async function cmdHelp(
   for (const j of HELP_JOBS) h.log(`  ${j.label.toLowerCase()} — ${j.what}`);
   h.log("");
   h.log("── where everything lives ──");
-  for (const s of HELP_SURFACES)
-    h.log(`  ${s.label} (${s.route}): ${s.question}`);
+  for (const s of HELP_SURFACES) h.log(`  ${s.label} (${s.route}): ${s.question}`);
   h.log("");
   h.log("deep dive per job kind: deckctl explain [kind]");
 }
@@ -115,7 +107,6 @@ export async function cmdDismiss(
     h.errOut(err.message);
     h.exit(err.status === 404 ? 2 : 1);
   }
-  if (h.jsonMode)
-    await emitJson({ dismissed: true, drive: d.name, id: noteId });
+  if (h.jsonMode) await emitJson({ dismissed: true, drive: d.name, id: noteId });
   else h.log(`✓ note dismissed on ${d.nickname ?? d.name}`);
 }

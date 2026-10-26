@@ -17,9 +17,7 @@ import {
 
 /** The GET/POST /api/booth/fleet payload — profiles + citations + the
  *  floor the current selection produces. */
-export function boothFleetPayload(
-  selected: readonly string[],
-): BoothFleetPayload {
+export function boothFleetPayload(selected: readonly string[]): BoothFleetPayload {
   const fleet = resolveFleet(selected);
   const floor = fleetFloor(fleet);
   const profiles: BoothPlayerProfile[] = FLEET_PROFILES.map((p) => ({
@@ -66,17 +64,13 @@ export function parseBoothFleetRequest(value: unknown): string[] {
   }
   const known = new Set(FLEET_PROFILES.map((profile) => profile.id as string));
   const unknown = value.selected.filter((id) => !known.has(id));
-  if (unknown.length > 0)
-    throw new Error(`unknown player id: ${unknown.join(", ")}`);
+  if (unknown.length > 0) throw new Error(`unknown player id: ${unknown.join(", ")}`);
   return normalizeFleetSelection(value.selected);
 }
 
 /** Persist [booth].fleet to config.toml — replace or append the section,
  * atomically (tmp + rename), preserving every other line. */
-export function writeConfigBoothFleet(
-  root: string,
-  ids: readonly string[],
-): void {
+export function writeConfigBoothFleet(root: string, ids: readonly string[]): void {
   const cfgPath = join(root, "config.toml");
   const section = [
     "",

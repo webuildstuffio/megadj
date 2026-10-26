@@ -17,10 +17,7 @@ import { mutagenJson } from "../write/mutagen";
  * Shared by the energy stamp and AI-provenance reads — same format
  * dispatch, one python script, never throws.
  */
-export function readTxxx(
-  p: string,
-  descs: string[],
-): Record<string, string | null> {
+export function readTxxx(p: string, descs: string[]): Record<string, string | null> {
   const script = `import json
 p = ${JSON.stringify(p)}
 wanted = ${JSON.stringify(descs)}
@@ -105,14 +102,8 @@ export function readStamp(p: string, desc: string): string | null {
 
 /** AI provenance stamps on a file: {aiGenre, aiYear} = "value|confidence",
  * null when not AI-filled (mutagen TXXX read; never throws). */
-export function readAiStamps(p: string): {
-  aiGenre: string | null;
-  aiYear: string | null;
-} {
-  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, [
-    "AI-GENRE",
-    "AI-YEAR",
-  ]);
+export function readAiStamps(p: string): { aiGenre: string | null; aiYear: string | null } {
+  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, ["AI-GENRE", "AI-YEAR"]);
   return { aiGenre: genre ?? null, aiYear: year ?? null };
 }
 

@@ -131,10 +131,7 @@ export function jsonFlag(flags: { bools: Set<string> }): boolean {
 
 /** Option-object fragment: `json` + the matching quiet progress log.
  *  Pairs with emitResult so an arm's json/quiet plumbing is one spread. */
-export function jsonOpts(json: boolean): {
-  json: boolean;
-  log: (message: string) => void;
-} {
+export function jsonOpts(json: boolean): { json: boolean; log: (message: string) => void } {
   return { json, log: progressLog(json) };
 }
 

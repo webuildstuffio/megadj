@@ -37,9 +37,7 @@ function withinPct(pred: number, truth: number, pct: number): boolean {
 
 /** B1.1 quantization diagnosis: histogram of 3000/bpm_raw showing the
  *  20ms frame grid from beat_this's 50fps output. */
-export function quantizationDiagnosis(
-  db: Database,
-): { framesPerBeat: number; count: number }[] {
+export function quantizationDiagnosis(db: Database): { framesPerBeat: number; count: number }[] {
   const rows = db
     .query(
       `SELECT round(3000.0 / bpm_raw, 2) AS frames_per_beat, count(*) AS n
@@ -47,17 +45,10 @@ export function quantizationDiagnosis(
        GROUP BY frames_per_beat ORDER BY n DESC LIMIT 15`,
     )
     .all() as { frames_per_beat: number; n: number }[];
-  return rows.map((r) => ({
-    framesPerBeat: r.frames_per_beat,
-    count: r.n,
-  }));
+  return rows.map((r) => ({ framesPerBeat: r.frames_per_beat, count: r.n }));
 }
 
-function runBpmStage(
-  db: Database,
-  answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runBpmStage(db: Database, answerKey: string, _split: BenchSplit): StageResult {
   const beats = db
     .query(
       `SELECT video_id, bpm_raw, bpm_fitted, bpm_folded, bpm_residual_std
@@ -66,9 +57,7 @@ function runBpmStage(
     .all() as BeatRow[];
 
   const benchRows: BenchRow[] = [];
-  const metrics: Record<string, number | string | null> = {
-    n_tracks: beats.length,
-  };
+  const metrics: Record<string, number | string | null> = { n_tracks: beats.length };
 
   if (answerKey === "AK2" || answerKey === "all") {
     const ak2 = db
@@ -94,10 +83,7 @@ function runBpmStage(
       const truth = truthMap.get(b.video_id);
       if (truth === undefined) continue;
       matched++;
-      const pred =
-        useFitted && b.bpm_fitted !== null
-          ? b.bpm_fitted
-          : (b.bpm_folded ?? b.bpm_raw!);
+      const pred = useFitted && b.bpm_fitted !== null ? b.bpm_fitted : (b.bpm_folded ?? b.bpm_raw!);
       const ratio = pred / truth;
       if (Math.abs(ratio - 2) < 0.06 || Math.abs(ratio - 0.5) < 0.03) {
         octaveErrors++;
@@ -110,10 +96,7 @@ function runBpmStage(
         trackId: b.video_id,
         truth: truth.toFixed(2),
         pred: pred.toFixed(2),
-        conf:
-          b.bpm_residual_std !== null
-            ? round3(1 - Math.min(1, b.bpm_residual_std))
-            : null,
+        conf: b.bpm_residual_std !== null ? round3(1 - Math.min(1, b.bpm_residual_std)) : null,
         correct: withinPct(pred, truth, 0.1) ? 1 : 0,
       });
     }
@@ -123,8 +106,7 @@ function runBpmStage(
     metrics.ak2_within_1pct = matched > 0 ? round4(within1 / matched) : null;
     metrics.ak2_within_2pct = matched > 0 ? round4(within2 / matched) : null;
     metrics.ak2_octave_errors = octaveErrors;
-    metrics.ak2_gate =
-      matched > 0 && within01 / matched >= 0.95 ? "PASS" : "FAIL";
+    metrics.ak2_gate = matched > 0 && within01 / matched >= 0.95 ? "PASS" : "FAIL";
     metrics.bpm_source = useFitted ? "bpm_fitted" : "bpm_folded";
   }
 
@@ -134,13 +116,7 @@ function runBpmStage(
     .map((d) => `${d.framesPerBeat}(${d.count})`)
     .join(", ");
 
-  return {
-    stage: "bpm",
-    answerKey,
-    rows: benchRows,
-    metrics,
-    configHash: "bpm-v1",
-  };
+  return { stage: "bpm", answerKey, rows: benchRows, metrics, configHash: "bpm-v1" };
 }
 
 registerStage("bpm", runBpmStage);

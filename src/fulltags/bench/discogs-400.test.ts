@@ -34,10 +34,7 @@ describe("deriveVotes", () => {
 
   test("unmappable predictions → null family", () => {
     const outputs: Discogs400Output[] = [
-      {
-        trackId: "t1",
-        predictions: [{ label: "Obscure Noise Art", probability: 0.9 }],
-      },
+      { trackId: "t1", predictions: [{ label: "Obscure Noise Art", probability: 0.9 }] },
     ];
     const votes = deriveVotes(outputs);
     expect(votes[0]!.family).toBeNull();
@@ -60,9 +57,7 @@ describe("evaluateDiscogs400", () => {
         weight: 0.4,
       },
     ];
-    const gt = new Map([
-      ["t1", { family: "house" as GenreFamily, subgenre: "deep house" }],
-    ]);
+    const gt = new Map([["t1", { family: "house" as GenreFamily, subgenre: "deep house" }]]);
     const result = evaluateDiscogs400(votes, gt);
     expect(result.familyAgreement).toBe(1);
     expect(result.l3Agreement).toBe(1);
@@ -78,9 +73,7 @@ describe("evaluateDiscogs400", () => {
         weight: 0.4,
       },
     ];
-    const gt = new Map([
-      ["t1", { family: "house" as GenreFamily, subgenre: "deep house" }],
-    ]);
+    const gt = new Map([["t1", { family: "house" as GenreFamily, subgenre: "deep house" }]]);
     const result = evaluateDiscogs400(votes, gt);
     expect(result.familyAgreement).toBe(1);
     expect(result.l3Agreement).toBe(0);

@@ -12,12 +12,7 @@ function makeDeps(): { deps: ApiDeps; enqueued: unknown[] } {
   const enqueued: unknown[] = [];
   const deps = {
     jobs: {
-      enqueue: (
-        driveId: string,
-        kind: string,
-        mount: string,
-        origin: string,
-      ) => {
+      enqueue: (driveId: string, kind: string, mount: string, origin: string) => {
         enqueued.push({ driveId, kind, mount, origin });
         return {
           id: "test-job",
@@ -39,10 +34,7 @@ function makeDeps(): { deps: ApiDeps; enqueued: unknown[] } {
       },
     },
     json: (body: unknown, status = 200) =>
-      Response.json(body, {
-        status,
-        headers: { "content-type": "application/json" },
-      }),
+      Response.json(body, { status, headers: { "content-type": "application/json" } }),
   } as unknown as ApiDeps;
   return { deps, enqueued };
 }
@@ -59,11 +51,7 @@ beforeEach(() => fetchFeedClear());
 
 describe("/api/fetch/feed", () => {
   test("drains the ring oldest-first with a next cursor", async () => {
-    fetchFeedPush({
-      at: 1,
-      type: "start",
-      start: { total: 9, tasks: 7, jobs: 6, dry: false },
-    });
+    fetchFeedPush({ at: 1, type: "start", start: { total: 9, tasks: 7, jobs: 6, dry: false } });
     fetchFeedPush({
       at: 2,
       type: "task",
@@ -79,18 +67,12 @@ describe("/api/fetch/feed", () => {
     const { deps } = makeDeps();
     const res = await get(routerOf(deps), "/api/fetch/feed?since=0");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      entries: { type: string }[];
-      next: number;
-    };
+    const body = (await res.json()) as { entries: { type: string }[]; next: number };
     expect(body.entries.map((e) => e.type)).toEqual(["start", "task"]);
     expect(body.next).toBe(2);
     // since=1 → only the tail
     const tail = await get(routerOf(deps), "/api/fetch/feed?since=1");
-    const tailBody = (await tail.json()) as {
-      entries: { type: string }[];
-      next: number;
-    };
+    const tailBody = (await tail.json()) as { entries: { type: string }[]; next: number };
     expect(tailBody.entries.map((e) => e.type)).toEqual(["task"]);
     expect(tailBody.next).toBe(2);
   });

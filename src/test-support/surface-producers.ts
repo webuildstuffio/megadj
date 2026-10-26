@@ -9,8 +9,7 @@ import { DECK_MCP_SURFACES } from "../deck/mcp/surfaces";
 import { JOB_KINDS } from "../deck/shared/types";
 
 const ROOT = join(import.meta.dir, "..", "..");
-const read = (p: string) =>
-  readFileSync(join(ROOT, p), "utf8").split("\n") as string[];
+const read = (p: string) => readFileSync(join(ROOT, p), "utf8").split("\n") as string[];
 
 /** deckctl verb set: DECK_COMMANDS table + PRE_SERVER_VERBS. */
 export function deckctlVerbs(): string[] {
@@ -22,12 +21,9 @@ export function deckctlVerbs(): string[] {
     .map((l) => l.match(/^\s{2}([a-z-]+):/))
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
-  const pre = src
-    .find((l) => l.includes("PRE_SERVER_VERBS = ["))
-    ?.match(/\[([^\]]*)\]/)?.[1];
+  const pre = src.find((l) => l.includes("PRE_SERVER_VERBS = ["))?.match(/\[([^\]]*)\]/)?.[1];
   if (pre)
-    for (const v of pre.split(",").map((s) => s.trim().replace(/['"]/g, "")))
-      if (v) verbs.push(v);
+    for (const v of pre.split(",").map((s) => s.trim().replace(/['"]/g, ""))) if (v) verbs.push(v);
   return [...new Set(verbs)].toSorted();
 }
 
@@ -41,9 +37,7 @@ export function megadjCommands(): string[] {
     "src/getdat/cli-commands.ts",
   ]) {
     const src = read(f).join("\n");
-    for (const tbl of src.matchAll(
-      /export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g,
-    )) {
+    for (const tbl of src.matchAll(/export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g)) {
       for (const match of (tbl[0] ?? "").matchAll(/"([a-z-]+)":/g))
         if (match[1]) verbs.push(match[1]);
     }
@@ -53,22 +47,14 @@ export function megadjCommands(): string[] {
 
 /** MCP tool keys from source tables + DECK_MCP_SURFACES. */
 export function mcpTools(): string[] {
-  const files = [
-    "src/deck/mcp.ts",
-    "src/deck/report/tools.ts",
-    "src/getdat/tools.ts",
-  ];
+  const files = ["src/deck/mcp.ts", "src/deck/report/tools.ts", "src/getdat/tools.ts"];
   const tools = files
     .flatMap((f) =>
-      read(f).map((l) =>
-        l.match(/^\s{2,4}((?:deck|archive|getdat|megaset)_[a-z_]+):/),
-      ),
+      read(f).map((l) => l.match(/^\s{2,4}((?:deck|archive|getdat|megaset)_[a-z_]+):/)),
     )
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
-  return [
-    ...new Set([...DECK_MCP_SURFACES.map((surface) => surface.tool), ...tools]),
-  ].toSorted();
+  return [...new Set([...DECK_MCP_SURFACES.map((surface) => surface.tool), ...tools])].toSorted();
 }
 
 /** Runtime SSOT — no jobs.ts text parser. */

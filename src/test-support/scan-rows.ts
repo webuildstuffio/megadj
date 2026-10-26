@@ -18,29 +18,16 @@ import { newFindingId, type Finding } from "../core/hygiene/types";
 import type { ScanPair, ScanRow } from "../rekordbox/rb-dedup-parse";
 import type { DedupePair } from "../shelf/dedupe-types";
 
-const rowDefaults = {
-  title: "Same title",
-  len: 180,
-  size: 1_000,
-  bitrate: 256,
-};
+const rowDefaults = { title: "Same title", len: 180, size: 1_000, bitrate: 256 };
 
 /** A bare ScanRow (one side of a dupescan pair). */
 export function scanRow(id: string, overrides: Partial<ScanRow> = {}): ScanRow {
-  return {
-    id,
-    path: `/music/${id}.aiff`,
-    ...rowDefaults,
-    ...overrides,
-  };
+  return { id, path: `/music/${id}.aiff`, ...rowDefaults, ...overrides };
 }
 
 /** A ScanPair whose `other` defaults to a sibling row of the same shape.
  *  `basis` defaults to "candidate" (the rb-dedup scan output). */
-export function scanPair(
-  id: string,
-  overrides: Partial<ScanPair> = {},
-): ScanPair {
+export function scanPair(id: string, overrides: Partial<ScanPair> = {}): ScanPair {
   const { other, ...rest } = overrides;
   return {
     ...scanRow(id, rest),

@@ -74,10 +74,7 @@ export function logProposalHeader(
  *  title, and the #106 handoff windows (same evidence the web hover
  *  cards and M3U8 #EXTREM comments carry). Returns the LAST step's
  *  minute mark for the total. */
-export function logSteps(
-  steps: MegasetPayload["steps"],
-  log: (m: string) => void,
-): number {
+export function logSteps(steps: MegasetPayload["steps"], log: (m: string) => void): number {
   let at = 0;
   for (const s of steps) {
     at = s.atMin;
@@ -124,9 +121,7 @@ export function logExclusionShape(
     .map((g) => `${g.count.toLocaleString()} ${g.reason}`)
     .join(" · ");
   if (top !== "") {
-    log(
-      `${status} · quality exclusions (${excludedTotal - budgetFilled}): ${top}`,
-    );
+    log(`${status} · quality exclusions (${excludedTotal - budgetFilled}): ${top}`);
   } else {
     log(`${status} · no quality exclusions — every skip was the time budget`);
   }

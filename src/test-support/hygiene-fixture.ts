@@ -48,12 +48,7 @@ export async function detectAndApply(
   f: HygieneFixture,
   md5: (path: string) => string,
 ): Promise<string> {
-  await shelfHygiene({
-    shelfVolume: f.shelf,
-    dbPath: f.db,
-    md5,
-    log: () => {},
-  });
+  await shelfHygiene({ shelfVolume: f.shelf, dbPath: f.db, md5, log: () => {} });
   const db = new Database(f.db);
   const store = new HygieneStore(db);
   const finding = store.list({ status: "open" })[0];
@@ -78,9 +73,7 @@ export async function detectAndApply(
   try {
     const applied = new HygieneStore(verifyDb).get(finding.id);
     if (applied?.status !== "applied")
-      throw new Error(
-        `fixture apply did not complete: ${applied?.status ?? "missing"}`,
-      );
+      throw new Error(`fixture apply did not complete: ${applied?.status ?? "missing"}`);
   } finally {
     verifyDb.close();
   }

@@ -58,20 +58,13 @@ function resultToVote(
  * Produce a GenreVote from Discogs (offline DB → API fallback), or null.
  * Ready for the vote ladder — the caller pushes onto genreVotes[].
  */
-export async function discogsGenreVote(
-  artist: string,
-  title: string,
-): Promise<GenreVote | null> {
+export async function discogsGenreVote(artist: string, title: string): Promise<GenreVote | null> {
   // Path 1: offline DB (instant)
   const db = getDiscogsDb();
   if (db) {
     const result = discogsLookup(db, artist, title);
     if (result?.bestStyle || result?.bestFamily) {
-      return resultToVote(
-        result.releaseId,
-        result.bestStyle,
-        result.bestFamily,
-      );
+      return resultToVote(result.releaseId, result.bestStyle, result.bestFamily);
     }
   }
 
@@ -79,11 +72,7 @@ export async function discogsGenreVote(
   if (discogsApiAvailable()) {
     const apiResult = await discogsApiSearch(artist, title);
     if (apiResult?.bestStyle || apiResult?.bestFamily) {
-      return resultToVote(
-        apiResult.releaseId,
-        apiResult.bestStyle,
-        apiResult.bestFamily,
-      );
+      return resultToVote(apiResult.releaseId, apiResult.bestStyle, apiResult.bestFamily);
     }
   }
 

@@ -25,23 +25,11 @@ import {
 describe("megasetReasonClass (Sep 21 exclusion-shape collapse)", () => {
   test("per-track number strings collapse to their CLASS", () => {
     // the live noise: 130 distinct buckets for 3,681 exclusions
-    expect(
-      megasetReasonClass(
-        "68.2-minute continuous mix exceeds the 15-minute track cap",
-      ),
-    ).toBe(
-      megasetReasonClass(
-        "68.6-minute continuous mix exceeds the 15-minute track cap",
-      ),
+    expect(megasetReasonClass("68.2-minute continuous mix exceeds the 15-minute track cap")).toBe(
+      megasetReasonClass("68.6-minute continuous mix exceeds the 15-minute track cap"),
     );
-    expect(
-      megasetReasonClass(
-        "56-second audio sample is below the 1-minute track floor",
-      ),
-    ).toBe(
-      megasetReasonClass(
-        "7-second audio sample is below the 1-minute track floor",
-      ),
+    expect(megasetReasonClass("56-second audio sample is below the 1-minute track floor")).toBe(
+      megasetReasonClass("7-second audio sample is below the 1-minute track floor"),
     );
   });
   test("the S13 landmark reasons collapse to one class", () => {
@@ -58,12 +46,8 @@ describe("megasetReasonClass (Sep 21 exclusion-shape collapse)", () => {
   test("the seven real classes are distinct", () => {
     const classes = [
       megasetReasonClass("set budget filled"),
-      megasetReasonClass(
-        "15.2-minute continuous mix exceeds the 15-minute track cap",
-      ),
-      megasetReasonClass(
-        "30-second audio sample is below the 1-minute track floor",
-      ),
+      megasetReasonClass("15.2-minute continuous mix exceeds the 15-minute track cap"),
+      megasetReasonClass("30-second audio sample is below the 1-minute track floor"),
       megasetReasonClass("no beats-ledger BPM — run `megadj beats`"),
       megasetReasonClass(
         "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)",
@@ -71,9 +55,7 @@ describe("megasetReasonClass (Sep 21 exclusion-shape collapse)", () => {
       megasetReasonClass(
         "requested opener is not in the candidate pool (unknown id, or not downloaded/analyzed)",
       ),
-      megasetReasonClass(
-        "landmark not placeable — no arc-legal position in this set",
-      ),
+      megasetReasonClass("landmark not placeable — no arc-legal position in this set"),
     ];
     expect(new Set(classes).size).toBe(7);
   });
@@ -91,9 +73,7 @@ describe("B6 artist-repeat seam (#107)", () => {
     const a2 = { artist: "alpha" }; // case-insensitive
     const b = { artist: "Beta" };
     const unknown = { artist: null };
-    expect(megasetArtistRepeatPenalty(a, a2)).toBe(
-      MEGASET_ARTIST_REPEAT_WINDOW,
-    );
+    expect(megasetArtistRepeatPenalty(a, a2)).toBe(MEGASET_ARTIST_REPEAT_WINDOW);
     expect(megasetArtistRepeatPenalty(a, b)).toBe(0);
     expect(megasetArtistRepeatPenalty(a, unknown)).toBe(0);
     expect(megasetArtistRepeatPenalty(unknown, unknown)).toBe(0);
@@ -175,11 +155,7 @@ describe("#291 budget-fill is a status, not an exclusion bucket", () => {
   const excluded = [
     { videoId: "a", title: "A", reason: "set budget filled" },
     { videoId: "b", title: "B", reason: "set budget filled" },
-    {
-      videoId: "c",
-      title: "C",
-      reason: "no beats-ledger BPM — run `megadj beats`",
-    },
+    { videoId: "c", title: "C", reason: "no beats-ledger BPM — run `megadj beats`" },
     { videoId: "d", title: "D", reason: "set budget filled" },
   ];
   test("groups carry only quality reasons — never a budget-fill bucket", () => {
@@ -247,11 +223,7 @@ describe("#290-starvation fallback resolves by FAMILY, not raw string", () => {
 describe("buildMegaset with a genre-filtered pool", () => {
   test("empty pool → empty chain + all-missing style exclusions, no crash", async () => {
     const { buildMegaset, SET_PRESETS } = await import("../megaset/engine");
-    const built = buildMegaset({
-      candidates: [],
-      preset: SET_PRESETS.warmup!,
-      minutes: 60,
-    });
+    const built = buildMegaset({ candidates: [], preset: SET_PRESETS.warmup!, minutes: 60 });
     expect(built.steps).toEqual([]);
     expect(built.complete).toBe(false);
     expect(built.shortfallMinutes).toBe(60);

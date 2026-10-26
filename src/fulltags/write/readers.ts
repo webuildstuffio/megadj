@@ -54,16 +54,7 @@ interface FfprobeJson {
 
 function ffprobeJson(p: string): FfprobeJson {
   const pr = Bun.spawnSync({
-    cmd: [
-      "ffprobe",
-      "-v",
-      "error",
-      "-print_format",
-      "json",
-      "-show_format",
-      "-show_streams",
-      p,
-    ],
+    cmd: ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", p],
     stdout: "pipe",
   });
   try {
@@ -72,16 +63,13 @@ function ffprobeJson(p: string): FfprobeJson {
       format?: { tags?: Record<string, string>; duration?: string };
     };
     const hasVideo = (j.streams ?? []).some(
-      (s) =>
-        s.codec_type === "video" &&
-        ["png", "mjpeg"].includes(s.codec_name ?? ""),
+      (s) => s.codec_type === "video" && ["png", "mjpeg"].includes(s.codec_name ?? ""),
     );
     const durRaw = j.format?.duration ? Number(j.format.duration) : NaN;
     return {
       tags: j.format?.tags ?? {},
       hasVideo,
-      durationS:
-        Number.isFinite(durRaw) && durRaw > 0 ? Math.round(durRaw) : null,
+      durationS: Number.isFinite(durRaw) && durRaw > 0 ? Math.round(durRaw) : null,
     };
   } catch (e) {
     // Empty tags are legit (untagged file); a PARSE failure means ffprobe
@@ -94,10 +82,7 @@ function ffprobeJson(p: string): FfprobeJson {
 }
 
 /** Mutagen read for WAV (ID3-in-RIFF) and MP3 (ID3v2), JSON over stdout. */
-function mutagenRead(p: string): {
-  art: boolean;
-  tags: Record<string, string>;
-} {
+function mutagenRead(p: string): { art: boolean; tags: Record<string, string> } {
   const script = `import json, sys
 p = ${JSON.stringify(p)}
 tags, art = {}, False
@@ -160,12 +145,7 @@ else:
                 pass
         art = bool(a.tags.getall("APIC"))
 print(json.dumps({"art": art, "tags": tags}))`;
-  const parsed = mutagenJson<
-    Partial<{
-      art: boolean;
-      tags: Record<string, string>;
-    }>
-  >(script, {});
+  const parsed = mutagenJson<Partial<{ art: boolean; tags: Record<string, string> }>>(script, {});
   return { art: parsed.art === true, tags: parsed.tags ?? {} };
 }
 

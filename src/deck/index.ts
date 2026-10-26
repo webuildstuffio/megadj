@@ -20,10 +20,7 @@ import { ArchiveReader } from "./db/reader";
 import { type ReportDeps } from "./report/inputs";
 import { playersFromConfig } from "./players";
 import { megadjCliPath } from "./jobs/intake-run";
-import {
-  isTrustedMutationRequest,
-  withSecurityHeaders,
-} from "./server/http-security";
+import { isTrustedMutationRequest, withSecurityHeaders } from "./server/http-security";
 import { makeServerLifecycle } from "./server/server-lifecycle";
 import { makeFleetRoutes } from "./fleet/routes";
 import { makeDriveRoutes } from "./drive/routes";
@@ -121,10 +118,7 @@ const images = new ImageService(cfg, db, guard);
 const jobs = new JobEngine(cfg, db, guard, emit);
 
 function json(data: unknown, status = 200): Response {
-  return Response.json(data, {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+  return Response.json(data, { status, headers: { "Content-Type": "application/json" } });
 }
 
 // Bound once: the extracted handler (drive_job_routes.ts) closes over the
@@ -170,9 +164,7 @@ Bun.serve({
     } else if (path.startsWith("/photos/")) {
       const id = path.slice(8);
       const p = images.photoPath(id);
-      response = p
-        ? new Response(Bun.file(p))
-        : new Response("no photo", { status: 404 });
+      response = p ? new Response(Bun.file(p)) : new Response("no photo", { status: 404 });
     } else {
       response = await staticOrSpa(path);
     }
@@ -225,18 +217,14 @@ const hygieneApi = makeHygieneRoutes({
   shelfRoot: `/Volumes/${cfg.shelfDrive}`,
   enqueue: (kind) => {
     const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
-    if (!shelf)
-      throw new Error("shelf drive not mounted — hygiene needs SHELF1");
+    if (!shelf) throw new Error("shelf drive not mounted — hygiene needs SHELF1");
     return jobs.enqueue(shelf.id, kind, `/Volumes/${shelf.name}`, "web");
   },
   megadjCli: (args) => spawnMegadjCli(cfg.root, args),
   // quarantine census (#36): the engine (megadj CLI) owns the layout
   // math — index.ts just binds the call; stdout is the one JSON object.
   quarantineCensus: async () => {
-    const { code, stdout, stderr } = await spawnMegadjCli(cfg.root, [
-      "shelf-quarantine",
-      "--json",
-    ]);
+    const { code, stdout, stderr } = await spawnMegadjCli(cfg.root, ["shelf-quarantine", "--json"]);
     if (code !== 0)
       return {
         files: 0,
@@ -250,18 +238,9 @@ const hygieneApi = makeHygieneRoutes({
         bytes?: number;
         stale?: number;
       };
-      return {
-        files: parsed.files ?? 0,
-        bytes: parsed.bytes ?? 0,
-        stale: parsed.stale ?? 0,
-      };
+      return { files: parsed.files ?? 0, bytes: parsed.bytes ?? 0, stale: parsed.stale ?? 0 };
     } catch {
-      return {
-        files: 0,
-        bytes: 0,
-        stale: 0,
-        error: "shelf-quarantine printed no JSON summary",
-      };
+      return { files: 0, bytes: 0, stale: 0, error: "shelf-quarantine printed no JSON summary" };
     }
   },
   json,
@@ -290,14 +269,8 @@ const fixesApi = makeFixesRoutes({
 const gridHealthApi = makeGridHealthRoutes({
   enqueue: (driveId) => {
     const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
-    if (!shelf)
-      throw new Error("shelf drive not mounted — grid health needs SHELF1");
-    return jobs.enqueue(
-      driveId,
-      "grid-health",
-      `/Volumes/${shelf.name}`,
-      "web",
-    );
+    if (!shelf) throw new Error("shelf drive not mounted — grid health needs SHELF1");
+    return jobs.enqueue(driveId, "grid-health", `/Volumes/${shelf.name}`, "web");
   },
   json,
   resolveDrive: (nameOrId) => {
@@ -305,12 +278,8 @@ const gridHealthApi = makeGridHealthRoutes({
     if (d) return { id: d.id, name: d.nickname ?? d.name };
     const byName = registry
       .list()
-      .find(
-        (x) => x.name === nameOrId || (x.nickname && x.nickname === nameOrId),
-      );
-    return byName
-      ? { id: byName.id, name: byName.nickname ?? byName.name }
-      : null;
+      .find((x) => x.name === nameOrId || (x.nickname && x.nickname === nameOrId));
+    return byName ? { id: byName.id, name: byName.nickname ?? byName.name } : null;
   },
 });
 
@@ -344,11 +313,7 @@ async function staticOrSpa(path: string): Promise<Response> {
   if (await f.exists()) {
     const immutable = /assets\/.*-[A-Za-z0-9_-]+\.(js|css)$/u.test(file);
     return new Response(f, {
-      headers: {
-        "Cache-Control": immutable
-          ? "public, max-age=31536000, immutable"
-          : "no-cache",
-      },
+      headers: { "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-cache" },
     });
   }
   return new Response(Bun.file(join(webRoot, "index.html")), {
@@ -395,16 +360,12 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
   } catch (e) {
     const msg = (e as Error).message;
     const status =
-      msg.startsWith("REKORDBOX_RUNNING") || msg.startsWith("GUARD VIOLATION")
-        ? 423
-        : 500;
+      msg.startsWith("REKORDBOX_RUNNING") || msg.startsWith("GUARD VIOLATION") ? 423 : 500;
     return json({ error: msg }, status);
   }
 }
 
-console.log(
-  `deck: http://127.0.0.1:${cfg.serverPort} (reaped jobs: ${reaped})`,
-);
+console.log(`deck: http://127.0.0.1:${cfg.serverPort} (reaped jobs: ${reaped})`);
 
 process.on("SIGINT", async () => {
   watcher.stop();

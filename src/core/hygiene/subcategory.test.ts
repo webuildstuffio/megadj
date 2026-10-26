@@ -52,21 +52,13 @@ describe("acoustic subcategory classifier", () => {
   });
 
   test("every subcategory has a user-facing label", () => {
-    for (const sub of [
-      "metadata-diff",
-      "re-encode",
-      "quality-diff",
-      "oddball",
-    ] as const) {
+    for (const sub of ["metadata-diff", "re-encode", "quality-diff", "oddball"] as const) {
       expect(ACOUSTIC_SUB_LABELS[sub].length).toBeGreaterThan(0);
     }
   });
 
   test("bucket membership: safe-batch = metadata+re-encode, ear-check = quality+oddball", () => {
-    expect(BUCKET_MEMBERSHIP["safe-batch"]).toEqual([
-      "metadata-diff",
-      "re-encode",
-    ]);
+    expect(BUCKET_MEMBERSHIP["safe-batch"]).toEqual(["metadata-diff", "re-encode"]);
     expect(BUCKET_MEMBERSHIP["ear-check"]).toEqual(["quality-diff", "oddball"]);
     expect(inBucket("metadata-diff", "safe-batch")).toBe(true);
     expect(inBucket("re-encode", "safe-batch")).toBe(true);

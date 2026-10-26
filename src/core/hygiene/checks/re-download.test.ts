@@ -16,8 +16,7 @@ function ctx(
     fpForRow?: (row: DbContentRow) => string | null;
   } = {},
 ): CheckCtx {
-  const fpFor =
-    opts.fpFor ?? ((p: string) => `fp:${p.normalize("NFC").toLowerCase()}`);
+  const fpFor = opts.fpFor ?? ((p: string) => `fp:${p.normalize("NFC").toLowerCase()}`);
   const fpForRow = opts.fpForRow ?? ((r: DbContentRow) => `fp:${r.title}`);
   return {
     volume: "/Volumes/SHELF1",
@@ -47,10 +46,7 @@ describe("#37 slice 4: re-download", () => {
     const out = reDownload.detect([file("/Volumes/SHELF1/M/Other.wav")], c);
     expect(out.length).toBe(1);
     expect(out[0]!.kind).toBe("re-download");
-    expect(out[0]!.proposedAction).toEqual({
-      type: "re-download",
-      query: "Eat Me Better",
-    });
+    expect(out[0]!.proposedAction).toEqual({ type: "re-download", query: "Eat Me Better" });
   });
 
   test("fp match on disk → moved content, NOT re-download (stale-pointer's beat)", () => {

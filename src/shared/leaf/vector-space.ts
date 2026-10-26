@@ -106,16 +106,11 @@ function topDirection(rows: number[][], d: number, iters = 60): number[] {
 /** Fit the all-but-the-top model on a corpus: mean-centre, then extract
  * the top `components` principal directions with deflation (each found
  * direction is projected out of the data before the next search). */
-export function fitAllButTheTop(
-  vectors: number[][],
-  components = 2,
-): SpaceModel {
+export function fitAllButTheTop(vectors: number[][], components = 2): SpaceModel {
   const d = vectors[0]?.length ?? 0;
   const mean = zeros(d);
-  if (vectors.length === 0 || d === 0)
-    return { mean, components: [], componentCount: 0 };
-  for (const vec of vectors)
-    for (let i = 0; i < d; i++) mean[i]! += vec[i]! / vectors.length;
+  if (vectors.length === 0 || d === 0) return { mean, components: [], componentCount: 0 };
+  for (const vec of vectors) for (let i = 0; i < d; i++) mean[i]! += vec[i]! / vectors.length;
   let centred = vectors.map((vec) => vec.map((v, i) => v - mean[i]!));
   const found: number[][] = [];
   for (let c = 0; c < Math.max(0, components); c++) {
@@ -127,11 +122,7 @@ export function fitAllButTheTop(
       return row.map((v, i) => v - proj * dir[i]!);
     });
   }
-  return {
-    mean,
-    components: found.flat(),
-    componentCount: found.length,
-  };
+  return { mean, components: found.flat(), componentCount: found.length };
 }
 
 /** Transform one vector with a fitted model: centre, remove the top
@@ -180,11 +171,7 @@ export function cslsPenalties(vectors: number[][], r = CSLS_R): number[] {
  * mean of its top-R similarities (nothing excluded: the query is not a
  * corpus member here). Constant across candidates; kept so the wire's
  * 2·cos − r(q) − r(c) scores are the published formula, not a variant. */
-export function cslsQueryPenalty(
-  queryVec: number[],
-  corpusVecs: number[][],
-  r = CSLS_R,
-): number {
+export function cslsQueryPenalty(queryVec: number[], corpusVecs: number[][], r = CSLS_R): number {
   const sims = corpusVecs.map((c) => dot(queryVec, c));
   return roundedMeanTop(sims, r);
 }

@@ -61,9 +61,7 @@ function dualDbCheck(input: ReportInput): HealthCheck[] {
         detail: match
           ? `${snap.onelibrary_rows} = ${snap.pdb_live_rows} rows`
           : `OneLibrary ${snap.onelibrary_rows} vs pdb ${snap.pdb_live_rows} — legacy players (XDJ-XZ, CDJs) see a stale library`,
-        fix: match
-          ? undefined
-          : "Re-run the rekordbox USB sync to rebuild export.pdb",
+        fix: match ? undefined : "Re-run the rekordbox USB sync to rebuild export.pdb",
       },
     ];
   }
@@ -92,10 +90,7 @@ function gridCheck(input: ReportInput): HealthCheck | null {
     label: "Beatgrid coverage (ANLZ files)",
     status: pct >= 99 ? "pass" : pct >= 90 ? "warn" : "fail",
     detail: `${pct}% of tracks have ANLZ at the hash path`,
-    fix:
-      pct >= 99
-        ? undefined
-        : "Analyze the remaining tracks in rekordbox, then re-sync",
+    fix: pct >= 99 ? undefined : "Analyze the remaining tracks in rekordbox, then re-sync",
   };
 }
 
@@ -132,13 +127,7 @@ function verifyCheck(input: ReportInput): HealthCheck {
   return {
     id: "verify",
     label: "Data verification",
-    status: !verify.ok
-      ? "fail"
-      : changedSince
-        ? "warn"
-        : ageDays > 7
-          ? "warn"
-          : "pass",
+    status: !verify.ok ? "fail" : changedSince ? "warn" : ageDays > 7 ? "warn" : "pass",
     detail: !verify.ok
       ? `last verify FAILED${ageDays >= 1 ? ` (${Math.round(ageDays)}d ago)` : ""}`
       : changedSince
@@ -192,8 +181,7 @@ function junkCheck(input: ReportInput): HealthCheck | null {
   const junk = input.snapshot?.junk;
   if (!junk) return null;
   const bad =
-    junk.zero_byte.length + junk.case_collisions.length > 0 ||
-    junk.orphan_resource_forks > 0;
+    junk.zero_byte.length + junk.case_collisions.length > 0 || junk.orphan_resource_forks > 0;
   return {
     id: "junk",
     label: "Junk files",
@@ -210,11 +198,7 @@ function junkCheck(input: ReportInput): HealthCheck | null {
 // ---- disk space ----------------------------------------------------------------
 function spaceCheckRows(input: ReportInput): HealthCheck | null {
   const snap = input.snapshot;
-  if (
-    snap?.free_bytes === null ||
-    snap?.free_bytes === undefined ||
-    !snap.capacity_bytes
-  ) {
+  if (snap?.free_bytes === null || snap?.free_bytes === undefined || !snap.capacity_bytes) {
     return null;
   }
   const freePct = snap.free_bytes / snap.capacity_bytes;
@@ -224,9 +208,7 @@ function spaceCheckRows(input: ReportInput): HealthCheck | null {
     status: freePct < 0.05 ? "fail" : freePct < 0.15 ? "warn" : "pass",
     detail: `${fmtPct(freePct)} free (${fmtBytes(snap.free_bytes)} of ${fmtBytes(snap.capacity_bytes)})`,
     fix:
-      freePct < 0.15
-        ? "rekordbox needs headroom for ANLZ + DB WAL — prune or offload"
-        : undefined,
+      freePct < 0.15 ? "rekordbox needs headroom for ANLZ + DB WAL — prune or offload" : undefined,
   };
 }
 
@@ -254,9 +236,7 @@ function artworkCheck(input: ReportInput): HealthCheck | null {
     status: missingPct < 0.02 ? "pass" : missingPct < 0.1 ? "warn" : "fail",
     detail: `${dj.artwork_total - dj.artwork_missing}/${dj.artwork_total} tracks have artwork`,
     fix:
-      missingPct >= 0.02
-        ? "megadj ingest fills artwork automatically for new imports"
-        : undefined,
+      missingPct >= 0.02 ? "megadj ingest fills artwork automatically for new imports" : undefined,
   };
 }
 
@@ -280,12 +260,8 @@ function mirrorCheck(input: ReportInput): HealthCheck | null {
     id: "mirror",
     label: `Mirror parity vs ${input.masterName}`,
     status: missing <= 0 ? "pass" : missing > 20 ? "fail" : "warn",
-    detail:
-      missing <= 0 ? "in sync (superset ok)" : `behind by ${missing} file(s)`,
-    fix:
-      missing > 0
-        ? "Run the mirror sync (usb_mirror.py) to converge"
-        : undefined,
+    detail: missing <= 0 ? "in sync (superset ok)" : `behind by ${missing} file(s)`,
+    fix: missing > 0 ? "Run the mirror sync (usb_mirror.py) to converge" : undefined,
   };
 }
 
@@ -299,8 +275,7 @@ function speedCheck(input: ReportInput): HealthCheck | null {
   return {
     id: "speed",
     label: "Read speed",
-    status:
-      last.seq_mbps >= 60 ? "pass" : last.seq_mbps >= 30 ? "warn" : "fail",
+    status: last.seq_mbps >= 60 ? "pass" : last.seq_mbps >= 30 ? "warn" : "fail",
     detail: `${last.seq_mbps} MB/s sequential (CDJ-safe ≥ 30)`,
     fix:
       last.seq_mbps < 30

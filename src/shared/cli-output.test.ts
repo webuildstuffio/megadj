@@ -118,11 +118,8 @@ describe("json stdout deadline (#pipe-wedge)", () => {
         },
       );
       let bytes = 0;
-      for await (const chunk of cli.stdout as AsyncIterable<Buffer>)
-        bytes += chunk.length;
-      const code = await new Promise<number | null>((resolve) =>
-        cli.on("exit", (c) => resolve(c)),
-      );
+      for await (const chunk of cli.stdout as AsyncIterable<Buffer>) bytes += chunk.length;
+      const code = await new Promise<number | null>((resolve) => cli.on("exit", (c) => resolve(c)));
       // The fixture's 1,500 paths don't exist on disk, so intake-status's
       // #238 drift gate fires: exit 1 WITH the complete JSON payload. The
       // invariant this test owns is the #pipe-wedge one — the full payload

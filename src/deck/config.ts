@@ -94,22 +94,15 @@ function parseTomlSimple(src: string): TomlTable {
       section[kvQ[1]!] = kvQ[2] ?? "";
       continue;
     }
-    const kvArray = line.match(
-      /^([A-Za-z0-9_]+)\s*=\s*(\[[^\]]*\])\s*(?:#.*)?$/,
-    );
+    const kvArray = line.match(/^([A-Za-z0-9_]+)\s*=\s*(\[[^\]]*\])\s*(?:#.*)?$/);
     if (kvArray?.[1] && kvArray[2]) {
       let value: unknown;
       try {
         value = JSON.parse(kvArray[2]);
       } catch (error) {
-        throw new Error(`config: invalid string array for ${kvArray[1]}`, {
-          cause: error,
-        });
+        throw new Error(`config: invalid string array for ${kvArray[1]}`, { cause: error });
       }
-      if (
-        !isUnknownArray(value) ||
-        !value.every((item) => typeof item === "string")
-      )
+      if (!isUnknownArray(value) || !value.every((item) => typeof item === "string"))
         throw new Error(`config: ${kvArray[1]} must be a string array`);
       section[kvArray[1]] = value;
       continue;
@@ -140,9 +133,7 @@ function resolveUvPath(): string {
 }
 
 /** Parse [players.players] table: only "device" and "onelibrary" values. */
-function parseExtraPlayers(
-  file: Record<string, TomlValue>,
-): Record<string, string> {
+function parseExtraPlayers(file: Record<string, TomlValue>): Record<string, string> {
   const players = isTomlTable(file.players) ? file.players : {};
   const inner = isTomlTable(players.players) ? players.players : {};
   const out: Record<string, string> = {};
@@ -166,17 +157,13 @@ function parseBoothFleet(file: Record<string, TomlValue>): string[] {
 
 export function loadConfig(root: string): CrateConfig {
   const cfgPath = join(root, "config.toml");
-  const file = existsSync(cfgPath)
-    ? parseTomlSimple(readFileSync(cfgPath, "utf8"))
-    : {};
+  const file = existsSync(cfgPath) ? parseTomlSimple(readFileSync(cfgPath, "utf8")) : {};
   const library = isTomlTable(file.library) ? file.library : {};
   const images = isTomlTable(file.images) ? file.images : {};
   const jobs = isTomlTable(file.jobs) ? file.jobs : {};
   const automation = isTomlTable(file.automation) ? file.automation : {};
   const rawImageProvider =
-    typeof images.provider === "string"
-      ? images.provider
-      : nonEmptyEnv("CRATEDECK_IMAGE_PROVIDER");
+    typeof images.provider === "string" ? images.provider : nonEmptyEnv("CRATEDECK_IMAGE_PROVIDER");
   if (
     rawImageProvider !== undefined &&
     rawImageProvider !== "brave" &&
@@ -193,37 +180,19 @@ export function loadConfig(root: string): CrateConfig {
     imagesDir: join(dataDir, "images"),
     // #227: THE strict port resolver (env → config → default; invalid
     // env throws loudly instead of the old `||` silent rank-fallthrough)
-    serverPort: resolveServerPort(
-      process.env.CRATEDECK_PORT,
-      join(root, "config.toml"),
-    ),
+    serverPort: resolveServerPort(process.env.CRATEDECK_PORT, join(root, "config.toml")),
     volumesRoot: nonEmptyEnv("CRATEDECK_VOLUMES") ?? "/Volumes",
-    masterDrive:
-      typeof library.master_drive === "string"
-        ? library.master_drive
-        : "DJMASTER",
-    mirrorDrive:
-      typeof library.mirror_drive === "string"
-        ? library.mirror_drive
-        : "DJMIRROR",
-    shelfDrive:
-      typeof library.shelf_drive === "string" ? library.shelf_drive : "SHELF1",
+    masterDrive: typeof library.master_drive === "string" ? library.master_drive : "DJMASTER",
+    mirrorDrive: typeof library.mirror_drive === "string" ? library.mirror_drive : "DJMIRROR",
+    shelfDrive: typeof library.shelf_drive === "string" ? library.shelf_drive : "SHELF1",
     imageProvider: rawImageProvider ?? null,
     imageKey:
-      (typeof images.key === "string" && images.key !== ""
-        ? images.key
-        : undefined) ??
+      (typeof images.key === "string" && images.key !== "" ? images.key : undefined) ??
       nonEmptyEnv("CRATEDECK_IMAGE_KEY") ??
       nonEmptyEnv("EXA_API_KEY") ??
       null,
-    verifyTimeoutMin:
-      typeof jobs.verify_timeout_min === "number"
-        ? jobs.verify_timeout_min
-        : 40,
-    mirrorTimeoutMin:
-      typeof jobs.mirror_timeout_min === "number"
-        ? jobs.mirror_timeout_min
-        : 90,
+    verifyTimeoutMin: typeof jobs.verify_timeout_min === "number" ? jobs.verify_timeout_min : 40,
+    mirrorTimeoutMin: typeof jobs.mirror_timeout_min === "number" ? jobs.mirror_timeout_min : 90,
     jobTimeoutMin:
       typeof jobs.job_timeout_min === "number" && jobs.job_timeout_min > 0
         ? jobs.job_timeout_min
@@ -232,16 +201,11 @@ export function loadConfig(root: string): CrateConfig {
       typeof jobs.stall_timeout_min === "number" && jobs.stall_timeout_min > 0
         ? jobs.stall_timeout_min
         : 15,
-    benchmarkMb:
-      typeof jobs.benchmark_mb === "number" ? jobs.benchmark_mb : 512,
+    benchmarkMb: typeof jobs.benchmark_mb === "number" ? jobs.benchmark_mb : 512,
     autoScanOnMount:
-      typeof automation.auto_scan_on_mount === "boolean"
-        ? automation.auto_scan_on_mount
-        : true,
+      typeof automation.auto_scan_on_mount === "boolean" ? automation.auto_scan_on_mount : true,
     verifyIntervalDays:
-      typeof automation.verify_interval_days === "number"
-        ? automation.verify_interval_days
-        : 7,
+      typeof automation.verify_interval_days === "number" ? automation.verify_interval_days : 7,
     archiveDbPath: nonEmptyEnv("MEGADJ_DB") ?? CLI_DB_PATH,
     musicDir: nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? CLI_MUSIC_DIR,
     // The uv binary for every pyrekordbox spawn (rb.ts, spawnVerify,

@@ -46,24 +46,20 @@ describe("rb-import subprocess boundaries", () => {
     const py = __test.parseWriteOutput(
       '{"inserted":2,"already":0,"gated":0,"linked":2,"playlistId":"42","parentId":null,"errors":[]}',
     );
-    expect(__test.verificationError(2, py, verifyResult({ hit: 1 }))).toContain(
-      "1/2",
+    expect(__test.verificationError(2, py, verifyResult({ hit: 1 }))).toContain("1/2");
+    expect(__test.verificationError(2, py, verifyResult({ broken: 1 }))).toContain(
+      "missing file path",
     );
-    expect(
-      __test.verificationError(2, py, verifyResult({ broken: 1 })),
-    ).toContain("missing file path");
-    expect(__test.verificationError(3, py, verifyResult({}))).toContain(
-      "accounted for 2/3",
+    expect(__test.verificationError(3, py, verifyResult({}))).toContain("accounted for 2/3");
+    expect(__test.verificationError(2, py, verifyResult({ total: 1 }))).toContain(
+      "impossible counters",
     );
-    expect(
-      __test.verificationError(2, py, verifyResult({ total: 1 })),
-    ).toContain("impossible counters");
-    expect(
-      __test.verificationError(2, py, verifyResult({ playlistRows: 1 })),
-    ).toContain("1/2 playlist");
-    expect(
-      __test.verificationError(2, py, verifyResult({ playlistExists: false })),
-    ).toContain("playlist row");
+    expect(__test.verificationError(2, py, verifyResult({ playlistRows: 1 }))).toContain(
+      "1/2 playlist",
+    );
+    expect(__test.verificationError(2, py, verifyResult({ playlistExists: false }))).toContain(
+      "playlist row",
+    );
   });
 
   test("same-name files use case-folded full paths and both writers use the twin seam", () => {
@@ -71,14 +67,10 @@ describe("rb-import subprocess boundaries", () => {
     expect(script).toContain("existing[path_key(c.FolderPath)] = c.ID");
     expect(script).toContain("return nfc(s).casefold()");
     expect(script).toContain("existing.get(path_key(full))");
-    expect(script).toContain(
-      "expected_parent_id = parent.ID if parent is not None else 0",
-    );
+    expect(script).toContain("expected_parent_id = parent.ID if parent is not None else 0");
     expect(script).toContain("str(p.ParentID or 0) == str(expected_parent_id)");
     expect(script).not.toContain("fname in existing");
-    expect(script).toContain(
-      "playlist membership for both new and already-imported",
-    );
+    expect(script).toContain("playlist membership for both new and already-imported");
 
     const source = Bun.file(new URL("rb-import-verify.ts", import.meta.url));
     expect(source.text()).resolves.toContain("applyPlaylistTwinMutation({");
@@ -89,9 +81,7 @@ describe("rb-import subprocess boundaries", () => {
     expect(script).toContain("def find_playlist(name, attr, parent_id):");
     expect(script).toContain("DjmdPlaylist.ParentID == parent_id");
     expect(script).toContain("find_playlist(group_name, 1, 0)");
-    expect(script).toContain(
-      "find_playlist(playlist_name, 0, parent.ID if parent else 0)",
-    );
+    expect(script).toContain("find_playlist(playlist_name, 0, parent.ID if parent else 0)");
     // the ensure ladder + link rows come from rb-script-kit (the #88 seam):
     // two DjmdPlaylist constructions (group + playlist), and the
     // membership insert is the shared pyAddSongPlaylist block — the
@@ -134,29 +124,17 @@ describe("rb-import subprocess boundaries", () => {
     const py = __test.parseWriteOutput(
       '{"inserted":1,"already":0,"gated":1,"linked":1,"playlistId":"42","parentId":null,"errors":[]}',
     );
-    expect(
-      __test.verificationError(
-        2,
-        py,
-        verifyResult({ hit: 1, playlistRows: 1 }),
-      ),
-    ).toBeNull();
+    expect(__test.verificationError(2, py, verifyResult({ hit: 1, playlistRows: 1 }))).toBeNull();
     // short rows still fail
-    expect(__test.verificationError(2, py, verifyResult({ hit: 0 }))).toContain(
-      "0/1",
-    );
+    expect(__test.verificationError(2, py, verifyResult({ hit: 0 }))).toContain("0/1");
     // gated-only accounting mismatch still fails
     expect(__test.verificationError(3, py, verifyResult({ hit: 1 }))).toContain(
       "accounted for 2/3",
     );
     // playlist rows expect the row-bearing count, never the gated file
-    expect(
-      __test.verificationError(
-        2,
-        py,
-        verifyResult({ hit: 1, playlistRows: 2 }),
-      ),
-    ).toContain("2/1 playlist member rows");
+    expect(__test.verificationError(2, py, verifyResult({ hit: 1, playlistRows: 2 }))).toContain(
+      "2/1 playlist member rows",
+    );
   });
 
   // Issue #200: rb-import's private AUDIO_EXT set was missing .alac, so

@@ -11,11 +11,8 @@ function read(path: string): string {
 function tableKeys(source: string): string[] {
   // quoted keys of an exported domain command record ("verb": handler)
   const keys: string[] = [];
-  for (const tbl of source.matchAll(
-    /export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g,
-  )) {
-    for (const m of (tbl[0] ?? "").matchAll(/"([a-z-]+)":\s*\w+/g))
-      if (m[1]) keys.push(m[1]);
+  for (const tbl of source.matchAll(/export const \w+_COMMANDS(?::[^=]*)?= \{[\s\S]*?\n\};/g)) {
+    for (const m of (tbl[0] ?? "").matchAll(/"([a-z-]+)":\s*\w+/g)) if (m[1]) keys.push(m[1]);
   }
   return keys;
 }
@@ -52,16 +49,9 @@ describe("issue #32 → #235: maintenance command census", () => {
     for (const verb of FORMER_MAINTENANCE_VERBS) expect(all).toContain(verb);
     // domain fit: shelf verbs live in shelf, rb verbs in rekordbox
     expect(shelf).toEqual(
-      expect.arrayContaining([
-        "shelf-hygiene",
-        "intake-status",
-        "shelf-restore",
-        "tmp-purge",
-      ]),
+      expect.arrayContaining(["shelf-hygiene", "intake-status", "shelf-restore", "tmp-purge"]),
     );
-    expect(rb).toEqual(
-      expect.arrayContaining(["rb-import", "rb-anlz-spike", "rb-grid-triage"]),
-    );
+    expect(rb).toEqual(expect.arrayContaining(["rb-import", "rb-anlz-spike", "rb-grid-triage"]));
     expect(rb).not.toContain("shelf-hygiene");
     expect(shelf).not.toContain("rb-import");
   });
@@ -75,10 +65,7 @@ describe("issue #32 → #235: maintenance command census", () => {
   });
 
   test("the dispatch is still table lookup, not a switch (#88)", () => {
-    for (const f of [
-      "src/shelf/cli-commands.ts",
-      "src/rekordbox/cli-commands.ts",
-    ]) {
+    for (const f of ["src/shelf/cli-commands.ts", "src/rekordbox/cli-commands.ts"]) {
       const source = read(f);
       expect(source).not.toMatch(/^\s*case "[a-z-]+":/m);
     }

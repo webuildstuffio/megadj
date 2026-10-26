@@ -127,10 +127,9 @@ describe("wavToAiff output validity", () => {
       const aiff = await wavToAiff(wav);
       expect(aiff).not.toBeNull();
       // The output MUST parse as valid audio — ffprobe is the gate.
-      const pr =
-        await $`ffprobe -v error -show_entries format=duration -of csv=p=0 ${aiff}`
-          .quiet()
-          .nothrow();
+      const pr = await $`ffprobe -v error -show_entries format=duration -of csv=p=0 ${aiff}`
+        .quiet()
+        .nothrow();
       expect(pr.exitCode).toBe(0);
       expect(pr.stdout.toString().trim()).toBeTruthy();
       // Big-endian PCM (spec AIFF), right bit depth.

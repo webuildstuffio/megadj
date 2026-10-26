@@ -127,19 +127,13 @@ const isStringNumberPairList = (v: unknown): v is [string, number][] =>
 
 /** Decimal ids, unique — the write-acknowledgement rule. */
 function isUniqueDecimalIdList(ids: string[]): boolean {
-  return (
-    ids.every((id) => DECIMAL_ID_RE.test(id)) &&
-    new Set(ids).size === ids.length
-  );
+  return ids.every((id) => DECIMAL_ID_RE.test(id)) && new Set(ids).size === ids.length;
 }
 
 /** Cross-field consistency checks over an already shape-valid payload —
  *  the first failure wins, in the original throw order. Returns the
  *  full error message to throw, or null when every check holds. */
-function restampConsistencyError(
-  output: RestampOutput,
-  apply: boolean,
-): string | null {
+function restampConsistencyError(output: RestampOutput, apply: boolean): string | null {
   if (output.errors.length > 0) {
     const detail = output.errors.map(([id, err]) => `${id}: ${err}`).join("; ");
     return `rb-cues restamp transaction failed: ${detail}`;
@@ -148,8 +142,7 @@ function restampConsistencyError(
     return `rb-cues restamped ${output.written}/${output.found} rows`;
   if (output.written_ids.length !== output.written)
     return "rb-cues write acknowledgements are incomplete";
-  if (!apply && output.written !== 0)
-    return "rb-cues census mode unexpectedly wrote rows";
+  if (!apply && output.written !== 0) return "rb-cues census mode unexpectedly wrote rows";
   if (!isUniqueDecimalIdList(output.written_ids))
     return "rb-cues returned invalid or duplicate cue ids";
   return null;
@@ -190,18 +183,11 @@ function parseVerifyOutput(raw: string): CueVerifyOutput {
   return parseVerifyShape(raw);
 }
 
-function validateVerification(
-  expectedIds: readonly string[],
-  result: CueVerifyOutput,
-): void {
+function validateVerification(expectedIds: readonly string[], result: CueVerifyOutput): void {
   if (result.total !== expectedIds.length)
-    throw new Error(
-      `cue verification read ${result.total}/${expectedIds.length} intended rows`,
-    );
+    throw new Error(`cue verification read ${result.total}/${expectedIds.length} intended rows`);
   if (result.missing.length > 0)
-    throw new Error(
-      `cue verification missing ids: ${result.missing.join(", ")}`,
-    );
+    throw new Error(`cue verification missing ids: ${result.missing.join(", ")}`);
   if (result.mismatched.length > 0)
     throw new Error(
       `cue verification found non-hot ids: ${result.mismatched.map(([id]) => id).join(", ")}`,
@@ -233,10 +219,7 @@ function gatedFor(protectedRows: number): { track: string; reason: string }[] {
       ];
 }
 
-async function rbCuesWithRuntime(
-  opts: RbCuesOptions,
-  deps: RbCuesRuntime,
-): Promise<RbCuesResult> {
+async function rbCuesWithRuntime(opts: RbCuesOptions, deps: RbCuesRuntime): Promise<RbCuesResult> {
   const log = opts.log ?? commandLog({ json: opts.json });
   const dbPath = dbPathFor(opts.mount);
   const mode: RbCuesMode = opts.fromLedger ? "ledger" : "restamp";
@@ -259,9 +242,7 @@ async function rbCuesWithRuntime(
   if (applyConfirmationRefusal(opts) !== null)
     return fail(applyConfirmationRefusal(opts) ?? "unreachable");
   if (mode === "ledger")
-    return fail(
-      "ledger write mode lands with F3 (semantic engine port) — restamp is today's P0",
-    );
+    return fail("ledger write mode lands with F3 (semantic engine port) — restamp is today's P0");
 
   try {
     deps.assertClosed("rb-cues");
@@ -281,19 +262,14 @@ async function rbCuesWithRuntime(
   let result: CueCommandResult;
   try {
     result = deps.spawn(
-      pyUvFileArgv({
-        file: "cue-restamp.kit.py",
-        args: [dbPath, "census", opts.mount],
-      }),
+      pyUvFileArgv({ file: "cue-restamp.kit.py", args: [dbPath, "census", opts.mount] }),
       120_000,
     );
   } catch (error) {
     return fail(errorText(error));
   }
   if (result.status !== 0 || !result.stdout)
-    return fail(
-      `census failed (exit ${String(result.status)}): ${result.stderr.slice(-300)}`,
-    );
+    return fail(`census failed (exit ${String(result.status)}): ${result.stderr.slice(-300)}`);
   let output: RestampOutput;
   try {
     output = parseRestampOutput(lastJsonLine(result.stdout), false);
@@ -335,26 +311,17 @@ function restampApplyLeg(
 
   const compensate = (error: unknown): RbCuesResult => {
     const detail = compensateRestore(deps, dbPath, backedUpTo, error);
-    return {
-      ...fail(detail),
-      backedUpTo,
-      verifyFailures: [detail],
-    };
+    return { ...fail(detail), backedUpTo, verifyFailures: [detail] };
   };
 
   try {
     deps.assertClosed("rb-cues --apply");
     const r = deps.spawn(
-      pyUvFileArgv({
-        file: "cue-restamp.kit.py",
-        args: [dbPath, "apply", opts.mount],
-      }),
+      pyUvFileArgv({ file: "cue-restamp.kit.py", args: [dbPath, "apply", opts.mount] }),
       300_000,
     );
     if (r.status !== 0 || !r.stdout)
-      throw new Error(
-        `restamp failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
-      );
+      throw new Error(`restamp failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`);
     const output = parseRestampOutput(lastJsonLine(r.stdout), true);
     deps.sleep(250);
     deps.assertClosed("rb-cues verification");
@@ -396,10 +363,7 @@ export const __test = {
   validateVerification,
 };
 
-export function printRbCuesReport(
-  r: RbCuesResult,
-  log: (s: string) => void,
-): void {
+export function printRbCuesReport(r: RbCuesResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     if (body.appliedMode) {
       log(

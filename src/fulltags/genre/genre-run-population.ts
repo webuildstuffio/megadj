@@ -1,9 +1,5 @@
 import type { ArchiveState } from "../../core/state";
-import {
-  genreFamily,
-  parseEmbeddingVector,
-  type GenreSeed,
-} from "../../core/similar";
+import { genreFamily, parseEmbeddingVector, type GenreSeed } from "../../core/similar";
 import { l2normalize } from "../../shared/leaf/vector-space";
 import type { ProbeRow } from "../analysis/linear-probe";
 
@@ -40,27 +36,18 @@ export function parseEvalPopulation(
   const artists = new Map<string, string>();
   const probeRows: ProbeRow[] = [];
   for (const row of sourceRows) {
-    const vec = parseEmbeddingVector(
-      row.vec_json,
-      `genre ${purpose} ${row.video_id}`,
-    );
+    const vec = parseEmbeddingVector(row.vec_json, `genre ${purpose} ${row.video_id}`);
     seeds.push({ videoId: row.video_id, genre: row.genre, vec });
     durations.push({ videoId: row.video_id, durationS: row.duration_s });
     if (row.artist) artists.set(row.video_id, row.artist);
     const family = purpose === "eval" ? genreFamily(row.genre) : null;
     if (purpose === "eval" && family !== null)
-      probeRows.push({
-        videoId: row.video_id,
-        label: family,
-        vec: l2normalize(vec),
-      });
+      probeRows.push({ videoId: row.video_id, label: family, vec: l2normalize(vec) });
   }
   return { sourceRows, seeds, durations, artists, probeRows };
 }
 
-export function parseInferencePopulation(
-  state: ArchiveState,
-): ParsedInferencePopulation {
+export function parseInferencePopulation(state: ArchiveState): ParsedInferencePopulation {
   const rows = state.genreSeeds();
   const seeds: GenreSeed[] = rows.seeds.map((row) => ({
     videoId: row.video_id,

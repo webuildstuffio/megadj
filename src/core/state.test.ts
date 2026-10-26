@@ -71,11 +71,7 @@ describe("ArchiveState", () => {
   });
 
   test("markNotMusicByUser leaves the download queue permanently (Sep 19)", () => {
-    state.upsertTrackFromPlaylist(
-      "nm1",
-      0,
-      "WORLD's LARGEST Miniature Airport",
-    );
+    state.upsertTrackFromPlaylist("nm1", 0, "WORLD's LARGEST Miniature Airport");
     state.upsertTrackFromPlaylist("nm2", 1, "real song");
     expect(state.pendingQueue().length).toBe(2);
     expect(state.markNotMusicByUser("nm1")).toBe(true);
@@ -83,19 +79,13 @@ describe("ArchiveState", () => {
     expect(state.pendingQueue().map((t) => t.video_id)).toEqual(["nm2"]);
     expect(state.pendingTracks().map((t) => t.video_id)).toEqual(["nm2"]);
     // …and STICKY across playlist refreshes (upsert never touches status)
-    state.upsertTrackFromPlaylist(
-      "nm1",
-      0,
-      "WORLD's LARGEST Miniature Airport",
-    );
+    state.upsertTrackFromPlaylist("nm1", 0, "WORLD's LARGEST Miniature Airport");
     expect(state.pendingQueue().map((t) => t.video_id)).toEqual(["nm2"]);
-    expect(state.allTracks().find((t) => t.video_id === "nm1")?.status).toBe(
-      "skipped_not_music",
-    );
+    expect(state.allTracks().find((t) => t.video_id === "nm1")?.status).toBe("skipped_not_music");
     // category records WHO decided
-    expect(
-      state.allTracks().find((t) => t.video_id === "nm1")?.last_error,
-    ).toContain("user-marked");
+    expect(state.allTracks().find((t) => t.video_id === "nm1")?.last_error).toContain(
+      "user-marked",
+    );
     // unknown id reports false; re-marking an already-skipped row is a no-op
     expect(state.markNotMusicByUser("nope")).toBe(false);
     expect(state.markNotMusicByUser("nm1")).toBe(false);
@@ -166,13 +156,11 @@ describe("ArchiveState", () => {
     ).not.toThrow();
     // The migration is structural: a `year` COLUMN must exist on the
     // tracks table (PRAGMA truth, not a property probe on a typed row).
-    const cols = state.db.query("PRAGMA table_info(tracks)").all() as {
-      name: string;
-    }[];
+    const cols = state.db.query("PRAGMA table_info(tracks)").all() as { name: string }[];
     expect(cols.map((c) => c.name)).toContain("year");
-    const row = state.db
-      .query("SELECT year FROM tracks WHERE video_id = 'abc'")
-      .get() as { year: string | null };
+    const row = state.db.query("SELECT year FROM tracks WHERE video_id = 'abc'").get() as {
+      year: string | null;
+    };
     expect(row.year).toBeNull();
   });
 
@@ -228,9 +216,7 @@ describe("ArchiveState", () => {
 
     // Corrupt JSON row degrades to null (pass re-analyzes it) — written
     // through the public readonly db seam.
-    state.db
-      .query("UPDATE beats SET beats_json = '{corrupt' WHERE video_id = 'bv1'")
-      .run();
+    state.db.query("UPDATE beats SET beats_json = '{corrupt' WHERE video_id = 'bv1'").run();
     expect(state.beatRecord("bv1")).toBeNull();
   });
 
@@ -271,11 +257,7 @@ describe("ArchiveState", () => {
     expect(joined[0]?.track.video_id).toBe("bv2");
     expect(joined[0]?.beats).toEqual([0, 0.47]);
 
-    state.db
-      .query(
-        "UPDATE beats SET downbeats_json = '{corrupt' WHERE video_id = 'bv2'",
-      )
-      .run();
+    state.db.query("UPDATE beats SET downbeats_json = '{corrupt' WHERE video_id = 'bv2'").run();
     expect(state.beatAnalyzedTracks()).toEqual([]);
   });
 
@@ -306,19 +288,12 @@ describe("ArchiveState", () => {
     });
     // pending tracks never join the backfill queue
     state.upsertTrackFromPlaylist("ch3", 2, "T3");
-    expect(state.tracksMissingContentHash().map((t) => t.videoId)).toEqual([
-      "ch1",
-      "ch2",
-    ]);
+    expect(state.tracksMissingContentHash().map((t) => t.videoId)).toEqual(["ch1", "ch2"]);
     state.setContentHash("ch1", "ab".repeat(32));
-    expect(
-      state.allTracks().find((t) => t.video_id === "ch1")?.content_hash,
-    ).toBe("ab".repeat(32));
+    expect(state.allTracks().find((t) => t.video_id === "ch1")?.content_hash).toBe("ab".repeat(32));
     // idempotent: filled rows leave the queue; null-file rows stay (the
     // reporter counts them as unmatched, never fakes a hash)
-    expect(state.tracksMissingContentHash().map((t) => t.videoId)).toEqual([
-      "ch2",
-    ]);
+    expect(state.tracksMissingContentHash().map((t) => t.videoId)).toEqual(["ch2"]);
   });
 
   test("clearGenre unstrands a placeholder row into the query pool (#61)", () => {
@@ -349,11 +324,7 @@ describe("ArchiveState", () => {
     // COALESCE semantics: updateGenre(null) is a no-op, never a clear.
     state.updateGenre("k1", null);
     let labeled = state.labeledPopulation();
-    expect(labeled.map((r) => r.video_id).toSorted()).toEqual([
-      "k1",
-      "m1",
-      "u1",
-    ]);
+    expect(labeled.map((r) => r.video_id).toSorted()).toEqual(["k1", "m1", "u1"]);
     expect(state.genreSeeds().queries.map((q) => q.video_id)).toEqual([]);
 
     // The unstrand pass clears placeholders; real labels stay.
@@ -389,14 +360,8 @@ describe("link_surfaced ledger state (#256)", () => {
 
   test("markLinkSurfaced parks the row with its links; counts + reads work", () => {
     scState.upsertTrackFromPlaylist("270000000", 0, "Shelter", "soundcloud");
-    const links = JSON.stringify([
-      { kind: "purchase_url", url: "https://fanlink.to/shelter" },
-    ]);
-    scState.markLinkSurfaced(
-      "270000000",
-      links,
-      "purchase_url: https://fanlink.to/shelter",
-    );
+    const links = JSON.stringify([{ kind: "purchase_url", url: "https://fanlink.to/shelter" }]);
+    scState.markLinkSurfaced("270000000", links, "purchase_url: https://fanlink.to/shelter");
 
     const row = scState.trackById("270000000");
     expect(row?.status).toBe("link_surfaced");
@@ -405,9 +370,7 @@ describe("link_surfaced ledger state (#256)", () => {
       { kind: "purchase_url", url: "https://fanlink.to/shelter" },
     ]);
     expect(scState.linkSurfacedCount()).toBe(1);
-    expect(scState.linkSurfacedTracks().map((t) => t.video_id)).toStrictEqual([
-      "270000000",
-    ]);
+    expect(scState.linkSurfacedTracks().map((t) => t.video_id)).toStrictEqual(["270000000"]);
     // The honesty rule: a surfaced row is NOT in the downloaded cohort.
     expect(scState.downloadedCount()).toBe(0);
   });
@@ -439,13 +402,7 @@ describe("link_surfaced ledger state (#256)", () => {
     // and re-scraping the set could never fix them (ON CONFLICT skipped
     // source), so per-set progress was underivable.
     scState.upsertTrackFromPlaylist("270000020", 0, "Old", "soundcloud");
-    scState.upsertTrackFromPlaylist(
-      "270000020",
-      1,
-      "Old",
-      "soundcloud:mmw-2026",
-      true,
-    );
+    scState.upsertTrackFromPlaylist("270000020", 1, "Old", "soundcloud:mmw-2026", true);
     expect(scState.trackById("270000020")?.source).toBe("soundcloud:mmw-2026");
     // Default: a YT playlist refresh must NOT re-key an existing row
     scState.upsertTrackFromPlaylist("270000020", 2, "Old", "liked");

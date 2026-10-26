@@ -70,12 +70,7 @@ export const IMPRINT_FAMILIES: readonly ImprintMapping[] = [
     src: "label scene (afterlife = melodic techno; melodic scores in the techno family)",
     verified: "2026-09-15",
   },
-  {
-    imprint: "truesoul",
-    family: "techno",
-    src: "drumcode sister imprint",
-    verified: "2026-09-15",
-  },
+  { imprint: "truesoul", family: "techno", src: "drumcode sister imprint", verified: "2026-09-15" },
   {
     imprint: "mad decent",
     family: "bass",
@@ -157,9 +152,7 @@ function lookupKey(rawLabel: string): string | null {
   const base = rawLabel.trim().toLowerCase();
   if (!base || /^\d+$/.test(base) || base === "music") return null;
   if (IMPRINT_INDEX.has(base)) return base;
-  const stripped = base
-    .replace(/\s+(recordings?|records?|music|ltd|productions?)$/i, "")
-    .trim();
+  const stripped = base.replace(/\s+(recordings?|records?|music|ltd|productions?)$/i, "").trim();
   // precedence 1: the input's own suffix-stripped form is a key — done
   // ("Drumcode Records" → "drumcode"). No expansion past a hit.
   if (stripped && IMPRINT_INDEX.has(stripped)) return stripped;
@@ -169,8 +162,7 @@ function lookupKey(rawLabel: string): string | null {
   // prefix only — no substring fuzz — and ambiguity (≥2 keys) is a
   // guess → abstain.
   const candidates = new Set<string>();
-  for (const k of IMPRINT_INDEX.keys())
-    if (k.startsWith(`${stripped} `)) candidates.add(k);
+  for (const k of IMPRINT_INDEX.keys()) if (k.startsWith(`${stripped} `)) candidates.add(k);
   return candidates.size === 1 ? [...candidates][0]! : null;
 }
 
@@ -187,9 +179,7 @@ export interface ImprintVote {
  *  label, junk label, or a mapping whose family the family map has
  *  since dropped — a mapping that can't reach the family SSOT is not a
  *  vote). NEVER throws; a missing label is the normal case. */
-export function imprintVote(
-  label: string | null | undefined,
-): ImprintVote | null {
+export function imprintVote(label: string | null | undefined): ImprintVote | null {
   if (!label) return null;
   const key = lookupKey(label);
   if (!key) return null;
@@ -203,10 +193,7 @@ export function imprintVote(
  *  kNN consensus rather than overwriting". Consensus present + different
  *  family = the audio wins, the prior abstains. No consensus (null) =
  *  the prior stands (it is then the ONLY evidence). */
-export function imprintStands(
-  vote: ImprintVote,
-  kNNConsensus: string | null,
-): boolean {
+export function imprintStands(vote: ImprintVote, kNNConsensus: string | null): boolean {
   if (kNNConsensus === null) return true;
   return vote.family === kNNConsensus;
 }

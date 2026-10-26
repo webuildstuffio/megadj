@@ -124,9 +124,7 @@ describe("findDropCandidates", () => {
     expect(candidates.length).toBeGreaterThanOrEqual(1);
     // Sorted by score descending
     for (let i = 1; i < candidates.length; i++) {
-      expect(candidates[i]!.score).toBeLessThanOrEqual(
-        candidates[i - 1]!.score,
-      );
+      expect(candidates[i]!.score).toBeLessThanOrEqual(candidates[i - 1]!.score);
     }
   });
 
@@ -161,13 +159,9 @@ describe("findDropCandidates with RMS (P6)", () => {
     const candidates = findDropCandidates(downbeats, 3, 240, rms);
     expect(candidates.length).toBeGreaterThanOrEqual(2);
     // At least one candidate should start near the first peak
-    const nearFirstPeak = candidates.some(
-      (c) => c.startBar >= 15 && c.startBar <= 30,
-    );
+    const nearFirstPeak = candidates.some((c) => c.startBar >= 15 && c.startBar <= 30);
     // At least one near the second peak
-    const nearSecondPeak = candidates.some(
-      (c) => c.startBar >= 75 && c.startBar <= 90,
-    );
+    const nearSecondPeak = candidates.some((c) => c.startBar >= 75 && c.startBar <= 90);
     expect(nearFirstPeak || nearSecondPeak).toBe(true);
   });
 

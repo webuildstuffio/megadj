@@ -31,9 +31,7 @@ describe("hygiene audio guard (servableAudioPath)", () => {
     const { root, rel } = shelf();
     // path traversal never passes, even under the root
     expect(servableAudioPath(join(root, "Contents/../.."), root)).toBeNull();
-    expect(
-      servableAudioPath(`${root}/Contents/Artist A/../../etc/passwd.mp3`, root),
-    ).toBeNull();
+    expect(servableAudioPath(`${root}/Contents/Artist A/../../etc/passwd.mp3`, root)).toBeNull();
     // non-audio extension (the DB, a text file, the quarantine manifest)
     expect(servableAudioPath(join(root, "x.txt"), root)).toBeNull();
     expect(servableAudioPath(join(root, "master.db"), root)).toBeNull();
@@ -44,9 +42,7 @@ describe("hygiene audio guard (servableAudioPath)", () => {
     expect(servableAudioPath(null, root)).toBeNull();
     expect(servableAudioPath("", root)).toBeNull();
     // under the root but nonexistent
-    expect(
-      servableAudioPath(join(root, "Contents", "nope.mp3"), root),
-    ).toBeNull();
+    expect(servableAudioPath(join(root, "Contents", "nope.mp3"), root)).toBeNull();
     // the real file passes so we know the guard isn't just refusing all
     expect(servableAudioPath(rel, root)).not.toBeNull();
   });

@@ -84,12 +84,8 @@ describe("rewriteAnlzGrid (the #147 Q4 writer)", () => {
     const preBytes = before.reduce((n, s) => n + s.bytes, 0);
     const pqStart = headEnd + preBytes;
     const pqTotal = 24 + beats0.length * 8;
-    expect([...out.subarray(0, pqStart)]).toEqual([
-      ...base.subarray(0, pqStart),
-    ]);
-    expect([...out.subarray(pqStart + pqTotal)]).toEqual([
-      ...base.subarray(pqStart + pqTotal),
-    ]);
+    expect([...out.subarray(0, pqStart)]).toEqual([...base.subarray(0, pqStart)]);
+    expect([...out.subarray(pqStart + pqTotal)]).toEqual([...base.subarray(pqStart + pqTotal)]);
   });
 
   test("fewer beats: PQTZ shrinks, container stays walkable", () => {
@@ -103,19 +99,14 @@ describe("rewriteAnlzGrid (the #147 Q4 writer)", () => {
   });
 
   test("no PQTZ in the input → null (never fabricate a grid section)", () => {
-    const noGrid = buildAnlz({
-      path: "/x",
-      extraSections: [{ tag: "PWAV", bytes: 64 }],
-    });
+    const noGrid = buildAnlz({ path: "/x", extraSections: [{ tag: "PWAV", bytes: 64 }] });
     expect(parseAnlzGrid(noGrid)).toBeNull();
     expect(rewriteAnlzGrid(noGrid, beats1)).toBeNull();
   });
 
   test("garbage input → null, never a throw", () => {
     expect(rewriteAnlzGrid(new Uint8Array(4), beats1)).toBeNull();
-    expect(
-      rewriteAnlzGrid(new TextEncoder().encode("not an anlz file"), beats1),
-    ).toBeNull();
+    expect(rewriteAnlzGrid(new TextEncoder().encode("not an anlz file"), beats1)).toBeNull();
   });
 });
 
@@ -123,11 +114,7 @@ const mkPhrases = (
   entries: { index: number; beat: number; kind: number }[],
   endBeat = 500,
   mood: number = TRACK_MOOD.HIGH,
-) =>
-  buildAnlz({
-    path: "/Contents/Artist/Album/track.mp3",
-    phrases: { mood, endBeat, entries },
-  });
+) => buildAnlz({ path: "/Contents/Artist/Album/track.mp3", phrases: { mood, endBeat, entries } });
 
 describe("parseAnlzPhrases (PSSI phrase structure, #427)", () => {
   const { HIGH } = PHRASE_KINDS;
@@ -155,10 +142,7 @@ describe("parseAnlzPhrases (PSSI phrase structure, #427)", () => {
   });
 
   test("no PSSI section → null", () => {
-    const data = buildAnlz({
-      path: "/x",
-      beats: grid(12800, 16),
-    });
+    const data = buildAnlz({ path: "/x", beats: grid(12800, 16) });
     expect(parseAnlzPhrases(data)).toBeNull();
   });
 

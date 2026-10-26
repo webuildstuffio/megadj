@@ -43,14 +43,10 @@ export function normalizeNote(input: NoteInput): {
   const text = input.note?.trim();
   if (!text) throw new Error("note is required");
   if (text.length > NOTE_MAX)
-    throw new Error(
-      `note too long (max ${NOTE_MAX} chars, got ${text.length})`,
-    );
+    throw new Error(`note too long (max ${NOTE_MAX} chars, got ${text.length})`);
   const origin = (input.origin ?? "mcp").trim().slice(0, ORIGIN_MAX) || "mcp";
   const severity =
-    input.severity === "warn" || input.severity === "critical"
-      ? input.severity
-      : "info";
+    input.severity === "warn" || input.severity === "critical" ? input.severity : "info";
   return { drive_id: drive, note: text, origin, severity };
 }
 
@@ -98,9 +94,7 @@ export function noteFromEvent(row: {
         : "info",
     at: row.at,
     dismissed_at:
-      typeof row.data["dismissed_at"] === "number"
-        ? (row.data["dismissed_at"] as number)
-        : null,
+      typeof row.data["dismissed_at"] === "number" ? (row.data["dismissed_at"] as number) : null,
   };
 }
 
@@ -132,23 +126,13 @@ function parseNoteData(row: NoteEventRow): Record<string, unknown> | null {
 function parseNoteRow(row: NoteEventRow): StoredNote | null {
   const data = parseNoteData(row);
   if (data === null) return null;
-  return noteFromEvent({
-    id: row.id,
-    drive_id: row.drive_id,
-    at: row.at,
-    kind: row.kind,
-    data,
-  });
+  return noteFromEvent({ id: row.id, drive_id: row.drive_id, at: row.at, kind: row.kind, data });
 }
 
 /** The slice of DB the note store needs: the event() writer plus the raw
  *  sqlite handle (readonly public field on DB). */
 export interface NotesStore {
-  event: (
-    driveId: string,
-    kind: string,
-    data?: Record<string, unknown>,
-  ) => string;
+  event: (driveId: string, kind: string, data?: Record<string, unknown>) => string;
   readonly sqlite: {
     query: (sql: string) => {
       all: (...p: SQLQueryBindings[]) => unknown[];
@@ -163,12 +147,7 @@ export interface NotesStore {
  *  the timeline already does. */
 export function addAgentNote(
   store: NotesStore,
-  input: {
-    drive_id: string;
-    note: string;
-    origin: string;
-    severity: NoteSeverity;
-  },
+  input: { drive_id: string; note: string; origin: string; severity: NoteSeverity },
 ): string {
   // the ROW id (events.id) is the citation handle — dismiss + feed lookup
   // key on it, so return exactly what the store generated
@@ -182,11 +161,7 @@ export function addAgentNote(
 
 /** Dismiss a note (human confirmation in the UI). The event stays in the
  *  timeline (audit trail) but flagged — the active feed skips it. */
-export function dismissAgentNote(
-  store: NotesStore,
-  driveId: string,
-  eventId: string,
-): boolean {
+export function dismissAgentNote(store: NotesStore, driveId: string, eventId: string): boolean {
   const row = store.sqlite
     .query("SELECT * FROM events WHERE id=? AND drive_id=?")
     .get(eventId, driveId) as NoteEventRow | undefined;
@@ -195,22 +170,14 @@ export function dismissAgentNote(
   if (data === null) return false;
   if (typeof data["dismissed_at"] === "number") return true; // already
   data["dismissed_at"] = Date.now();
-  store.sqlite
-    .query("UPDATE events SET data_json=? WHERE id=?")
-    .run(JSON.stringify(data), eventId);
+  store.sqlite.query("UPDATE events SET data_json=? WHERE id=?").run(JSON.stringify(data), eventId);
   return true;
 }
 
 /** Active (non-dismissed) notes for a drive, newest first. */
-export function agentNotes(
-  store: NotesStore,
-  driveId: string,
-  limit = 20,
-): StoredNote[] {
+export function agentNotes(store: NotesStore, driveId: string, limit = 20): StoredNote[] {
   const rows = store.sqlite
-    .query(
-      "SELECT * FROM events WHERE drive_id=? AND kind='agent-note' ORDER BY at DESC LIMIT ?",
-    )
+    .query("SELECT * FROM events WHERE drive_id=? AND kind='agent-note' ORDER BY at DESC LIMIT ?")
     .all(driveId, limit * 2) as NoteEventRow[];
   return rows
     .map(parseNoteRow)

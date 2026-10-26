@@ -14,16 +14,8 @@ const decide = (rankOriginal: number, rankTwin: number): string =>
 
 describe("keeper policy table (#158)", () => {
   test("rb tier: Contents-member first, then bitrate, size, stable path", () => {
-    const contents = {
-      path: "/Volumes/SHELF1/Contents/Art/a.mp3",
-      size: 10,
-      bitrate: 128,
-    };
-    const archive = {
-      path: "/Volumes/SHELF1/Archive/Art/a.mp3",
-      size: 99,
-      bitrate: 320,
-    };
+    const contents = { path: "/Volumes/SHELF1/Contents/Art/a.mp3", size: 10, bitrate: 128 };
+    const archive = { path: "/Volumes/SHELF1/Archive/Art/a.mp3", size: 99, bitrate: 320 };
     // Contents membership beats EVERY quality signal
     expect(pickRbKeeper(contents, archive)).toBe("a");
     expect(pickRbKeeper(archive, contents)).toBe("b");

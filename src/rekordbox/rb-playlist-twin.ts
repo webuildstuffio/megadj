@@ -4,12 +4,7 @@ import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { atomicReplace as atomicReplaceFile } from "../shared/atomic-file";
 import { errMessage as errorText } from "../shared/leaf/fmt";
-import {
-  assertRbClosed,
-  backupMaster,
-  restoreMasterBackup,
-  sleepSync,
-} from "./guard.js";
+import { assertRbClosed, backupMaster, restoreMasterBackup, sleepSync } from "./guard.js";
 
 export interface PlaylistXmlNode {
   id: string;
@@ -52,8 +47,7 @@ export function hexToDecimalId(hex: string): string {
 }
 
 function decimalToHexId(decimal: string): string {
-  if (!/^(?:0|[1-9]\d*)$/u.test(decimal))
-    throw new Error(`invalid decimal id: ${decimal}`);
+  if (!/^(?:0|[1-9]\d*)$/u.test(decimal)) throw new Error(`invalid decimal id: ${decimal}`);
   return BigInt(decimal).toString(16).toUpperCase();
 }
 
@@ -93,9 +87,7 @@ export function parsePlaylistXmlNodes(xml: string): PlaylistXmlNode[] {
         attribute: attributeRaw,
       });
     } catch (error) {
-      console.error(
-        `masterPlaylists6.xml contains an invalid NODE: ${errorText(error)}`,
-      );
+      console.error(`masterPlaylists6.xml contains an invalid NODE: ${errorText(error)}`);
     }
   }
   return out;
@@ -106,10 +98,7 @@ export function playlistNodeLine(node: PlaylistXmlNode): string {
   return `    <NODE${name} Id="${decimalToHexId(node.id)}" ParentId="${decimalToHexId(node.parentId)}" Attribute="${node.attribute}" Timestamp="${Date.now()}" Lib_Type="0" CheckType="0"/>`;
 }
 
-function playlistNodesMatch(
-  actual: PlaylistXmlNode,
-  expected: PlaylistXmlNode,
-): boolean {
+function playlistNodesMatch(actual: PlaylistXmlNode, expected: PlaylistXmlNode): boolean {
   return (
     actual.name === expected.name &&
     actual.parentId === expected.parentId &&
@@ -150,38 +139,25 @@ export function appendPlaylistNodesAtomic(
     changed = true;
     return playlistNodeLine(expected).trimStart();
   });
-  const missing = [...expectedById.values()].filter(
-    (node) => !found.has(node.id),
-  );
+  const missing = [...expectedById.values()].filter((node) => !found.has(node.id));
   if (!changed && missing.length === 0) return;
   const closing = repaired.lastIndexOf("</PLAYLISTS>");
-  if (closing === -1)
-    throw new Error(`${xmlPath} has no closing PLAYLISTS element`);
+  if (closing === -1) throw new Error(`${xmlPath} has no closing PLAYLISTS element`);
   const before = repaired.slice(0, closing);
   const separator = before.endsWith("\n") ? "" : "\n";
   const inserted =
-    missing.length === 0
-      ? ""
-      : `${separator}${missing.map(playlistNodeLine).join("\n")}\n`;
+    missing.length === 0 ? "" : `${separator}${missing.map(playlistNodeLine).join("\n")}\n`;
   writeXml(xmlPath, `${before}${inserted}${repaired.slice(closing)}`);
 }
 
-function verifyPlaylistNodes(
-  xmlPath: string,
-  expected: readonly PlaylistXmlNode[],
-): void {
+function verifyPlaylistNodes(xmlPath: string, expected: readonly PlaylistXmlNode[]): void {
   const actual = new Map(
-    parsePlaylistXmlNodes(readFileSync(xmlPath, "utf8")).map((node) => [
-      node.id,
-      node,
-    ]),
+    parsePlaylistXmlNodes(readFileSync(xmlPath, "utf8")).map((node) => [node.id, node]),
   );
   for (const node of expected) {
     const found = actual.get(node.id);
     if (found === undefined || !playlistNodesMatch(found, node)) {
-      throw new Error(
-        `playlist XML post-verify failed for ${node.name ?? node.id} (${node.id})`,
-      );
+      throw new Error(`playlist XML post-verify failed for ${node.name ?? node.id} (${node.id})`);
     }
   }
 }
@@ -194,10 +170,8 @@ export function applyPlaylistTwinMutation<T>(
   options: PlaylistTwinMutationOptions<T>,
 ): PlaylistTwinMutationResult<T> {
   const xmlPath = playlistXmlPath(options.dbPath);
-  if (!existsSync(options.dbPath))
-    throw new Error(`no master DB at ${options.dbPath}`);
-  if (!existsSync(xmlPath))
-    throw new Error(`no masterPlaylists6.xml at ${xmlPath}`);
+  if (!existsSync(options.dbPath)) throw new Error(`no master DB at ${options.dbPath}`);
+  if (!existsSync(xmlPath)) throw new Error(`no masterPlaylists6.xml at ${xmlPath}`);
 
   const closed = options.testHooks?.assertClosed ?? assertRbClosed;
   const sleep = options.testHooks?.sleep ?? sleepSync;
@@ -208,9 +182,7 @@ export function applyPlaylistTwinMutation<T>(
   const xmlBackedUpTo = `${xmlPath}${suffix}`;
   copyFileSync(xmlPath, xmlBackedUpTo);
   options.onBackup?.({ db: backedUpTo, xml: xmlBackedUpTo });
-  options.log?.(
-    `playlist twins backed up to ${backedUpTo} and ${xmlBackedUpTo}`,
-  );
+  options.log?.(`playlist twins backed up to ${backedUpTo} and ${xmlBackedUpTo}`);
 
   try {
     sleep(250);
@@ -234,9 +206,8 @@ export function applyPlaylistTwinMutation<T>(
         { cause: restoreError },
       );
     }
-    throw new Error(
-      `${options.what} failed: ${message}; restored DB and XML from backups`,
-      { cause: error },
-    );
+    throw new Error(`${options.what} failed: ${message}; restored DB and XML from backups`, {
+      cause: error,
+    });
   }
 }

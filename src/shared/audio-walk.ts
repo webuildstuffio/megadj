@@ -22,11 +22,7 @@ import { walkTree, type WalkTreeOptions } from "./walk-tree";
  * audio extension filter, which is the SSOT enforced HERE. */
 export type WalkAudioOptions = Omit<WalkTreeOptions, "exts">;
 
-export function walkAudioDir(
-  dir: string,
-  out: string[] = [],
-  opts?: WalkAudioOptions,
-): string[] {
+export function walkAudioDir(dir: string, out: string[] = [], opts?: WalkAudioOptions): string[] {
   const res = walkTree(dir, { ...opts, exts: AUDIO_EXTS });
   for (const u of res.unreadable) {
     // keep the one visible stderr note the missing-intake-folder path

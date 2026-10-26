@@ -32,12 +32,7 @@ import {
   checkYtdlpImpersonate,
   detectVolumes,
 } from "./doctor-checks";
-import {
-  checkCueKinds,
-  checkDupes,
-  checkPlaylistXml,
-  masterDbPath,
-} from "./doctor-state";
+import { checkCueKinds, checkDupes, checkPlaylistXml, masterDbPath } from "./doctor-state";
 
 export interface CheckResult {
   id: string;
@@ -99,17 +94,11 @@ export function printDoctor(results: CheckResult[]): number {
   }
   console.log("");
   if (broken.length) {
-    console.log(
-      `${broken.length} required check(s) failing — fix those first.`,
-    );
+    console.log(`${broken.length} required check(s) failing — fix those first.`);
   } else {
-    console.log(
-      "All required checks pass. Optional gaps only narrow features:",
-    );
+    console.log("All required checks pass. Optional gaps only narrow features:");
     console.log("  · pyrekordbox  → CrateDeck dual-DB reads");
-    console.log(
-      "  · OPENROUTER_API_KEY → AI genre/year fill + artwork generation",
-    );
+    console.log("  · OPENROUTER_API_KEY → AI genre/year fill + artwork generation");
   }
   return broken.length ? 1 : 0;
 }
@@ -142,9 +131,7 @@ export function runInit(): number {
     didScaffold = true;
     console.log(`✓ scaffolded src/deck/config.toml from config.sample.toml`);
   } else {
-    console.log(
-      `! config.sample.toml not found at ${sample} — skipping scaffold`,
-    );
+    console.log(`! config.sample.toml not found at ${sample} — skipping scaffold`);
   }
 
   // Auto-detect mounted USB volumes and write them into the scaffolded config

@@ -29,8 +29,7 @@ export function portView(drives: Drive[]): PortInfo[] {
     if (
       !prior ||
       (drive.mounted && !prior.mounted) ||
-      (drive.mounted === prior.mounted &&
-        drive.last_seen_at > prior.last_seen_at)
+      (drive.mounted === prior.mounted && drive.last_seen_at > prior.last_seen_at)
     )
       byPort.set(portKey, drive);
   }
@@ -49,12 +48,7 @@ import { buildPreflight } from "../preflight/preflight";
 import { allPreflightInputs } from "../report/inputs";
 import { VERIFY_HELP } from "../verify/help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
-import {
-  archiveDispatch,
-  driveDispatch,
-  hygieneFixesDispatch,
-  jobDispatch,
-} from "./dispatch";
+import { archiveDispatch, driveDispatch, hygieneFixesDispatch, jobDispatch } from "./dispatch";
 import { intakeCandidateDirs, intakeWatchDir } from "../jobs/intake-run";
 import { fetchFeedSince } from "../tools/fetch-feed";
 import {
@@ -104,17 +98,14 @@ function metaRoutes(deps: ApiDeps): Record<string, Handler> {
     },
     "/reports": () => json(deps.reportsPayload()),
     // B12 preflight: the gig-night pass/fail across every mounted drive
-    "/preflight": () =>
-      json(buildPreflight(allPreflightInputs(deps.reportDeps))),
+    "/preflight": () => json(buildPreflight(allPreflightInputs(deps.reportDeps))),
     // in-app help SSOT: glossary + job/surface explainers (deckctl/MCP
     // can serve the same wording the UI tooltips use)
-    "/help": () =>
-      json({ terms: HELP_TERMS, jobs: HELP_JOBS, surfaces: HELP_SURFACES }),
+    "/help": () => json({ terms: HELP_TERMS, jobs: HELP_JOBS, surfaces: HELP_SURFACES }),
     // global help: what does each job kind do (human + agent readable)
     "/help/jobs": () => json(VERIFY_HELP),
     "/ports": () => json(portView(db.allDrives())),
-    "/search": (_req, url) =>
-      json(registry.search(url.searchParams.get("q") ?? "")),
+    "/search": (_req, url) => json(registry.search(url.searchParams.get("q") ?? "")),
     "/events": eventsHandler,
     // trailing-slash spelling kept (base matched both; hand-written
     // clients use either) — same handler, same 406 negotiation.
@@ -228,20 +219,14 @@ function fetchRoutes(deps: ApiDeps): Record<string, Handler> {
       }
       // Same job engine as drive jobs: interlock, one-at-a-time, SSE live.
       // Options ride the mountPoint slot as JSON (runFetchJob parses).
-      const job = jobs.enqueue(
-        "local-archive",
-        "fetch",
-        JSON.stringify(opts),
-        "web",
-      );
+      const job = jobs.enqueue("local-archive", "fetch", JSON.stringify(opts), "web");
       return json(job);
     },
     "/fetch/feed": (_req, url) => {
       // Feed cursor is client state: non-finite/negative → 0 (full drain).
       // The Number.isFinite(since) gate is the boundary-census guard shape.
       const since = Number(url.searchParams.get("since") ?? "0");
-      const cursor =
-        Number.isFinite(since) && since >= 0 ? Math.floor(since) : 0;
+      const cursor = Number.isFinite(since) && since >= 0 ? Math.floor(since) : 0;
       const feed = fetchFeedSince(cursor);
       return json(feed);
     },
@@ -253,10 +238,7 @@ function intakeRoutes(deps: ApiDeps): Record<string, Handler> {
   const { cfg, jobs, json } = deps;
   return {
     "/intake/folders": () =>
-      json({
-        watch: intakeWatchDir(cfg),
-        candidates: intakeCandidateDirs(cfg),
-      }),
+      json({ watch: intakeWatchDir(cfg), candidates: intakeCandidateDirs(cfg) }),
     // dump ledger census (#20): every ingest batch as one unit — the
     // GetDat dumps strip + the MCP twin read this one route.
     "/intake/dumps": () => json(deps.dumpReader.census()),
@@ -274,10 +256,7 @@ function intakeRoutes(deps: ApiDeps): Record<string, Handler> {
       const ok = candidates.some((c) => c.path === folder && c.exists);
       if (!ok) {
         return json(
-          {
-            error:
-              "folder not on the intake allowlist — pick one from /intake/folders",
-          },
+          { error: "folder not on the intake allowlist — pick one from /intake/folders" },
           403,
         );
       }
@@ -290,17 +269,12 @@ function intakeRoutes(deps: ApiDeps): Record<string, Handler> {
 
 /** Build the dispatch table: exact-path entries + prefix delegators.
  *  Returned as a first-match chain over the ordered slices. */
-export type ApiRouter = (
-  req: Request,
-  url: URL,
-  route: string,
-) => Promise<Response>;
+export type ApiRouter = (req: Request, url: URL, route: string) => Promise<Response>;
 
 export function makeApiRouter(deps: ApiDeps): ApiRouter {
   const exact = new Map<string, Handler>();
   const register = (table: Record<string, Handler>): void => {
-    for (const [path, handler] of Object.entries(table))
-      exact.set(path, handler);
+    for (const [path, handler] of Object.entries(table)) exact.set(path, handler);
   };
   register(metaRoutes(deps));
   register(boothRoutes(deps));

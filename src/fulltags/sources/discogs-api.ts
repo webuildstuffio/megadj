@@ -81,11 +81,7 @@ export async function discogsApiSearch(
 
   await discogsDelay();
 
-  const params = new URLSearchParams({
-    q: `${artist} ${title}`,
-    type: "release",
-    per_page: "3",
-  });
+  const params = new URLSearchParams({ q: `${artist} ${title}`, type: "release", per_page: "3" });
 
   let response: Response;
   try {

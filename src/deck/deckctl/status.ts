@@ -4,9 +4,7 @@ import type { InterlockState } from "../shared/types";
 import { collectPlayers } from "./players";
 import { JSON_MODE, emitJson, errOut, getJson, log } from "./runtime";
 
-type DriveWithBadges = Drive & {
-  badges?: { label: string; tone: string }[];
-};
+type DriveWithBadges = Drive & { badges?: { label: string; tone: string }[] };
 
 export async function cmdStatus(): Promise<void> {
   const [interlock, drives, jobs] = await Promise.all([
@@ -33,9 +31,7 @@ export async function cmdStatus(): Promise<void> {
   if (jobs.length) {
     log("");
     for (const job of jobs)
-      log(
-        `◌ ${job.kind} on ${job.drive_id}: ${job.message ?? job.phase ?? job.status}`,
-      );
+      log(`◌ ${job.kind} on ${job.drive_id}: ${job.message ?? job.phase ?? job.status}`);
   }
 }
 
@@ -52,9 +48,7 @@ export async function cmdDrives(): Promise<void> {
           `${badge.tone === "good" ? "✓" : badge.tone === "warn" ? "▲" : badge.tone === "bad" ? "✕" : "·"} ${badge.label}`,
       )
       .join("  ");
-    log(
-      `${drive.mounted ? "🟢" : "⚫"} ${drive.nickname ?? drive.name}  ${badges}`,
-    );
+    log(`${drive.mounted ? "🟢" : "⚫"} ${drive.nickname ?? drive.name}  ${badges}`);
   }
 }
 
@@ -78,16 +72,13 @@ export async function cmdPreflight(): Promise<void> {
           : drive.overall === "attention"
             ? "🟡"
             : "⚪";
-    log(
-      `${dot} ${drive.drive.nickname ?? drive.drive.name} — ${drive.overall}`,
-    );
+    log(`${dot} ${drive.drive.nickname ?? drive.drive.name} — ${drive.overall}`);
     for (const check of drive.checks) {
       log(`  ${icon[check.status]} ${check.label}: ${check.detail ?? ""}`);
       if (check.fix) log(`     → ${check.fix}`);
     }
   }
-  for (const advisory of report.firmware_advisories ?? [])
-    log(`ℹ firmware: ${advisory}`);
+  for (const advisory of report.firmware_advisories ?? []) log(`ℹ firmware: ${advisory}`);
   if (report.overall !== "ready") process.exit(1);
 }
 
@@ -102,9 +93,7 @@ export async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
     drives.push(drive);
   } else {
     drives.push(
-      ...(await getJson<
-        { id: string; name: string; nickname: string | null }[]
-      >("/api/drives")),
+      ...(await getJson<{ id: string; name: string; nickname: string | null }[]>("/api/drives")),
     );
   }
   const { players, skipped } = await collectPlayers(drives, getJson);
@@ -126,9 +115,7 @@ export async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
     log(`⚠ ${item.drive}: players lookup failed (${item.reason}) — skipped`);
   for (const payload of players) {
     if (payload.unknown) {
-      log(
-        `${payload.drive.nickname ?? payload.drive.name}: no scan data — run a full scan`,
-      );
+      log(`${payload.drive.nickname ?? payload.drive.name}: no scan data — run a full scan`);
       continue;
     }
     log(
@@ -136,8 +123,7 @@ export async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
         ` · pdb ${payload.measured.pdb_live_rows ?? "—"} · onelibrary ${payload.measured.onelibrary_rows ?? "—"}`,
     );
     log(`  ✓ ${payload.ok.map((player) => player.name).join(", ")}`);
-    for (const blocked of payload.blocked)
-      log(`  ✕ ${blocked.player.name} — ${blocked.reason}`);
+    for (const blocked of payload.blocked) log(`  ✕ ${blocked.player.name} — ${blocked.reason}`);
   }
 }
 

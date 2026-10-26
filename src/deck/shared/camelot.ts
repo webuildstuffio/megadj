@@ -83,22 +83,16 @@ export function camelotOf(key: string | null | undefined): CamelotPos | null {
   if (ok) {
     const okN = parseInt(ok[1]!, 10);
     const n = okN - 5 < 1 ? okN + 7 : okN - 5;
-    return {
-      n,
-      letter: ok[2]!.toUpperCase() === "M" ? "A" : "B",
-    };
+    return { n, letter: ok[2]!.toUpperCase() === "M" ? "A" : "B" };
   }
   // Western + mode suffix ("Gmaj", "Amin", "F# major", "eb minor",
   // "C m" — the space-separated bare-letter spelling also ships in
   // real TKEYs). Bare "m" = minor, bare "d" = major.
-  const wm = /^([A-Ga-g])([#b]?)\s*(maj(?:or)?|min(?:or)?|dur|moll|[md])$/.exec(
-    trimmed,
-  );
+  const wm = /^([A-Ga-g])([#b]?)\s*(maj(?:or)?|min(?:or)?|dur|moll|[md])$/.exec(trimmed);
   if (wm) {
     const root = wm[1]!.toUpperCase() + (wm[2] ?? "");
     const mode = wm[3]!.toLowerCase();
-    const minor =
-      mode.startsWith("min") || mode.startsWith("moll") || mode === "m";
+    const minor = mode.startsWith("min") || mode.startsWith("moll") || mode === "m";
     return OPEN_KEY_TO_CAMELOT[minor ? `${root}m` : root] ?? null;
   }
   return null;
@@ -108,10 +102,7 @@ export function camelotOf(key: string | null | undefined): CamelotPos | null {
  *  classic moves (±1 number same letter, ±1 letter same number), 0.9 =
  *  the diagonal, 0 = clash. Either side unparsable → neutral 0.5 (never
  *  blocks, never helps). */
-export function keyCompatScore(
-  a: CamelotPos | null,
-  b: CamelotPos | null,
-): number {
+export function keyCompatScore(a: CamelotPos | null, b: CamelotPos | null): number {
   if (!a || !b) return 0.5;
   // signed shortest distance on the 12-hour wheel, so 12 → 1 is ±1 (the
   // classic end-of-set energy wrap), never the naive |12-1| = 11 clash.
@@ -127,10 +118,7 @@ export function keyCompatScore(
  *  "" = no relation / unparsable. The crate browser glows rows with this. */
 export type KeyRelation = "" | "same" | "compat";
 
-export function keyRelation(
-  k: string | null | undefined,
-  hover: CamelotPos,
-): KeyRelation {
+export function keyRelation(k: string | null | undefined, hover: CamelotPos): KeyRelation {
   const c = camelotOf(k);
   if (!c) return "";
   if (c.n === hover.n && c.letter === hover.letter) return "same";

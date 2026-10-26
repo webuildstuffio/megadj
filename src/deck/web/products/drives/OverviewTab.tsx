@@ -67,8 +67,7 @@ export function OverviewTab(props: {
                             `${c.id}: ${c.status}${c.detail ? ` — ${c.detail}` : ""}${c.fix ? ` | fix: ${c.fix}` : ""}`,
                         ),
                     )
-                  }
-                >
+                  }>
                   <Icon name="copy" size={12} /> Copy
                 </button>
               </>

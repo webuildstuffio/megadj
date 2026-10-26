@@ -28,14 +28,11 @@ export async function cmdHygiene(
       h.log(
         `shelf hygiene: ${p.counts.open} open · ${p.counts.safe} auto-safe · ${p.counts.review} need review · ${p.counts.confirmed} confirmed`,
       );
-      for (const [kind, n] of Object.entries(p.counts.byKind))
-        h.log(`  ${kind}: ${n}`);
+      for (const [kind, n] of Object.entries(p.counts.byKind)) h.log(`  ${kind}: ${n}`);
       const bySub = p.counts.bySub ?? {};
       if (Object.keys(bySub).length > 0) {
         h.log("  acoustic buckets:");
-        for (const [bucketName, n] of Object.entries(bySub).toSorted(
-          (a, b) => b[1] - a[1],
-        ))
+        for (const [bucketName, n] of Object.entries(bySub).toSorted((a, b) => b[1] - a[1]))
           h.log(`    ${bucketName}: ${n}`);
       }
       return;
@@ -52,9 +49,7 @@ export async function cmdHygiene(
       // ear-check) but ear-check exists for FILTERING only — the engine
       // refuses batch-confirming the listen-first buckets.
       if (!id) {
-        h.errOut(
-          "usage: deckctl hygiene bucket <metadata-diff|re-encode|safe-batch>",
-        );
+        h.errOut("usage: deckctl hygiene bucket <metadata-diff|re-encode|safe-batch>");
         h.exit(2);
       }
       const LISTEN_FIRST = new Set(["quality-diff", "oddball", "ear-check"]);
@@ -65,11 +60,7 @@ export async function cmdHygiene(
         h.exit(2);
       }
       const res = await apiPost("/api/hygiene/bucket-confirm", { bucket: id });
-      const body = (await res.json()) as {
-        ok?: boolean;
-        error?: string;
-        raw?: string;
-      };
+      const body = (await res.json()) as { ok?: boolean; error?: string; raw?: string };
       if (!res.ok || !body.ok) {
         h.errOut(`bucket confirm failed: ${body.error ?? res.status}`);
         h.exit(1);
@@ -83,10 +74,7 @@ export async function cmdHygiene(
         h.errOut(`usage: deckctl hygiene ${sub} <finding-id>`);
         h.exit(2);
       }
-      const res = await apiPost("/api/hygiene/decide", {
-        id,
-        confirm: sub === "confirm",
-      });
+      const res = await apiPost("/api/hygiene/decide", { id, confirm: sub === "confirm" });
       const body = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !body.ok) {
         h.errOut(`decide failed: ${body.error ?? res.status}`);

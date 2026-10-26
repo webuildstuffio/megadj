@@ -10,14 +10,7 @@ function arch(
   over: Partial<RadarSource> & { firstSeenAt?: string | null } = {},
 ): RadarSource & { videoId: string; firstSeenAt: string | null } {
   const title = path?.replace(/^.*\//, "").replace(/\.[a-z0-9]+$/i, "") ?? null;
-  return {
-    videoId,
-    path,
-    title,
-    artist: "Artist",
-    firstSeenAt: "2026-09-15T00:00:00Z",
-    ...over,
-  };
+  return { videoId, path, title, artist: "Artist", firstSeenAt: "2026-09-15T00:00:00Z", ...over };
 }
 
 function driveRow(path: string, over: Partial<RadarSource> = {}): RadarSource {
@@ -38,13 +31,9 @@ describe("radar (#148)", () => {
   });
 
   it("archivePathKey folds + strips through Contents/ (the fleet key)", () => {
-    expect(archivePathKey("/x/batch/Contents/Artist/Track.mp3")).toBe(
-      "artist/track.mp3",
-    );
+    expect(archivePathKey("/x/batch/Contents/Artist/Track.mp3")).toBe("artist/track.mp3");
     // no Contents/ segment → the whole folded path
-    expect(archivePathKey("/music/Artist/Track.mp3")).toBe(
-      "/music/artist/track.mp3",
-    );
+    expect(archivePathKey("/music/Artist/Track.mp3")).toBe("/music/artist/track.mp3");
     expect(archivePathKey(null)).toBeNull();
   });
 
@@ -57,10 +46,7 @@ describe("radar (#148)", () => {
 
   it("meta fallback: a regrouped same-track still counts as present", () => {
     const archive = [
-      arch("a1", "/music/Contents/Batch/Track One.mp3", {
-        title: "Track One",
-        artist: "DJ X",
-      }),
+      arch("a1", "/music/Contents/Batch/Track One.mp3", { title: "Track One", artist: "DJ X" }),
     ];
     const drive = [
       // shelf regrouped it into artist folders → path key differs

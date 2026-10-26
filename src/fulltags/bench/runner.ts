@@ -22,19 +22,10 @@ import {
   loadBenchRun,
   migrateBenchTables,
 } from "./store";
-import {
-  accuracy,
-  bootstrapAccuracyCI,
-  mcnemar,
-  riskCoverageCurve,
-} from "./stats";
+import { accuracy, bootstrapAccuracyCI, mcnemar, riskCoverageCurve } from "./stats";
 
 /** Stage runner function signature — each stages/<stage>.ts exports one. */
-export type StageRunner = (
-  db: Database,
-  answerKey: string,
-  split: BenchSplit,
-) => StageResult;
+export type StageRunner = (db: Database, answerKey: string, split: BenchSplit) => StageResult;
 
 /** Registry of stage runners. Populated by registerStage(). */
 const STAGE_RUNNERS = new Map<BenchStage, StageRunner>();
@@ -46,9 +37,7 @@ export function registerStage(stage: BenchStage, runner: StageRunner): void {
 
 /** Get the current git SHA (short form). */
 function gitSha(): string {
-  const result = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
-    encoding: "utf8",
-  });
+  const result = spawnSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" });
   return (result.stdout ?? "unknown").trim() || "unknown";
 }
 
@@ -80,9 +69,7 @@ export function benchRun(opts: RunOptions): BenchRun {
   const rows = result.rows.map((r) => ({ ...r, runId }));
   const correct = rows.map((r) => r.correct);
   const ci = bootstrapAccuracyCI(correct);
-  const ciRecord: Record<string, [number, number]> = {
-    accuracy: [ci.lo, ci.hi],
-  };
+  const ciRecord: Record<string, [number, number]> = { accuracy: [ci.lo, ci.hi] };
   const metrics: Record<string, number | string | null> = {
     accuracy: accuracy(rows),
     ...result.metrics,
@@ -122,11 +109,7 @@ export interface CompareResult {
 /**
  * Compare two runs: McNemar test + accuracy delta + risk-coverage delta.
  */
-export function benchCompare(
-  db: Database,
-  runIdA: string,
-  runIdB: string,
-): CompareResult {
+export function benchCompare(db: Database, runIdA: string, runIdB: string): CompareResult {
   migrateBenchTables(db);
   const runA = loadBenchRun(db, runIdA);
   const runB = loadBenchRun(db, runIdB);
@@ -141,28 +124,15 @@ export function benchCompare(
   const curveB = riskCoverageCurve(rowsB);
   const coverageDelta = curveA.map((pa) => {
     const pb = curveB.find((p) => p.threshold === pa.threshold);
-    return {
-      threshold: pa.threshold,
-      deltaAccuracy: pb ? pb.accuracy - pa.accuracy : 0,
-    };
+    return { threshold: pa.threshold, deltaAccuracy: pb ? pb.accuracy - pa.accuracy : 0 };
   });
-  return {
-    runA,
-    runB,
-    mcnemar: mn,
-    accuracyDelta: accB - accA,
-    coverageDelta,
-  };
+  return { runA, runB, mcnemar: mn, accuracyDelta: accB - accA, coverageDelta };
 }
 
 /**
  * Run all registered stages and return the runs.
  */
-export function benchRunAll(
-  db: Database,
-  answerKey?: string,
-  split?: BenchSplit,
-): BenchRun[] {
+export function benchRunAll(db: Database, answerKey?: string, split?: BenchSplit): BenchRun[] {
   migrateBenchTables(db);
   const runs: BenchRun[] = [];
   for (const stage of STAGE_RUNNERS.keys()) {

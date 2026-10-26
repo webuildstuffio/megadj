@@ -31,12 +31,8 @@ describe("DupFpCache fpOfRow bridge", () => {
     const rows = cache.allRows();
     expect(rows.length).toBe(3);
     const byPath = new Map(rows.map((r) => [r.path, r]));
-    expect(byPath.get("/Volumes/SHELF1/Music/plain.mp3")?.fingerprint).toBe(
-      "fp-def",
-    );
-    expect(
-      byPath.get("/Volumes/SHELF1/Music/never-computed.mp3")?.fingerprint,
-    ).toBeNull();
+    expect(byPath.get("/Volumes/SHELF1/Music/plain.mp3")?.fingerprint).toBe("fp-def");
+    expect(byPath.get("/Volumes/SHELF1/Music/never-computed.mp3")?.fingerprint).toBeNull();
   });
 
   test("nameKey form vs raw storage diverges — the miss the index fixes", () => {

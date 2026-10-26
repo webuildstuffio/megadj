@@ -59,10 +59,7 @@ describe("scoreBpHit", () => {
     // The "Nestle" trap: many unrelated rows share a title. Without the
     // artist match, duration+title alone must not cross BP_MIN_SCORE.
     const q = { artist: "Bicep", title: "Glue", durationS: 180 };
-    const s = scoreBpHit(
-      hit({ artists: ["Somebody Else"], lengthMs: 180_000 }),
-      q,
-    );
+    const s = scoreBpHit(hit({ artists: ["Somebody Else"], lengthMs: 180_000 }), q);
     expect(s).toBeLessThan(BP_MIN_SCORE);
   });
 
@@ -77,9 +74,7 @@ describe("scoreBpHit", () => {
 
   test("remixers ride the row untouched (remix credit source)", () => {
     const h = hit({ name: "Glue", remixers: ["Flozone"] });
-    expect(scoreBpHit(h, { artist: "Bicep", title: "Glue" })).toBeGreaterThan(
-      0,
-    );
+    expect(scoreBpHit(h, { artist: "Bicep", title: "Glue" })).toBeGreaterThan(0);
   });
 });
 
@@ -102,16 +97,9 @@ describe("beatportLookup (seamed, offline)", () => {
   });
 
   test("returns the best hit above the floor", async () => {
-    const restore = setBeatportSearchImpl(async () => [
-      hit({ name: "Glue (Edit)" }),
-      hit(),
-    ]);
+    const restore = setBeatportSearchImpl(async () => [hit({ name: "Glue (Edit)" }), hit()]);
     try {
-      const got = await beatportLookup({
-        artist: "Bicep",
-        title: "Glue",
-        durationS: 269,
-      });
+      const got = await beatportLookup({ artist: "Bicep", title: "Glue", durationS: 269 });
       expect(got?.id).toBe(9440664);
       expect(got?.label).toBe("Island");
     } finally {
@@ -203,46 +191,36 @@ describe("beatportLookup (seamed, offline)", () => {
     expect(scoreBpHit(row, { artist: null, title: "Glue" })).toBe(4);
     expect(scoreBpHit(row, { artist: "DJ", title: "Glue" })).toBe(4);
     // With a real artist, the gate fires: wrong artist = 0 outright.
-    expect(scoreBpHit(row, { artist: "Unrelated Artist", title: "Glue" })).toBe(
-      0,
-    );
+    expect(scoreBpHit(row, { artist: "Unrelated Artist", title: "Glue" })).toBe(0);
   });
 });
 
 describe("bpGenre", () => {
   test("maps store genre through the canon vocabulary (subgenre first)", () => {
-    expect(bpGenre(hit({ genre: "House", subGenre: "Tech House" }))).toBe(
-      "Tech House",
-    );
+    expect(bpGenre(hit({ genre: "House", subGenre: "Tech House" }))).toBe("Tech House");
     expect(bpGenre(hit({ genre: "House", subGenre: null }))).toBe("House");
   });
 
   test("compound store forms split to a canon hit (live shapes)", () => {
     // Live-verified shapes from the v4 catalog (Sep 11 2026).
-    expect(
-      bpGenre(hit({ genre: "Techno (Peak Time / Driving)", subGenre: null })),
-    ).toBe("Techno");
+    expect(bpGenre(hit({ genre: "Techno (Peak Time / Driving)", subGenre: null }))).toBe("Techno");
     // "Melodic House & Techno" maps through the canon to "Melodic Techno"
     // (compound form added to SC_GENRE_CANON).
-    expect(
-      bpGenre(hit({ genre: "Melodic House & Techno", subGenre: null })),
-    ).toBe("Melodic Techno");
-    expect(bpGenre(hit({ genre: "Drum & Bass", subGenre: null }))).toBe(
-      "Drum & Bass",
+    expect(bpGenre(hit({ genre: "Melodic House & Techno", subGenre: null }))).toBe(
+      "Melodic Techno",
     );
+    expect(bpGenre(hit({ genre: "Drum & Bass", subGenre: null }))).toBe("Drum & Bass");
     // "Bass / Club": neither segment is a canon key ("bass" alone isn't in
     // the map, "Club" titlecases) → refused, keeping junk out.
     expect(bpGenre(hit({ genre: "Bass / Club", subGenre: null }))).toBeNull();
-    expect(
-      bpGenre(hit({ genre: "Mainstage", subGenre: "Progressive House" })),
-    ).toBe("Progressive House");
+    expect(bpGenre(hit({ genre: "Mainstage", subGenre: "Progressive House" }))).toBe(
+      "Progressive House",
+    );
   });
 
   test("umbrella genres (Electronica) refused; Latin accepted as canon", () => {
     expect(bpGenre(hit({ genre: "Electronica", subGenre: null }))).toBeNull();
-    expect(
-      bpGenre(hit({ genre: "Electronica", subGenre: "Weird Beards" })),
-    ).toBeNull();
+    expect(bpGenre(hit({ genre: "Electronica", subGenre: "Weird Beards" }))).toBeNull();
     // "Latin" is now a valid canon genre — test the subgenre preference:
     // if the subGenre is unknown, the genre wins.
     expect(bpGenre(hit({ genre: "Latin", subGenre: "Salsa" }))).toBe("Latin");

@@ -27,12 +27,7 @@ describe("planCueWrites", () => {
 
   test("skips user-placed hot cue", () => {
     const existing: ExistingCue[] = [
-      {
-        slot: STRUCTURAL_CUE_SLOTS.DROP_1,
-        kind: 1,
-        positionMs: 50000,
-        label: "My cue",
-      },
+      { slot: STRUCTURAL_CUE_SLOTS.DROP_1, kind: 1, positionMs: 50000, label: "My cue" },
     ];
     const plan = planCueWrites([dropCue], existing);
     expect(plan.writes).toHaveLength(0);
@@ -55,12 +50,7 @@ describe("planCueWrites", () => {
 
   test("ignores memory cues (kind=0)", () => {
     const existing: ExistingCue[] = [
-      {
-        slot: STRUCTURAL_CUE_SLOTS.DROP_1,
-        kind: 0,
-        positionMs: 50000,
-        label: "Memory",
-      },
+      { slot: STRUCTURAL_CUE_SLOTS.DROP_1, kind: 0, positionMs: 50000, label: "Memory" },
     ];
     const plan = planCueWrites([dropCue], existing);
     // Memory cue doesn't block hot cue slot
@@ -76,12 +66,7 @@ describe("planCueWrites", () => {
       source: "phrase",
     };
     const existing: ExistingCue[] = [
-      {
-        slot: STRUCTURAL_CUE_SLOTS.DROP_1,
-        kind: 1,
-        positionMs: 50000,
-        label: "User Drop",
-      },
+      { slot: STRUCTURAL_CUE_SLOTS.DROP_1, kind: 1, positionMs: 50000, label: "User Drop" },
     ];
     const plan = planCueWrites([introCue, dropCue], existing);
     expect(plan.writes).toHaveLength(1);

@@ -48,10 +48,7 @@ describe("classifyDisputes (demote-and-flag §5b.3 step 2)", () => {
     const result = classifyDisputes(
       summary([row("x", "pop", "house", 1), row("y", "trance", "techno", 1)]),
     );
-    const families = result.rows.map((r: DisputedRow) => [
-      r.family,
-      r.consensus,
-    ]);
+    const families = result.rows.map((r: DisputedRow) => [r.family, r.consensus]);
     expect(families).toContainEqual(["pop", "house"]);
     expect(families).toContainEqual(["trance", "techno"]);
   });

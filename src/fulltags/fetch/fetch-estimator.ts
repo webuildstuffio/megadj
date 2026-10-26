@@ -10,10 +10,7 @@
  * (falls back to the legacy vote path).
  */
 import type { Database } from "bun:sqlite";
-import {
-  loadEvidenceBatch,
-  migrateEvidenceTable,
-} from "../evidence/evidence-store";
+import { loadEvidenceBatch, migrateEvidenceTable } from "../evidence/evidence-store";
 import { dawidSkene, type Annotation } from "../genre/dawid-skene";
 import { GENRE_FAMILIES } from "../genre/taxonomy-v3";
 import { round3 } from "../../shared/leaf/fmt";
@@ -54,9 +51,9 @@ export function runEstimatorBatch(db: Database): void {
   }
 
   // Load all track IDs that have evidence
-  const trackRows = db
-    .query("SELECT DISTINCT track_id FROM genre_evidence")
-    .all() as { track_id: string }[];
+  const trackRows = db.query("SELECT DISTINCT track_id FROM genre_evidence").all() as {
+    track_id: string;
+  }[];
   const trackIds = trackRows.map((r) => r.track_id);
   if (trackIds.length === 0) return;
 
@@ -65,11 +62,7 @@ export function runEstimatorBatch(db: Database): void {
   const annotations: Annotation[] = [];
   for (const [trackId, rows] of evidenceMap) {
     for (const e of rows) {
-      annotations.push({
-        trackId,
-        annotatorId: e.annotatorId,
-        label: e.genreFamily,
-      });
+      annotations.push({ trackId, annotatorId: e.annotatorId, label: e.genreFamily });
     }
   }
   if (annotations.length === 0) return;
@@ -78,9 +71,7 @@ export function runEstimatorBatch(db: Database): void {
   const result = dawidSkene(annotations, [...GENRE_FAMILIES]);
 
   // Persist genre_vector for each track
-  const stmt = db.prepare(
-    "UPDATE tracks SET genre_vector = ? WHERE video_id = ?",
-  );
+  const stmt = db.prepare("UPDATE tracks SET genre_vector = ? WHERE video_id = ?");
   let written = 0;
   for (const posterior of result.posteriors) {
     const vec = serializeVector(posterior.distribution);

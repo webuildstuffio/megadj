@@ -3,11 +3,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import type { GenreEvidence } from "./evidence-store";
-import {
-  collapseEvidence,
-  collapseEvidenceBatch,
-  buildRemixerPrior,
-} from "./sibling-collapse";
+import { collapseEvidence, collapseEvidenceBatch, buildRemixerPrior } from "./sibling-collapse";
 
 const now = "2026-09-29 00:00:00";
 
@@ -47,36 +43,11 @@ describe("collapseEvidence", () => {
 
   test("sibling evidence collapses by family — majority wins", () => {
     const rows = [
-      ev(
-        "beatport:same_song_other_version",
-        "same_song_other_version",
-        "house",
-        0.8,
-      ),
-      ev(
-        "traxsource:same_song_other_version",
-        "same_song_other_version",
-        "house",
-        0.9,
-      ),
-      ev(
-        "juno:same_song_other_version",
-        "same_song_other_version",
-        "house",
-        0.7,
-      ),
-      ev(
-        "itunes:same_song_other_version",
-        "same_song_other_version",
-        "techno",
-        0.6,
-      ),
-      ev(
-        "deezer:same_song_other_version",
-        "same_song_other_version",
-        "techno",
-        0.5,
-      ),
+      ev("beatport:same_song_other_version", "same_song_other_version", "house", 0.8),
+      ev("traxsource:same_song_other_version", "same_song_other_version", "house", 0.9),
+      ev("juno:same_song_other_version", "same_song_other_version", "house", 0.7),
+      ev("itunes:same_song_other_version", "same_song_other_version", "techno", 0.6),
+      ev("deezer:same_song_other_version", "same_song_other_version", "techno", 0.5),
     ];
     const result = collapseEvidence("t1", rows);
     expect(result.direct).toHaveLength(0);
@@ -109,18 +80,8 @@ describe("collapseEvidence", () => {
   test("mixed direct and sibling evidence both preserved", () => {
     const rows = [
       ev("beatport:exact_recording", "exact_recording", "house", 0.95),
-      ev(
-        "itunes:same_song_other_version",
-        "same_song_other_version",
-        "house",
-        0.7,
-      ),
-      ev(
-        "deezer:same_song_other_version",
-        "same_song_other_version",
-        "house",
-        0.6,
-      ),
+      ev("itunes:same_song_other_version", "same_song_other_version", "house", 0.7),
+      ev("deezer:same_song_other_version", "same_song_other_version", "house", 0.6),
       ev("discogs:artist", "artist", "techno", 0.5),
     ];
     const result = collapseEvidence("t1", rows);
@@ -176,56 +137,29 @@ describe("buildRemixerPrior", () => {
 
   test("returns empty for non-remix version types", () => {
     expect(
-      buildRemixerPrior(
-        "t1",
-        "original",
-        ["Artist"],
-        [{ family: "house", confidence: 1 }],
-      ),
+      buildRemixerPrior("t1", "original", ["Artist"], [{ family: "house", confidence: 1 }]),
     ).toHaveLength(0);
     expect(
-      buildRemixerPrior(
-        "t1",
-        "extended",
-        ["Artist"],
-        [{ family: "house", confidence: 1 }],
-      ),
+      buildRemixerPrior("t1", "extended", ["Artist"], [{ family: "house", confidence: 1 }]),
     ).toHaveLength(0);
     expect(
-      buildRemixerPrior(
-        "t1",
-        "live",
-        ["Artist"],
-        [{ family: "house", confidence: 1 }],
-      ),
+      buildRemixerPrior("t1", "live", ["Artist"], [{ family: "house", confidence: 1 }]),
     ).toHaveLength(0);
   });
 
   test("returns empty when no version artists", () => {
-    expect(
-      buildRemixerPrior(
-        "t1",
-        "remix",
-        [],
-        [{ family: "house", confidence: 1 }],
-      ),
-    ).toHaveLength(0);
-  });
-
-  test("returns empty when no remixer genres available", () => {
-    expect(buildRemixerPrior("t1", "remix", ["Fred Again"], [])).toHaveLength(
+    expect(buildRemixerPrior("t1", "remix", [], [{ family: "house", confidence: 1 }])).toHaveLength(
       0,
     );
   });
 
+  test("returns empty when no remixer genres available", () => {
+    expect(buildRemixerPrior("t1", "remix", ["Fred Again"], [])).toHaveLength(0);
+  });
+
   test("handles all remixer version types", () => {
     for (const vt of ["remix", "edit", "bootleg", "flip", "vip", "rework"]) {
-      const rows = buildRemixerPrior(
-        "t1",
-        vt,
-        ["DJ"],
-        [{ family: "techno", confidence: 0.7 }],
-      );
+      const rows = buildRemixerPrior("t1", vt, ["DJ"], [{ family: "techno", confidence: 0.7 }]);
       expect(rows).toHaveLength(1);
     }
   });

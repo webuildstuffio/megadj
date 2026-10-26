@@ -30,9 +30,7 @@ describe("fitConstantTempo (GA-01)", () => {
     const g = perfectGrid(bpm, 400).map((t) => Math.round(t * 10000) / 10000);
     const fit = fitConstantTempo(g)!;
     const medianBpm = 60 / (g[10]! - g[9]!);
-    expect(Math.abs(fit.bpmFitted - bpm)).toBeLessThan(
-      Math.abs(medianBpm - bpm),
-    );
+    expect(Math.abs(fit.bpmFitted - bpm)).toBeLessThan(Math.abs(medianBpm - bpm));
     expect(Math.abs(fit.bpmFitted - bpm)).toBeLessThan(0.02);
   });
 

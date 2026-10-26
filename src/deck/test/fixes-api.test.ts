@@ -14,10 +14,7 @@ function makeApi(enqueued: string[] = []) {
       return { id: `job-${enqueued.length}` };
     },
     json: (data, status = 200) =>
-      Response.json(data, {
-        status,
-        headers: { "Content-Type": "application/json" },
-      }),
+      Response.json(data, { status, headers: { "Content-Type": "application/json" } }),
   });
 }
 

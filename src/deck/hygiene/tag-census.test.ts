@@ -7,11 +7,7 @@ import { tempDir } from "../../test-support/testutil";
 import { Database } from "bun:sqlite";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-import {
-  differ as _unusedDiffer,
-  hasRekordboxMirror,
-  tagCensus,
-} from "./tag-census";
+import { differ as _unusedDiffer, hasRekordboxMirror, tagCensus } from "./tag-census";
 import { trackTagCompare } from "./tag-compare";
 import { ArchiveReader } from "../db/reader";
 
@@ -152,11 +148,7 @@ describe("tagCensus", () => {
     insRc.run("1", "a", rbMeta({ GenreName: "House", KeyName: "8A" }));
 
     insT.run("b", "Track B", "Artist", "EDM", "disputed");
-    insRc.run(
-      "2",
-      "b",
-      rbMeta({ GenreName: "Tech House", Title: "Track B (Remix)" }),
-    );
+    insRc.run("2", "b", rbMeta({ GenreName: "Tech House", Title: "Track B (Remix)" }));
 
     const c = tagCensus(reader);
     expect(c.available).toBe(true);

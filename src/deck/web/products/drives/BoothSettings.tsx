@@ -29,22 +29,14 @@ function FleetRow(props: {
   return (
     <div class="booth-row">
       <label class="booth-row-main">
-        <input
-          type="checkbox"
-          checked={props.checked}
-          onChange={() => props.onToggle(props.id)}
-        />
+        <input type="checkbox" checked={props.checked} onChange={() => props.onToggle(props.id)} />
         <span class="booth-row-name">{props.name}</span>
         <span class="booth-row-specs">
           {props.flac ? "FLAC · " : "no FLAC · "}
           {props.maxBitDepth}-bit · {props.maxSampleRate / 1000} kHz ·{" "}
           {props.unicodeText ? "Unicode" : "language-table"} display
         </span>
-        <button
-          type="button"
-          class="booth-cite-toggle"
-          onClick={() => setOpen(!open)}
-        >
+        <button type="button" class="booth-cite-toggle" onClick={() => setOpen(!open)}>
           {open ? "hide proof" : `proof (${props.citations.length})`}
         </button>
       </label>
@@ -68,16 +60,11 @@ function FleetRow(props: {
 }
 
 export function BoothSettings() {
-  const page = useFetched<BoothFleetPayload>(
-    () => api<BoothFleetPayload>("/api/booth/fleet"),
-    [],
-  );
+  const page = useFetched<BoothFleetPayload>(() => api<BoothFleetPayload>("/api/booth/fleet"), []);
   const [sel, setSel] = useState<BoothFleetPayload | null>(null);
   const d = sel ?? (page.status === "ok" ? page.data : null);
   if (page.status !== "ok" || !d)
-    return (
-      <FetchedGate page={page as Fetched<unknown>} loading="Loading fleet…" />
-    );
+    return <FetchedGate page={page as Fetched<unknown>} loading="Loading fleet…" />;
 
   const trio = d.profiles.filter((p) => p.defaultOn).map((p) => p.id);
   const missingDefaults = trio.filter((id) => !d.selected.includes(id));
@@ -119,11 +106,10 @@ export function BoothSettings() {
         }
       />
       <p class="booth-lede">
-        Every <code>megadj audit</code>, <code>megadj booth-fix</code> and the
-        ingest gate enforces the <em>intersection</em> of these players: a track
-        passes only when all selected units play it <em>and</em> can show its
-        text. The selection persists to <code>config.toml [booth]</code> and
-        applies to the CLI on its next run.
+        Every <code>megadj audit</code>, <code>megadj booth-fix</code> and the ingest gate enforces
+        the <em>intersection</em> of these players: a track passes only when all selected units play
+        it <em>and</em> can show its text. The selection persists to{" "}
+        <code>config.toml [booth]</code> and applies to the CLI on its next run.
       </p>
       <div class="booth-list">
         {d.profiles.map((p) => (
@@ -142,9 +128,9 @@ export function BoothSettings() {
         ))}
       </div>
       <p class="booth-note">
-        The plain CDJ-2000 is off by default (no FLAC, 48 kHz ceiling,
-        language-table display) — enable it when the booth includes
-        2000-generation hardware, then re-run <code>megadj audit --json</code>.
+        The plain CDJ-2000 is off by default (no FLAC, 48 kHz ceiling, language-table display) —
+        enable it when the booth includes 2000-generation hardware, then re-run{" "}
+        <code>megadj audit --json</code>.
       </p>
     </div>
   );

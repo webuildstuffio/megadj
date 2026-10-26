@@ -1,11 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { configuredMasterDrive, crateDeckRoot, volumePath } from "./volume";
 import { tempDir } from "../test-support/testutil";
@@ -16,10 +10,7 @@ afterAll(() => TEST_ROOT.rippleAll());
 /** config.toml sits at <CRATEDECK_ROOT>/config.toml (loadConfig joins
  *  root + "config.toml") — each case gets a fresh root dir. */
 function withConfig(toml: string): string {
-  const root = join(
-    TEST_ROOT.dir(),
-    `root-${Math.random().toString(36).slice(2)}`,
-  );
+  const root = join(TEST_ROOT.dir(), `root-${Math.random().toString(36).slice(2)}`);
   mkdirSync(root, { recursive: true });
   writeFileSync(join(root, "config.toml"), toml);
   return root;
@@ -43,9 +34,7 @@ describe("volume seams", () => {
   });
 
   test("configuredMasterDrive reads config.toml library.master_drive (SSOT)", () => {
-    const root = withConfig(
-      `[library]\nmaster_drive = "MYSTICK"\nmirror_drive = "MYMIRROR"\n`,
-    );
+    const root = withConfig(`[library]\nmaster_drive = "MYSTICK"\nmirror_drive = "MYMIRROR"\n`);
     expect(withRoot(root, () => configuredMasterDrive())).toBe("MYSTICK");
   });
 
@@ -57,9 +46,7 @@ describe("volume seams", () => {
 
 describe("crateDeckRoot (#327 super-sure pass: the afc6a535 depth-rule class)", () => {
   test("CRATEDECK_ROOT override wins verbatim", () => {
-    expect(withRoot("/explicit/root", () => crateDeckRoot())).toBe(
-      "/explicit/root",
-    );
+    expect(withRoot("/explicit/root", () => crateDeckRoot())).toBe("/explicit/root");
   });
 
   test("present-but-empty CRATEDECK_ROOT reads as absent (#281 class)", () => {
@@ -91,10 +78,7 @@ describe("crateDeckRoot (#327 super-sure pass: the afc6a535 depth-rule class)", 
       const parent = join(dir, "..");
       if (parent === dir) break;
       dir = parent;
-      if (
-        existsSync(join(dir, "package.json")) &&
-        existsSync(join(dir, ".git"))
-      ) {
+      if (existsSync(join(dir, "package.json")) && existsSync(join(dir, ".git"))) {
         found = join(dir, "src", "deck");
         break;
       }
@@ -116,22 +100,12 @@ describe("crateDeckRoot (#327 super-sure pass: the afc6a535 depth-rule class)", 
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const p = join(dir, entry.name);
         if (entry.isDirectory()) {
-          if (
-            entry.name === "node_modules" ||
-            entry.name === "data" ||
-            entry.name === "test"
-          )
+          if (entry.name === "node_modules" || entry.name === "data" || entry.name === "test")
             continue;
           scan(p);
-        } else if (
-          entry.name.endsWith(".ts") &&
-          !entry.name.endsWith(".test.ts")
-        ) {
+        } else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
           const src = readFileSync(p, "utf8");
-          if (
-            src.includes('nonEmptyEnv("CRATEDECK_ROOT")') &&
-            src !== selfSrc
-          ) {
+          if (src.includes('nonEmptyEnv("CRATEDECK_ROOT")') && src !== selfSrc) {
             offenders.push(p);
           }
         }

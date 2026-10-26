@@ -25,11 +25,8 @@ function isAuditError(entry: unknown): entry is AuditError {
   );
 }
 
-export function parseIngestSummary(
-  summary: Record<string, unknown> | null,
-): IntakeCounters {
-  if (summary === null)
-    throw new Error("megadj ingest returned a missing JSON summary");
+export function parseIngestSummary(summary: Record<string, unknown> | null): IntakeCounters {
+  if (summary === null) throw new Error("megadj ingest returned a missing JSON summary");
   // Iterate THE key list (src/deck/shared/types.ts SSOT, issue #159) —
   // a counter added to IntakeResult is parsed automatically; a counter
   // the producer stopped emitting fails HERE with its key named.
@@ -38,18 +35,15 @@ export function parseIngestSummary(
       try {
         return [key, finiteJobNumber(summary[key])] as const;
       } catch (error) {
-        throw new Error(
-          `megadj ingest summary ${key} is invalid: ${errorText(error)}`,
-          { cause: error },
-        );
+        throw new Error(`megadj ingest summary ${key} is invalid: ${errorText(error)}`, {
+          cause: error,
+        });
       }
     }),
   ) as IntakeCounters;
 }
 
-export function parseAuditSummary(
-  output: string,
-): Pick<IntakeResult, "audit" | "auditErrors"> {
+export function parseAuditSummary(output: string): Pick<IntakeResult, "audit" | "auditErrors"> {
   let value: unknown;
   try {
     value = JSON.parse(output);
@@ -69,19 +63,13 @@ export function parseAuditSummary(
   try {
     complete = finiteJobNumber(row.complete);
   } catch {
-    throw new Error(
-      "audit summary complete must be a safe non-negative integer",
-    );
+    throw new Error("audit summary complete must be a safe non-negative integer");
   }
-  if (complete > total)
-    throw new Error("audit summary complete cannot exceed total");
+  if (complete > total) throw new Error("audit summary complete cannot exceed total");
   const incomplete = row.incomplete ?? [];
   if (!Array.isArray(incomplete) || !incomplete.every(isAuditError))
     throw new Error("audit summary incomplete rows are invalid");
-  return {
-    audit: { total, complete },
-    auditErrors: incomplete,
-  };
+  return { audit: { total, complete }, auditErrors: incomplete };
 }
 
 export function lastFinalLine(output: string): string | undefined {

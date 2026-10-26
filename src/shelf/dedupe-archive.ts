@@ -23,16 +23,8 @@ import { nameSimilarityTokens } from "../fulltags/analysis/fingerprint-dedupe";
 import { walkAudioDir } from "../shared/audio-walk";
 import { commandLog } from "../shared/progress";
 import { DupFpCache, type DupGroup as DupeGroup } from "./dupescan-shared";
-import {
-  applyGroupsSafety,
-  cutDupGroups,
-  fingerprintFiles,
-  sameSizeSafe,
-} from "./dupescan-engine";
-import {
-  applyConfirmed,
-  applyConfirmationRefusal,
-} from "../rekordbox/rb-command-kit.js";
+import { applyGroupsSafety, cutDupGroups, fingerprintFiles, sameSizeSafe } from "./dupescan-engine";
+import { applyConfirmed, applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 
 // DupeGroup is the shared dupescan group shape (dupescan-shared.ts, the
 // leaf both this command and the engine import) — re-exported so
@@ -68,9 +60,7 @@ export interface DedupeArchiveResult {
  *  fpcalc -json full-length, not the shelf's -length 120). */
 const ARCHIVE_FINGERPRINTS_TABLE = "file_archive_fingerprints";
 
-export async function dedupeArchive(
-  opts: DedupeArchiveOptions,
-): Promise<DedupeArchiveResult> {
+export async function dedupeArchive(opts: DedupeArchiveOptions): Promise<DedupeArchiveResult> {
   const log = commandLog(opts);
   const db = openLedger(opts.dbPath, { create: true });
   const cache = new DupFpCache(db, ARCHIVE_FINGERPRINTS_TABLE);
@@ -87,8 +77,7 @@ export async function dedupeArchive(
   };
 
   const files = walkAudioDir(opts.musicDir).filter(
-    (p) =>
-      !p.includes("/ingest-duplicates/") && !p.includes("/.ingest-duplicates/"),
+    (p) => !p.includes("/ingest-duplicates/") && !p.includes("/.ingest-duplicates/"),
   );
   res.scanned = files.length;
   log(`dedupe-archive: ${files.length} files in ${basename(opts.musicDir)}/`);
@@ -108,15 +97,10 @@ export async function dedupeArchive(
   // size is a good proxy inside one recording group (AIFF > MP3 of the
   // same audio), then shorter name.
   const cut = cutDupGroups(files, cache, {
-    keeperSort: (a, b) =>
-      b.bytes - a.bytes || basename(a.path).length - basename(b.path).length,
+    keeperSort: (a, b) => b.bytes - a.bytes || basename(a.path).length - basename(b.path).length,
     reason: (group, keeper) => {
       const minRatio = Math.min(
-        ...group
-          .slice(1)
-          .map((f) =>
-            nameSimilarityTokens(basename(f.path), basename(keeper.path)),
-          ),
+        ...group.slice(1).map((f) => nameSimilarityTokens(basename(f.path), basename(keeper.path))),
       );
       return minRatio >= 0.5
         ? `largest of ${group.length} identical-recording copies`
@@ -126,11 +110,8 @@ export async function dedupeArchive(
   res.groups = cut.groups;
   res.redundantBytes = cut.redundantBytes;
   for (const g of res.groups) {
-    log(
-      `  [group] ${g.files.length} copies · keep ${basename(g.keep)} · ${g.reason}`,
-    );
-    for (const f of g.files.slice(1))
-      log(`      twin: ${f.path.slice(opts.musicDir.length + 1)}`);
+    log(`  [group] ${g.files.length} copies · keep ${basename(g.keep)} · ${g.reason}`);
+    for (const f of g.files.slice(1)) log(`      twin: ${f.path.slice(opts.musicDir.length + 1)}`);
   }
 
   // ---- apply stage (only with --apply --yes) ------------------------------
@@ -150,15 +131,11 @@ export async function dedupeArchive(
       qDir,
       (loser, ctx) =>
         loser.bytes === ctx.keeper.bytes
-          ? sameSizeSafe(loser, ctx, {
-              onError: (m) => res.errors.push(m),
-            })
+          ? sameSizeSafe(loser, ctx, { onError: (m) => res.errors.push(m) })
           : ctx.nameRatio >= 0.5,
       (keeper, losers) =>
         Math.min(
-          ...losers.map((f) =>
-            nameSimilarityTokens(basename(f.path), basename(keeper.path)),
-          ),
+          ...losers.map((f) => nameSimilarityTokens(basename(f.path), basename(keeper.path))),
         ),
       {
         onError: (m) => res.errors.push(m),

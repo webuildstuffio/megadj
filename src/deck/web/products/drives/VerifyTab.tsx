@@ -3,11 +3,7 @@
 // "why this matters", and (when failing) the fix. Includes the full
 // explainer for people (and agents) who don't know what verify is.
 import { useEffect, useState } from "preact/hooks";
-import type {
-  VerifyCheck,
-  VerifyReport,
-  VerifyHelpDoc,
-} from "../../../shared/types";
+import type { VerifyCheck, VerifyReport, VerifyHelpDoc } from "../../../shared/types";
 import { timeAgo } from "../../../../shared/leaf/fmt";
 import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
@@ -19,10 +15,7 @@ const STATUS_ICON: Record<VerifyCheck["status"], string> = {
   unknown: "dot",
 };
 
-export function VerifyTab(props: {
-  driveId: string;
-  report: VerifyReport | null;
-}) {
+export function VerifyTab(props: { driveId: string; report: VerifyReport | null }) {
   const { driveId, report } = props;
   const [help, setHelp] = useState<VerifyHelpDoc | null>(null);
   const [running, setRunning] = useState(false);
@@ -40,9 +33,7 @@ export function VerifyTab(props: {
   const runVerify = async () => {
     setRunning(true);
     try {
-      await apiPost(`/api/drives/${encodeURIComponent(driveId)}/jobs`, {
-        kind: "verify",
-      });
+      await apiPost(`/api/drives/${encodeURIComponent(driveId)}/jobs`, { kind: "verify" });
       toast("Verify started — progress in the job dock below");
     } finally {
       // api() already toasted the failure; the catch only stops propagation.
@@ -63,8 +54,8 @@ export function VerifyTab(props: {
           // help fetch failed — say so instead of silently standing in a
           // second copy of the server's prose
           <span class="muted">
-            explainer unavailable (help doc failed to load) — the run button and
-            report below are unaffected
+            explainer unavailable (help doc failed to load) — the run button and report below are
+            unaffected
           </span>
         )}
       </div>
@@ -75,16 +66,14 @@ export function VerifyTab(props: {
             <span>
               <Icon name="clock" size={12} /> last ran {timeAgo(report.ran_at)}
             </span>
-            {report.duration_s !== null && (
-              <span>· took {report.duration_s}s</span>
-            )}
+            {report.duration_s !== null && <span>· took {report.duration_s}s</span>}
             <span class="sep">·</span>
             {report.final === null ? (
               // crash-shaped report: "N of M checks" understates it — the
               // run never finished, so EVERY verdict on it is unreliable.
               <span class="bad">
-                <Icon name="warn" size={12} /> verify never completed — run it
-                again for a real verdict
+                <Icon name="warn" size={12} /> verify never completed — run it again for a real
+                verdict
               </span>
             ) : (
               <span class={report.ok ? "good" : "bad"}>
@@ -102,8 +91,7 @@ export function VerifyTab(props: {
           class="btn sm"
           onClick={runVerify}
           disabled={running}
-          title="Read-only integrity check of both databases, files, waveforms and (if both drives plugged) mirror parity. Requires rekordbox to be closed."
-        >
+          title="Read-only integrity check of both databases, files, waveforms and (if both drives plugged) mirror parity. Requires rekordbox to be closed.">
           <Icon name="check" size={13} />
           {running ? "starting…" : "Run verify"}
         </button>
@@ -112,8 +100,8 @@ export function VerifyTab(props: {
       {!report && (
         <div class="vnever">
           <p>
-            <b>What you get:</b> a check-by-check breakdown of drive health from
-            the hardware's point of view — not just "it's fine", but
+            <b>What you get:</b> a check-by-check breakdown of drive health from the hardware's
+            point of view — not just "it's fine", but
             <i> what was checked and how many tracks each check covered</i>.
           </p>
           <ul>
@@ -197,8 +185,7 @@ function CheckCard(props: { c: VerifyCheck }) {
   // Legacy crash rows carry the tell: a green "all ? tracks" line over a
   // run that never completed. The honest script-failed check sits right
   // above it; the "?" pass is noise and erases itself here.
-  const legacyCrashPass =
-    ok && c.id === "fields" && c.detail.includes("all ? tracks");
+  const legacyCrashPass = ok && c.id === "fields" && c.detail.includes("all ? tracks");
   if (legacyCrashPass) return null;
   return (
     <div class={`vcheck ${ok ? "ok" : c.status}`}>
@@ -238,9 +225,7 @@ function OffenderList(props: { c: VerifyCheck }) {
         </div>
       ))}
       {total > 8 && (
-        <div class="voff more">
-          +{total - 8} more (full list in the job log — deckctl jobs)
-        </div>
+        <div class="voff more">+{total - 8} more (full list in the job log — deckctl jobs)</div>
       )}
     </div>
   );

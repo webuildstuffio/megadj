@@ -24,21 +24,11 @@ describe("isLowq (the same floor rule as CrateDeck's lowqQueue)", () => {
   });
   // #258: soundcloud rows floor at the PLATFORM CEILING, not the YT bar.
   test("soundcloud rows use the SC ceiling (160 aac / 128 mp3)", () => {
-    expect(
-      isLowq({ bitrate_kbps: 160, codec: "aac", source: "soundcloud" }),
-    ).toBe(false);
-    expect(
-      isLowq({ bitrate_kbps: 160, codec: "mp4a", source: "soundcloud" }),
-    ).toBe(false);
-    expect(
-      isLowq({ bitrate_kbps: 96, codec: "aac", source: "soundcloud" }),
-    ).toBe(true);
-    expect(
-      isLowq({ bitrate_kbps: 128, codec: "mp3", source: "soundcloud" }),
-    ).toBe(false);
-    expect(
-      isLowq({ bitrate_kbps: 96, codec: "mp3", source: "soundcloud" }),
-    ).toBe(true);
+    expect(isLowq({ bitrate_kbps: 160, codec: "aac", source: "soundcloud" })).toBe(false);
+    expect(isLowq({ bitrate_kbps: 160, codec: "mp4a", source: "soundcloud" })).toBe(false);
+    expect(isLowq({ bitrate_kbps: 96, codec: "aac", source: "soundcloud" })).toBe(true);
+    expect(isLowq({ bitrate_kbps: 128, codec: "mp3", source: "soundcloud" })).toBe(false);
+    expect(isLowq({ bitrate_kbps: 96, codec: "mp3", source: "soundcloud" })).toBe(true);
     // YT rows keep the legacy floors byte-identical.
     expect(isLowq({ bitrate_kbps: 255, codec: "aac" })).toBe(true);
     expect(isLowq({ bitrate_kbps: 256, codec: "aac" })).toBe(false);
@@ -49,14 +39,10 @@ describe("upgrade replacement", () => {
   test("malformed ffprobe JSON is reported at the file boundary", () => {
     const diagnostics: string[] = [];
     expect(
-      parseFfprobeKbps("not-json", "/tmp/bad.m4a", (message) =>
-        diagnostics.push(message),
-      ),
+      parseFfprobeKbps("not-json", "/tmp/bad.m4a", (message) => diagnostics.push(message)),
     ).toBeNull();
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0]).toStartWith(
-      "ffprobe returned malformed JSON for /tmp/bad.m4a",
-    );
+    expect(diagnostics[0]).toStartWith("ffprobe returned malformed JSON for /tmp/bad.m4a");
   });
   test("keeps the incumbent when the staged rename fails", () => {
     const t = tempDir("megadj-upgrade-swap-");

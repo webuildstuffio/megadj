@@ -25,7 +25,8 @@ function makeState(): { state: ArchiveState; db: Database } {
 function flagOf(db: Database, id: string): string | null | undefined {
   return (
     db.query("SELECT genre_flag FROM tracks WHERE video_id=?").get(id) as
-      { genre_flag: string | null } | undefined
+      | { genre_flag: string | null }
+      | undefined
   )?.genre_flag;
 }
 

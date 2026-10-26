@@ -47,12 +47,7 @@ describe("players (N75/N78)", () => {
 
   it("OneLibrary-only content is invisible to the XZ fleet", () => {
     const c = driveCompatibility(snap({ pdb_live_rows: 0 }));
-    expect(c.ok.map((p) => p.name)).toEqual([
-      "CDJ-3000X",
-      "XDJ-AZ",
-      "OPUS-QUAD",
-      "OMNIS-DUO",
-    ]);
+    expect(c.ok.map((p) => p.name)).toEqual(["CDJ-3000X", "XDJ-AZ", "OPUS-QUAD", "OMNIS-DUO"]);
     expect(c.ok.every((p) => p.reads === "onelibrary")).toBe(true);
     expect(c.blocked.length).toBe(PLAYERS.length - 4);
   });

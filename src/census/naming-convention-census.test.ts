@@ -42,10 +42,7 @@ test("test files are kebab-case too", () => {
   const offenders = [...walk(".")]
     .filter((f) => f.endsWith(".test.ts") || f.endsWith(".test.tsx"))
     .filter((f) => SNAKE.test(f.split("/").pop() ?? ""));
-  expect(
-    offenders,
-    `snake_case test files re-appeared:\n  ${offenders.join("\n  ")}`,
-  ).toEqual([]);
+  expect(offenders, `snake_case test files re-appeared:\n  ${offenders.join("\n  ")}`).toEqual([]);
 });
 
 test("the census watches the trees that were snake-majority", () => {

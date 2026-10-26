@@ -121,9 +121,7 @@ export async function searchItunes(
       trackName: r.trackName ?? "",
       artistName: r.artistName ?? "",
       primaryGenreName: r.primaryGenreName ?? "",
-      genreFamily: r.primaryGenreName
-        ? itunesGenreToFamily(r.primaryGenreName)
-        : null,
+      genreFamily: r.primaryGenreName ? itunesGenreToFamily(r.primaryGenreName) : null,
       previewUrl: r.previewUrl ?? null,
       trackViewUrl: r.trackViewUrl ?? "",
       collectionName: r.collectionName ?? null,

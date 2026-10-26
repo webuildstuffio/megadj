@@ -46,23 +46,15 @@ describe("principles P1: --json on every command", () => {
     // CLI output to that list (empty-folder dry run = zero side effects).
     const { INTAKE_COUNTER_KEYS } = await import("./deck/shared/types");
     await runCli(["ingest", dir, "--dry-run", "--json"], env);
-    const { stdout } = await runCli(
-      ["ingest", join(dir, "music"), "--dry-run", "--json"],
-      env,
-    );
+    const { stdout } = await runCli(["ingest", join(dir, "music"), "--dry-run", "--json"], env);
     const parsed = lastJsonLine(stdout);
     expect(parsed.command).toBe("ingest");
     for (const key of INTAKE_COUNTER_KEYS)
-      expect(typeof parsed[key], `ingest --json emits counter "${key}"`).toBe(
-        "number",
-      );
+      expect(typeof parsed[key], `ingest --json emits counter "${key}"`).toBe("number");
   });
 
   test("organize --json --dry-run reports considered/moved/missing", async () => {
-    const { code, stdout } = await runCli(
-      ["organize", "--dry-run", "--json"],
-      env,
-    );
+    const { code, stdout } = await runCli(["organize", "--dry-run", "--json"], env);
     expect(code).toBe(0);
     const parsed = lastJsonLine(stdout);
     expect(parsed.command).toBe("organize");
@@ -72,10 +64,7 @@ describe("principles P1: --json on every command", () => {
   });
 
   test("enrich --json --dry-run reports considered/upgraded/unchanged", async () => {
-    const { code, stdout } = await runCli(
-      ["enrich", "--dry-run", "--json"],
-      env,
-    );
+    const { code, stdout } = await runCli(["enrich", "--dry-run", "--json"], env);
     expect(code).toBe(0);
     const parsed = lastJsonLine(stdout);
     expect(parsed.command).toBe("enrich");
@@ -94,10 +83,7 @@ describe("principles P1: --json on every command", () => {
   test("years --json reports scPage/ytdlp/kept/unresolved (dry run — no network in CI-less local gate)", async () => {
     // dry run still walks the (empty) throwaway DB, so it completes fast
     // with zero counters; the contract is a parseable summary object.
-    const { code, stdout } = await runCli(
-      ["years", "--dry-run", "--json"],
-      env,
-    );
+    const { code, stdout } = await runCli(["years", "--dry-run", "--json"], env);
     expect(code).toBe(0);
     const parsed = lastJsonLine(stdout);
     expect(parsed.command).toBe("years");
@@ -142,10 +128,7 @@ describe("principles P1: --json on every command", () => {
     ]) {
       const line = stdout.split("\n").find((l) => l.includes(`megadj ${cmd}`));
       expect(line, `help has an entry for ${cmd}`).toBeDefined();
-      expect(
-        line,
-        `help entry for ${cmd} documents --json (PRINCIPLES.md §1)`,
-      ).toContain("--json");
+      expect(line, `help entry for ${cmd} documents --json (PRINCIPLES.md §1)`).toContain("--json");
     }
   });
 
@@ -159,14 +142,8 @@ describe("principles P1: --json on every command", () => {
       { args: ["similar", "--json"], command: "similar" }, // missing video id
       { args: ["ingest", "--json"], command: "ingest" }, // missing folder
       { args: ["drop", "--json"], command: "drop" }, // missing target
-      {
-        args: ["genre", "--min-agreement", "nope", "--json"],
-        command: "genre",
-      },
-      {
-        args: ["beats", "--limit", "abc", "--json"],
-        command: "beats",
-      },
+      { args: ["genre", "--min-agreement", "nope", "--json"], command: "genre" },
+      { args: ["beats", "--limit", "abc", "--json"], command: "beats" },
     ] as const) {
       const { code, stdout } = await runCli([...t.args], env);
       expect(code, `${t.args.join(" ")} exits 2 on usage error`).toBe(2);
@@ -179,23 +156,15 @@ describe("principles P1: --json on every command", () => {
         `${t.args.join(" ")}: stdout is exactly one line (no human pollution)`,
       ).toBe(1);
       const parsed = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
-      expect(
-        parsed.error,
-        `${t.args.join(" ")} carries the error`,
-      ).toBeString();
+      expect(parsed.error, `${t.args.join(" ")} carries the error`).toBeString();
       if (t.command !== undefined)
-        expect(parsed.command, `${t.args.join(" ")} names the command`).toBe(
-          t.command,
-        );
+        expect(parsed.command, `${t.args.join(" ")} names the command`).toBe(t.command);
     }
   });
 
   test("#160 ring 3: failure-path exit codes stay meaningful (non-usage failures = 1)", async () => {
     // unknown command: exit 1 (command-level failure, not a flag typo)
-    const { code, stdout } = await runCli(
-      ["definitely-not-a-verb", "--json"],
-      env,
-    );
+    const { code, stdout } = await runCli(["definitely-not-a-verb", "--json"], env);
     expect(code).toBe(1);
     const parsed = lastJsonLine(stdout);
     expect(parsed.error).toBeString();

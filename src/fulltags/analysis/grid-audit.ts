@@ -90,10 +90,7 @@ export interface GridAuditVerdict {
   reason: string;
 }
 
-export function gridAudit(
-  beats: number[],
-  rbBpm: number,
-): GridAuditVerdict | null {
+export function gridAudit(beats: number[], rbBpm: number): GridAuditVerdict | null {
   if (beats.length < 8 || !(rbBpm > 0)) return null;
   const fit = fitConstantTempo(beats);
   if (!fit) return null;

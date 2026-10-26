@@ -41,9 +41,7 @@ export function buildBenchReport(
 ): BenchReport {
   const totalWall = stages.reduce((sum, s) => sum + s.wallMs, 0);
   const aggAccuracy =
-    stages.length > 0
-      ? round3(stages.reduce((sum, s) => sum + s.accuracy, 0) / stages.length)
-      : 0;
+    stages.length > 0 ? round3(stages.reduce((sum, s) => sum + s.accuracy, 0) / stages.length) : 0;
   const healthy = stages.every((s) => {
     const baseline = baselines.get(s.stage);
     return baseline === undefined || s.accuracy >= baseline;

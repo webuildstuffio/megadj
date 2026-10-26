@@ -72,12 +72,7 @@ export function freezeBaseline(
     });
   }
 
-  return {
-    tag,
-    frozenAt: new Date().toISOString(),
-    stages: stageMap,
-    benchSetSize,
-  };
+  return { tag, frozenAt: new Date().toISOString(), stages: stageMap, benchSetSize };
 }
 
 /**

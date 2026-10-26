@@ -3,12 +3,7 @@ import { tempDir } from "../test-support/testutil";
 import { mkdirSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import {
-  shelfDupescan,
-  FpCache,
-  SHELF_FINGERPRINTS_TABLE,
-  parseFpcalcOutput,
-} from "./dupescan";
+import { shelfDupescan, FpCache, SHELF_FINGERPRINTS_TABLE, parseFpcalcOutput } from "./dupescan";
 import { moveLoser } from "./dupescan-shared";
 import { ffmpegTone } from "../test-support/audio-fixtures";
 
@@ -40,8 +35,7 @@ afterAll(() => {
  */
 describe("fpcalc fingerprint parsing (base64url-safe)", () => {
   test("keeps hyphens in the fingerprint body", () => {
-    const out =
-      "DURATION=239\nFINGERPRINT=AQADtE-WRYlS5DpO9DDx8FArHU_N4M2RHs\n";
+    const out = "DURATION=239\nFINGERPRINT=AQADtE-WRYlS5DpO9DDx8FArHU_N4M2RHs\n";
     const fp = parseFpcalcOutput(out);
     expect(fp).toBe("AQADtE-WRYlS5DpO9DDx8FArHU_N4M2RHs");
   });
@@ -114,15 +108,7 @@ describe("dupescan", () => {
     expect(parsed.duplicateGroups).toBe(1);
     expect(parsed.applied).toBe(false);
     expect(
-      existsSync(
-        join(
-          shelf,
-          "Contents",
-          "Artist B",
-          "compilation",
-          "song (some edit).mp3",
-        ),
-      ),
+      existsSync(join(shelf, "Contents", "Artist B", "compilation", "song (some edit).mp3")),
     ).toBe(true);
   });
 
@@ -133,15 +119,8 @@ describe("dupescan", () => {
     });
     const ledger = join(t3.dir(), "state.db");
     // without --yes: nothing moves
-    await shelfDupescan({
-      shelfVolume: shelf,
-      quarantine: true,
-      dbPath: ledger,
-      log: () => {},
-    });
-    expect(
-      existsSync(join(shelf, "Contents", "Artist A", "Album", "song-1.mp3")),
-    ).toBe(true);
+    await shelfDupescan({ shelfVolume: shelf, quarantine: true, dbPath: ledger, log: () => {} });
+    expect(existsSync(join(shelf, "Contents", "Artist A", "Album", "song-1.mp3"))).toBe(true);
     // with --yes: exactly one loser moves to quarantine, keeper stays
     await shelfDupescan({
       shelfVolume: shelf,
@@ -151,9 +130,7 @@ describe("dupescan", () => {
       log: () => {},
     });
     const album = join(shelf, "Contents", "Artist A", "Album");
-    const remaining = ["song.mp3", "song-1.mp3"].filter((f) =>
-      existsSync(join(album, f)),
-    );
+    const remaining = ["song.mp3", "song-1.mp3"].filter((f) => existsSync(join(album, f)));
     expect(remaining.length).toBe(1);
     const q = readdirSync(join(shelf, "Contents", ".dupescan-quarantine"));
     expect(q.length).toBe(1);
@@ -187,9 +164,7 @@ describe("moveLoser quarantine-move SSOT (#84)", () => {
     mkdirSync(qDir, { recursive: true });
     const errors: string[] = [];
     const moved: [string, string][] = [];
-    const ok = moveLoser(src, qDir, errors, {
-      onMoved: (s, d) => moved.push([s, d]),
-    });
+    const ok = moveLoser(src, qDir, errors, { onMoved: (s, d) => moved.push([s, d]) });
     expect(ok).toBe(true);
     expect(moved).toHaveLength(1);
     expect(moved[0]?.[1]).toBe(join(qDir, "loser.mp3"));
@@ -208,9 +183,7 @@ describe("moveLoser quarantine-move SSOT (#84)", () => {
     mkdirSync(src, { recursive: true });
     const collisions: [string, string][] = [];
     const errors: string[] = [];
-    const ok = moveLoser(src, qDir, errors, {
-      onCollision: (s, d) => collisions.push([s, d]),
-    });
+    const ok = moveLoser(src, qDir, errors, { onCollision: (s, d) => collisions.push([s, d]) });
     expect(ok).toBe(false);
     expect(collisions).toHaveLength(1);
     expect(collisions[0]?.[1]).toBe(existing);

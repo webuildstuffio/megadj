@@ -2,12 +2,7 @@
 // deep-linkable surface tour, the job cheat-sheet, and the glossary wall.
 // All copy comes from the shared help SSOT (shared/help.ts); the inline
 // demo chip teaches the (?)-tooltip convention itself.
-import {
-  HELP_JOBS,
-  HELP_SURFACES,
-  HELP_TERMS,
-  helpTerm,
-} from "../../shared/help";
+import { HELP_JOBS, HELP_SURFACES, HELP_TERMS, helpTerm } from "../../shared/help";
 import { Icon } from "./icons";
 import { Tip } from "./TipCard";
 
@@ -23,8 +18,7 @@ export function GlossTerm(props: { t: string }) {
       title={hit.term}
       body={hit.def}
       why={hit.why}
-      ariaLabel={`${hit.term} — ${hit.def}`}
-    >
+      ariaLabel={`${hit.term} — ${hit.def}`}>
       <b>{props.t}</b>
     </Tip>
   );
@@ -38,33 +32,31 @@ export function Onboard() {
           <Icon name="compass" /> Start here — what megadj does
         </h3>
         <p class="ob-lede">
-          megadj is a toolkit for the DJ library, and CrateDeck is its
-          watchtower over your DJ USB drives: it scans each stick's rekordbox
-          library, audits it for the exact failure modes that ruin a set (stale
-          hardware library, missing waveforms, silent file corruption, a mirror
-          that drifted), and tells you — in plain language — what to fix.
+          megadj is a toolkit for the DJ library, and CrateDeck is its watchtower over your DJ USB
+          drives: it scans each stick's rekordbox library, audits it for the exact failure modes
+          that ruin a set (stale hardware library, missing waveforms, silent file corruption, a
+          mirror that drifted), and tells you — in plain language — what to fix.
         </p>
         <ol class="ob-steps">
           <li>
-            <b>Plug in a drive.</b> It registers on the rail forever — even
-            after unmounting it stays as a browsable <GlossTerm t="Ghost" />.
+            <b>Plug in a drive.</b> It registers on the rail forever — even after unmounting it
+            stays as a browsable <GlossTerm t="Ghost" />.
           </li>
           <li>
-            <b>Scan it.</b> A first scan happens automatically on mount; scans
-            snapshot tracks, playlists and space.
+            <b>Scan it.</b> A first scan happens automatically on mount; scans snapshot tracks,
+            playlists and space.
           </li>
           <li>
-            <b>Verify it.</b> The deep audit — run it before every gig (there's
-            a weekly auto-verify too).
+            <b>Verify it.</b> The deep audit — run it before every gig (there's a weekly auto-verify
+            too).
           </li>
           <li>
             <b>Keep the pair honest.</b> Mirror the master, then watch the{" "}
-            <GlossTerm t="Redundancy" /> audit so every track lives on both
-            sticks.
+            <GlossTerm t="Redundancy" /> audit so every track lives on both sticks.
           </li>
           <li>
-            <b>Walk out the door on green.</b> <GlossTerm t="Preflight" /> is
-            the last check: every drive ready, or the exact blocker.
+            <b>Walk out the door on green.</b> <GlossTerm t="Preflight" /> is the last check: every
+            drive ready, or the exact blocker.
           </li>
         </ol>
       </section>
@@ -112,8 +104,7 @@ export function Onboard() {
           <Tip
             class="infotip demo"
             title="hover cards like this"
-            body="look for the little dot anywhere in the app — it explains the thing it sits next to."
-          >
+            body="look for the little dot anywhere in the app — it explains the thing it sits next to.">
             <span class="infotip-dot" aria-hidden>
               <Icon name="dot" size={9} />
             </span>

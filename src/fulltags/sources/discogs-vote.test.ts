@@ -1,11 +1,4 @@
-import {
-  describe,
-  expect,
-  it,
-  afterAll,
-  afterEach,
-  beforeEach,
-} from "bun:test";
+import { describe, expect, it, afterAll, afterEach, beforeEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import { tempDir } from "../../test-support/testutil";
@@ -32,12 +25,8 @@ describe("discogsGenreVote", () => {
       "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (42, 'Phuture', ?)",
       [nameKey("Phuture")],
     );
-    db.run(
-      "INSERT INTO discogs_release_genres (release_id, genre) VALUES (42, 'Electronic')",
-    );
-    db.run(
-      "INSERT INTO discogs_release_styles (release_id, style) VALUES (42, 'Acid House')",
-    );
+    db.run("INSERT INTO discogs_release_genres (release_id, genre) VALUES (42, 'Electronic')");
+    db.run("INSERT INTO discogs_release_styles (release_id, style) VALUES (42, 'Acid House')");
     db.close();
 
     process.env["MEGADJ_DISCOGS_DB"] = dbPath;

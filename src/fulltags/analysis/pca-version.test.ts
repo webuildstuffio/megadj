@@ -54,10 +54,7 @@ describe("pcaVersionMatches", () => {
 
 describe("reprojectionNeeded", () => {
   test("all current → 0 stale", () => {
-    const result = reprojectionNeeded(
-      ["pca-v1-discogs-256", "pca-v1-discogs-256"],
-      CURRENT_BASIS,
-    );
+    const result = reprojectionNeeded(["pca-v1-discogs-256", "pca-v1-discogs-256"], CURRENT_BASIS);
     expect(result.stale).toBe(0);
     expect(result.current).toBe(2);
     expect(result.ratio).toBe(0);

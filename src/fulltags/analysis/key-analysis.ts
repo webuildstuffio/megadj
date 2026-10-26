@@ -36,17 +36,14 @@ export interface KeyResult {
  * 3. ≥80% agreement on 20 known-key tracks before full-library run
  *    (run `fulltags verify-key` — the #185 gate verb).
  */
-export async function analyzeKeys(
-  paths: string[],
-): Promise<Map<string, KeyResult>> {
+export async function analyzeKeys(paths: string[]): Promise<Map<string, KeyResult>> {
   // Values are `KeyResult | null` WHILE the protocol loop runs: null marks
   // a definitive per-path error so the loop can terminate instead of
   // waiting for responses that will never come. Placeholders are dropped
   // before return — the wire type stays honest (Map<string, KeyResult>).
   const out = new Map<string, KeyResult | null>();
   const server = `${keyscanDir()}/openkeyscan_analyzer_server.py`;
-  if (!existsSync(server) || !paths.length)
-    return out as Map<string, KeyResult>;
+  if (!existsSync(server) || !paths.length) return out as Map<string, KeyResult>;
   // COMPRESSED-CONTAINER DECODE lives INSIDE the server: its PyAV fast
   // path (load_audio_pyav_optimized — upstream's own macOS build path,
   // previously gated to win32) demuxes mp3/m4a/aac in-process, so no
@@ -65,8 +62,7 @@ export async function analyzeKeys(
 /** Does this analyzer stdout line announce readiness? Tolerant of partial
  *  lines (JSON.parse guarded — sanctioned resilience, returns false).
  *  The one implementation lives in analysis-worker.ts (#189). */
-const lineIsReady = (l: string): boolean =>
-  parseJsonOrNull(l)?.type === "ready";
+const lineIsReady = (l: string): boolean => parseJsonOrNull(l)?.type === "ready";
 
 /** Does this analyzer stdout line carry a response id? Tolerant of partial
  *  lines (JSON.parse guarded — sanctioned resilience, returns false).
@@ -86,8 +82,7 @@ export interface KeyServerLine {
  *  replies become an explicit null and are ignored by the line reader. */
 export function parseKeyServerLine(line: string): KeyServerLine | null {
   const value = parseJsonOrNull(line);
-  if (!value || typeof value.id !== "string" || value.id.length === 0)
-    return null;
+  if (!value || typeof value.id !== "string" || value.id.length === 0) return null;
   return {
     id: value.id,
     status: optionalString(value.status),
@@ -152,11 +147,7 @@ async function runKeyServer(
       const msg = parseKeyServerLine(line);
       if (!msg) continue;
       if (msg.status === "success" && msg.camelot) {
-        out.set(msg.id, {
-          camelot: msg.camelot,
-          openkey: msg.openkey ?? "",
-          key: msg.key ?? "",
-        });
+        out.set(msg.id, { camelot: msg.camelot, openkey: msg.openkey ?? "", key: msg.key ?? "" });
       } else {
         // Definitive error for this path — record absence so the outer
         // loop can terminate instead of waiting for responses that will

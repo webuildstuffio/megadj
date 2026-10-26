@@ -22,18 +22,10 @@ describe("rb-import shelf-path preference", () => {
     mkdirSync(batch, { recursive: true });
     writeFileSync(join(batch, "Track A.m4a"), "audio-bytes");
     const mount = t.dir();
-    mkdirSync(join(mount, "Contents", "2026-09-19 probe batch"), {
-      recursive: true,
-    });
-    writeFileSync(
-      join(mount, "Contents", "2026-09-19 probe batch", "Track A.m4a"),
-      "audio-bytes",
-    );
+    mkdirSync(join(mount, "Contents", "2026-09-19 probe batch"), { recursive: true });
+    writeFileSync(join(mount, "Contents", "2026-09-19 probe batch", "Track A.m4a"), "audio-bytes");
 
-    const rows = probePayloadFiles(batch, () => {}, {
-      mount,
-      archiveDir: archive,
-    });
+    const rows = probePayloadFiles(batch, () => {}, { mount, archiveDir: archive });
     expect(rows.length).toBe(1);
     expect(String(rows[0]?.[0])).toBe(
       join(mount, "Contents", "2026-09-19 probe batch", "Track A.m4a"),
@@ -48,10 +40,7 @@ describe("rb-import shelf-path preference", () => {
     const mount = t.dir();
     mkdirSync(join(mount, "Contents"), { recursive: true });
 
-    const rows = probePayloadFiles(batch, () => {}, {
-      mount,
-      archiveDir: archive,
-    });
+    const rows = probePayloadFiles(batch, () => {}, { mount, archiveDir: archive });
     expect(rows.length).toBe(1);
     expect(String(rows[0]?.[0])).toBe(join(batch, "Track B.m4a"));
   });
@@ -70,9 +59,7 @@ describe("rb-import shelf-path preference", () => {
 
 /** Mirror of the production stripDupeSuffix for test assertions. */
 function stripDupeSuffix(name: string): string {
-  return name
-    .replace(/ \[archive(?: \d+)?\]/u, "")
-    .replace(/ \[BACKUP2\]/u, "");
+  return name.replace(/ \[archive(?: \d+)?\]/u, "").replace(/ \[BACKUP2\]/u, "");
 }
 
 describe("intra-batch dedup (Sep 26 fix)", () => {
@@ -87,17 +74,13 @@ describe("intra-batch dedup (Sep 26 fix)", () => {
     expect(stripDupeSuffix("milkshake (davis edit) [BACKUP2].mp3")).toBe(
       "milkshake (davis edit).mp3",
     );
-    expect(
-      stripDupeSuffix("slashy disco - the bomb (edit) [BACKUP2].mp3"),
-    ).toBe("slashy disco - the bomb (edit).mp3");
+    expect(stripDupeSuffix("slashy disco - the bomb (edit) [BACKUP2].mp3")).toBe(
+      "slashy disco - the bomb (edit).mp3",
+    );
   });
 
   test("filenames without dupe suffixes are unchanged", () => {
-    const names = [
-      "Track.m4a",
-      "Artist - Song [Extended Mix].m4a",
-      "[AI] Song.m4a",
-    ];
+    const names = ["Track.m4a", "Artist - Song [Extended Mix].m4a", "[AI] Song.m4a"];
     for (const n of names) {
       expect(stripDupeSuffix(n)).toBe(n);
     }
@@ -121,10 +104,7 @@ describe("filename stem parsing (#321 title contamination)", () => {
     const archive = t.dir();
     const batch = join(archive, "batch-dot");
     mkdirSync(batch, { recursive: true });
-    writeFileSync(
-      join(batch, "Mau P · Doing It Right · TESLA.m4a"),
-      "audio-bytes",
-    );
+    writeFileSync(join(batch, "Mau P · Doing It Right · TESLA.m4a"), "audio-bytes");
 
     const rows = probePayloadFiles(batch, () => {});
     expect(rows.length).toBe(1);
@@ -148,10 +128,7 @@ describe("filename stem parsing (#321 title contamination)", () => {
     const archive = t.dir();
     const batch = join(archive, "batch-multi-dash");
     mkdirSync(batch, { recursive: true });
-    writeFileSync(
-      join(batch, "Miss Monique - Melodic Techno Mix - Session 5.m4a"),
-      "audio-bytes",
-    );
+    writeFileSync(join(batch, "Miss Monique - Melodic Techno Mix - Session 5.m4a"), "audio-bytes");
 
     const rows = probePayloadFiles(batch, () => {});
     expect(rows.length).toBe(1);

@@ -8,17 +8,7 @@
 // verbs (run/cancel/note/rename/dismiss) and the action families
 // (hygiene/fixes) stay in mcp/action-tools.ts; mcp.ts owns assembly.
 
-import {
-  str,
-  num,
-  RpcParamError,
-  obj,
-  noArgs,
-  s,
-  sEnum,
-  n,
-  type Prop,
-} from "./params";
+import { str, num, RpcParamError, obj, noArgs, s, sEnum, n, type Prop } from "./params";
 import { apiGetJson, apiGetJsonT, resolveDrive } from "../deckapi";
 import { KIND_DOCS } from "../deckctl/docs";
 import { VERIFY_HELP } from "../verify/help";
@@ -33,14 +23,10 @@ export const DRIVE_PARAM = (omitNote: string): Prop => ({
 });
 
 /** Resolve a drive or throw a clean param error. Shared by both halves. */
-export async function needDrive(nameOrId: string | undefined): Promise<{
-  id: string;
-  name: string;
-  nickname: string | null;
-  mounted: boolean;
-}> {
-  if (!nameOrId)
-    throw new RpcParamError("drive is required (volume name, nickname, or id)");
+export async function needDrive(
+  nameOrId: string | undefined,
+): Promise<{ id: string; name: string; nickname: string | null; mounted: boolean }> {
+  if (!nameOrId) throw new RpcParamError("drive is required (volume name, nickname, or id)");
   const d = await resolveDrive(nameOrId);
   if (!d) throw new RpcParamError(`unknown drive: ${nameOrId}`);
   return d;
@@ -65,8 +51,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
   },
 
   drives: {
-    description:
-      "List all known DJ USB drives with health badges (mounted, last verify, space).",
+    description: "List all known DJ USB drives with health badges (mounted, last verify, space).",
     inputSchema: noArgs(),
     run: async () => apiGetJson("/api/drives"),
   },
@@ -86,8 +71,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
     ),
     run: async (args) => {
       const d = await needDrive(str(args, "drive"));
-      if (str(args, "format") === "dossier")
-        return apiGetJson(`/api/drives/${d.id}/export`);
+      if (str(args, "format") === "dossier") return apiGetJson(`/api/drives/${d.id}/export`);
       return apiGetJson(`/api/drives/${d.id}/report`);
     },
   },
@@ -95,15 +79,11 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
   coverage: {
     description:
       "Fleet coverage: which tracks live on which drives, plus the at-risk list (tracks below the redundancy floor).",
-    inputSchema: obj({
-      min_copies: n("redundancy floor (default: server default, usually 2)"),
-    }),
+    inputSchema: obj({ min_copies: n("redundancy floor (default: server default, usually 2)") }),
     run: async (args) => {
       const nCopies = num(args, "min_copies");
       const qs = nCopies && nCopies > 0 ? `?min_copies=${nCopies}` : "";
-      return apiGetJson(
-        `/api/fleet/coverage${qs}`,
-      ) as Promise<CoverageResponse>;
+      return apiGetJson(`/api/fleet/coverage${qs}`) as Promise<CoverageResponse>;
     },
   },
 
@@ -114,22 +94,16 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
     run: async (args) => {
       const nCopies = num(args, "min_copies");
       const qs = nCopies && nCopies > 0 ? `?min_copies=${nCopies}` : "";
-      return apiGetJson(
-        `/api/fleet/redundancy${qs}`,
-      ) as Promise<RedundancyResult>;
+      return apiGetJson(`/api/fleet/redundancy${qs}`) as Promise<RedundancyResult>;
     },
   },
 
   diff: {
-    description:
-      "Compare two drives: tracks added, missing, or byte-changed between them.",
-    inputSchema: obj(
-      {
-        a: s("first drive (volume name, nickname, or id)"),
-        b: s("second drive"),
-      },
-      ["a", "b"],
-    ),
+    description: "Compare two drives: tracks added, missing, or byte-changed between them.",
+    inputSchema: obj({ a: s("first drive (volume name, nickname, or id)"), b: s("second drive") }, [
+      "a",
+      "b",
+    ]),
     run: async (args) => {
       const da = await needDrive(str(args, "a"));
       const dbb = await needDrive(str(args, "b"));
@@ -142,16 +116,12 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
   radar: {
     description:
       "New-music radar (#148): archived tracks NOT yet on each drive — the pre-sync delta between megadj's archive ledger and every drive's latest scan snapshot. Per-drive counts come from the full comparison (COUNT truth); preview lists are capped. Each row carries its snapshot's age — a never-scanned drive reads as unknown, not current. Read-only: the fix is the copyable `megadj shelf-sync` command, never an automatic write.",
-    inputSchema: obj({
-      drive: s("optional: one drive (volume name, nickname, or id) to focus"),
-    }),
+    inputSchema: obj({ drive: s("optional: one drive (volume name, nickname, or id) to focus") }),
     run: async (args) => {
       const name = str(args, "drive");
       if (!name) return apiGetJson("/api/fleet/radar");
       const d = await needDrive(name);
-      const all = (await apiGetJson("/api/fleet/radar")) as {
-        drives: { driveId: string }[];
-      };
+      const all = (await apiGetJson("/api/fleet/radar")) as { drives: { driveId: string }[] };
       return { ...all, drives: all.drives.filter((r) => r.driveId === d.id) };
     },
   },
@@ -171,10 +141,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
       // the schema — that's the census test's contract (kind-docs.test.ts):
       // when KIND_DOCS gains `ingest` it flows in here automatically, and
       // a doc-less kind fails the build instead of lying in the schema.
-      kind: sEnum(
-        ["verify", ...Object.keys(KIND_DOCS)],
-        "job kind (omit for every kind's docs)",
-      ),
+      kind: sEnum(["verify", ...Object.keys(KIND_DOCS)], "job kind (omit for every kind's docs)"),
     }),
     run: async (args) => {
       // Derived from the KIND_DOCS SSOT (deckctl_docs.ts) — same words as
@@ -224,8 +191,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
         for (const d of drives as { id: string; name: string }[]) {
           try {
             const notes = await apiGetJson(`/api/drives/${d.id}/notes`);
-            if (Array.isArray(notes) && notes.length)
-              out.push({ drive: d.name, notes });
+            if (Array.isArray(notes) && notes.length) out.push({ drive: d.name, notes });
           } catch {
             /* drive gone mid-loop */
           }
@@ -244,8 +210,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
     run: async () => {
       // same fetch-and-render seam as deckctl cmdPrep (one implementation,
       // two spokes — surface-parity.md GAP-2 closed)
-      const { fetchWeeklyPrepInput, renderWeeklyPrep } =
-        await import("../jobs/weekly-prep");
+      const { fetchWeeklyPrepInput, renderWeeklyPrep } = await import("../jobs/weekly-prep");
       const input = await fetchWeeklyPrepInput(apiGetJsonT);
       return { markdown: renderWeeklyPrep(input) };
     },
@@ -254,10 +219,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
   search: {
     description:
       "B9 global search (the UI's ⌘K): case-insensitive substring match over playlists and folders in every drive snapshot. Returns per-drive match lists. Read-only.",
-    inputSchema: obj(
-      { q: s("search text (playlist or folder name substring)") },
-      ["q"],
-    ),
+    inputSchema: obj({ q: s("search text (playlist or folder name substring)") }, ["q"]),
     run: async (args) => {
       const q = str(args, "q")?.trim();
       if (!q) throw new RpcParamError("q is required");
@@ -269,9 +231,7 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
     description:
       "CrateDeck's in-app help as a tool: the glossary (Master, Mirror, Ghost, Interlock, Dual-DB, Beatgrid, Bitrot, Preflight, Redundancy, Dossier, LOWQ, Snapshot), the five job explainers (what/when/safety/duration), and the UI surface tour. Call with term= a glossary word or job kind for one entry; omit it for everything. Read-only — use this to answer 'what does X mean' before acting.",
     inputSchema: obj({
-      term: s(
-        "optional glossary term or job kind (e.g. 'ghost', 'verify') for a single entry",
-      ),
+      term: s("optional glossary term or job kind (e.g. 'ghost', 'verify') for a single entry"),
     }),
     run: async (args) => {
       const topic = str(args, "term")?.trim().toLowerCase();

@@ -33,8 +33,7 @@ export function md5FileChunked(path: string): string | null {
     const h = createHash("md5");
     const buf = Buffer.alloc(CHUNK);
     let n = 0;
-    while ((n = readSync(fd, buf, 0, buf.length, null)) > 0)
-      h.update(buf.subarray(0, n));
+    while ((n = readSync(fd, buf, 0, buf.length, null)) > 0) h.update(buf.subarray(0, n));
     return h.digest("hex");
   } catch {
     // read/digest failure mid-stream: bytes NOT verified

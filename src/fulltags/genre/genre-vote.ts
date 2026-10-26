@@ -131,10 +131,7 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
     if (cur) {
       cur.total += v.weight;
       cur.totalBasisPoints += toBasisPoints(v.weight);
-      cur.maxSingleBasisPoints = Math.max(
-        cur.maxSingleBasisPoints,
-        toBasisPoints(v.weight),
-      );
+      cur.maxSingleBasisPoints = Math.max(cur.maxSingleBasisPoints, toBasisPoints(v.weight));
       if (!cur.rungs.includes(v.rung)) cur.rungs.push(v.rung);
       cur.familyOnly &&= v.rung === "imprint";
     } else {
@@ -148,9 +145,7 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
     }
   }
   // Separate umbrellas from specific genres — umbrellas only win as last resort
-  const hasSpecific = [...tally.keys()].some(
-    (g) => !ELECTION_UMBRELLA.has(g.toLowerCase()),
-  );
+  const hasSpecific = [...tally.keys()].some((g) => !ELECTION_UMBRELLA.has(g.toLowerCase()));
 
   let best: {
     genre: string;
@@ -169,8 +164,7 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
       // tie toward the harder single gate, then alphabetical (deterministic)
       (t.totalBasisPoints === best.totalBasisPoints &&
         (t.maxSingleBasisPoints > best.maxSingleBasisPoints ||
-          (t.maxSingleBasisPoints === best.maxSingleBasisPoints &&
-            genre < best.genre)))
+          (t.maxSingleBasisPoints === best.maxSingleBasisPoints && genre < best.genre)))
     ) {
       best = { genre, ...t };
     }
@@ -181,10 +175,7 @@ export function electGenre(votes: readonly GenreVote[]): GenreVoteResult {
     let secondBest: { genre: string; totalBasisPoints: number } | null = null;
     for (const [genre, t] of tally) {
       if (genre === best.genre) continue;
-      if (
-        secondBest === null ||
-        t.totalBasisPoints > secondBest.totalBasisPoints
-      ) {
+      if (secondBest === null || t.totalBasisPoints > secondBest.totalBasisPoints) {
         secondBest = { genre, totalBasisPoints: t.totalBasisPoints };
       }
     }

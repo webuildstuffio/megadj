@@ -40,11 +40,5 @@ export function detectRemix(title: string): RemixInfo | null {
   const remixer = remixers[remixers.length - 1] ?? tail;
   // m[3] is lazy so it stops before the keyword — rebuild the full credit.
   const remixName = `${tail} ${m[4]}`;
-  return {
-    track,
-    originalArtist,
-    remixName,
-    remixer,
-    original: `${originalArtist} - ${track}`,
-  };
+  return { track, originalArtist, remixName, remixer, original: `${originalArtist} - ${track}` };
 }

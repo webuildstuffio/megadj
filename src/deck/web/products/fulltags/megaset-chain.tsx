@@ -13,14 +13,7 @@ const stepLine = (step: MegasetStep): string =>
   `${step.landmark ? "★ " : ""}${step.atMin}min  ${fmtBpm(step.bpm)} BPM ${step.key ?? ""}  ${step.artist ?? "?"} — ${step.title ?? step.videoId}`;
 
 const columns: DataTableColumn<MegasetStep>[] = [
-  {
-    key: "pos",
-    head: "#",
-    align: "end",
-    min: 34,
-    grow: 0,
-    cell: (_step, index) => index + 1,
-  },
+  { key: "pos", head: "#", align: "end", min: 34, grow: 0, cell: (_step, index) => index + 1 },
   {
     key: "track",
     head: "track",
@@ -30,8 +23,7 @@ const columns: DataTableColumn<MegasetStep>[] = [
         {step.landmark && (
           <span
             class="arch-pill ok"
-            title="Landmark must-play — you pinned this track into the set (#107)"
-          >
+            title="Landmark must-play — you pinned this track into the set (#107)">
             ★ pin
           </span>
         )}{" "}
@@ -85,8 +77,7 @@ const columns: DataTableColumn<MegasetStep>[] = [
           return (
             <span
               class={`arch-pill ${band.cls}`}
-              title={`transition score into this track: ${step.transition.toFixed(3)}${evidence}`}
-            >
+              title={`transition score into this track: ${step.transition.toFixed(3)}${evidence}`}>
               {step.transition.toFixed(2)} {band.label}
             </span>
           );
@@ -108,9 +99,7 @@ const columns: DataTableColumn<MegasetStep>[] = [
 function rowTone(step: MegasetStep): "" | "ok" | "warn" {
   if (step.transition === null) return "";
   // row tone follows the same calibrated band, not a private cut-off
-  return megasetTransitionBand(step.transition).label === "tight"
-    ? "warn"
-    : "ok";
+  return megasetTransitionBand(step.transition).label === "tight" ? "warn" : "ok";
 }
 
 export function MegasetChain(props: {
@@ -139,11 +128,7 @@ export function MegasetChain(props: {
         rowTone={rowTone}
       />
       {props.steps.length >= 2 && (
-        <MegasetArcChart
-          steps={props.steps}
-          preset={props.preset}
-          keyGlide={props.keyGlide}
-        />
+        <MegasetArcChart steps={props.steps} preset={props.preset} keyGlide={props.keyGlide} />
       )}
     </>
   );

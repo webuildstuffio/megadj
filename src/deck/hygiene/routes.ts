@@ -10,12 +10,7 @@
 import type { HygieneReader } from "./reader";
 import type { JobKind } from "../shared/types";
 import type { QuarantineCensus } from "../shared/hygiene";
-import {
-  servableAudioPath,
-  audioStats,
-  audioResponse,
-  pruneStatsCache,
-} from "./audio";
+import { servableAudioPath, audioStats, audioResponse, pruneStatsCache } from "./audio";
 
 /** The JSON body of POST /api/hygiene/decide. */
 export interface DecideBody {
@@ -36,10 +31,7 @@ export async function cliOk(
 ): Promise<Response> {
   const r = await megadjCli(args);
   if (r.code !== 0)
-    return json(
-      { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
-      409,
-    );
+    return json({ ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` }, 409);
   return json({ ok: true });
 }
 
@@ -101,16 +93,9 @@ export function makeHygieneRoutes(deps: {
     if (ids.length === 0) return json({ error: "id or ids[] required" }, 400);
     const confirm = body.confirm !== false;
     const key = confirm ? "confirm" : "dismiss";
-    const r = await megadjCli([
-      "shelf-hygiene",
-      ...ids.map((id) => `--${key}=${id}`),
-      "--json",
-    ]);
+    const r = await megadjCli(["shelf-hygiene", ...ids.map((id) => `--${key}=${id}`), "--json"]);
     if (r.code !== 0)
-      return json(
-        { ok: false, decided: 0, failed: ids, stderr: r.stderr.slice(-400) },
-        409,
-      );
+      return json({ ok: false, decided: 0, failed: ids, stderr: r.stderr.slice(-400) }, 409);
     return json({ ok: true, decided: ids.length, failed: [] });
   }
 
@@ -127,9 +112,7 @@ export function makeHygieneRoutes(deps: {
    *  avoids spawning a process guaranteed to fail; a drift between the
    *  two still surfaces as the CLI's 409). */
   async function bucketConfirm(req: Request): Promise<Response> {
-    const body = (await req.json().catch(() => null)) as {
-      bucket?: string;
-    } | null;
+    const body = (await req.json().catch(() => null)) as { bucket?: string } | null;
     const bucket = body?.bucket;
     const VALID = ["metadata-diff", "re-encode", "safe-batch"];
     if (!bucket || !VALID.includes(bucket))
@@ -139,13 +122,8 @@ export function makeHygieneRoutes(deps: {
         },
         400,
       );
-    const r = await megadjCli([
-      "shelf-hygiene",
-      `--bucket=${bucket}`,
-      "--json",
-    ]);
-    if (r.code !== 0)
-      return json({ ok: false, stderr: r.stderr.slice(-400) }, 409);
+    const r = await megadjCli(["shelf-hygiene", `--bucket=${bucket}`, "--json"]);
+    if (r.code !== 0) return json({ ok: false, stderr: r.stderr.slice(-400) }, 409);
     // the CLI prints one JSON summary line — surface the count
     const line = r.stderr; // engine logs go to stderr; stdout was the JSON
     return json({ ok: true, bucket, raw: line.slice(-200) });
@@ -161,18 +139,12 @@ export function makeHygieneRoutes(deps: {
    *  loser (quarantine → original path, MD5-verified). Through the CLI:
    *  shelf-restore owns the guard ladder + lease (#36). */
   async function restore(req: Request): Promise<Response> {
-    const body = (await req.json().catch(() => null)) as {
-      id?: string;
-    } | null;
+    const body = (await req.json().catch(() => null)) as { id?: string } | null;
     const id = body?.id;
-    if (!id || typeof id !== "string")
-      return json({ error: "id is required" }, 400);
+    if (!id || typeof id !== "string") return json({ error: "id is required" }, 400);
     const r = await megadjCli(["shelf-restore", id, "--json"]);
     if (r.code !== 0)
-      return json(
-        { ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` },
-        409,
-      );
+      return json({ ok: false, error: r.stderr.slice(-400) || `exit ${r.code}` }, 409);
     // the CLI prints one JSON summary on stdout — parse the LAST line
     // (guarded boundary parse; engine logs stay on stderr)
     const line = r.stderr;
@@ -199,22 +171,13 @@ export function makeHygieneRoutes(deps: {
    *  to-confirm in the UI); runs through the CLI so the lease + ledger
    *  flips stay engine-owned (#36 — the 35 GB reclaim path). */
   async function quarantineEmpty(req: Request): Promise<Response> {
-    const body = (await req.json().catch(() => null)) as {
-      confirm?: string;
-    } | null;
+    const body = (await req.json().catch(() => null)) as { confirm?: string } | null;
     if (body?.confirm !== "DELETE")
       return json(
-        {
-          error:
-            'confirm must be the literal "DELETE" — this closes the undo window',
-        },
+        { error: 'confirm must be the literal "DELETE" — this closes the undo window' },
         400,
       );
-    return cliOk(megadjCli, json, [
-      "shelf-quarantine-empty",
-      "--yes",
-      "--json",
-    ]);
+    return cliOk(megadjCli, json, ["shelf-quarantine-empty", "--yes", "--json"]);
   }
 
   /** GET /api/hygiene/audio?path=… — stream one shelf audio file for the

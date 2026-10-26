@@ -30,11 +30,9 @@ export function BarList(props: {
   class?: string;
 }) {
   if (props.rows.length === 0) return props.empty ? <>{props.empty}</> : null;
-  const max =
-    props.rows.length > 0 ? Math.max(...props.rows.map((r) => r.value), 1) : 1;
+  const max = props.rows.length > 0 ? Math.max(...props.rows.map((r) => r.value), 1) : 1;
   const total = props.rows.reduce((s, r) => s + r.value, 0) || 1;
-  const shown =
-    props.cap !== undefined ? props.rows.slice(0, props.cap) : props.rows;
+  const shown = props.cap !== undefined ? props.rows.slice(0, props.cap) : props.rows;
   return (
     <div class={`barlist ${props.class ?? ""}`} role="list">
       {shown.map((r) => (
@@ -47,23 +45,16 @@ export function BarList(props: {
             `${r.name}: ${r.display ?? r.value.toLocaleString()} · ${Math.round(
               (r.value / total) * 100,
             )}% of total`
-          }
-        >
+          }>
           <span class="bl-name">{r.name}</span>
           <span class={`bl-track tone-${props.tone ?? "accent"}`}>
-            <i
-              style={{
-                width: `${Math.max(2, (r.value / (r.max ?? max)) * 100)}%`,
-              }}
-            />
+            <i style={{ width: `${Math.max(2, (r.value / (r.max ?? max)) * 100)}%` }} />
           </span>
           <span class="bl-n">{r.display ?? r.value.toLocaleString()}</span>
         </div>
       ))}
       {props.cap !== undefined && props.rows.length > props.cap && (
-        <div class="fleet-note">
-          …and {props.rows.length - props.cap} more — Copy has all
-        </div>
+        <div class="fleet-note">…and {props.rows.length - props.cap} more — Copy has all</div>
       )}
     </div>
   );

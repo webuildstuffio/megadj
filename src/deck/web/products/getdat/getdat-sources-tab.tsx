@@ -2,10 +2,7 @@
 // extraction from getdat-tabs.tsx): ingest source census + the A/B
 // source-compare diff lists.
 import { useCallback, useState } from "preact/hooks";
-import type {
-  ArchiveIngestStatus,
-  ArchiveSourceCensus,
-} from "../../../shared/types";
+import type { ArchiveIngestStatus, ArchiveSourceCensus } from "../../../shared/types";
 import { errMessage } from "../../../../shared/leaf/fmt";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
@@ -54,8 +51,7 @@ export function SourcesTab() {
     }
   }, [a, b]);
 
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading sources…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading sources…" />;
   const [ingest, census] = page.data;
   if (!ingest.available) return <ArchiveAbsentGate />;
   const sources = census.available ? census.sources : [];
@@ -73,9 +69,7 @@ export function SourcesTab() {
             title="Source tags in the archive"
             n={sources.length}
             hint="Every source tag with its total and playable (downloaded) track counts. Click a chip to drop it into the diff form — 'playable' is what can actually be mixed; the gap is the source's history (gone/skipped/pending)."
-            lines={sources.map(
-              (s) => `${s.source}: ${s.tracks} tracked, ${s.playable} playable`,
-            )}
+            lines={sources.map((s) => `${s.source}: ${s.tracks} tracked, ${s.playable} playable`)}
           />
           <div class="src-chips">
             {sources.map((s) => (
@@ -87,8 +81,7 @@ export function SourcesTab() {
                 onClick={() => {
                   if (!a.trim()) setA(s.source);
                   else if (!b.trim()) setB(s.source);
-                }}
-              >
+                }}>
                 {s.source}
                 <span class="src-chip-n">{s.playable}</span>
               </button>
@@ -112,8 +105,7 @@ export function SourcesTab() {
           type="button"
           class="btn primary"
           disabled={busy || !a.trim() || !b.trim()}
-          onClick={runDiff}
-        >
+          onClick={runDiff}>
           <Icon name="sort" size={14} /> {busy ? "Diffing…" : "Diff sources"}
         </button>
       </div>
@@ -145,8 +137,8 @@ export function SourcesTab() {
       {!diff && !diffErr && (
         <div class="note-card">
           <Icon name="compass" size={20} />
-          Diff two source tags — e.g. <code>liked</code> vs a playlist id (
-          <code>PL…</code>) or <code>ingest</code>.
+          Diff two source tags — e.g. <code>liked</code> vs a playlist id (<code>PL…</code>) or{" "}
+          <code>ingest</code>.
         </div>
       )}
     </div>
@@ -163,10 +155,7 @@ function DiffList(props: { title: string; rows: Track[]; empty: string }) {
         hint={`Tracks present in only one of the two sources. Copy hands the list to an agent.`}
         lines={
           props.rows.length
-            ? props.rows.map(
-                (t) =>
-                  `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""}`,
-              )
+            ? props.rows.map((t) => `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""}`)
             : undefined
         }
       />
@@ -177,11 +166,7 @@ function DiffList(props: { title: string; rows: Track[]; empty: string }) {
           {props.rows.slice(0, 25).map((t) => (
             <KVRow key={t.video_id}>
               <KVKey>
-                <TrackTitle
-                  title={t.title ?? t.video_id}
-                  videoId={t.video_id}
-                  artist={t.artist}
-                />
+                <TrackTitle title={t.title ?? t.video_id} videoId={t.video_id} artist={t.artist} />
               </KVKey>
             </KVRow>
           ))}

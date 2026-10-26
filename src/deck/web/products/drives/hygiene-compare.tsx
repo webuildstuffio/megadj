@@ -36,15 +36,11 @@ export function durationDelta(
 
 /** Fetch both A/B sides' audio stats (null on any per-side failure —
  *  the card degrades to "stats unavailable" per side, never throws). */
-export async function fetchSideStats(
-  paths: string[],
-): Promise<(HygieneAudioStats | null)[]> {
+export async function fetchSideStats(paths: string[]): Promise<(HygieneAudioStats | null)[]> {
   return Promise.all(
     paths.map(async (p) => {
       try {
-        const r = await fetch(
-          `/api/hygiene/stats?path=${encodeURIComponent(p)}`,
-        );
+        const r = await fetch(`/api/hygiene/stats?path=${encodeURIComponent(p)}`);
         if (!r.ok) return null;
         return (await r.json()) as HygieneAudioStats;
       } catch {
@@ -110,8 +106,7 @@ function CompareSide(props: {
           class="btn sm"
           disabled={busy || keeper}
           onClick={props.onKeepOther}
-          title="Confirm = this side's twin moves to quarantine, the keeper stays"
-        >
+          title="Confirm = this side's twin moves to quarantine, the keeper stays">
           {keeper ? "Keeper — keep this" : "Keep the other (A) — confirm"}
         </button>
       </div>
@@ -126,24 +121,19 @@ export function CompareCardPanel(props: {
   cmp: CompareState;
   playing: string | null;
   /** The useState setter — accepts a value or an updater function. */
-  setPlaying: (
-    next: string | null | ((cur: string | null) => string | null),
-  ) => void;
+  setPlaying: (next: string | null | ((cur: string | null) => string | null)) => void;
   busy: boolean;
   onKeepOther: (id: string) => void;
 }) {
   const { f, cmp, playing, setPlaying, busy, onKeepOther } = props;
   const isTwin = f.kind === "acoustic-twin" || f.kind === "byte-twin";
-  const dDelta = isTwin
-    ? durationDelta(cmp.stats[0] ?? null, cmp.stats[1] ?? null)
-    : null;
+  const dDelta = isTwin ? durationDelta(cmp.stats[0] ?? null, cmp.stats[1] ?? null) : null;
   return (
     <div class="abcompare">
       {dDelta && (
         <span
           class={`pill ${dDelta === "same length" ? "ok" : "warn"}`}
-          title="Duration difference between the two copies — a big gap means different recordings/mixes, not just encodes"
-        >
+          title="Duration difference between the two copies — a big gap means different recordings/mixes, not just encodes">
           {dDelta}
         </span>
       )}
@@ -168,8 +158,8 @@ export function CompareCardPanel(props: {
         );
       })}
       <div class="abnote">
-        Confirm quarantines the <b>non-keeper</b> copy — nothing is deleted, and
-        you can restore it later. Dismiss keeps both files untouched.
+        Confirm quarantines the <b>non-keeper</b> copy — nothing is deleted, and you can restore it
+        later. Dismiss keeps both files untouched.
       </div>
     </div>
   );

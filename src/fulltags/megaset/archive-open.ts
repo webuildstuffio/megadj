@@ -11,8 +11,5 @@ import { crateDeckRoot } from "../../shared/volume";
 
 export function openMegasetArchive(): ArchiveReader {
   const cfg = loadConfig(crateDeckRoot());
-  return new ArchiveReader(
-    DB_PATH,
-    join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),
-  );
+  return new ArchiveReader(DB_PATH, join(cfg.volumesRoot, cfg.shelfDrive, "Contents"));
 }

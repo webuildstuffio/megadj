@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  fitProbe,
-  probeLeaveOneOut,
-  probePredict,
-  type ProbeRow,
-} from "./linear-probe";
+import { fitProbe, probeLeaveOneOut, probePredict, type ProbeRow } from "./linear-probe";
 
 /** Two well-separated 2-d families — the probe must learn the split. */
 const pop = (): ProbeRow[] => [

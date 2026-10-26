@@ -4,10 +4,7 @@
 // profile (sizes, codecs) of the playable files. Read-only over the
 // archive DB's own columns; the files are ground truth.
 import { useCallback, useState } from "preact/hooks";
-import type {
-  ArchiveIngestStatus,
-  ArchiveLibraryOverview,
-} from "../../../shared/types";
+import type { ArchiveIngestStatus, ArchiveLibraryOverview } from "../../../shared/types";
 import { errMessage, fmtBytes, timeAgo } from "../../../../shared/leaf/fmt";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
@@ -89,9 +86,7 @@ export function LibraryTab() {
     setSearchErr(null);
     try {
       setHits(
-        (await api<Track[]>(
-          `/api/archive/search?q=${encodeURIComponent(query)}`,
-        )) as Track[],
+        (await api<Track[]>(`/api/archive/search?q=${encodeURIComponent(query)}`)) as Track[],
       );
     } catch (e) {
       setSearchErr(errMessage(e));
@@ -100,8 +95,7 @@ export function LibraryTab() {
     }
   }, []);
 
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading library…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading library…" />;
   const lib = page.data;
   if (!lib.available) return <ArchiveAbsentGate />;
 
@@ -119,16 +113,8 @@ export function LibraryTab() {
       />
 
       <div class="statgrid">
-        <StatCard
-          v={lib.tracks.toLocaleString()}
-          l="playable tracks"
-          icon="disc"
-        />
-        <StatCard
-          v={fmtBytes(lib.sizes.total_bytes)}
-          l="audio on disk"
-          icon="folder"
-        />
+        <StatCard v={lib.tracks.toLocaleString()} l="playable tracks" icon="disc" />
+        <StatCard v={fmtBytes(lib.sizes.total_bytes)} l="audio on disk" icon="folder" />
         <StatCard
           v={`${lib.years.known}/${lib.tracks}`}
           l="tracks with a release year"
@@ -215,8 +201,7 @@ export function LibraryTab() {
             ]}
           />
           <div class="arch-fix">
-            the ladder runs on <code>megadj fetch</code> — rungs above are its
-            wins
+            the ladder runs on <code>megadj fetch</code> — rungs above are its wins
           </div>
         </div>
         <div class="card">
@@ -227,9 +212,7 @@ export function LibraryTab() {
             hint="Container/codec mix of the playable files. pcm_* are WAVs/AIFFs (lossless); rekordbox-mirror rows get theirs from the master DB's own FileType/BitDepth at rb-adopt — extensions never decide."
             lines={lib.codecs.map((c) => `${c.codec}: ${c.count}`)}
           />
-          <ChipListLite
-            rows={lib.codecs.map((c) => ({ name: c.codec, count: c.count }))}
-          />
+          <ChipListLite rows={lib.codecs.map((c) => ({ name: c.codec, count: c.count }))} />
         </div>
       </div>
 
@@ -247,8 +230,7 @@ export function LibraryTab() {
           type="button"
           class="btn"
           disabled={q.trim().length < 2 || searching}
-          onClick={() => lookup(q.trim())}
-        >
+          onClick={() => lookup(q.trim())}>
           <Icon name="search" size={14} /> Search
         </button>
         {hits && (
@@ -258,8 +240,7 @@ export function LibraryTab() {
             onClick={() => {
               setHits(null);
               setQ("");
-            }}
-          >
+            }}>
             <Icon name="x" size={13} /> Clear
           </button>
         )}
@@ -295,9 +276,7 @@ export function LibraryTab() {
                     />
                   </KVKey>
                   <KVVal title={t.file_path ?? ""}>
-                    {t.bitrate_kbps
-                      ? `${t.bitrate_kbps} kbps ${t.codec ?? ""}`
-                      : (t.codec ?? "")}
+                    {t.bitrate_kbps ? `${t.bitrate_kbps} kbps ${t.codec ?? ""}` : (t.codec ?? "")}
                   </KVVal>
                 </KVRow>
               ))}
@@ -326,11 +305,7 @@ export function LibraryTab() {
               grow: 3,
               rowKey: (t) => t.video_id,
               cell: (t) => (
-                <TrackTitle
-                  title={t.title ?? t.video_id}
-                  videoId={t.video_id}
-                  artist={t.artist}
-                />
+                <TrackTitle title={t.title ?? t.video_id} videoId={t.video_id} artist={t.artist} />
               ),
               sortValue: (t) => (t.title ?? t.video_id).toLowerCase(),
             },
@@ -354,11 +329,7 @@ export function LibraryTab() {
               key: "art",
               head: "artwork",
               min: 110,
-              cell: (t) => (
-                <span title={t.artwork_status ?? ""}>
-                  {artLang(t.artwork_status)}
-                </span>
-              ),
+              cell: (t) => <span title={t.artwork_status ?? ""}>{artLang(t.artwork_status)}</span>,
               sortValue: (t) => t.artwork_status ?? "",
             },
             {
@@ -367,11 +338,7 @@ export function LibraryTab() {
               align: "end",
               min: 92,
               grow: 0,
-              cell: (t) => (
-                <span title={t.updated_at}>
-                  {timeAgo(Date.parse(t.updated_at))}
-                </span>
-              ),
+              cell: (t) => <span title={t.updated_at}>{timeAgo(Date.parse(t.updated_at))}</span>,
               sortValue: (t) => t.updated_at,
             },
           ]}
@@ -391,11 +358,7 @@ export function LibraryTab() {
 function GenreBars(props: { rows: { name: string; count: number }[] }) {
   return (
     <BarList
-      rows={props.rows.map((r) => ({
-        key: r.name,
-        name: r.name,
-        value: r.count,
-      }))}
+      rows={props.rows.map((r) => ({ key: r.name, name: r.name, value: r.count }))}
       cap={10}
       empty={<div class="fleet-note">no genres yet — run `megadj fetch`</div>}
     />
@@ -403,13 +366,5 @@ function GenreBars(props: { rows: { name: string; count: number }[] }) {
 }
 
 function ChipListLite(props: { rows: { name: string; count: number }[] }) {
-  return (
-    <BarList
-      rows={props.rows.map((r) => ({
-        key: r.name,
-        name: r.name,
-        value: r.count,
-      }))}
-    />
-  );
+  return <BarList rows={props.rows.map((r) => ({ key: r.name, name: r.name, value: r.count }))} />;
 }

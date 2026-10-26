@@ -169,9 +169,7 @@ describe("abbreviateSubgenre", () => {
 
   test("slashes and apostrophes are stripped", () => {
     expect(abbreviateSubgenre("EDM/Bass")).toBe("EDMBass");
-    expect(abbreviateSubgenre("Funky/groove/jackin'house")).toBe(
-      "Funkygroovejackinhouse",
-    );
+    expect(abbreviateSubgenre("Funky/groove/jackin'house")).toBe("Funkygroovejackinhouse");
   });
 
   test("accented characters transliterated to ASCII", () => {
@@ -453,9 +451,7 @@ describe("parseCommentV4", () => {
   });
 
   test("multi-genre subgenre with + separator", () => {
-    const parsed = parseCommentV4(
-      "E8 IN:32 OUT:16 Drop Dark · MelTechno+DeepHouse",
-    );
+    const parsed = parseCommentV4("E8 IN:32 OUT:16 Drop Dark · MelTechno+DeepHouse");
     expect(parsed.energy).toBe(8);
     expect(parsed.drop).toBe(true);
     expect(parsed.dark).toBe(true);

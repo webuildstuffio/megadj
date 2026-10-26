@@ -132,8 +132,7 @@ export function parseVerifyKeyArgs(argv: readonly string[]): VerifyKeyArgs {
       }
       limit = parsed;
     } else if (a === "--refs" || a.startsWith("--refs=")) {
-      refsPath =
-        a === "--refs" ? (argv[++i] ?? null) : a.slice("--refs=".length);
+      refsPath = a === "--refs" ? (argv[++i] ?? null) : a.slice("--refs=".length);
     } else if (a.startsWith("--")) {
       error = `verify-key: unknown flag "${a}"`;
       break;
@@ -192,26 +191,20 @@ function collectTargets(targets: readonly string[]): string[] {
  *  analyzed them. Throws (flag named) on unreadable/malformed input —
  *  a usage error, exit 2. */
 function loadExternalRefs(refsPath: string): Record<string, string> {
-  if (!existsSync(refsPath))
-    throw new Error(`verify-key: --refs file not found: ${refsPath}`);
+  if (!existsSync(refsPath)) throw new Error(`verify-key: --refs file not found: ${refsPath}`);
   try {
     const parsed: unknown = JSON.parse(readFileSync(refsPath, "utf8"));
     const record =
       typeof parsed === "object" &&
       parsed !== null &&
       !Array.isArray(parsed) &&
-      Object.values(parsed as Record<string, unknown>).every(
-        (v) => typeof v === "string",
-      )
+      Object.values(parsed as Record<string, unknown>).every((v) => typeof v === "string")
         ? (parsed as Record<string, string>)
         : null;
-    if (record === null)
-      throw new Error("expected a JSON object of {basename: key}");
+    if (record === null) throw new Error("expected a JSON object of {basename: key}");
     return record;
   } catch (error) {
-    throw new Error(`verify-key: --refs invalid JSON: ${errMessage(error)}`, {
-      cause: error,
-    });
+    throw new Error(`verify-key: --refs invalid JSON: ${errMessage(error)}`, { cause: error });
   }
 }
 
@@ -253,14 +246,11 @@ export async function runVerifyKey(opts: {
   // the operator's explicit input, so it wins over an implicit empty walk.
   // Reference = existing key tags on disk (MIK/rekordbox output), or the
   // external --refs map.
-  const externalRefs =
-    opts.refsPath === null ? null : loadExternalRefs(opts.refsPath);
+  const externalRefs = opts.refsPath === null ? null : loadExternalRefs(opts.refsPath);
 
   const sample = files.slice(0, opts.limit);
   if (!sample.length) {
-    throw new Error(
-      "verify-key: no files to verify — pass a folder or audio files",
-    );
+    throw new Error("verify-key: no files to verify — pass a folder or audio files");
   }
 
   const refs = new Map<string, string | null>();
@@ -293,22 +283,15 @@ export async function runVerifyKey(opts: {
 }
 
 /** Human-mode report (the --json printer lives in the CLI). */
-export function printVerifyKeyReport(
-  log: (s: string) => void,
-  s: VerifyKeySummary,
-): void {
-  log(
-    `analyzed ${s.analyzed} (skipped ${s.skippedNoRef} without existing key tags)`,
-  );
+export function printVerifyKeyReport(log: (s: string) => void, s: VerifyKeySummary): void {
+  log(`analyzed ${s.analyzed} (skipped ${s.skippedNoRef} without existing key tags)`);
   for (const r of s.rows) {
     const mark = r.verdict === "match" ? "✓" : r.verdict === "near" ? "~" : "✗";
     log(
       ` ${mark} ${r.file.padEnd(40)} ref=${String(r.ref).padEnd(8)} got=${String(r.got).padEnd(4)} (${r.verdict})`,
     );
   }
-  const combined = Math.round(
-    ((s.match + s.near) / Math.max(s.analyzed, 1)) * 100,
-  );
+  const combined = Math.round(((s.match + s.near) / Math.max(s.analyzed, 1)) * 100);
   log(
     `\nagreement: ${s.match}/${s.analyzed} exact + ${s.near} near = ${combined}% combined · gate(≥80% exact): ${s.gatePass ? "PASS" : "FAIL"} · ${s.elapsedMs}ms`,
   );

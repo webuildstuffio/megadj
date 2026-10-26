@@ -27,9 +27,7 @@ const ROOT = join(import.meta.dir, "..", "..", "..");
  *  re-exports this module, but the SOURCE lives here). */
 function jobKindsFromSource(): string[] {
   const src = readFileSync(join(ROOT, "src/deck/shared/types/jobs.ts"), "utf8");
-  const block = src.match(
-    /export const JOB_KINDS = \[([\s\S]*?)\] as const/,
-  )?.[1];
+  const block = src.match(/export const JOB_KINDS = \[([\s\S]*?)\] as const/)?.[1];
   if (!block) throw new Error("JOB_KINDS not found in shared/types/jobs.ts");
   return [...block.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]!);
 }
@@ -37,9 +35,7 @@ function jobKindsFromSource(): string[] {
 describe("KIND_DOCS covers every job kind (the explain census)", () => {
   // Import AFTER reading source so a malformed SSOT constant fails its own
   // clear error above rather than an import-time type surprise.
-  const { KIND_DOCS } = require("../deckctl/docs") as {
-    KIND_DOCS: Record<string, unknown>;
-  };
+  const { KIND_DOCS } = require("../deckctl/docs") as { KIND_DOCS: Record<string, unknown> };
   const kinds = jobKindsFromSource();
   const documented = new Set(["verify", ...Object.keys(KIND_DOCS)]);
 
@@ -70,13 +66,8 @@ describe("KIND_DOCS covers every job kind (the explain census)", () => {
       >;
     };
     const expected = ["verify", ...Object.keys(KIND_DOCS)];
-    expect(
-      DECK_READ_HANDLERS.explain?.inputSchema.properties.kind.enum,
-    ).toEqual(expected);
-    const all = (await DECK_READ_HANDLERS.explain?.run({})) as Record<
-      string,
-      unknown
-    >;
+    expect(DECK_READ_HANDLERS.explain?.inputSchema.properties.kind.enum).toEqual(expected);
+    const all = (await DECK_READ_HANDLERS.explain?.run({})) as Record<string, unknown>;
     expect(Object.keys(all)).toEqual(expected);
   });
 
@@ -98,9 +89,7 @@ describe("KIND_DOCS covers every job kind (the explain census)", () => {
  * fails here.
  */
 describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
-  const { JOB_KINDS } = require("../shared/types/jobs") as {
-    JOB_KINDS: readonly string[];
-  };
+  const { JOB_KINDS } = require("../shared/types/jobs") as { JOB_KINDS: readonly string[] };
   const { HELP_JOBS } = require("../shared/help") as {
     HELP_JOBS: { kind: string; icon: string }[];
   };
@@ -123,9 +112,9 @@ describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
   // (icons.tsx falls back to Circle).
   test("every HELP_JOBS icon resolves in the web Icon table", () => {
     const icons = readFileSync(join(ROOT, "src/deck/web/ui/icons.tsx"), "utf8");
-    const unnamed = HELP_JOBS.filter(
-      (j) => !new RegExp(`\\b${j.icon}\\s*:`, "m").test(icons),
-    ).map((j) => `${j.kind}: "${j.icon}"`);
+    const unnamed = HELP_JOBS.filter((j) => !new RegExp(`\\b${j.icon}\\s*:`, "m").test(icons)).map(
+      (j) => `${j.kind}: "${j.icon}"`,
+    );
     expect(unnamed).toEqual([]);
   });
 
@@ -172,15 +161,9 @@ describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
   // Super-sure pass: the jobs-section headers were hard-coded "five jobs"
   // and rotted the moment the 11th kind landed — copy must stay count-free.
   test("no hard-coded job count in help copy (the 'five jobs' rot)", () => {
-    for (const rel of [
-      "src/deck/deckctl/help.ts",
-      "src/deck/web/ui/Onboard.tsx",
-    ]) {
+    for (const rel of ["src/deck/deckctl/help.ts", "src/deck/web/ui/Onboard.tsx"]) {
       const src = readFileSync(join(ROOT, rel), "utf8");
-      expect({ file: rel, stale: /five jobs/.test(src) }).toEqual({
-        file: rel,
-        stale: false,
-      });
+      expect({ file: rel, stale: /five jobs/.test(src) }).toEqual({ file: rel, stale: false });
     }
   });
 });

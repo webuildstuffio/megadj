@@ -35,12 +35,8 @@ const makeState = (dir: string) => stateIn(dir);
 describe("predictedPhraseBars", () => {
   test("one bar per 32 downbeats, 1-based", () => {
     // 64 downbeats → bars 1 and 33; 63 → none fit the second window.
-    expect(
-      predictedPhraseBars(Array.from({ length: 64 }, (_, i) => i)),
-    ).toEqual([1, 33]);
-    expect(
-      predictedPhraseBars(Array.from({ length: 63 }, (_, i) => i)),
-    ).toEqual([1]);
+    expect(predictedPhraseBars(Array.from({ length: 64 }, (_, i) => i))).toEqual([1, 33]);
+    expect(predictedPhraseBars(Array.from({ length: 63 }, (_, i) => i))).toEqual([1]);
     expect(predictedPhraseBars([])).toEqual([]);
   });
 });
@@ -50,11 +46,7 @@ describe("goldReport command", () => {
     const dir = t.dir();
     const state = makeState(dir);
     try {
-      const r = await goldReport({
-        state,
-        dir: join(dir, "_gold"),
-        json: true,
-      });
+      const r = await goldReport({ state, dir: join(dir, "_gold"), json: true });
       expect(r.ok).toBe(false);
       expect(r.error).toMatch(/annotate 30 tracks/u);
     } finally {
@@ -87,10 +79,7 @@ describe("P1: gold-report --json on the real CLI", () => {
     const { code, stdout } = await runCli(["gold-report", "--json"], env);
     expect(code).toBe(1); // empty set is a visible failure
     const lines = stdout.trim().split("\n");
-    const parsed = JSON.parse(lines[lines.length - 1] ?? "") as Record<
-      string,
-      unknown
-    >;
+    const parsed = JSON.parse(lines[lines.length - 1] ?? "") as Record<string, unknown>;
     expect(parsed.command).toBe("gold-report");
     expect(parsed.ok).toBe(false);
   });

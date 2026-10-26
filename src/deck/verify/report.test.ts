@@ -3,11 +3,7 @@
 // failing check carries a meaning + fix, passes are included (not silent),
 // and the check ids stay stable for the UI/CLI.
 import { describe, expect, it } from "bun:test";
-import {
-  parseVerifyReport,
-  sanitizeVerifyReport,
-  verifyDeltas,
-} from "../jobs/engine";
+import { parseVerifyReport, sanitizeVerifyReport, verifyDeltas } from "../jobs/engine";
 import type { VerifyReport } from "../shared/types";
 
 const PASS_OUTPUT = `
@@ -73,12 +69,7 @@ describe("parseVerifyReport", () => {
   });
 
   it("failing output: failing checks carry meaning + fix", () => {
-    const r = parseVerifyReport(
-      FAIL_OUTPUT,
-      false,
-      "FINAL: FAILED: 6 checks",
-      180,
-    );
+    const r = parseVerifyReport(FAIL_OUTPUT, false, "FINAL: FAILED: 6 checks", 180);
     expect(r.ok).toBe(false);
     const bad = r.checks.filter((c) => c.status !== "pass");
     expect(bad.length).toBeGreaterThanOrEqual(5);
@@ -97,13 +88,7 @@ describe("parseVerifyReport", () => {
   });
 
   it("shelf-tier drive: pdb/OneLibrary mismatch is informational, not a fail", () => {
-    const r = parseVerifyReport(
-      FAIL_OUTPUT,
-      false,
-      "FINAL: FAILED: 6 checks",
-      180,
-      "shelf",
-    );
+    const r = parseVerifyReport(FAIL_OUTPUT, false, "FINAL: FAILED: 6 checks", 180, "shelf");
     const dual = r.checks.find((c) => c.id === "dual-db");
     expect(dual?.status).toBe("pass");
     expect(dual?.detail).toContain("archive tier");
@@ -112,16 +97,10 @@ describe("parseVerifyReport", () => {
   });
 
   it("anlz warn threshold: a few missing is warn, many is fail", () => {
-    const few = PASS_OUTPUT.replace(
-      "missing analysis: 0",
-      "missing analysis: 3",
-    );
+    const few = PASS_OUTPUT.replace("missing analysis: 0", "missing analysis: 3");
     const rFew = parseVerifyReport(few, false, "FINAL: FAILED", 60);
     expect(rFew.checks.find((c) => c.id === "anlz")?.status).toBe("warn");
-    const many = PASS_OUTPUT.replace(
-      "missing analysis: 0",
-      "missing analysis: 500",
-    );
+    const many = PASS_OUTPUT.replace("missing analysis: 0", "missing analysis: 500");
     const rMany = parseVerifyReport(many, false, "FINAL: FAILED", 60);
     expect(rMany.checks.find((c) => c.id === "anlz")?.status).toBe("fail");
   });
@@ -187,12 +166,7 @@ describe("parseVerifyReport: crashed script", () => {
   it("a completed run NEVER gets the script-failed check", () => {
     const ok = parseVerifyReport(PASS_OUTPUT, true, "FINAL: ALL PASS", 10);
     expect(ok.checks.map((c) => c.id)).not.toContain("script-failed");
-    const failed = parseVerifyReport(
-      FAIL_OUTPUT,
-      false,
-      "FINAL: FAILED: 6 checks",
-      10,
-    );
+    const failed = parseVerifyReport(FAIL_OUTPUT, false, "FINAL: FAILED: 6 checks", 10);
     expect(failed.checks.map((c) => c.id)).not.toContain("script-failed");
   });
 });
@@ -219,8 +193,7 @@ describe("sanitizeVerifyReport", () => {
         },
       ],
       stats: {},
-      summary:
-        "Traceback (most recent call last): sqlalchemy error at line 1421",
+      summary: "Traceback (most recent call last): sqlalchemy error at line 1421",
     };
     const s = sanitizeVerifyReport(legacy);
     expect(s.ok).toBe(false);
@@ -228,22 +201,12 @@ describe("sanitizeVerifyReport", () => {
     expect(crash.status).toBe("fail");
     expect(crash.detail).toContain("crashed with an error");
     // legacy completed runs pass through untouched
-    const done = sanitizeVerifyReport({
-      ...legacy,
-      final: "FINAL: ALL PASS",
-      ok: true,
-    });
+    const done = sanitizeVerifyReport({ ...legacy, final: "FINAL: ALL PASS", ok: true });
     expect(done.checks.find((c) => c.id === "script-failed")).toBeUndefined();
     // a completed run with real failing checks is untouched
-    const doneFail = sanitizeVerifyReport({
-      ...legacy,
-      final: "FINAL: FAILED",
-      checks: [],
-    });
+    const doneFail = sanitizeVerifyReport({ ...legacy, final: "FINAL: FAILED", checks: [] });
     expect(doneFail).toBe(doneFail); // identity: no mutation path
-    expect(
-      doneFail.checks.find((c) => c.id === "script-failed"),
-    ).toBeUndefined();
+    expect(doneFail.checks.find((c) => c.id === "script-failed")).toBeUndefined();
   });
 });
 
@@ -283,12 +246,7 @@ function jsonOut(payload: VerifyJsonLike): string {
 
 describe("parseVerifyReport: structured payload", () => {
   it("parses the VERIFY_JSON line and attaches offenders", () => {
-    const r = parseVerifyReport(
-      jsonOut(JSON_PAYLOAD),
-      true,
-      "FINAL: ALL PASS",
-      88,
-    );
+    const r = parseVerifyReport(jsonOut(JSON_PAYLOAD), true, "FINAL: ALL PASS", 88);
     expect(r.stats.tracks).toBe(3521);
     expect(r.stats.playlists).toBe(42);
     const anlz = r.checks.find((c) => c.id === "anlz");
@@ -307,10 +265,7 @@ describe("parseVerifyReport: structured payload", () => {
       ...JSON_PAYLOAD,
       drives: {
         MASTER: { tracks: 100, missing_files: ["/Contents/x.mp3"] },
-        MIRROR: {
-          tracks: 100,
-          missing_files: ["/Contents/y.mp3", "/Contents/z.mp3"],
-        },
+        MIRROR: { tracks: 100, missing_files: ["/Contents/y.mp3", "/Contents/z.mp3"] },
       },
       db_identical: false,
       anlz_total: 10,
@@ -389,12 +344,7 @@ describe("parseVerifyReport: structured payload", () => {
 
 describe("verifyDeltas", () => {
   it("computes +N worse and −N better per check", () => {
-    const prev = parseVerifyReport(
-      jsonOut(JSON_PAYLOAD),
-      false,
-      "FINAL: FAILED",
-      10,
-    );
+    const prev = parseVerifyReport(jsonOut(JSON_PAYLOAD), false, "FINAL: FAILED", 10);
     const worse: VerifyJsonLike = {
       ...JSON_PAYLOAD,
       drives: {
@@ -417,12 +367,7 @@ describe("verifyDeltas", () => {
   });
 
   it("no previous report → no deltas", () => {
-    const next = parseVerifyReport(
-      jsonOut(JSON_PAYLOAD),
-      true,
-      "FINAL: ALL PASS",
-      5,
-    );
+    const next = parseVerifyReport(jsonOut(JSON_PAYLOAD), true, "FINAL: ALL PASS", 5);
     expect(verifyDeltas(null, next)).toEqual([]);
   });
 
@@ -437,9 +382,7 @@ describe("verifyDeltas", () => {
       5,
     );
     const prev: VerifyReport = { ...next, checks: [] };
-    const audio = verifyDeltas(prev, next).find(
-      (d) => d.check_id === "audio-files",
-    );
+    const audio = verifyDeltas(prev, next).find((d) => d.check_id === "audio-files");
     expect(audio?.prev_status).toBeNull();
     expect(audio?.delta).toBe(2);
   });

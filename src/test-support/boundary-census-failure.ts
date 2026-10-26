@@ -88,9 +88,7 @@ export function isFailureExpression(node: Expression): boolean {
   if (isIdentifier(node)) return isFailureName(node.text);
   if (isNewExpression(node)) {
     const newExpr = node as NewExpression;
-    return (
-      isIdentifier(newExpr.expression) && newExpr.expression.text === "Error"
-    );
+    return isIdentifier(newExpr.expression) && newExpr.expression.text === "Error";
   }
   return false;
 }
@@ -99,9 +97,7 @@ function localNames(block: Block): ReadonlySet<string> {
   const names = new Set<string>();
   const visit = (node: Node): void => {
     if (node !== block && isFunctionBoundary(node)) {
-      const decl = isFunctionDeclaration(node)
-        ? (node as FunctionDeclaration)
-        : null;
+      const decl = isFunctionDeclaration(node) ? (node as FunctionDeclaration) : null;
       if (decl?.name !== undefined) names.add(decl.name.text);
       return;
     }
@@ -115,26 +111,18 @@ function localNames(block: Block): ReadonlySet<string> {
   return names;
 }
 
-function isVisibleReporter(
-  call: CallExpression,
-  locals: ReadonlySet<string>,
-): boolean {
+function isVisibleReporter(call: CallExpression, locals: ReadonlySet<string>): boolean {
   const callee = call.expression;
-  if (isIdentifier(callee))
-    return !locals.has(callee.text) && isFailureName(callee.text);
+  if (isIdentifier(callee)) return !locals.has(callee.text) && isFailureName(callee.text);
   if (!isPropertyAccessExpression(callee)) return false;
   const access = callee as PropertyAccessExpression;
   const method = access.name.text;
   if (method !== "error" && method !== "warn") return false;
-  return (
-    !isIdentifier(access.expression) || !locals.has(access.expression.text)
-  );
+  return !isIdentifier(access.expression) || !locals.has(access.expression.text);
 }
 
 function isAssignment(kind: SyntaxKind): boolean {
-  return (
-    kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment
-  );
+  return kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
 }
 
 /** One predicate per silent-swallow shape (#199). Splitting the shape
@@ -145,14 +133,10 @@ function unaryOperand(node: Node): string | null {
     isPostfixUnaryExpression(node) || isPrefixUnaryExpression(node)
       ? (node as PostfixUnaryExpression | PrefixUnaryExpression)
       : null;
-  return unary !== null && isIdentifier(unary.operand)
-    ? unary.operand.text
-    : null;
+  return unary !== null && isIdentifier(unary.operand) ? unary.operand.text : null;
 }
 
-function failureShapes(
-  locals: ReadonlySet<string>,
-): ((node: Node) => boolean)[] {
+function failureShapes(locals: ReadonlySet<string>): ((node: Node) => boolean)[] {
   return [
     (node) => isThrowStatement(node),
     (node) =>
@@ -183,11 +167,7 @@ function catchHasVisibleFailure(block: Block): boolean {
   const shapes = failureShapes(locals);
   let visible = false;
   const visit = (node: Node): void => {
-    if (
-      visible ||
-      (node !== block && (isFunctionBoundary(node) || isClassLike(node)))
-    )
-      return;
+    if (visible || (node !== block && (isFunctionBoundary(node) || isClassLike(node)))) return;
     if (shapes.some((matches) => matches(node))) visible = true;
     else forEachChild(node, visit);
   };
@@ -196,11 +176,7 @@ function catchHasVisibleFailure(block: Block): boolean {
 }
 
 export function hasVisibleCatch(node: Node): boolean {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  ) {
+  for (let parent: Node | undefined = node.parent; parent; parent = parent.parent) {
     if (isTryStatement(parent)) {
       const tryStatement = parent as TryStatement;
       return tryStatement.catchClause

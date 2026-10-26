@@ -66,8 +66,7 @@ export class ProgressBar {
 
   private suffix(elapsed: number): string {
     const parts: string[] = [];
-    if (this.bytes > 0 && elapsed > 1)
-      parts.push(`${fmtBytes(this.bytes / elapsed)}/s`);
+    if (this.bytes > 0 && elapsed > 1) parts.push(`${fmtBytes(this.bytes / elapsed)}/s`);
     if (this.done > 0 && elapsed > 2) {
       const remaining = (elapsed / this.done) * (this.total - this.done);
       parts.push(`ETA ${fmtDur(remaining)}`);
@@ -79,9 +78,7 @@ export class ProgressBar {
     const elapsed = (Date.now() - this.start) / 1000;
     this.render(true);
     if (isTty) process.stderr.write("\n");
-    const parts = [
-      `[${this.label}] ${this.done}/${this.total} ${this.unit} in ${fmtDur(elapsed)}`,
-    ];
+    const parts = [`[${this.label}] ${this.done}/${this.total} ${this.unit} in ${fmtDur(elapsed)}`];
     if (this.bytes > 0)
       parts.push(
         `(${fmtBytes(this.bytes)} at ${fmtBytes(this.bytes / Math.max(elapsed, 0.001))}/s)`,

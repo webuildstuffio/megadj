@@ -51,10 +51,7 @@ interface MegasetTool {
   run: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
-function captureSetBuildRequest(): {
-  urls: URL[];
-  tool: MegasetTool;
-} {
+function captureSetBuildRequest(): { urls: URL[]; tool: MegasetTool } {
   const urls: URL[] = [];
   globalThis.fetch = Object.assign(
     async (input: RequestInfo | URL) => {
@@ -63,10 +60,7 @@ function captureSetBuildRequest(): {
     },
     { preconnect: originalFetch.preconnect },
   );
-  return {
-    urls,
-    tool: archiveTools().megaset_propose as MegasetTool,
-  };
+  return { urls, tool: archiveTools().megaset_propose as MegasetTool };
 }
 
 describe("megaset_propose candidate-pool contract", () => {
@@ -99,18 +93,14 @@ describe("megaset_propose candidate-pool contract", () => {
   test("an unknown search value is rejected instead of silently degrading to auto", async () => {
     const { urls, tool } = captureSetBuildRequest();
 
-    expect(tool.run({ search: "deepest" })).rejects.toThrow(
-      'search must be "greedy" or "beam"',
-    );
+    expect(tool.run({ search: "deepest" })).rejects.toThrow('search must be "greedy" or "beam"');
     expect(urls).toHaveLength(0);
   });
 
   test("an explicitly invalid limit is rejected instead of triggering a full scan", async () => {
     const { urls, tool } = captureSetBuildRequest();
 
-    expect(tool.run({ limit: "all" })).rejects.toThrow(
-      "limit must be a finite number",
-    );
+    expect(tool.run({ limit: "all" })).rejects.toThrow("limit must be a finite number");
     expect(urls).toHaveLength(0);
   });
 
@@ -118,34 +108,22 @@ describe("megaset_propose candidate-pool contract", () => {
     const response = await archiveRoutes(
       "/archive/megaset",
       new URL("http://localhost/api/archive/megaset?limit=all"),
-      {
-        archive: {} as ArchiveReader,
-        db: {} as DB,
-        cfg: {} as CrateConfig,
-      },
+      { archive: {} as ArchiveReader, db: {} as DB, cfg: {} as CrateConfig },
     );
 
     expect(response?.status).toBe(400);
-    expect(await response?.json()).toEqual({
-      error: "limit must be a finite number",
-    });
+    expect(await response?.json()).toEqual({ error: "limit must be a finite number" });
   });
 
   test("B7 (#105): a non-numeric minutes value 400s on the HTTP surface — never a silent 60", async () => {
     const response = await archiveRoutes(
       "/archive/megaset",
       new URL("http://localhost/api/archive/megaset?minutes=abc"),
-      {
-        archive: {} as ArchiveReader,
-        db: {} as DB,
-        cfg: {} as CrateConfig,
-      },
+      { archive: {} as ArchiveReader, db: {} as DB, cfg: {} as CrateConfig },
     );
 
     expect(response?.status).toBe(400);
-    expect(await response?.json()).toEqual({
-      error: 'minutes must be a number (got "abc")',
-    });
+    expect(await response?.json()).toEqual({ error: 'minutes must be a number (got "abc")' });
   });
 
   test("B7 (#105): a non-numeric minutes value throws RpcParamError on the MCP surface", async () => {
@@ -164,11 +142,7 @@ describe("megaset_propose candidate-pool contract", () => {
     const response = await archiveRoutes(
       "/archive/megaset",
       new URL("http://localhost/api/archive/megaset?search=nope"),
-      {
-        archive,
-        db: {} as DB,
-        cfg: {} as CrateConfig,
-      },
+      { archive, db: {} as DB, cfg: {} as CrateConfig },
     );
     // not a 400: the route degrades to auto like an absent param — the
     // contract here is the build, not the knob (one analyzed track is a
@@ -192,14 +166,8 @@ describe("megaset_propose candidate-pool contract", () => {
 
     const response = await archiveRoutes(
       "/archive/megaset",
-      new URL(
-        "http://localhost/api/archive/megaset?preset=warmup&minutes=10&format=m3u8",
-      ),
-      {
-        archive,
-        db: {} as DB,
-        cfg: {} as CrateConfig,
-      },
+      new URL("http://localhost/api/archive/megaset?preset=warmup&minutes=10&format=m3u8"),
+      { archive, db: {} as DB, cfg: {} as CrateConfig },
     );
 
     expect(response?.status).toBe(200);
@@ -269,14 +237,8 @@ describe("megaset_propose candidate-pool contract", () => {
 
     const response = await archiveRoutes(
       "/archive/megaset",
-      new URL(
-        "http://localhost/api/archive/megaset?preset=warmup&minutes=10&format=m3u8",
-      ),
-      {
-        archive,
-        db: {} as DB,
-        cfg: {} as CrateConfig,
-      },
+      new URL("http://localhost/api/archive/megaset?preset=warmup&minutes=10&format=m3u8"),
+      { archive, db: {} as DB, cfg: {} as CrateConfig },
     );
 
     expect(response?.status).toBe(200);
@@ -286,9 +248,7 @@ describe("megaset_propose candidate-pool contract", () => {
     expect(text).toContain(filePath);
     // …the metadata-only track is NOT a dead entry — it is a counted note
     expect(text).not.toContain("Mirror Only Track\n/Volumes");
-    expect(text).toContain(
-      "# megadj: 1 of 2 proposal tracks skipped — no mounted file",
-    );
+    expect(text).toContain("# megadj: 1 of 2 proposal tracks skipped — no mounted file");
   });
 
   test("#106 Phase D: derived handoff windows ride the wire and render as #EXTREM comments in the M3U8", async () => {
@@ -350,16 +310,12 @@ describe("megaset_propose candidate-pool contract", () => {
     // M3U8 surface: the same derivation renders as #EXTREM comments
     const m3u8 = await archiveRoutes(
       "/archive/megaset",
-      new URL(
-        "http://localhost/api/archive/megaset?preset=warmup&minutes=5&format=m3u8",
-      ),
+      new URL("http://localhost/api/archive/megaset?preset=warmup&minutes=5&format=m3u8"),
       { archive, db: {} as DB, cfg: {} as CrateConfig },
     );
     expect(m3u8?.status).toBe(200);
     const text = await m3u8?.text();
-    expect(text).toContain(
-      "#EXTREM:mix-in @ 45s (bar 25) · mix-out @ 107s (bar 57)",
-    );
+    expect(text).toContain("#EXTREM:mix-in @ 45s (bar 25) · mix-out @ 107s (bar 57)");
   });
 
   test("#106 Phase D: a track with no cue row builds with null windows (no invented bars anywhere)", async () => {
@@ -397,9 +353,7 @@ describe("megaset_propose candidate-pool contract", () => {
 
     const response = await archiveRoutes(
       "/archive/megaset",
-      new URL(
-        "http://localhost/api/archive/megaset?preset=warmup&minutes=5&format=m3u8",
-      ),
+      new URL("http://localhost/api/archive/megaset?preset=warmup&minutes=5&format=m3u8"),
       { archive, db: {} as DB, cfg: {} as CrateConfig },
     );
     expect(response?.status).toBe(200);

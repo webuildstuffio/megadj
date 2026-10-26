@@ -6,10 +6,7 @@
 import { describe, it, expect } from "bun:test";
 import { drain } from "../jobs/engine";
 
-function spawnWriter(
-  chunks: string[],
-  opts: { delayMs?: number } = {},
-): Bun.Subprocess {
+function spawnWriter(chunks: string[], opts: { delayMs?: number } = {}): Bun.Subprocess {
   const script = `
     const chunks = ${JSON.stringify(chunks)};
     const delay = ${opts.delayMs ?? 0};
@@ -18,23 +15,15 @@ function spawnWriter(
       if (delay) await new Promise((r) => setTimeout(r, delay));
     }
   `;
-  return Bun.spawn(["bun", "-e", script], {
-    stdout: "pipe",
-    stderr: "ignore",
-  });
+  return Bun.spawn(["bun", "-e", script], { stdout: "pipe", stderr: "ignore" });
 }
 
 describe("drain stdout capture", () => {
   it("captures split lines without duplication", async () => {
     // deliberately split mid-line and mid-token across chunk boundaries
-    const proc = spawnWriter([
-      "tracks: 10\npla",
-      "ylists: 3\nFINAL: ALL PASS\n",
-    ]);
+    const proc = spawnWriter(["tracks: 10\npla", "ylists: 3\nFINAL: ALL PASS\n"]);
     const lines: string[] = [];
-    const { out } = await drain(proc, (l) => lines.push(l), {
-      cancelled: false,
-    });
+    const { out } = await drain(proc, (l) => lines.push(l), { cancelled: false });
     expect(lines).toEqual(["tracks: 10", "playlists: 3", "FINAL: ALL PASS"]);
     expect(out).toBe("tracks: 10\nplaylists: 3\nFINAL: ALL PASS\n");
   });
@@ -62,10 +51,7 @@ describe("drain stdout capture", () => {
       "await new Promise((r) => setTimeout(r, 10));",
       "process.stdout.write(tail);",
     ].join("\n");
-    const proc = Bun.spawn(["bun", "-e", script], {
-      stdout: "pipe",
-      stderr: "ignore",
-    });
+    const proc = Bun.spawn(["bun", "-e", script], { stdout: "pipe", stderr: "ignore" });
     const { out } = await drain(proc, () => {}, { cancelled: false });
     expect(out).toBe(s);
   });
@@ -77,9 +63,7 @@ describe("drain stdout capture", () => {
     // lost its final tick to every onLine consumer.
     const proc = spawnWriter(["phase 1 done\nfinal phase 100%"]);
     const lines: string[] = [];
-    const { out } = await drain(proc, (l) => lines.push(l), {
-      cancelled: false,
-    });
+    const { out } = await drain(proc, (l) => lines.push(l), { cancelled: false });
     expect(lines).toEqual(["phase 1 done", "final phase 100%"]);
     expect(out).toBe("phase 1 done\nfinal phase 100%");
   });

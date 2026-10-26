@@ -18,13 +18,7 @@
 import type { ComponentChildren } from "preact";
 import { Icon } from "../../ui/icons";
 
-export {
-  DRIVE_TABS,
-  LEDE,
-  PRODUCTS,
-  PRODUCT_TABS,
-  ProductIntro,
-} from "./product-meta";
+export { DRIVE_TABS, LEDE, PRODUCTS, PRODUCT_TABS, ProductIntro } from "./product-meta";
 export type { GridBreaker } from "./beat-sync";
 export { ScanApplyActions, ScanApplyGate, useScanApply } from "./scan-apply";
 export { collectBreakers, BeatSyncBreakersCard } from "./beat-sync";
@@ -63,8 +57,7 @@ export const MOOD_GLOSS: Record<string, string> = {
 export function ArchiveAbsentGate() {
   return (
     <div class="note-card">
-      <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run on
-      this machine yet.
+      <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run on this machine yet.
     </div>
   );
 }
@@ -84,13 +77,8 @@ export function Verdict(props: {
 }) {
   return (
     <div class={`arch-verdict ${props.cls}`}>
-      <Icon
-        name={props.icon ?? (props.cls === "ok" ? "check" : "warn")}
-        size={15}
-      />
-      {props.text !== null && props.text !== undefined && (
-        <span>{props.text}</span>
-      )}
+      <Icon name={props.icon ?? (props.cls === "ok" ? "check" : "warn")} size={15} />
+      {props.text !== null && props.text !== undefined && <span>{props.text}</span>}
       {props.meta && <span class="arch-verdict-meta">{props.meta}</span>}
     </div>
   );
@@ -108,13 +96,7 @@ const segOnKey = (onClick?: () => void) => (e: KeyboardEvent) => {
  *  Clickable entries are keyboard-operable (#520): tabIndex + Enter/Space,
  *  same pattern as StatCard. */
 export function ShareBar(props: {
-  segs: {
-    n: number;
-    cls: string;
-    label: string;
-    title: string;
-    onClick?: () => void;
-  }[];
+  segs: { n: number; cls: string; label: string; title: string; onClick?: () => void }[];
   total: number;
 }) {
   const total = props.total || 1;
@@ -123,8 +105,7 @@ export function ShareBar(props: {
       <div
         class="arch-pie"
         role="img"
-        aria-label={props.segs.map((s) => `${s.label}: ${s.n}`).join(", ")}
-      >
+        aria-label={props.segs.map((s) => `${s.label}: ${s.n}`).join(", ")}>
         {props.segs
           .filter((s) => s.n > 0)
           .map((s) => (
@@ -150,8 +131,7 @@ export function ShareBar(props: {
               role={s.onClick ? "button" : undefined}
               tabIndex={s.onClick ? 0 : undefined}
               onClick={s.onClick}
-              onKeyDown={s.onClick ? segOnKey(s.onClick) : undefined}
-            >
+              onKeyDown={s.onClick ? segOnKey(s.onClick) : undefined}>
               <i class={s.cls} /> {s.label} <em>{s.n.toLocaleString()}</em>
             </span>
           ))}
@@ -161,23 +141,11 @@ export function ShareBar(props: {
 }
 
 /** Simple horizontal meter for 0..cover fractions (analysis coverage). */
-export function Meter(props: {
-  done: number;
-  total: number;
-  label: string;
-  cls?: string;
-}) {
-  const pct =
-    props.total > 0 ? Math.round((props.done / props.total) * 100) : 0;
+export function Meter(props: { done: number; total: number; label: string; cls?: string }) {
+  const pct = props.total > 0 ? Math.round((props.done / props.total) * 100) : 0;
   return (
-    <div
-      class="ft-meter"
-      title={`${props.label}: ${props.done}/${props.total} (${pct}%)`}
-    >
-      <div
-        class={`ft-meter-fill ${props.cls ?? ""}`}
-        style={{ width: `${pct}%` }}
-      />
+    <div class="ft-meter" title={`${props.label}: ${props.done}/${props.total} (${pct}%)`}>
+      <div class={`ft-meter-fill ${props.cls ?? ""}`} style={{ width: `${pct}%` }} />
       <span class="ft-meter-label">
         <b>{pct}%</b> {props.label && `${props.label} · `}
         {props.done.toLocaleString()}/{props.total.toLocaleString()}
@@ -186,11 +154,7 @@ export function Meter(props: {
   );
 }
 
-export function SectionHead(props: {
-  icon: string;
-  title: string;
-  children?: ComponentChildren;
-}) {
+export function SectionHead(props: { icon: string; title: string; children?: ComponentChildren }) {
   return (
     <h3 class="sect">
       <Icon name={props.icon} /> {props.title}

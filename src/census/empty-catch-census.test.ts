@@ -54,8 +54,7 @@ describe("#318 empty-catch census", () => {
         // a body with REAL code is out of scope; an empty-or-comments-only
         // body needs words (the justification) — a TRULY bare swallow
         // (raw.trim() === "") is always the phantom-bug factory
-        if (code === "" && raw.trim() === "")
-          offenders.push(`${rel}: silent catch`);
+        if (code === "" && raw.trim() === "") offenders.push(`${rel}: silent catch`);
       }
       // arrow-swallow: .catch(() => {}) — must carry an inline `//` on
       // the same line (the repo convention: "quiet: … self-heals") or a
@@ -68,17 +67,13 @@ describe("#318 empty-catch census", () => {
         const matchEnd = idx + (m[0]?.length ?? 0);
         const lineStart = text.lastIndexOf("\n", idx) + 1;
         const lineEnd = text.indexOf("\n", matchEnd);
-        const line = rawText.slice(
-          lineStart,
-          lineEnd === -1 ? undefined : lineEnd,
-        );
+        const line = rawText.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
         const prevLineStart = rawText.lastIndexOf("\n", lineStart - 2) + 1;
         const prevLine = rawText.slice(prevLineStart, lineStart - 1);
         // everything after the swallow on the same line — the inline
         // justification lives HERE (`.catch(() => {}); // quiet: …`)
         const inline = line.slice(line.indexOf("}", idx - lineStart) + 1);
-        const commented =
-          prevLine.trim().startsWith("//") || inline.includes("//");
+        const commented = prevLine.trim().startsWith("//") || inline.includes("//");
         if (!commented) offenders.push(`${rel}: bare .catch(() => {})`);
       }
     }

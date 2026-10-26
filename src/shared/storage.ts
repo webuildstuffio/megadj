@@ -158,17 +158,14 @@ export function storageReport(
       return {
         source,
         lastSyncAt,
-        ageDays:
-          fresh.ageHours === null ? null : Math.floor(fresh.ageHours / 24),
+        ageDays: fresh.ageHours === null ? null : Math.floor(fresh.ageHours / 24),
         stale: fresh.band === "red",
       };
     })
     .toSorted((a, b) => (b.ageDays ?? -1) - (a.ageDays ?? -1));
 
   const anyStale = ledgerFreshness.some((f) => f.stale);
-  const shelfWarning = shelfMounted
-    ? null
-    : `shelf volume not mounted: ${shelfVolume}`;
+  const shelfWarning = shelfMounted ? null : `shelf volume not mounted: ${shelfVolume}`;
 
   return {
     storage: {
@@ -190,35 +187,25 @@ export function storageReport(
 
 /** Bytes → MB at module scope (the lint seam: a closure recreated per
  *  call was flagged consistent-function-scoping). */
-const mb = (n: number | null): string =>
-  n === null ? "n/a" : `${(n / 1e6).toFixed(1)} MB`;
+const mb = (n: number | null): string => (n === null ? "n/a" : `${(n / 1e6).toFixed(1)} MB`);
 
 /** Human renderer — mirrors the JSON keys so the surfaces cannot drift. */
-export function printStorageReport(
-  r: StorageReport,
-  log: (message: string) => void,
-): void {
+export function printStorageReport(r: StorageReport, log: (message: string) => void): void {
   log("storage:");
   log(`  state dir:            ${mb(r.storage.stateDirBytes)}`);
   log(`  archive.db:           ${mb(r.storage.archiveDbBytes)}`);
   log(
     `  backups:              ${r.storage.backupCount}${
-      r.storage.oldestBackupAgeDays !== null
-        ? ` (oldest ${r.storage.oldestBackupAgeDays}d)`
-        : ""
+      r.storage.oldestBackupAgeDays !== null ? ` (oldest ${r.storage.oldestBackupAgeDays}d)` : ""
     }`,
   );
   log(`  tmp fixture dirs:     ${r.storage.tmpFixtureDirs}`);
-  log(
-    `  shelf (${r.storage.shelfVolume}): ${r.storage.shelfMounted ? "mounted" : "NOT MOUNTED"}`,
-  );
+  log(`  shelf (${r.storage.shelfVolume}): ${r.storage.shelfMounted ? "mounted" : "NOT MOUNTED"}`);
   if (r.ledgerFreshness.length > 0) {
     log("ledger freshness (per source, stale > 7d):");
     for (const f of r.ledgerFreshness) {
       const age = f.ageDays === null ? "never" : `${f.ageDays}d`;
-      log(
-        `  ${f.source.padEnd(20)} ${age.padStart(8)}${f.stale ? "  STALE" : ""}`,
-      );
+      log(`  ${f.source.padEnd(20)} ${age.padStart(8)}${f.stale ? "  STALE" : ""}`);
     }
   }
   if (r.shelfWarning) log(`! ${r.shelfWarning}`);

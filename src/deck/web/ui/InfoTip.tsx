@@ -28,11 +28,7 @@ export function InfoTip(props: {
   side?: boolean | undefined;
   children?: preact.JSX.Element | undefined;
 }) {
-  const request: TipRequest = props.side
-    ? "side"
-    : props.below
-      ? "bottom"
-      : "top";
+  const request: TipRequest = props.side ? "side" : props.below ? "bottom" : "top";
   return (
     <Tip
       title={props.title}
@@ -41,8 +37,7 @@ export function InfoTip(props: {
       request={request}
       align={props.align}
       class={`infotip ${props.children ? "has-target" : ""}`}
-      ariaLabel={`${props.title} — ${props.body}`}
-    >
+      ariaLabel={`${props.title} — ${props.body}`}>
       {props.children ?? (
         <span class="infotip-dot" aria-hidden>
           <Icon name="dot" size={9} />
@@ -55,11 +50,7 @@ export function InfoTip(props: {
 /** The one-card explainer at the top of a tab: what this tab is for, how
  *  to read it, and where to go next. A native <details> — click the
  *  summary line to expand; no state, no persistence (tabs remount anyway). */
-export function TabIntro(props: {
-  what: string;
-  how: string;
-  next?: JSX.Element | string;
-}) {
+export function TabIntro(props: { what: string; how: string; next?: JSX.Element | string }) {
   return (
     <details class="tabintro">
       <summary>

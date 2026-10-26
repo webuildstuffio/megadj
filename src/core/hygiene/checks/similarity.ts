@@ -15,8 +15,7 @@ import { sharedTokenRatio } from "../../../fulltags/sources/name-match";
 
 /** Lowercase and strip every non-alphanumeric (shared by the levenshtein
  *  and token helpers). Pure — module-level, not re-created per call. */
-const normFlat = (s: string): string =>
-  s.toLowerCase().replace(/[^a-z0-9]/g, "");
+const normFlat = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /** Normalized levenshtein ratio 0..1 (1 = identical). O(n·m) on short
  *  basename strings only — files, never folder walks. */
@@ -34,11 +33,7 @@ export function nameSimilarity(a: string, b: string): number {
     dp[0] = i;
     for (let j = 1; j <= n; j++) {
       const tmp = dp[j]!;
-      dp[j] = Math.min(
-        dp[j]! + 1,
-        dp[j - 1]! + 1,
-        prev + (x[i - 1] === y[j - 1] ? 0 : 1),
-      );
+      dp[j] = Math.min(dp[j]! + 1, dp[j - 1]! + 1, prev + (x[i - 1] === y[j - 1] ? 0 : 1));
       prev = tmp;
     }
   }

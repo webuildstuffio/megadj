@@ -72,10 +72,7 @@ describe("Beatport identity fields round-trip", () => {
         // set and would have blocked a Beatport mix fill on
         // remixer-only files).
         const p = await makeFile(ext);
-        await writePatch(p, {
-          remixer: "RemixGuy Remix",
-          mixName: "Club Mix",
-        });
+        await writePatch(p, { remixer: "RemixGuy Remix", mixName: "Club Mix" });
         const t = groundTruth(p);
         expect(t.remixer).toBe("RemixGuy Remix");
         expect(t.mixName).toBe("Club Mix");

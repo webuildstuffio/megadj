@@ -1,8 +1,4 @@
-import type {
-  DriveCardData,
-  InterlockState,
-  SearchResult,
-} from "../../shared/types";
+import type { DriveCardData, InterlockState, SearchResult } from "../../shared/types";
 import type { ComponentChildren } from "preact";
 import { PRODUCT_TABS, PRODUCTS, LEDE } from "../products/shared";
 import { Icon } from "../ui/icons";
@@ -24,10 +20,7 @@ export function AppHeader(props: {
   const ghosts = props.drives.length - mounted;
   const locked = props.interlock.rekordbox_running;
   const slowLink = props.drives.filter(
-    (drive) =>
-      drive.mounted &&
-      drive.link_bps !== null &&
-      drive.link_bps < 5_000_000_000,
+    (drive) => drive.mounted && drive.link_bps !== null && drive.link_bps < 5_000_000_000,
   );
   return (
     <>
@@ -40,15 +33,13 @@ export function AppHeader(props: {
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") navigate(null);
           }}
-          title="megadj — one toolkit for the DJ library"
-        >
+          title="megadj — one toolkit for the DJ library">
           <span class="brand-mark" />
           <h1>megadj</h1>
         </div>
         <span
           class="top-meta"
-          title="How many known drives are mounted now vs remembered-but-unplugged ('ghosts')."
-        >
+          title="How many known drives are mounted now vs remembered-but-unplugged ('ghosts').">
           <b>{mounted}</b> mounted · <span class="ghostn">{ghosts}</span> ghost
           {ghosts === 1 ? "" : "s"}
         </span>
@@ -59,8 +50,7 @@ export function AppHeader(props: {
             locked
               ? `rekordbox is running (pid ${props.interlock.pid}) — the interlock refuses ALL drive jobs because rekordbox locks the same databases. Quit rekordbox to unlock.`
               : "rekordbox is not running — the interlock allows drive jobs."
-          }
-        >
+          }>
           <span class="lockdot" />
           {locked ? `rekordbox · pid ${props.interlock.pid}` : "ready"}
         </span>
@@ -77,22 +67,18 @@ export function AppHeader(props: {
                 props.setQuery("");
                 props.searchRef.current?.focus();
               }}
-              aria-label="Clear search"
-            >
+              aria-label="Clear search">
               <Icon name="x" size={13} />
             </button>
           )}
           {props.results && (
             <div class="search-results">
-              {props.results.length === 0 && (
-                <div class="sr-empty">No matches in any crate.</div>
-              )}
+              {props.results.length === 0 && <div class="sr-empty">No matches in any crate.</div>}
               {props.results.map((result) => (
                 <div
                   key={result.drive_id}
                   class="sr-drive"
-                  onClick={() => props.openDrive(result.drive_id)}
-                >
+                  onClick={() => props.openDrive(result.drive_id)}>
                   <div class="hd">
                     <span class={`dot ${result.mounted ? "on" : "off"}`} />
                     {result.drive_name}
@@ -115,8 +101,7 @@ export function AppHeader(props: {
           type="button"
           class="btn ghostbtn palette-btn"
           title="Command palette — jump to any drive, tab or fleet scope"
-          onClick={props.openPalette}
-        >
+          onClick={props.openPalette}>
           <Icon name="chevronR" size={12} /> <kbd>⌘K</kbd>
         </button>
       </header>
@@ -124,14 +109,12 @@ export function AppHeader(props: {
         <div
           class="arch-verdict warn usblink-banner"
           role="alert"
-          title="The negotiated USB link rate is read from the Mac's USB tree when the drive mounts. USB 2.0 caps copies/playback at ~35 MB/s — move the cable to a USB 3.0 (blue) port or a faster hub. Run Health → Speed probe to measure real throughput."
-        >
+          title="The negotiated USB link rate is read from the Mac's USB tree when the drive mounts. USB 2.0 caps copies/playback at ~35 MB/s — move the cable to a USB 3.0 (blue) port or a faster hub. Run Health → Speed probe to measure real throughput.">
           <Icon name="warn" size={15} />
           <span>
-            <b>Slow USB link:</b>{" "}
-            {slowLink.map((drive) => drive.nickname ?? drive.name).join(", ")}{" "}
-            {slowLink.length === 1 ? "is" : "are"} on a USB 2.0-class link —
-            transfers will crawl. Try a USB 3.0 port or hub.
+            <b>Slow USB link:</b> {slowLink.map((drive) => drive.nickname ?? drive.name).join(", ")}{" "}
+            {slowLink.length === 1 ? "is" : "are"} on a USB 2.0-class link — transfers will crawl.
+            Try a USB 3.0 port or hub.
           </span>
           <button
             type="button"
@@ -139,8 +122,7 @@ export function AppHeader(props: {
             onClick={() => {
               const first = slowLink[0];
               if (first) props.openDrive(first.id, "health");
-            }}
-          >
+            }}>
             Check speed
           </button>
         </div>
@@ -155,8 +137,7 @@ export function AppNav({ route }: { route: Route }) {
     route.product === "fleet"
       ? [...PRODUCT_TABS.drives, ...PRODUCT_TABS.fleet]
       : PRODUCT_TABS[route.product];
-  const scopeOn =
-    route.product === "drives" ? (route.fleet ? "fleet" : "") : route.tab;
+  const scopeOn = route.product === "drives" ? (route.fleet ? "fleet" : "") : route.tab;
   const activeProduct =
     route.product === "fleet"
       ? PRODUCTS[0]
@@ -168,29 +149,22 @@ export function AppNav({ route }: { route: Route }) {
           type="button"
           key={product.id}
           class={`product-tab ${
-            route.product === product.id ||
-            (product.id === "drives" && route.product === "fleet")
+            route.product === product.id || (product.id === "drives" && route.product === "fleet")
               ? "on"
               : ""
           }`}
           data-prod={product.id}
           onClick={() =>
             route.product !== product.id &&
-            (product.id === "drives"
-              ? navigate(null)
-              : navigateProduct(product.id))
+            (product.id === "drives" ? navigate(null) : navigateProduct(product.id))
           }
-          title={product.title}
-        >
+          title={product.title}>
           <Icon name={product.icon} size={13} /> {product.label}
         </button>
       ))}
       <span class="navstrip-sep" aria-hidden />
       {scopeTabs.map((tab) => {
-        const on =
-          tab.id === "fleet" && route.product === "fleet"
-            ? true
-            : scopeOn === tab.id;
+        const on = tab.id === "fleet" && route.product === "fleet" ? true : scopeOn === tab.id;
         const onClick = () => {
           if (route.product === "drives") {
             if (tab.id === "fleet") navigateProduct("fleet");
@@ -209,22 +183,15 @@ export function AppNav({ route }: { route: Route }) {
             class={`scope-tab ${on ? "on" : ""}`}
             data-prod={route.product}
             onClick={onClick}
-            title={tab.title}
-          >
+            title={tab.title}>
             {tab.label}
           </button>
         );
       })}
       <span class="navstrip-spacer" aria-hidden />
       {activeProduct && (
-        <span
-          class="phasechip"
-          data-prod={activeProduct.id}
-          title={activeProduct.title}
-        >
-          <span class="phasechip-step">
-            {PRODUCTS.indexOf(activeProduct) + 1}
-          </span>
+        <span class="phasechip" data-prod={activeProduct.id} title={activeProduct.title}>
+          <span class="phasechip-step">{PRODUCTS.indexOf(activeProduct) + 1}</span>
           {activeProduct.phase}
         </span>
       )}
@@ -242,9 +209,7 @@ export function Welcome(props: {
   locked: boolean;
   onPick: (id: string) => void;
 }) {
-  const failing = props.drives.filter((d) =>
-    d.badges.some((b) => b.tone === "bad"),
-  );
+  const failing = props.drives.filter((d) => d.badges.some((b) => b.tone === "bad"));
   return (
     <div class="canvas welcome-page">
       <div class="wstory">
@@ -253,8 +218,8 @@ export function Welcome(props: {
           <div>
             <h2>megadj</h2>
             <p class="wtag">
-              One toolkit for the DJ library: drives stay honest, the archive
-              fills, the tracks get smart.
+              One toolkit for the DJ library: drives stay honest, the archive fills, the tracks get
+              smart.
             </p>
           </div>
         </div>
@@ -265,10 +230,7 @@ export function Welcome(props: {
               key={p.id}
               class="wcard"
               data-prod={p.id}
-              onClick={() =>
-                p.id === "drives" ? navigate(null) : navigateProduct(p.id)
-              }
-            >
+              onClick={() => (p.id === "drives" ? navigate(null) : navigateProduct(p.id))}>
               <span class="wphase" data-prod={p.id}>
                 <span class="wstep">{i + 1}</span>
                 {p.phase}
@@ -285,28 +247,23 @@ export function Welcome(props: {
         </div>
         {props.drives.length === 0 && (
           <div class="note" style={{ justifyContent: "center" }}>
-            <Icon name="usb" size={14} /> No drives yet — plug a DJ USB stick in
-            and it appears on the rail, health-checked automatically.
+            <Icon name="usb" size={14} /> No drives yet — plug a DJ USB stick in and it appears on
+            the rail, health-checked automatically.
           </div>
         )}
         {failing.length > 0 && (
           <div class="note bad" style={{ justifyContent: "center" }}>
             <Icon name="warn" size={14} />
-            {failing.length} drive{failing.length > 1 ? "s" : ""} flagged —
-            start with {failing[0]!.nickname ?? failing[0]!.name}.
-            <button
-              type="button"
-              class="btn sm"
-              onClick={() => props.onPick(failing[0]!.id)}
-            >
+            {failing.length} drive{failing.length > 1 ? "s" : ""} flagged — start with{" "}
+            {failing[0]!.nickname ?? failing[0]!.name}.
+            <button type="button" class="btn sm" onClick={() => props.onPick(failing[0]!.id)}>
               Open
             </button>
           </div>
         )}
         {props.locked && (
           <div class="note bad" style={{ justifyContent: "center" }}>
-            <Icon name="warn" size={14} /> rekordbox is running — jobs are
-            locked until it quits.
+            <Icon name="warn" size={14} /> rekordbox is running — jobs are locked until it quits.
           </div>
         )}
       </div>

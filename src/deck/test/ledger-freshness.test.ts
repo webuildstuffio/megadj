@@ -1,13 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import {
-  formatAge,
-  ledgerFreshness,
-  worstBand,
-} from "../shared/ledger-freshness";
+import { formatAge, ledgerFreshness, worstBand } from "../shared/ledger-freshness";
 
 const NOW = new Date("2026-09-15T20:00:00Z");
-const hoursAgo = (h: number): string =>
-  new Date(NOW.getTime() - h * 3_600_000).toISOString();
+const hoursAgo = (h: number): string => new Date(NOW.getTime() - h * 3_600_000).toISOString();
 
 describe("ledgerFreshness (#161 SSOT)", () => {
   test("bands are the AGENTS thresholds: green <24h, amber <7d, red ≥7d", () => {
@@ -19,11 +14,7 @@ describe("ledgerFreshness (#161 SSOT)", () => {
   });
 
   test("empty ledger → none; corrupt stamp → red (never crashes the surface)", () => {
-    expect(ledgerFreshness(null, NOW)).toEqual({
-      newestAt: null,
-      ageHours: null,
-      band: "none",
-    });
+    expect(ledgerFreshness(null, NOW)).toEqual({ newestAt: null, ageHours: null, band: "none" });
     const corrupt = ledgerFreshness("not-a-date", NOW);
     expect(corrupt.band).toBe("red");
     expect(corrupt.newestAt).toBe("not-a-date");

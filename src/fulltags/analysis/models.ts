@@ -62,10 +62,7 @@ export type MoodWorkerParseResult =
   | { ok: true; path: string; mood: MoodResult }
   | { ok: false; context: "fulltags mood worker"; detail: string };
 
-function finiteNumberField(
-  record: Record<string, unknown>,
-  field: string,
-): number | null {
+function finiteNumberField(record: Record<string, unknown>, field: string): number | null {
   const value = record[field];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -93,11 +90,7 @@ export function parseMoodWorkerLine(line: string): MoodWorkerParseResult {
   try {
     value = JSON.parse(line);
   } catch (error) {
-    return {
-      ok: false,
-      context,
-      detail: `malformed JSON: ${errorText(error)}`,
-    };
+    return { ok: false, context, detail: `malformed JSON: ${errorText(error)}` };
   }
   if (value === null || typeof value !== "object" || Array.isArray(value))
     return { ok: false, context, detail: "response is not an object" };
@@ -189,9 +182,7 @@ const MODEL_FILES = {
 
 /** True when every model file needed by the mood stage exists. */
 export function moodModelsPresent(): boolean {
-  return Object.values(MODEL_FILES).every((m) =>
-    existsSync(`${MODEL_DIR}/${m.onnx}`),
-  );
+  return Object.values(MODEL_FILES).every((m) => existsSync(`${MODEL_DIR}/${m.onnx}`));
 }
 
 /** Download any missing models (~320 MB total, once). Returns the list of
@@ -204,15 +195,7 @@ export function modelsEnsure(): string[] {
     if (existsSync(dest)) continue;
     const tmp = `${dest}.part`;
     const pr = Bun.spawnSync({
-      cmd: [
-        "curl",
-        "-sfL",
-        "--retry",
-        "2",
-        "-o",
-        tmp,
-        `${MODEL_BASE}/${m.url}`,
-      ],
+      cmd: ["curl", "-sfL", "--retry", "2", "-o", tmp, `${MODEL_BASE}/${m.url}`],
       stdout: "ignore",
       stderr: "pipe",
     });
@@ -390,10 +373,7 @@ export async function analyzeMoods(
   const readLine = (timeoutMs: number) => lr.next(timeoutMs);
   try {
     for (const p of paths) {
-      const msg: Record<string, unknown> = {
-        path: p,
-        embedding: opts.withEmbedding === true,
-      };
+      const msg: Record<string, unknown> = { path: p, embedding: opts.withEmbedding === true };
       const sec = opts.sectionRanges?.get(p);
       if (sec !== undefined) {
         msg.sectionStart = sec.start;

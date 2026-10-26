@@ -39,8 +39,7 @@ export const forEachChild: typeof ts.forEachChild = ts.forEachChild;
 
 // ---- type-narrowing guards (typed aliases preserve the type predicates) --
 export const isArrowFunction: typeof ts.isArrowFunction = ts.isArrowFunction;
-export const isBinaryExpression: typeof ts.isBinaryExpression =
-  ts.isBinaryExpression;
+export const isBinaryExpression: typeof ts.isBinaryExpression = ts.isBinaryExpression;
 export const isBlock: typeof ts.isBlock = ts.isBlock;
 export const isCallExpression: typeof ts.isCallExpression = ts.isCallExpression;
 export const isCaseClause: typeof ts.isCaseClause = ts.isCaseClause;
@@ -54,14 +53,11 @@ export const isDoStatement: typeof ts.isDoStatement = ts.isDoStatement;
 export const isForInStatement: typeof ts.isForInStatement = ts.isForInStatement;
 export const isForOfStatement: typeof ts.isForOfStatement = ts.isForOfStatement;
 export const isForStatement: typeof ts.isForStatement = ts.isForStatement;
-export const isFunctionDeclaration: typeof ts.isFunctionDeclaration =
-  ts.isFunctionDeclaration;
-export const isFunctionExpression: typeof ts.isFunctionExpression =
-  ts.isFunctionExpression;
+export const isFunctionDeclaration: typeof ts.isFunctionDeclaration = ts.isFunctionDeclaration;
+export const isFunctionExpression: typeof ts.isFunctionExpression = ts.isFunctionExpression;
 export const isIdentifier: typeof ts.isIdentifier = ts.isIdentifier;
 export const isIfStatement: typeof ts.isIfStatement = ts.isIfStatement;
-export const isMethodDeclaration: typeof ts.isMethodDeclaration =
-  ts.isMethodDeclaration;
+export const isMethodDeclaration: typeof ts.isMethodDeclaration = ts.isMethodDeclaration;
 export const isNewExpression: typeof ts.isNewExpression = ts.isNewExpression;
 export const isNoSubstitutionTemplateLiteral: typeof ts.isNoSubstitutionTemplateLiteral =
   ts.isNoSubstitutionTemplateLiteral;
@@ -73,12 +69,9 @@ export const isPrefixUnaryExpression: typeof ts.isPrefixUnaryExpression =
   ts.isPrefixUnaryExpression;
 export const isPropertyAccessExpression: typeof ts.isPropertyAccessExpression =
   ts.isPropertyAccessExpression;
-export const isPropertyAssignment: typeof ts.isPropertyAssignment =
-  ts.isPropertyAssignment;
-export const isPropertyDeclaration: typeof ts.isPropertyDeclaration =
-  ts.isPropertyDeclaration;
-export const isReturnStatement: typeof ts.isReturnStatement =
-  ts.isReturnStatement;
+export const isPropertyAssignment: typeof ts.isPropertyAssignment = ts.isPropertyAssignment;
+export const isPropertyDeclaration: typeof ts.isPropertyDeclaration = ts.isPropertyDeclaration;
+export const isReturnStatement: typeof ts.isReturnStatement = ts.isReturnStatement;
 export const isShorthandPropertyAssignment: typeof ts.isShorthandPropertyAssignment =
   ts.isShorthandPropertyAssignment;
 export const isSourceFile: typeof ts.isSourceFile = ts.isSourceFile;
@@ -86,8 +79,7 @@ export const isStatement: typeof ts.isStatement = ts.isStatement;
 export const isStringLiteral: typeof ts.isStringLiteral = ts.isStringLiteral;
 export const isThrowStatement: typeof ts.isThrowStatement = ts.isThrowStatement;
 export const isTryStatement: typeof ts.isTryStatement = ts.isTryStatement;
-export const isVariableDeclaration: typeof ts.isVariableDeclaration =
-  ts.isVariableDeclaration;
+export const isVariableDeclaration: typeof ts.isVariableDeclaration = ts.isVariableDeclaration;
 export const isWhileStatement: typeof ts.isWhileStatement = ts.isWhileStatement;
 
 // ---- enums (value + type in one name, as the compiler API exposes them) --

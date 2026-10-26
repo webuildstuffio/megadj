@@ -15,8 +15,7 @@ function disputesRequested(opts: GenreOptions): boolean {
 }
 
 async function reportUsageError(opts: GenreOptions): Promise<boolean> {
-  const resolutionCount =
-    (opts.agree !== undefined ? 1 : 0) + (opts.keep !== undefined ? 1 : 0);
+  const resolutionCount = (opts.agree !== undefined ? 1 : 0) + (opts.keep !== undefined ? 1 : 0);
   const error =
     resolutionCount > 1
       ? "--agree and --keep resolve one row each — pass one, not both"
@@ -24,19 +23,11 @@ async function reportUsageError(opts: GenreOptions): Promise<boolean> {
         ? "--note rides with --agree or --keep — nothing to note on its own"
         : undefined;
   if (error === undefined) return false;
-  await finishCommandError({
-    command: "genre",
-    json: opts.json === true,
-    error,
-    exitCode: 2,
-  });
+  await finishCommandError({ command: "genre", json: opts.json === true, error, exitCode: 2 });
   return true;
 }
 
-async function resolveRequestedDispute(
-  opts: GenreOptions,
-  log: CommandLog,
-): Promise<boolean> {
+async function resolveRequestedDispute(opts: GenreOptions, log: CommandLog): Promise<boolean> {
   if (opts.agree === undefined && opts.keep === undefined) return false;
   const verb: ResolutionVerb = opts.agree !== undefined ? "agree" : "keep";
   const videoId = (opts.agree ?? opts.keep)!;
@@ -62,11 +53,7 @@ async function resolveRequestedDispute(
   return true;
 }
 
-async function reviewDisputes(
-  opts: GenreOptions,
-  log: CommandLog,
-  k: number,
-): Promise<void> {
+async function reviewDisputes(opts: GenreOptions, log: CommandLog, k: number): Promise<void> {
   const review = collectDisputes(opts.state, k);
   log(
     `genre disputes: ${review.flagged} flagged (${review.alreadyAgree} already agree with live consensus — --keep resolves those)`,

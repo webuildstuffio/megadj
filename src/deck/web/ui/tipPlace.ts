@@ -64,17 +64,13 @@ function rawPlacement(
     return {
       left: alignLeft(anchor, card, place, align),
       top:
-        place === "top"
-          ? anchor.top - TIP_GAP - card.height
-          : anchor.top + anchor.height + TIP_GAP,
+        place === "top" ? anchor.top - TIP_GAP - card.height : anchor.top + anchor.height + TIP_GAP,
       place,
     };
   }
   return {
     left:
-      place === "right"
-        ? anchor.left + anchor.width + TIP_GAP
-        : anchor.left - TIP_GAP - card.width,
+      place === "right" ? anchor.left + anchor.width + TIP_GAP : anchor.left - TIP_GAP - card.width,
     top: anchor.top + anchor.height / 2 - card.height / 2,
     place,
   };
@@ -93,11 +89,7 @@ function clamped(
   };
 }
 
-function fits(
-  p: TipPlacement,
-  card: { width: number; height: number },
-  vp: TipViewport,
-): boolean {
+function fits(p: TipPlacement, card: { width: number; height: number }, vp: TipViewport): boolean {
   return (
     p.left >= TIP_EDGE &&
     p.top >= TIP_EDGE &&

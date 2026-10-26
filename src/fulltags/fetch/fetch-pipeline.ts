@@ -29,22 +29,11 @@
  * Callers: `megadj fetch` (src/fulltags/fetch/fetch.ts) runs runFetch()
  * IN-PROCESS through the exports leaf — one Bun boot, no 6.4s overhead.
  */
-import {
-  ARCH,
-  db,
-  groundTruth,
-  archiveFiles,
-  cleanArtist,
-  type Row,
-} from "../core/archive-ledger";
+import { ARCH, db, groundTruth, archiveFiles, cleanArtist, type Row } from "../core/archive-ledger";
 import { existsSync } from "node:fs";
 import { ProgressBar } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
-import {
-  aiGenreFallback,
-  aiYearFallback,
-  queueArtless,
-} from "./fetch-ai-fallback";
+import { aiGenreFallback, aiYearFallback, queueArtless } from "./fetch-ai-fallback";
 import {
   fanOutBandcamp,
   fanOutBeatport,
@@ -73,12 +62,7 @@ import { estimatorEnabled, runEstimatorBatch } from "./fetch-estimator";
 import { errMessage } from "../../shared/leaf/fmt";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { UMBRELLA_STRINGS } from "../genre/taxonomy-v3";
-import {
-  emitFetchDone,
-  emitFetchStart,
-  emitTaskDone,
-  taskDoneEvent,
-} from "./fetch-events";
+import { emitFetchDone, emitFetchStart, emitTaskDone, taskDoneEvent } from "./fetch-events";
 
 /** Pipeline options. `megadj fetch` passes these from parsed
  * FetchOptions — the CLI argv shim went with the old front door. */
@@ -135,43 +119,25 @@ interface Task {
  *  forced true so the rungs collect and ONE election rewrites file+row);
  *  rows already under the vote system are never re-fetched here (their
  *  election stands; re-running would churn network for the same answer). */
-function buildTasks(
-  rows: Row[],
-  only: string,
-  all: boolean,
-  revote: boolean,
-): Task[] {
+function buildTasks(rows: Row[], only: string, all: boolean, revote: boolean): Task[] {
   const tasks: Task[] = [];
   for (const r of rows) {
     const truth = groundTruth(r.file_path);
     const genrePresent = Boolean(truth.genre) && truth.genre !== "Music";
-    const genreIsUmbrella =
-      genrePresent && UMBRELLA_STRINGS.has(truth.genre!.toLowerCase());
+    const genreIsUmbrella = genrePresent && UMBRELLA_STRINGS.has(truth.genre!.toLowerCase());
     const genreOk = genrePresent && !genreIsUmbrella;
     const oldSystemGenre =
-      revote &&
-      Boolean(genrePresent) &&
-      !(r.genre_votes && r.genre_votes.trim() !== "");
+      revote && Boolean(genrePresent) && !(r.genre_votes && r.genre_votes.trim() !== "");
     const needGenre =
-      (only === "all" || only === "genres") &&
-      (!genreOk || oldSystemGenre || genreIsUmbrella);
+      (only === "all" || only === "genres") && (!genreOk || oldSystemGenre || genreIsUmbrella);
     const needTags =
       (only === "all" || only === "tags") &&
       (!truth.title || !truth.artist || !truth.album || !genreOk);
     const needYear = (only === "all" || only === "years") && !truth.year;
     const upgradeSc = all && r.format_id?.startsWith("sc:") === true;
-    const needArt =
-      (only === "all" || only === "art") && (!truth.art || upgradeSc);
+    const needArt = (only === "all" || only === "art") && (!truth.art || upgradeSc);
     if (needTags || needGenre || needArt || needYear)
-      tasks.push({
-        row: r,
-        truth,
-        needTags,
-        needGenre,
-        needArt,
-        needYear,
-        upgradeSc,
-      });
+      tasks.push({ row: r, truth, needTags, needGenre, needArt, needYear, upgradeSc });
   }
   return tasks;
 }
@@ -224,11 +190,7 @@ interface ProcessTaskResult {
   /** The track's vote-ladder outcome — feeds the live-run @task-done
    *  event (the in-product ladder view). */
   votes: GenreVote[];
-  elected: {
-    genre: string;
-    weight: number;
-    winnerRungs: string[];
-  } | null;
+  elected: { genre: string; weight: number; winnerRungs: string[] } | null;
 }
 // Stats shape lives in fetch-stages.ts (the stage runners' shared currency).
 
@@ -239,11 +201,7 @@ async function processTask({
   progress,
 }: ProcessTaskInput): Promise<ProcessTaskResult> {
   const { row: r } = t;
-  const name =
-    `${cleanArtist(r.artist) ?? "?"} - ${stripJunkPrefix(r.title)}`.slice(
-      0,
-      56,
-    );
+  const name = `${cleanArtist(r.artist) ?? "?"} - ${stripJunkPrefix(r.title)}`.slice(0, 56);
   const notes: string[] = [];
   const stats = emptyStats();
   const aiGenreBatch: Row[] = [];
@@ -315,8 +273,7 @@ async function processTask({
   }
 
   // ---- Remix routing: artist-level sources use the remixer when present ----
-  const routed =
-    rawArtist && rawTitle ? routeArtistForGenre(rawArtist, rawTitle) : null;
+  const routed = rawArtist && rawTitle ? routeArtistForGenre(rawArtist, rawTitle) : null;
   const genreArtist = routed?.artist ?? rawArtist;
 
   // ---- W8 Last.fm vote (opt-in, needs LASTFM_API_KEY env) ----
@@ -386,11 +343,7 @@ async function processTask({
     votes: genreVotes,
     elected:
       elected && elected.genre !== null
-        ? {
-            genre: elected.genre,
-            weight: elected.weight,
-            winnerRungs: [...elected.winnerRungs],
-          }
+        ? { genre: elected.genre, weight: elected.weight, winnerRungs: [...elected.winnerRungs] }
         : null,
   };
 }
@@ -450,14 +403,8 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
       const my = idx++;
       if (my >= tasks.length) break;
       try {
-        const result = await processTask({
-          task: tasks[my]!,
-          dry,
-          aiFallback,
-          progress,
-        });
-        for (const key of Object.keys(stats) as (keyof Stats)[])
-          stats[key] += result.stats[key];
+        const result = await processTask({ task: tasks[my]!, dry, aiFallback, progress });
+        for (const key of Object.keys(stats) as (keyof Stats)[]) stats[key] += result.stats[key];
         aiGenreBatch.push(...result.aiGenreBatch);
         aiYearBatch.push(...result.aiYearBatch);
         artless.push(...result.artless);
@@ -477,9 +424,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
           );
         if (!progress && !jsonOut) {
           if (result.notes.length)
-            console.log(
-              `  [${my + 1}/${tasks.length}] ${result.notes.join(" ")} — ${result.name}`,
-            );
+            console.log(`  [${my + 1}/${tasks.length}] ${result.notes.join(" ")} — ${result.name}`);
           else if (result.dry)
             console.log(
               `  [${my + 1}/${tasks.length}] (dry) tags:${tasks[my]!.needTags} genre:${tasks[my]!.needGenre} art:${tasks[my]!.needArt} year:${tasks[my]!.needYear} — ${result.name}`,

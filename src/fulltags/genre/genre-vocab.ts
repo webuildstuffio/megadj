@@ -106,9 +106,7 @@ export function canonicalizeClaim(g: string): string {
   const key = g.replace(/^#/, "").toLowerCase().trim();
   const squeezed = key.replace(/\s+/g, "");
   return (
-    SC_GENRE_CANON[key] ??
-    SC_GENRE_CANON[squeezed] ??
-    key.charAt(0).toUpperCase() + key.slice(1)
+    SC_GENRE_CANON[key] ?? SC_GENRE_CANON[squeezed] ?? key.charAt(0).toUpperCase() + key.slice(1)
   );
 }
 
@@ -121,10 +119,7 @@ const GENRE_MAP: [RegExp, string][] = [
   [/\b(?:r&b|soul|neo.?soul)\b/i, "R&B / Soul"],
   [/\b(?:deep house|tech house|afro house|house|house music)\b/i, "House"],
   [/\b(?:techno|trance|hardstyle|psytrance)\b/i, "Techno / Trance"],
-  [
-    /\b(?:edm|electro|dubstep|bass|dnb|drum.?and.?bass|drum.?n.?bass)\b/i,
-    "EDM / Bass",
-  ],
+  [/\b(?:edm|electro|dubstep|bass|dnb|drum.?and.?bass|drum.?n.?bass)\b/i, "EDM / Bass"],
   [/\b(?:lofi|lo.?fi|chill|downtempo|ambient)\b/i, "Chill / Lo-Fi"],
   [/\b(?:reggae|dancehall|afrobeat|afro beats?)\b/i, "Reggae / Afro"],
   [/\b(?:rock|metal|punk|indie rock)\b/i, "Rock"],
@@ -136,9 +131,7 @@ const GENRE_MAP: [RegExp, string][] = [
 
 /** Guess a coarse genre from free text (titles, channel names, MB tags).
  *  NOT the kNN inference — that is `inferGenre` in src/core/similar.ts. */
-export function guessFromFreeText(
-  inputs: (string | null | undefined)[],
-): string | null {
+export function guessFromFreeText(inputs: (string | null | undefined)[]): string | null {
   const blob = inputs.filter(Boolean).join(" ").toLowerCase();
   if (!blob) return null;
   // Channel "- Topic" uploads and explicit genre tags carry the most signal.
@@ -162,8 +155,7 @@ export function normalizeGenre(genre: string): string | null {
     ?.trim()
     .replace(/\(.*?\)/g, "")
     .trim();
-  if (!base || base === "music" || base === "unknown" || base === "fixme")
-    return null;
+  if (!base || base === "music" || base === "unknown" || base === "fixme") return null;
   return base;
 }
 
@@ -203,14 +195,8 @@ export const FAMILIES: readonly (readonly [RegExp, string])[] = [
     /edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore/,
     "edm",
   ],
-  [
-    /pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson/,
-    "pop",
-  ],
-  [
-    /r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae/,
-    "groove",
-  ],
+  [/pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson/, "pop"],
+  [/r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae/, "groove"],
   [
     /jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial/,
     "mood",

@@ -115,11 +115,7 @@ function scoreWindows(
     }
   } else {
     for (let i = 0; i < rawPos.length; i++) {
-      scored.push({
-        start: i,
-        score: rawPos[i]! * 0.7 + rawDensity[i]! * 0.3,
-        sectionBars,
-      });
+      scored.push({ start: i, score: rawPos[i]! * 0.7 + rawDensity[i]! * 0.3, sectionBars });
     }
   }
   return scored;
@@ -132,8 +128,7 @@ function buildSection(
   dur: number,
 ): DropSection {
   const endIdx = Math.min(w.start + w.sectionBars, downbeats.length - 1);
-  const lastBarDur =
-    endIdx > 0 ? downbeats[endIdx]! - downbeats[endIdx - 1]! : 2;
+  const lastBarDur = endIdx > 0 ? downbeats[endIdx]! - downbeats[endIdx - 1]! : 2;
   const endSec = Math.min(downbeats[endIdx]! + lastBarDur, dur);
   return {
     startSec: downbeats[w.start]!,

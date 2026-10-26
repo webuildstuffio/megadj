@@ -5,14 +5,7 @@
 // byte cap from here.
 export const PHOTO_BASENAME = /^photo(?:\.(?:png|jpe?g|gif|webp|avif))?$/i;
 /** Extensions accepted for cover photos. */
-export const PHOTO_EXT = new Set([
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".webp",
-  ".avif",
-]);
+export const PHOTO_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"]);
 
 /** Content-type → file extension for the photo download path. */
 export function extFromMime(ctype: string): string | null {
@@ -29,11 +22,7 @@ export async function readBoundedImageBody(
   maxBytes = MAX_IMAGE_BYTES,
 ): Promise<Uint8Array> {
   const tooLarge = (): Error =>
-    new Error(
-      maxBytes === MAX_IMAGE_BYTES
-        ? "image > 10MB"
-        : `image > ${maxBytes} bytes`,
-    );
+    new Error(maxBytes === MAX_IMAGE_BYTES ? "image > 10MB" : `image > ${maxBytes} bytes`);
   const declared = response.headers.get("content-length");
   if (declared !== null) {
     const bytes = Number(declared);

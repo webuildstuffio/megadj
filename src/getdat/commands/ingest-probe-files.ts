@@ -65,9 +65,7 @@ export async function probeAllFiles(
           );
         }
       } else {
-        log(
-          `  ⚠ truth-name exists, keeping both for review: ${basename(file)}`,
-        );
+        log(`  ⚠ truth-name exists, keeping both for review: ${basename(file)}`);
       }
     }
     const parsed = parseFilename(basename(livePath));

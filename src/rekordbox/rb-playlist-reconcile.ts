@@ -144,9 +144,7 @@ export function nodeLine(t: {
   return playlistNodeLine(t);
 }
 
-function parseTwinScanOutput(
-  raw: string,
-): Omit<PlaylistTwin, "inDb" | "inXml">[] {
+function parseTwinScanOutput(raw: string): Omit<PlaylistTwin, "inDb" | "inXml">[] {
   const value = parseJsonBoundary(raw, "playlist DB scan");
   if (!isRecord(value) || !isUnknownArray(value.db))
     throw new Error("playlist DB scan returned an invalid payload");
@@ -205,22 +203,15 @@ export async function rbPlaylistReconcile(opts: {
     return mk(applyConfirmationRefusal(opts) ?? "unreachable");
   if (!existsSync(db)) return mk(`no master DB at ${db}`);
   if (!existsSync(xml))
-    return mk(
-      `no masterPlaylists6.xml at ${xml} (sidecar must live beside master.db)`,
-    );
+    return mk(`no masterPlaylists6.xml at ${xml} (sidecar must live beside master.db)`);
   try {
     assertRbClosed("rb-playlist reconcile");
   } catch (e) {
     return mk((e as Error).message);
   }
 
-  const r = rbPythonFile({
-    file: "playlist-reconcile-scan.py",
-    args: [db],
-    timeoutMs: 120_000,
-  });
-  if (r.status !== 0 || !r.stdout)
-    return mk(`DB scan failed: ${r.stderr.slice(-200)}`);
+  const r = rbPythonFile({ file: "playlist-reconcile-scan.py", args: [db], timeoutMs: 120_000 });
+  if (r.status !== 0 || !r.stdout) return mk(`DB scan failed: ${r.stderr.slice(-200)}`);
   let dbRows: Omit<PlaylistTwin, "inDb" | "inXml">[];
   try {
     dbRows = parseTwinScanOutput(lastJsonLine(r.stdout));
@@ -240,9 +231,7 @@ export async function rbPlaylistReconcile(opts: {
   const roots = new Set<string>(opts.all ? [] : AGENT_GROUP_ROOTS);
   const extra = opts.group?.trim() ?? "";
   if (extra.length > 0) roots.add(extra);
-  const byId = new Map(
-    dbRows.map((p) => [p.id, { id: p.id, parentId: p.parentId }] as const),
-  );
+  const byId = new Map(dbRows.map((p) => [p.id, { id: p.id, parentId: p.parentId }] as const));
   const dbIds = new Set(dbRows.map((p) => p.id));
   const xmlById = new Map(xmlNodes.map((n) => [n.id, n]));
   const inScope = (p: { id: string; parentId: string }): boolean =>
@@ -279,10 +268,7 @@ export async function rbPlaylistReconcile(opts: {
     })();
   const orphanXmlNodes = xmlNodes
     .filter(
-      (n) =>
-        n.name !== null &&
-        !dbIds.has(n.id) &&
-        (opts.all === true || isAgentXmlSubtree(n)),
+      (n) => n.name !== null && !dbIds.has(n.id) && (opts.all === true || isAgentXmlSubtree(n)),
     )
     .map((n) => ({ id: n.id, name: n.name as string }));
 
@@ -305,12 +291,7 @@ export async function rbPlaylistReconcile(opts: {
       });
       backedUpTo = mutation.backedUpTo;
     } catch (error) {
-      return {
-        ...mk(errorText(error)),
-        missingXmlNodes,
-        orphanXmlNodes,
-        backedUpTo,
-      };
+      return { ...mk(errorText(error)), missingXmlNodes, orphanXmlNodes, backedUpTo };
     }
     added = missingXmlNodes.length;
     log(`reconcile: repaired ${added} missing or stale NODE(s) in ${xml}`);
@@ -331,10 +312,7 @@ export async function rbPlaylistReconcile(opts: {
   };
 }
 
-export function printReconcileReport(
-  r: ReconcileResult,
-  log: (s: string) => void,
-): void {
+export function printReconcileReport(r: ReconcileResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     if (body.scopeRoots.length > 0)
       log(
@@ -345,15 +323,10 @@ export function printReconcileReport(
       `twins: ${body.missingXmlNodes.length} DB playlist(s) need XML repair · ${body.orphanXmlNodes.length} XML-only orphan(s)`,
     );
     for (const p of body.missingXmlNodes.slice(0, 15))
-      log(
-        `  ✗ "${p.name}" (Id ${p.id}, attr ${p.attribute}) XML twin is missing or stale`,
-      );
+      log(`  ✗ "${p.name}" (Id ${p.id}, attr ${p.attribute}) XML twin is missing or stale`);
     for (const o of body.orphanXmlNodes.slice(0, 5))
-      log(
-        `  ? XML node "${o.name}" (${o.id}) has no DB row (flagged, untouched)`,
-      );
-    if (body.appliedMode)
-      log(`applied: ${body.added} NODE(s) repaired · backups written`);
+      log(`  ? XML node "${o.name}" (${o.id}) has no DB row (flagged, untouched)`);
+    if (body.appliedMode) log(`applied: ${body.added} NODE(s) repaired · backups written`);
     else if (body.missingXmlNodes.length)
       log(
         `dry-run — re-run with --apply --yes (rekordbox quit) to repair ${body.missingXmlNodes.length} NODE(s)`,

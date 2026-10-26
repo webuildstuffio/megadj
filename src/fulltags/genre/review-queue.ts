@@ -60,9 +60,7 @@ export function buildReviewQueue(
   maxItems = 100,
 ): ReviewQueueItem[] {
   const items: ReviewQueueItem[] = summaries.map((s) => {
-    const agreeing = s.evidenceFamilies.filter(
-      (f) => f === s.posteriorFamily,
-    ).length;
+    const agreeing = s.evidenceFamilies.filter((f) => f === s.posteriorFamily).length;
     const total = s.evidenceFamilies.filter((f) => f !== null).length;
     const agreementRatio = total > 0 ? agreeing / total : 0;
     const isDrift = s.dbGenre !== null && s.dbGenre !== s.posteriorFamily;

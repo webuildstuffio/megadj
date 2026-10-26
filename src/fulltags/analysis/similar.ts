@@ -16,11 +16,7 @@
 import { commandLog } from "../../shared/progress";
 import { round4 } from "../../shared/leaf/fmt";
 import { writeJson, finishCommandError } from "../../shared/cli-output";
-import {
-  similarTracks,
-  cosineSimilarity,
-  type ArchiveState,
-} from "../../core/state";
+import { similarTracks, cosineSimilarity, type ArchiveState } from "../../core/state";
 import {
   applySpace,
   cslsPenalties,
@@ -95,10 +91,7 @@ export async function similar(opts: SimilarOptions): Promise<void> {
         videoId: c.videoId,
         title: c.title,
         artist: c.artist,
-        score:
-          2 * cosineSimilarity(queryVec, spaceVecs[i]!) -
-          queryPenalty -
-          penalties[i]!,
+        score: 2 * cosineSimilarity(queryVec, spaceVecs[i]!) - queryPenalty - penalties[i]!,
       }))
       .toSorted((a, b) => b.score - a.score)
       .slice(0, Math.max(0, k));
@@ -108,9 +101,7 @@ export async function similar(opts: SimilarOptions): Promise<void> {
     `similar to "${t.title ?? t.video_id}" — ${hits.length} of ${corpus.length - 1} embedded tracks${space === "whitened" ? " (whitened+CSLS)" : ""}:`,
   );
   for (const h of hits)
-    log(
-      `  ${h.score.toFixed(4)}  ${h.artist ?? "?"} — ${h.title ?? h.videoId}`,
-    );
+    log(`  ${h.score.toFixed(4)}  ${h.artist ?? "?"} — ${h.title ?? h.videoId}`);
   await writeJson({
     command: "similar",
     video_id: opts.videoId,

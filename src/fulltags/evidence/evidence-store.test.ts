@@ -38,9 +38,7 @@ describe("evidence-store", () => {
     migrateEvidenceTable(db);
     migrateEvidenceTable(db);
     const tables = db
-      .query(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name='genre_evidence'`,
-      )
+      .query(`SELECT name FROM sqlite_master WHERE type='table' AND name='genre_evidence'`)
       .all();
     expect(tables).toHaveLength(1);
   });
@@ -49,10 +47,7 @@ describe("evidence-store", () => {
     const db = freshDb();
     const count = upsertEvidence(db, [
       makeEvidence(),
-      makeEvidence({
-        trackId: "t2",
-        genreFamily: "techno",
-      }),
+      makeEvidence({ trackId: "t2", genreFamily: "techno" }),
     ]);
     expect(count).toBe(2);
     const rows = loadEvidence(db, "t1");
@@ -75,11 +70,7 @@ describe("evidence-store", () => {
     const db = freshDb();
     upsertEvidence(db, [
       makeEvidence({ scope: "exact_recording" }),
-      makeEvidence({
-        annotatorId: "sc:artist",
-        scope: "artist",
-        genreFamily: "edm",
-      }),
+      makeEvidence({ annotatorId: "sc:artist", scope: "artist", genreFamily: "edm" }),
     ]);
     const exact = loadEvidence(db, "t1", "exact_recording");
     expect(exact).toHaveLength(1);
@@ -99,11 +90,7 @@ describe("evidence-store", () => {
     upsertEvidence(db, [
       makeEvidence({ trackId: "t1" }),
       makeEvidence({ trackId: "t2", genreFamily: "techno" }),
-      makeEvidence({
-        trackId: "t2",
-        annotatorId: "sc:exact_recording",
-        genreFamily: "tech house",
-      }),
+      makeEvidence({ trackId: "t2", annotatorId: "sc:exact_recording", genreFamily: "tech house" }),
     ]);
     const batch = loadEvidenceBatch(db, ["t1", "t2", "t3"]);
     expect(batch.get("t1")).toHaveLength(1);
@@ -120,16 +107,8 @@ describe("evidence-store", () => {
     const db = freshDb();
     upsertEvidence(db, [
       makeEvidence({ verified: true }),
-      makeEvidence({
-        trackId: "t2",
-        genreFamily: "techno",
-        verified: false,
-      }),
-      makeEvidence({
-        trackId: "t3",
-        annotatorId: "sc:exact_recording",
-        genreFamily: "edm",
-      }),
+      makeEvidence({ trackId: "t2", genreFamily: "techno", verified: false }),
+      makeEvidence({ trackId: "t3", annotatorId: "sc:exact_recording", genreFamily: "edm" }),
     ]);
     const stats = evidenceStats(db);
     expect(stats.length).toBeGreaterThanOrEqual(2);
@@ -140,29 +119,15 @@ describe("evidence-store", () => {
 
   test("scope check constraint rejects invalid values", () => {
     const db = freshDb();
-    expect(() =>
-      upsertEvidence(db, [makeEvidence({ scope: "invalid" as never })]),
-    ).toThrow();
+    expect(() => upsertEvidence(db, [makeEvidence({ scope: "invalid" as never })])).toThrow();
   });
 
   test("confidence ordered DESC in loadEvidence", () => {
     const db = freshDb();
     upsertEvidence(db, [
-      makeEvidence({
-        annotatorId: "a1",
-        confidence: 0.3,
-        genreFamily: "house",
-      }),
-      makeEvidence({
-        annotatorId: "a2",
-        confidence: 0.9,
-        genreFamily: "techno",
-      }),
-      makeEvidence({
-        annotatorId: "a3",
-        confidence: 0.6,
-        genreFamily: "edm",
-      }),
+      makeEvidence({ annotatorId: "a1", confidence: 0.3, genreFamily: "house" }),
+      makeEvidence({ annotatorId: "a2", confidence: 0.9, genreFamily: "techno" }),
+      makeEvidence({ annotatorId: "a3", confidence: 0.6, genreFamily: "edm" }),
     ]);
     const rows = loadEvidence(db, "t1");
     expect(rows).toHaveLength(3);

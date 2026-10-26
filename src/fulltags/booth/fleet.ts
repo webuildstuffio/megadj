@@ -89,9 +89,7 @@ const TEXT_UNICODE_NO_EMOJI: FleetProfile["text"] = {
   emoji: false,
   languageTable: false,
 };
-const LIMITS_FAT32 = (
-  maxFilesPerFolder: number | null,
-): FleetProfile["limits"] => ({
+const LIMITS_FAT32 = (maxFilesPerFolder: number | null): FleetProfile["limits"] => ({
   maxFolderDepth: 8,
   maxFilesPerFolder,
   maxFileSizeBytes: 4_294_967_296,
@@ -115,8 +113,7 @@ export const FLEET_PROFILES: FleetProfile[] = [
         section: "Specifications — Supported file formats",
       },
       {
-        claim:
-          "8 folder levels; 10 000 files/folder display cap; NTFS and exFAT not supported",
+        claim: "8 folder levels; 10 000 files/folder display cap; NTFS and exFAT not supported",
         publisher: "Pioneer DJ — XDJ-XZ Operating Instructions",
         url: "https://docs.pioneerdj.com/manuals/xdj-xz-manual/",
         section: "Supported sources / Supported media",
@@ -126,8 +123,7 @@ export const FLEET_PROFILES: FleetProfile[] = [
           "Export failures with illegal path characters show as missing tracks on the XZ browser",
         publisher: "Pioneer DJ forum",
         url: "https://forums.pioneerdj.com/hc/en-us/community/posts/360023506271",
-        section:
-          "Unable to export playlists to USB — 'One or more files were not exported'",
+        section: "Unable to export playlists to USB — 'One or more files were not exported'",
       },
     ],
   },
@@ -148,15 +144,13 @@ export const FLEET_PROFILES: FleetProfile[] = [
         section: "Specifications — Supported file formats",
       },
       {
-        claim:
-          "Unicode display via UTF-8/UTF-16 tags; LANGUAGE utility setting for local codes",
+        claim: "Unicode display via UTF-8/UTF-16 tags; LANGUAGE utility setting for local codes",
         publisher: "Pioneer DJ — CDJ-3000 Operating Instructions",
         url: "https://docs.pioneerdj.com/manuals/cdj-3000-manual/",
         section: "UTILITY — LANGUAGE; About rekordbox",
       },
       {
-        claim:
-          "Non-Latin track names garble unless files/tags are UTF-8 — emoji render as boxes",
+        claim: "Non-Latin track names garble unless files/tags are UTF-8 — emoji render as boxes",
         publisher: "r/DJs",
         url: "https://www.reddit.com/r/DJs/comments/138t6sb/",
         section: "CDJ3000 not reading track names in other languages",
@@ -180,8 +174,7 @@ export const FLEET_PROFILES: FleetProfile[] = [
         section: "Specifications — Supported file formats",
       },
       {
-        claim:
-          "Renders UTF-8/UTF-16 ID3v2 tags; fixed tables for non-Unicode legacy codes",
+        claim: "Renders UTF-8/UTF-16 ID3v2 tags; fixed tables for non-Unicode legacy codes",
         publisher: "Pioneer DJ — CDJ-2000NXS2 Operating Instructions",
         url: "https://docs.pioneerdj.com/manuals/cdj-2000nxs2-manual/",
         section: "Displaying text; UTILITY — LANGUAGE",
@@ -199,14 +192,7 @@ export const FLEET_PROFILES: FleetProfile[] = [
     id: "cdj-2000",
     name: "CDJ-2000",
     defaultOn: false,
-    formats: {
-      aiff: true,
-      wav: true,
-      mp3: true,
-      aac: true,
-      flac: false,
-      alac: false,
-    },
+    formats: { aiff: true, wav: true, mp3: true, aac: true, flac: false, alac: false },
     maxBitDepth: 24,
     maxSampleRate: 48000,
     text: { unicode: false, emoji: false, languageTable: true },
@@ -226,8 +212,7 @@ export const FLEET_PROFILES: FleetProfile[] = [
         section: "About MP3 files / About rekordbox",
       },
       {
-        claim:
-          "MPEG-2 low-sample-rate MP3s and hi-res files reject on 2000-generation players",
+        claim: "MPEG-2 low-sample-rate MP3s and hi-res files reject on 2000-generation players",
         publisher: "Pioneer DJ forum",
         url: "https://forums.pioneerdj.com/hc/en-us/community/posts/203092809",
         section: "E-8306 load errors with out-of-spec files",
@@ -238,9 +223,7 @@ export const FLEET_PROFILES: FleetProfile[] = [
 
 /** The default standing fleet — user said: XZ, 3000, 2000(-generation)
  *  "always default on or more". */
-export const DEFAULT_FLEET: PlayerId[] = FLEET_PROFILES.filter(
-  (p) => p.defaultOn,
-).map((p) => p.id);
+export const DEFAULT_FLEET: PlayerId[] = FLEET_PROFILES.filter((p) => p.defaultOn).map((p) => p.id);
 
 /** Resolve a fleet selection to full profiles; unknown ids are dropped
  *  (config drift can never select a player with no profile/citations). */
@@ -280,9 +263,7 @@ export function fleetFloor(fleet: readonly FleetProfile[]): FleetFloor {
     maxFolderDepth: Math.min(...fleet.map((p) => p.limits.maxFolderDepth)),
     maxFilesPerFolder: fleet.some((p) => p.limits.maxFilesPerFolder !== null)
       ? Math.min(
-          ...fleet
-            .map((p) => p.limits.maxFilesPerFolder)
-            .filter((n): n is number => n !== null),
+          ...fleet.map((p) => p.limits.maxFilesPerFolder).filter((n): n is number => n !== null),
         )
       : null,
     unicodeText: fleet.every((p) => p.text.unicode),

@@ -35,32 +35,22 @@ export async function cmdReport(
     const text = await res.text();
     if (outFile) {
       await Bun.write(outFile, `${text}\n`);
-      if (h.jsonMode)
-        await emitJson({
-          command: "report",
-          dossier: true,
-          written: outFile,
-        });
+      if (h.jsonMode) await emitJson({ command: "report", dossier: true, written: outFile });
       else h.log(`dossier written: ${outFile}`);
       return;
     }
     console.log(text); // the dossier IS json — print it raw
     return;
   }
-  const r = (await apiGet(`/api/drives/${d.id}/report`).then((x) =>
-    x.json(),
-  )) as DriveReport & { overall?: string };
+  const r = (await apiGet(`/api/drives/${d.id}/report`).then((x) => x.json())) as DriveReport & {
+    overall?: string;
+  };
   if (h.jsonMode) {
     await emitJson(r);
     return;
   }
   const checks = r.checks ?? [];
-  const icon: Record<string, string> = {
-    pass: "✓",
-    warn: "▲",
-    fail: "✕",
-    unknown: "○",
-  };
+  const icon: Record<string, string> = { pass: "✓", warn: "▲", fail: "✕", unknown: "○" };
   h.log(`drive: ${d.nickname ?? d.name}  overall: ${r.overall ?? "?"}`);
   h.log("");
   for (const c of checks) {

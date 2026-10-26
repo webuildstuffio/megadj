@@ -4,11 +4,7 @@
 // can never disagree. Same readonly ArchiveReader handle, same rules as
 // megaset/similar.ts: pure reads — a bug here cannot corrupt archive
 // state.
-import {
-  electGenre,
-  GENRE_VOTE_WEIGHTS,
-  parseVotes,
-} from "../../fulltags/genre/genre-vote";
+import { electGenre, GENRE_VOTE_WEIGHTS, parseVotes } from "../../fulltags/genre/genre-vote";
 import type { ArchiveQuery } from "../shared/types/archive-reader";
 import { round4 } from "../../shared/leaf/fmt";
 
@@ -34,10 +30,7 @@ export function genreWhy(reader: ArchiveQuery, videoId: string) {
     artist: string | null;
     genre: string | null;
     genre_votes: string | null;
-  }>(
-    "SELECT title, artist, genre, genre_votes FROM tracks WHERE video_id = ?",
-    videoId,
-  );
+  }>("SELECT title, artist, genre, genre_votes FROM tracks WHERE video_id = ?", videoId);
   if (!track) return { ...empty(), missing: true as const };
 
   const votes = parseVotes(track.genre_votes);

@@ -35,11 +35,7 @@ interface ScenarioResult {
   aiGenre: number;
   aiYear: number;
   votes: { rung: string; genre: string; weight: number; detail?: string }[];
-  dbRow: {
-    genre: string | null;
-    year: string | null;
-    genre_votes: string | null;
-  } | null;
+  dbRow: { genre: string | null; year: string | null; genre_votes: string | null } | null;
 }
 
 /** Run one stage call against a fresh throwaway DB in a child process. */
@@ -146,9 +142,7 @@ describe("stageGenreYear ladder (issue #54 stage tests)", () => {
       // #215: a junk refusal is NOT a silent death — no vote was cast, so
       // the ladder falls through honestly (UNRESOLVED when AI is off).
       expect(res.votes).toEqual([]);
-      expect(res.notes).toContain(
-        "genre:UNRESOLVED (no SC/bp hit — AI fallback off)",
-      );
+      expect(res.notes).toContain("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
     }
   });
 
@@ -183,12 +177,8 @@ describe("stageGenreYear ladder (issue #54 stage tests)", () => {
     const res = runScenario(NO_HIT);
     expect(res.aiGenre).toBe(0);
     expect(res.aiYear).toBe(0);
-    expect(res.notes).toContain(
-      "genre:UNRESOLVED (no SC/bp hit — AI fallback off)",
-    );
-    expect(res.notes).toContain(
-      "year:UNRESOLVED (no SC/bp hit — AI fallback off)",
-    );
+    expect(res.notes).toContain("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
+    expect(res.notes).toContain("year:UNRESOLVED (no SC/bp hit — AI fallback off)");
   });
 
   test("gate OFF batches stay empty even when fields remain missing", () => {
@@ -224,24 +214,13 @@ describe("stageGenreYear ladder (issue #54 stage tests)", () => {
   });
 
   test("#128 imprint rung: unknown label abstains → falls through to AI gate", () => {
-    const res = runScenario(
-      NO_HIT,
-      true,
-      false,
-      false,
-      "Some Random Label",
-      "Some Random Label",
-    );
-    expect(res.notes).toContain(
-      "genre:UNRESOLVED (no SC/bp hit — AI fallback off)",
-    );
+    const res = runScenario(NO_HIT, true, false, false, "Some Random Label", "Some Random Label");
+    expect(res.notes).toContain("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
     expect(res.dbRow?.genre).toBeNull();
   });
 
   test("#128 imprint rung: junk label (numeric) abstains, never votes", () => {
     const res = runScenario(NO_HIT, true, false, false, "12345", "12345");
-    expect(res.notes).toContain(
-      "genre:UNRESOLVED (no SC/bp hit — AI fallback off)",
-    );
+    expect(res.notes).toContain("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
   });
 });

@@ -84,11 +84,7 @@
 }
 .dcard.on {
   border-color: rgba(56, 224, 164, 0.55);
-  background: linear-gradient(
-    180deg,
-    rgba(56, 224, 164, 0.07),
-    var(--surface2) 60%
-  );
+  background: linear-gradient(180deg, rgba(56, 224, 164, 0.07), var(--surface2) 60%);
 }
 .dcard.on::before {
   content: "";
@@ -124,11 +120,8 @@
   height: 46px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
-  background: repeating-conic-gradient(
-      var(--surface3) 0% 25%,
-      var(--surface4) 0% 50%
-    )
-    0 0 / 12px 12px;
+  background: repeating-conic-gradient(var(--surface3) 0% 25%, var(--surface4) 0% 50%) 0 0 / 12px
+    12px;
   display: flex;
   align-items: center;
   justify-content: center;

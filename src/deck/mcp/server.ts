@@ -37,9 +37,7 @@ function reply(id: JsonRpcId, result: unknown): void {
 
 function replyError(id: JsonRpcId, code: number, message: string): void {
   try {
-    process.stdout.write(
-      `${JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } })}\n`,
-    );
+    process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } })}\n`);
   } catch {
     /* client gone */
   }
@@ -49,10 +47,7 @@ const ERR_PARAMS = -32602;
 const ERR_INTERNAL = -32603;
 
 // ---- request handling -------------------------------------------------------
-async function handleWith(
-  tools: Record<string, ToolDef>,
-  req: RpcRequest,
-): Promise<void> {
+async function handleWith(tools: Record<string, ToolDef>, req: RpcRequest): Promise<void> {
   const id = req.id ?? null;
   try {
     switch (req.method) {
@@ -60,11 +55,7 @@ async function handleWith(
         reply(id, {
           protocolVersion: "2025-06-18",
           capabilities: { tools: {} },
-          serverInfo: {
-            name: "cratedeck",
-            title: "CrateDeck",
-            version: "0.1.0",
-          },
+          serverInfo: { name: "cratedeck", title: "CrateDeck", version: "0.1.0" },
         });
         return;
       case "notifications/initialized":
@@ -76,13 +67,11 @@ async function handleWith(
         reply(id, {
           tools: Object.entries(tools).map(([name, t]) => ({
             name,
-            description:
-              t.description + (t.destructive ? " [MUTATES DRIVE STATE]" : ""),
+            description: t.description + (t.destructive ? " [MUTATES DRIVE STATE]" : ""),
             inputSchema: t.inputSchema,
             annotations: {
               title: name.replace(/^deck_/, "CrateDeck ").replace(/_/g, " "),
-              readOnlyHint:
-                !t.destructive && name !== "deck_run" && name !== "deck_cancel",
+              readOnlyHint: !t.destructive && name !== "deck_run" && name !== "deck_cancel",
             },
           })),
         });
@@ -95,15 +84,10 @@ async function handleWith(
         }
         // MCP spec: params key is "arguments" (not "args") — reading the
         // wrong key silently dropped every argument from conforming clients.
-        const args =
-          ((req.params ?? {})["arguments"] as
-            Record<string, unknown> | undefined) ?? {};
+        const args = ((req.params ?? {})["arguments"] as Record<string, unknown> | undefined) ?? {};
         const raw = await tools[name].run(args);
         const text = JSON.stringify(raw, null, 2);
-        reply(id, {
-          content: [{ type: "text", text }],
-          isError: false,
-        });
+        reply(id, { content: [{ type: "text", text }], isError: false });
         return;
       }
       default:
@@ -118,10 +102,7 @@ async function handleWith(
 /** The stdio server loop: newline-delimited JSON-RPC over stdin. Refuses
  *  to serve tool calls when `up` is false (but answers initialize/ping so
  *  clients surface a clean error instead of hanging). */
-export async function serveMcp(
-  tools: Record<string, ToolDef>,
-  up: boolean,
-): Promise<void> {
+export async function serveMcp(tools: Record<string, ToolDef>, up: boolean): Promise<void> {
   const reader = Bun.stdin.stream().getReader();
   const dec = new TextDecoder();
   let buf = "";

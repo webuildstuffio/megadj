@@ -12,16 +12,8 @@ import { TabIntro } from "../../ui/InfoTip";
  *  an event kind it doesn't recognize. */
 const KIND_STYLE: Record<string, [string, string, string]> = {
   "job-done": ["check", "good", "A job finished successfully."],
-  "job-failed": [
-    "warn",
-    "bad",
-    "A job ran and failed — check JobsDock for the error and re-run.",
-  ],
-  "job-queued": [
-    "clock",
-    "info",
-    "A job was enqueued and is waiting for its turn.",
-  ],
+  "job-failed": ["warn", "bad", "A job ran and failed — check JobsDock for the error and re-run."],
+  "job-queued": ["clock", "info", "A job was enqueued and is waiting for its turn."],
   "bitrot-suspect": [
     "warn",
     "bad",
@@ -41,11 +33,7 @@ const KIND_STYLE: Record<string, [string, string, string]> = {
   ],
   rename: ["pencil", "muted", "The drive's nickname changed."],
   "photo-set": ["photo", "muted", "The drive's cover photo changed."],
-  benchmark: [
-    "pulse",
-    "info",
-    "Read-speed benchmark ran — see the Health tab.",
-  ],
+  benchmark: ["pulse", "info", "Read-speed benchmark ran — see the Health tab."],
   checksum: [
     "shield",
     "info",
@@ -56,11 +44,7 @@ const KIND_STYLE: Record<string, [string, string, string]> = {
     "good",
     "The deep integrity audit ran — see the Verify tab for the full breakdown.",
   ],
-  mirror: [
-    "refresh",
-    "info",
-    "The master's music was copied onto this mirror.",
-  ],
+  mirror: ["refresh", "info", "The master's music was copied onto this mirror."],
   "agent-note": [
     "bolt",
     "info",
@@ -82,20 +66,10 @@ function dayKey(ts: number): string {
     d.getDate() === yest.getDate();
   if (sameDay) return "today";
   if (isYest) return "yesterday";
-  return d.toLocaleDateString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 }
 
-export function TimelineTab({
-  events,
-  driveId,
-}: {
-  events: TimelineEvent[];
-  driveId: string;
-}) {
+export function TimelineTab({ events, driveId }: { events: TimelineEvent[]; driveId: string }) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const groups = useMemo(() => {
     const out: [string, TimelineEvent[]][] = [];
@@ -165,8 +139,7 @@ export function TimelineTab({
                 isNote && typeof e.data["severity"] === "string"
                   ? (e.data["severity"] as string)
                   : null;
-              const noteTone =
-                sev === "critical" ? "bad" : sev === "warn" ? "warn" : "info";
+              const noteTone = sev === "critical" ? "bad" : sev === "warn" ? "warn" : "info";
               const tone2 = isNote ? noteTone : tone;
               return (
                 <div class="row" key={e.id} title={why}>
@@ -176,17 +149,14 @@ export function TimelineTab({
                   <span class="t">{fmtWhen(e.at)}</span>
                   <span class="body">
                     <span class={`kindchip kc-${tone2}`} title={why}>
-                      {isNote
-                        ? `agent note${sev && sev !== "info" ? ` · ${sev}` : ""}`
-                        : e.kind}
+                      {isNote ? `agent note${sev && sev !== "info" ? ` · ${sev}` : ""}` : e.kind}
                     </span>
                     <span class="detail">{detail}</span>
                     {isNote && (
                       <button
                         class="btn ghostbtn sm dismiss-btn"
                         onClick={() => dismiss(driveId, e.id)}
-                        title="Dismiss this note (stays in history)"
-                      >
+                        title="Dismiss this note (stays in history)">
                         dismiss
                       </button>
                     )}

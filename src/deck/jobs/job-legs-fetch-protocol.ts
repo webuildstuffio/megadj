@@ -33,17 +33,15 @@ export function parseFetchStart(
 }
 
 /** Parse one @task-done payload into the wire shape. */
-export function parseFetchTask(payload: unknown): {
+export function parseFetchTask(
+  payload: unknown,
+): {
   done: number;
   total: number;
   name: string;
   notes: string[];
   votes: { rung: string; genre: string; weight: number }[];
-  elected: {
-    genre: string;
-    weight: number;
-    winnerRungs: string[];
-  } | null;
+  elected: { genre: string; weight: number; winnerRungs: string[] } | null;
 } | null {
   if (!isRecord(payload)) return null;
   const done = finiteOf(payload.done);
@@ -57,20 +55,11 @@ export function parseFetchTask(payload: unknown): {
     ? payload.votes.flatMap((v: unknown) => {
         if (!isRecord(v)) return [];
         const weight = finiteOf(v.weight);
-        if (
-          typeof v.rung !== "string" ||
-          typeof v.genre !== "string" ||
-          weight === null
-        )
-          return [];
+        if (typeof v.rung !== "string" || typeof v.genre !== "string" || weight === null) return [];
         return [{ rung: v.rung, genre: v.genre, weight }];
       })
     : [];
-  let elected: {
-    genre: string;
-    weight: number;
-    winnerRungs: string[];
-  } | null = null;
+  let elected: { genre: string; weight: number; winnerRungs: string[] } | null = null;
   if (isRecord(payload.elected)) {
     const weight = finiteOf(payload.elected.weight);
     if (
@@ -100,22 +89,15 @@ export function fetchArgs(opts: FetchOptions): string[] {
 
 /** Decode fetch options carried in the enqueue API's mountPoint slot. */
 export function parseFetchJobMount(mountPoint: string): FetchOptions {
-  if (
-    !mountPoint ||
-    mountPoint === "local-archive" ||
-    !mountPoint.startsWith("{")
-  )
-    return {};
+  if (!mountPoint || mountPoint === "local-archive" || !mountPoint.startsWith("{")) return {};
   const parsed = safeJsonParse(mountPoint);
   if (!isRecord(parsed)) return {};
   const out: FetchOptions = {};
   if (parsed.all === true) out.all = true;
-  if (typeof parsed.only === "string" && /^[a-z-]+$/.test(parsed.only))
-    out.only = parsed.only;
+  if (typeof parsed.only === "string" && /^[a-z-]+$/.test(parsed.only)) out.only = parsed.only;
   if (parsed.aiFallback === true) out.aiFallback = true;
   if (parsed.dryRun === true) out.dryRun = true;
   const jobs = finiteOf(parsed.jobs);
-  if (jobs !== null && Number.isInteger(jobs) && jobs >= 1 && jobs <= 32)
-    out.jobs = jobs;
+  if (jobs !== null && Number.isInteger(jobs) && jobs >= 1 && jobs <= 32) out.jobs = jobs;
   return out;
 }

@@ -59,10 +59,7 @@ export function createSession(args: {
 
 /** Keep: pin specific steps in the chain (mark them as immutable).
  *  Returns the pinned videoId set — the regen verb respects these. */
-export function keepSteps(
-  result: MegasetResult,
-  videoIds: string[],
-): Set<string> {
+export function keepSteps(result: MegasetResult, videoIds: string[]): Set<string> {
   const pool = new Set(result.steps.map((s) => s.videoId));
   const kept = new Set<string>();
   for (const id of videoIds) {
@@ -110,21 +107,13 @@ function sessionId(): string {
 }
 
 function recomputeAvgTransition(steps: MegasetResult["steps"]): number | null {
-  const transitions = steps
-    .map((s) => s.transition)
-    .filter((t): t is number => t !== null);
+  const transitions = steps.map((s) => s.transition).filter((t): t is number => t !== null);
   if (transitions.length === 0) return null;
-  return (
-    Math.round(
-      (transitions.reduce((a, b) => a + b, 0) / transitions.length) * 1000,
-    ) / 1000
-  );
+  return Math.round((transitions.reduce((a, b) => a + b, 0) / transitions.length) * 1000) / 1000;
 }
 
 function recomputeMinTransition(steps: MegasetResult["steps"]): number | null {
-  const transitions = steps
-    .map((s) => s.transition)
-    .filter((t): t is number => t !== null);
+  const transitions = steps.map((s) => s.transition).filter((t): t is number => t !== null);
   if (transitions.length === 0) return null;
   return round3(Math.min(...transitions));
 }

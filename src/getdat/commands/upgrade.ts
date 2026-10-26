@@ -58,13 +58,11 @@ export function isLowq(row: {
 }): boolean {
   if (row.bitrate_kbps === null) return false;
   if (row.source === "soundcloud") {
-    if (row.codec === "mp4a" || row.codec === "aac")
-      return row.bitrate_kbps < 160;
+    if (row.codec === "mp4a" || row.codec === "aac") return row.bitrate_kbps < 160;
     if (row.codec === "mp3") return row.bitrate_kbps < 128;
     return false;
   }
-  if (row.codec === "mp4a" || row.codec === "aac")
-    return row.bitrate_kbps < 256;
+  if (row.codec === "mp4a" || row.codec === "aac") return row.bitrate_kbps < 256;
   if (row.codec === "mp3") return row.bitrate_kbps < 320;
   return false;
 }
@@ -193,8 +191,7 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
             video_id: c.video_id,
             title: c.title,
             outcome: "refused",
-            detail:
-              "old file not fingerprintable (fpcalc missing or unreadable)",
+            detail: "old file not fingerprintable (fpcalc missing or unreadable)",
           });
           log(`  ↳ refused: old file not fingerprintable`);
           continue;
@@ -211,11 +208,7 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
           null,
           c.source ?? undefined,
         );
-        if (
-          dl.status !== "downloaded" ||
-          !dl.filePath ||
-          !existsSync(dl.filePath)
-        ) {
+        if (dl.status !== "downloaded" || !dl.filePath || !existsSync(dl.filePath)) {
           totals.failed++;
           details.push({
             video_id: c.video_id,
@@ -249,10 +242,7 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
 
         // 4. Gate B: the new file must probe at ≥ the old bitrate.
         const newKbps = ffprobeKbps(tmp);
-        if (
-          newKbps === null ||
-          (c.bitrate_kbps !== null && newKbps < (c.bitrate_kbps ?? 0))
-        ) {
+        if (newKbps === null || (c.bitrate_kbps !== null && newKbps < (c.bitrate_kbps ?? 0))) {
           rmSync(tmp, { force: true });
           totals.refused++;
           details.push({

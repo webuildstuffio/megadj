@@ -27,8 +27,9 @@ export async function catchUp(opts: CatchUpOptions): Promise<void> {
   };
   // exactOptionalPropertyTypes: mood's onProgress is optional-without-
   // undefined, so spread it conditionally (beats' accepts undefined).
-  const moodPass: typeof pass & Pick<MoodOptions, "onProgress"> =
-    opts.onProgress ? { ...pass, onProgress: opts.onProgress } : { ...pass };
+  const moodPass: typeof pass & Pick<MoodOptions, "onProgress"> = opts.onProgress
+    ? { ...pass, onProgress: opts.onProgress }
+    : { ...pass };
 
   opts.onProgress?.("catch-up: beats pass (gap-first, ledgered == analyzed)");
   await beats({ ...pass, onProgress: opts.onProgress });

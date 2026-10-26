@@ -16,24 +16,16 @@ describe("repoHygiene", () => {
       "embeddings/raw.npy",
       ".env.local",
     ]) {
-      expect(
-        Bun.spawnSync(["git", "check-ignore", "--no-index", "-q", path])
-          .exitCode,
-        path,
-      ).toBe(0);
+      expect(Bun.spawnSync(["git", "check-ignore", "--no-index", "-q", path]).exitCode, path).toBe(
+        0,
+      );
     }
     expect(
-      Bun.spawnSync(["git", "check-ignore", "--no-index", "-q", ".env.example"])
-        .exitCode,
+      Bun.spawnSync(["git", "check-ignore", "--no-index", "-q", ".env.example"]).exitCode,
     ).not.toBe(0);
     expect(
-      Bun.spawnSync([
-        "git",
-        "check-ignore",
-        "--no-index",
-        "-q",
-        "experiments/definition.toml",
-      ]).exitCode,
+      Bun.spawnSync(["git", "check-ignore", "--no-index", "-q", "experiments/definition.toml"])
+        .exitCode,
     ).not.toBe(0);
   });
 });

@@ -57,11 +57,7 @@ describe("beats command (ledger, no tag writes)", () => {
     });
 
     const logs: string[] = [];
-    await beats({
-      state,
-      musicDir: dir,
-      onProgress: (m) => logs.push(m),
-    });
+    await beats({ state, musicDir: dir, onProgress: (m) => logs.push(m) });
 
     expect(state.beatRecord("m1")).toBeNull();
     expect(logs.some((m) => m.includes("file missing"))).toBe(true);
@@ -80,18 +76,12 @@ describe("beats command (ledger, no tag writes)", () => {
       sourcePath: p,
     });
     const logs: string[] = [];
-    await beats({
-      state,
-      musicDir: dir,
-      onProgress: (m) => logs.push(m),
-    });
+    await beats({ state, musicDir: dir, onProgress: (m) => logs.push(m) });
     // nothing to do: queue was empty (the no-op run explains itself —
     // commit 6cad634 changed the zero-work message)
     expect(
       logs.some((m) =>
-        m.startsWith(
-          "beats: all 1 downloaded tracks are already ledgered — nothing to analyze",
-        ),
+        m.startsWith("beats: all 1 downloaded tracks are already ledgered — nothing to analyze"),
       ),
     ).toBe(true);
     // record untouched

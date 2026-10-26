@@ -2,11 +2,7 @@
 // corpus programs (#88 item 2 extraction; #194 moved the program bodies
 // themselves into rb-scripts/playlist-*.py, spawned via rbPythonFile —
 // this module keeps ONLY the JSON-stdout validators).
-import {
-  isDecimalIdOrNull,
-  isStringArray,
-  makePayloadParser,
-} from "./rb-command-kit.js";
+import { isDecimalIdOrNull, isStringArray, makePayloadParser } from "./rb-command-kit.js";
 import { isNonNegativeInteger } from "../shared/leaf/guards";
 
 export const PYRK_TAG =
@@ -48,10 +44,7 @@ export function parseVerifyOutput(raw: string): PlaylistVerifyOut {
   return makePayloadParser<PlaylistVerifyOut>(
     "pyrekordbox playlist post-verify",
     "pyrekordbox playlist post-verify returned an invalid result payload",
-    {
-      rows: isNonNegativeInteger,
-      contiguous: (v): v is boolean => typeof v === "boolean",
-    },
+    { rows: isNonNegativeInteger, contiguous: (v): v is boolean => typeof v === "boolean" },
   )(raw);
 }
 
@@ -59,9 +52,6 @@ export function parseMatchPrediction(raw: string): MatchPrediction {
   return makePayloadParser<MatchPrediction>(
     "pyrekordbox playlist match probe",
     "pyrekordbox playlist match probe returned an invalid result payload",
-    {
-      hit: isNonNegativeInteger,
-      unmatched: isStringArray,
-    },
+    { hit: isNonNegativeInteger, unmatched: isStringArray },
   )(raw);
 }

@@ -3,13 +3,7 @@
 // ≥65% ship gate, and `regate effnet` honestly reports unavailable until
 // its reference ledger exists (never a manufactured pass).
 import { describe, expect, test } from "bun:test";
-import {
-  GENRE_GATE_PERCENT,
-  genreEvalSeeds,
-  regate,
-  regateEffnet,
-  regateGenre,
-} from "./regate";
+import { GENRE_GATE_PERCENT, genreEvalSeeds, regate, regateEffnet, regateGenre } from "./regate";
 import type { ArchiveState } from "../../core/state";
 
 /** Minimal ArchiveState double: only evalPopulation() is read. */
@@ -22,9 +16,7 @@ function stateWith(
     vec_json: string;
   }[],
 ): ArchiveState {
-  return {
-    evalPopulation: () => rows,
-  } as unknown as ArchiveState;
+  return { evalPopulation: () => rows } as unknown as ArchiveState;
 }
 
 const vec = (seed: number, dims = 4): string =>
@@ -49,13 +41,7 @@ describe("regate genre (#169)", () => {
     // junk labels with no scoring family count as unevaluable, not measurable
     const junkOnly = regateGenre(
       stateWith([
-        {
-          video_id: "a",
-          genre: "dj tools",
-          duration_s: 200,
-          artist: null,
-          vec_json: vec(1),
-        },
+        { video_id: "a", genre: "dj tools", duration_s: 200, artist: null, vec_json: vec(1) },
       ]),
     );
     expect(junkOnly.unavailable).toBe(true);
@@ -91,20 +77,8 @@ describe("regate genre (#169)", () => {
 
   test("duration guard rides the same harness rule (out-of-band rows drop)", () => {
     const rows = [
-      {
-        video_id: "in",
-        genre: "House",
-        duration_s: 200,
-        artist: null,
-        vec_json: vec(1),
-      },
-      {
-        video_id: "ad",
-        genre: "Techno",
-        duration_s: 5,
-        artist: null,
-        vec_json: vec(9),
-      },
+      { video_id: "in", genre: "House", duration_s: 200, artist: null, vec_json: vec(1) },
+      { video_id: "ad", genre: "Techno", duration_s: 5, artist: null, vec_json: vec(9) },
     ];
     const seeds = genreEvalSeeds(stateWith(rows));
     // both rows enter the seed list; the harness's band drops the ad

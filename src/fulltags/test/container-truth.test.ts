@@ -28,9 +28,7 @@ describe("trueContainerExt", () => {
     expect(parseFfprobeJson("{}")).toBeNull();
     expect(parseFfprobeJson('{"format":{},"streams":[]}')).toBeNull();
     expect(
-      parseFfprobeJson(
-        '{"format":{"format_name":"mjpeg"},"streams":[{"codec_type":"video"}]}',
-      ),
+      parseFfprobeJson('{"format":{"format_name":"mjpeg"},"streams":[{"codec_type":"video"}]}'),
     ).toBeNull();
     expect(parseFfprobeJson('{"format":{"duration":123}}')).toBeNull();
   });
@@ -41,12 +39,7 @@ describe("trueContainerExt", () => {
         '{"format":{"format_name":"mp3"},"streams":[{"codec_type":"audio","codec_name":"mp3","sample_rate":"44100"}]}',
       ),
     ).toEqual({
-      format: {
-        duration: undefined,
-        bitRate: undefined,
-        tags: {},
-        formatName: "mp3",
-      },
+      format: { duration: undefined, bitRate: undefined, tags: {}, formatName: "mp3" },
       streams: [{ codecType: "audio", codecName: "mp3", sampleRate: "44100" }],
     });
   });
@@ -65,20 +58,15 @@ describe("trueContainerExt", () => {
     // 14 pool rips shipped like this; ffmpeg's mp3 muxer exits 234 on them.
     expect(
       trueContainerExt(
-        probe({
-          codec: "aac",
-          container: ["mov", "mp4", "m4a", "3gp", "3g2", "mj2"],
-        }),
+        probe({ codec: "aac", container: ["mov", "mp4", "m4a", "3gp", "3g2", "mj2"] }),
       ),
     ).toBe(".m4a");
   });
 
   test("container list is whitespace-tolerant (ffprobe format_name)", () => {
-    expect(
-      trueContainerExt(
-        probe({ codec: "aac", container: ["mov", "mp4", "m4a"] }),
-      ),
-    ).toBe(".m4a");
+    expect(trueContainerExt(probe({ codec: "aac", container: ["mov", "mp4", "m4a"] }))).toBe(
+      ".m4a",
+    );
   });
 
   test("flac / wav / aiff containers map to their extensions", () => {

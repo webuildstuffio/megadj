@@ -12,20 +12,9 @@
 // (1 = no archive / nothing mixable, 2 = bad flag input, 0 = proposal).
 import { DB_PATH } from "../../cli-env";
 import { commandLog } from "../../shared/progress";
-import {
-  writeJson,
-  finishCommandError,
-  setExit,
-} from "../../shared/cli-output";
-import {
-  buildMegaset,
-  parseMegasetQuery,
-  SET_PRESETS,
-} from "../../deck/megaset/engine";
-import {
-  buildMegasetCandidates,
-  type MegasetVariant,
-} from "../../deck/megaset/candidates";
+import { writeJson, finishCommandError, setExit } from "../../shared/cli-output";
+import { buildMegaset, parseMegasetQuery, SET_PRESETS } from "../../deck/megaset/engine";
+import { buildMegasetCandidates, type MegasetVariant } from "../../deck/megaset/candidates";
 import {
   buildMegasetPayload,
   clampMegasetPool,
@@ -69,10 +58,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
 
   // same parse/validate path as the HTTP route + MCP tool (SSOT): unknown
   // preset is an error, minutes clamp to 10–240 — never silent fallbacks
-  const parsed = parseMegasetQuery({
-    preset: opts.preset ?? null,
-    minutes: opts.minutes ?? null,
-  });
+  const parsed = parseMegasetQuery({ preset: opts.preset ?? null, minutes: opts.minutes ?? null });
   if ("error" in parsed) {
     await finishCommandError({
       command: "megaset",
@@ -125,11 +111,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
     // from the SAME shared table the matcher uses (no twin list).
     // Non-fatal: the build still reports its honest empty shape after.
     let genreSuggestion: string | undefined;
-    if (
-      opts.genre !== undefined &&
-      opts.genre.trim() !== "" &&
-      genreFiltered === 0
-    ) {
+    if (opts.genre !== undefined && opts.genre.trim() !== "" && genreFiltered === 0) {
       const near = megasetNearestGenreFamily(opts.genre);
       if (near !== null) {
         genreSuggestion = near.family;
@@ -227,21 +209,14 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
           log,
         );
         const at = logSteps(best.result.steps, log);
-        logExclusionShape(
-          best.result.excluded,
-          payloads[0]!.excluded_total,
-          total,
-          log,
-        );
+        logExclusionShape(best.result.excluded, payloads[0]!.excluded_total, total, log);
         if (best.result.same_artist_pairs > 0) {
           log(
             `  variety: ${best.result.same_artist_pairs} same-artist back-to-back pair${best.result.same_artist_pairs === 1 ? "" : "s"} in this chain`,
           );
         }
         if (best.result.landmarks_missing.length > 0) {
-          log(
-            `  landmarks not placed: ${best.result.landmarks_missing.join(", ")}`,
-          );
+          log(`  landmarks not placed: ${best.result.landmarks_missing.join(", ")}`);
         }
         const sm = stagesMs;
         log(

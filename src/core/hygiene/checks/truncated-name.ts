@@ -71,8 +71,7 @@ export const truncatedName: CheckDef = {
         // the DB name must be strictly LONGER (something was cut).
         const cut =
           diskNameKey.length > PREFIX20_LEN - 1 && // short names can't cut
-          rowNameKey.slice(0, PREFIX20_LEN) ===
-            diskNameKey.slice(0, PREFIX20_LEN) &&
+          rowNameKey.slice(0, PREFIX20_LEN) === diskNameKey.slice(0, PREFIX20_LEN) &&
           rowName.length > basename(f.path).length;
         if (!cut) continue;
         out.push(buildFinding(ctx, f, c.row));

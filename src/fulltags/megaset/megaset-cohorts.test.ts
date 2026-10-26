@@ -5,10 +5,7 @@
 // = error, never a silent skip), and the summary shape (warmup+peak per
 // family, honest shortfall, blank-genre outside-scope note).
 import { describe, expect, test } from "bun:test";
-import {
-  MEGASET_COHORT_FAMILIES,
-  MEGASET_GENRE_FAMILIES,
-} from "../../deck/shared/types";
+import { MEGASET_COHORT_FAMILIES, MEGASET_GENRE_FAMILIES } from "../../deck/shared/types";
 import {
   buildCohortPlan,
   parseCohortFamilies,
@@ -28,34 +25,21 @@ describe("#295 megaset-cohorts", () => {
     // biggest-pool-first (Sep 21 spread: edm 683 > house 633 > techno
     // 501 > tech house 328) so a partially-failed run still delivered
     // the largest cohorts
-    expect(MEGASET_COHORT_FAMILIES).toEqual([
-      "edm",
-      "house",
-      "techno",
-      "tech house",
-    ]);
+    expect(MEGASET_COHORT_FAMILIES).toEqual(["edm", "house", "techno", "tech house"]);
   });
 
   test("#parseCohortFamilies: blank/absent = default four; unknown = error with the known list", () => {
     // absent → the curated default (same list as MEGASET_COHORT_FAMILIES)
-    expect(parseCohortFamilies(null)).toEqual({
-      families: [...MEGASET_COHORT_FAMILIES],
-    });
-    expect(parseCohortFamilies(undefined)).toEqual({
-      families: [...MEGASET_COHORT_FAMILIES],
-    });
+    expect(parseCohortFamilies(null)).toEqual({ families: [...MEGASET_COHORT_FAMILIES] });
+    expect(parseCohortFamilies(undefined)).toEqual({ families: [...MEGASET_COHORT_FAMILIES] });
     // EXPLICIT-but-empty is an error, never a silent zero-cohort run
     expect("error" in parseCohortFamilies("  ")).toBe(true);
     expect("error" in parseCohortFamilies(",,,")).toBe(true);
     // case-fold + trim normalization is the shared surface contract
     // (CLI flag / query param / MCP array all normalize alike)
-    expect(parseCohortFamilies(" EDM, house ")).toEqual({
-      families: ["edm", "house"],
-    });
+    expect(parseCohortFamilies(" EDM, house ")).toEqual({ families: ["edm", "house"] });
     // blank segments drop out — "edm,,house" is two families, not an error
-    expect(parseCohortFamilies("edm,,house")).toEqual({
-      families: ["edm", "house"],
-    });
+    expect(parseCohortFamilies("edm,,house")).toEqual({ families: ["edm", "house"] });
     // an unknown id errors LOUDLY with the known list (never a silent skip)
     const bad = parseCohortFamilies("edm, bootleg-house");
     expect("error" in bad).toBe(true);
@@ -74,11 +58,7 @@ describe("#295 megaset-cohorts", () => {
       setCandidates: (
         limit?: number | undefined,
         genre?: string | undefined,
-      ): {
-        candidates: CohortArmCandidate[];
-        genreFiltered: number;
-        total: number;
-      } => {
+      ): { candidates: CohortArmCandidate[]; genreFiltered: number; total: number } => {
         calls.push([genre, limit]);
         const short = genre === "techno"; // one family's arms fall short
         return {

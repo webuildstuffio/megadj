@@ -2,29 +2,16 @@
 
 **Status:** ✅ SHIPPED — standalone enrichment engine with gated analysis.
 
-**One pass, every field.** FullTags is the megadj sub-project that takes any
-`mp3 / m4a / wav / flac / aiff` and fully enriches it — and it ships
-standalone: one schema, one atomic writer, its own CLI + gate.
+**One pass, every field.** FullTags is the megadj sub-project that takes any `mp3 / m4a / wav / flac / aiff` and fully enriches it — and it ships standalone: one schema, one atomic writer, its own CLI + gate.
 
 ```
 messy file ──▶ FullTags ──▶ tagged · artworked · fingerprinted · beatgridded · keyed · mood-mapped
 ```
 
-- ✅ **Every field:** title, artist, album, album artist, genre, year (of
-  _this version_ — remix year for edits), remix credit, producer credits,
-  grouping, source URL, energy, embedded artwork, MusicBrainz MBID,
-  record label / mix name / ISRC (the Beatport identity fields).
-- 🎼 **Offline analysis** (shipped Sep 5 2026): **acoustic fingerprint**
-  (chromaprint → `TXXX:ACOUSTID`), **real BPM** (beat_this → `TBPM`,
-  half/double-tempo folded into the 70–180 DJ window), **harmonic key**
-  (OpenKeyScan → `TKEY` + `TXXX:CAMELOT`), **mood/dance/valence** (Essentia
-  ONNX heads → `TXXX:MOOD`, which also drives the energy 2.0 blend).
-- 🔁 **Idempotent** via existing-stamp detection — run it twice, the second
-  pass changes nothing. Missing envs degrade to a skip note, never a
-  failure.
-- 📖 **Ground-truth driven:** the **file** is the truth, the DB is a cache.
-  Every write is atomic (tmp + rename, audio stream-copied — never
-  re-encoded).
+- ✅ **Every field:** title, artist, album, album artist, genre, year (of _this version_ — remix year for edits), remix credit, producer credits, grouping, source URL, energy, embedded artwork, MusicBrainz MBID, record label / mix name / ISRC (the Beatport identity fields).
+- 🎼 **Offline analysis** (shipped Sep 5 2026): **acoustic fingerprint** (chromaprint → `TXXX:ACOUSTID`), **real BPM** (beat_this → `TBPM`, half/double-tempo folded into the 70–180 DJ window), **harmonic key** (OpenKeyScan → `TKEY` + `TXXX:CAMELOT`), **mood/dance/valence** (Essentia ONNX heads → `TXXX:MOOD`, which also drives the energy 2.0 blend).
+- 🔁 **Idempotent** via existing-stamp detection — run it twice, the second pass changes nothing. Missing envs degrade to a skip note, never a failure.
+- 📖 **Ground-truth driven:** the **file** is the truth, the DB is a cache. Every write is atomic (tmp + rename, audio stream-copied — never re-encoded).
 
 ## 🚀 Quick start
 
@@ -38,21 +25,11 @@ fulltags ensure-models               pre-download the mood model set (~320 MB �
 fulltags verify-key <folder> --limit 20   # key gauntlet gate: ≥80% vs existing tags
 ```
 
-Key-stage operational gauntlet (before any library-wide run): disable
-rekordbox Key analysis (it overwrites imported keys), batch-write, Reload
-Tags in RB, then run `fulltags verify-key` against tracks with existing
-MIK/RB keys — require ≥80% exact agreement. BPM stage: compare against
-rekordbox-reanalyzed grids; flag disagreements > 2%.
+Key-stage operational gauntlet (before any library-wide run): disable rekordbox Key analysis (it overwrites imported keys), batch-write, Reload Tags in RB, then run `fulltags verify-key` against tracks with existing MIK/RB keys — require ≥80% exact agreement. BPM stage: compare against rekordbox-reanalyzed grids; flag disagreements > 2%.
 
 ## 🧩 Why a sub-project
 
-megadj originally spread enrichment across command and tool modules. Each
-carried a hard-won format gotcha (AIFF drops ID3 chunks; WAV cannot carry
-ffmpeg artwork; MP3 wants ID3v2.3). FullTags consolidated that history behind
-**one schema, one writer, and one pipeline**. The old `exports.ts` bridge was
-dissolved by #193 — import the specific modules directly; `git log --follow`
-retains the deleted shim history without keeping obsolete paths in current
-documentation.
+megadj originally spread enrichment across command and tool modules. Each carried a hard-won format gotcha (AIFF drops ID3 chunks; WAV cannot carry ffmpeg artwork; MP3 wants ID3v2.3). FullTags consolidated that history behind **one schema, one writer, and one pipeline**. The old `exports.ts` bridge was dissolved by #193 — import the specific modules directly; `git log --follow` retains the deleted shim history without keeping obsolete paths in current documentation.
 
 ## 📁 Layout
 
@@ -112,92 +89,32 @@ src/fulltags/
 
 ## 🪜 The ladders
 
-| Field              | Order                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| identity           | file tags → filename parse → MusicBrainz recording (1 rps)                                                                                                                                                                                                                                                                                                                                                                                                             |
-| genre              | **NOT first-win — a weighted VOTE (#173)**: every rung that fires casts a vote (SC tags → canonical map → **Beatport store genre** → imprint prior → Bandcamp tags → MB folksonomy → AI conf ≥ 0.7 → file TCON at intake → sync category); highest total weight elects, the full breakdown persists in `tracks.genre_votes`, and `megadj genre-why` explains any stored genre. Hard gates (artist match, numeric/`Music` refusal) stay absolute upstream of every vote |
-| year               | file → SC upload timestamp (the **remix** year) → **Beatport release date** → Bandcamp publish date → AI (verify: flash-lite guesses 2023)                                                                                                                                                                                                                                                                                                                             |
-| artwork            | embedded → SC page og:image (original/t1080) → **Beatport release master (1500²)** → hype gateways → mp3-twin → Deezer → iTunes → AI queue                                                                                                                                                                                                                                                                                                                             |
-| remixer            | title/filename `(Remixer Remix/Flip/Edit)` pattern → **Beatport official remixers credit**                                                                                                                                                                                                                                                                                                                                                                             |
-| label / mix / ISRC | (Beatport-only fields) file → **Beatport catalog row** — never overwritten once present                                                                                                                                                                                                                                                                                                                                                                                |
-| energy             | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists                                                                                                                                                                                                                                                                                                                                                                        |
+| Field | Order |
+| --- | --- |
+| identity | file tags → filename parse → MusicBrainz recording (1 rps) |
+| genre | **NOT first-win — a weighted VOTE (#173)**: every rung that fires casts a vote (SC tags → canonical map → **Beatport store genre** → imprint prior → Bandcamp tags → MB folksonomy → AI conf ≥ 0.7 → file TCON at intake → sync category); highest total weight elects, the full breakdown persists in `tracks.genre_votes`, and `megadj genre-why` explains any stored genre. Hard gates (artist match, numeric/`Music` refusal) stay absolute upstream of every vote |
+| year | file → SC upload timestamp (the **remix** year) → **Beatport release date** → Bandcamp publish date → AI (verify: flash-lite guesses 2023) |
+| artwork | embedded → SC page og:image (original/t1080) → **Beatport release master (1500²)** → hype gateways → mp3-twin → Deezer → iTunes → AI queue |
+| remixer | title/filename `(Remixer Remix/Flip/Edit)` pattern → **Beatport official remixers credit** |
+| label / mix / ISRC | (Beatport-only fields) file → **Beatport catalog row** — never overwritten once present |
+| energy | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists |
 
-**Beatport ranking (rev 6.4, hardened 6.5):** second in every ladder, behind SoundCloud —
-SC wins every field it covers (its tags reflect how tracks actually
-circulate), Beatport fills what SC misses and is the ONLY source of the
-DJ-canonical identity fields: record label, mix name, official remixer
-credit, and ISRC. Access is the v4 catalog API with the same anonymous
-client-credentials grant the official web embed player ships (no account,
-no scraping; override via `MEGADJ_BP_CLIENT_ID` / `MEGADJ_BP_CLIENT_SECRET`
-if Beatport rotates); every Beatport-filled field is stamped
-`TXXX:BP-FIELDS` ("label=…; mix=…; isrc=…") so store-sourced values are
-always auditable, both in the single-file pipeline AND in the
-`megadj fetch`/`enrich` batch stage. The genre rung accepts only
-canon-vocabulary hits ("Peak Time / Driving" still maps; "Electronica"
-junk is refused); the search is relevance-gated (artist must match —
-title+duration alone can't distinguish the store's same-name
-pack-fillers) and duration-aware (±2 s/±10 s bonus from the file's
-ffprobe duration); transient catalog outages degrade to the next rung
-and are retried on the next lookup, never cached as misses.
+**Beatport ranking (rev 6.4, hardened 6.5):** second in every ladder, behind SoundCloud — SC wins every field it covers (its tags reflect how tracks actually circulate), Beatport fills what SC misses and is the ONLY source of the DJ-canonical identity fields: record label, mix name, official remixer credit, and ISRC. Access is the v4 catalog API with the same anonymous client-credentials grant the official web embed player ships (no account, no scraping; override via `MEGADJ_BP_CLIENT_ID` / `MEGADJ_BP_CLIENT_SECRET` if Beatport rotates); every Beatport-filled field is stamped `TXXX:BP-FIELDS` ("label=…; mix=…; isrc=…") so store-sourced values are always auditable, both in the single-file pipeline AND in the `megadj fetch`/`enrich` batch stage. The genre rung accepts only canon-vocabulary hits ("Peak Time / Driving" still maps; "Electronica" junk is refused); the search is relevance-gated (artist must match — title+duration alone can't distinguish the store's same-name pack-fillers) and duration-aware (±2 s/±10 s bonus from the file's ffprobe duration); transient catalog outages degrade to the next rung and are retried on the next lookup, never cached as misses.
 
 ## 🤖 AI provenance (trust in automation)
 
-AI-filled genre/year are stamped into the file as `TXXX:AI-GENRE` /
-`TXXX:AI-YEAR` with the classifier's confidence — `Techno|0.92` — so an
-AI-filled field is always identifiable and auditable, never silently
-indistinguishable from a human/SC-sourced one. `fulltags audit` reports
-them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
+AI-filled genre/year are stamped into the file as `TXXX:AI-GENRE` / `TXXX:AI-YEAR` with the classifier's confidence — `Techno|0.92` — so an AI-filled field is always identifiable and auditable, never silently indistinguishable from a human/SC-sourced one. `fulltags audit` reports them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
 
 ## ⚠️ Format gotchas (why there's one writer)
 
-- **AIFF**: ffmpeg's aiff muxer **drops the ID3 chunk** — AIFF tag writes go
-  through mutagen, editing the chunk in place (embedded art survives).
-- **WAV**: ffmpeg's wav muxer can't carry attached_pic — art goes via mutagen
-  APIC. But rekordbox ignores WAV art entirely → convert to AIFF at ingest
-  (`convert.ts`).
+- **AIFF**: ffmpeg's aiff muxer **drops the ID3 chunk** — AIFF tag writes go through mutagen, editing the chunk in place (embedded art survives).
+- **WAV**: ffmpeg's wav muxer can't carry attached_pic — art goes via mutagen APIC. But rekordbox ignores WAV art entirely → convert to AIFF at ingest (`convert.ts`).
 - **mp3**: written as id3v2.3 for widest hardware compatibility.
-- **m4a**: tags go through mutagen (ffmpeg's ipod muxer has NO metadata
-  mapping for bpm/energy/remixer/mbid/AI-\* — they vanish silently, and
-  every remux wipes existing freeform atoms); covers still remux via
-  ffmpeg (mjpeg + `attached_pic`).
-- **tmp files keep their extension** — ffmpeg infers the muxer from the
-  filename; an extensionless `.fa` tmp fails with "Unable to choose an output
-  format" (a real bug this migration fixed in the old `fetch-lib` path).
-- **failed writes clean up** — a corrupt input must never leave an orphan
-  `.tagged` tmp in the folder (Bun's `$` throws on non-zero exit, so the
-  unlink lives in `catch`, not after an exit-code check).
-- **analysis-stage envs** (see roadmap rev 4 §7 + rev 6.1 §2/#4 for the full
-  list): beat_this has no tempo field on the programmatic path (derive
-  `60/median(Δbeats)`; beats arrive in seconds); **compressed containers
-  (mp3/m4a/aac) decode IN-PROCESS via PyAV** — beat_this's own loader and
-  the key analyzer's librosa both fail to demux them in this env
-  (torchcodec needs FFmpeg ≤ 8; brew ships 9), so no temp WAV is ever
-  written: the beat worker decodes to a sample array (PyAV → `Audio2Beats`)
-  and the key server's PyAV fast path (`KEYSCAN_PYAV` gate, darwin-enabled
-  since Sep 15 2026, `av` pinned in its requirements.txt) takes the file
-  path directly. If a re-clone of the analyzer repo loses the darwin gate,
-  the m4a key regression test fails loudly — re-apply the two-line gate
-  flip.
-- **beat sessions amortize the env load** (`openBeatSession`, Sep 15
-  2026): a one-shot spawn pays uv resolve + torch import + model load
-  every call (~1.5–1.9 s/track measured); the session is a persistent
-  NDJSON worker (same script, single-flight per session — batches open
-  one per `--jobs` worker, as `megadj beats` does) and measured **61%
-  faster over 3 tracks** on the same files, byte-equal results.
-  A timed-out request kills the session so a late response can never be
-  misattributed to the next track; close() is idempotent and a dead
-  session degrades to null.
-  OpenKeyScan treats **stdin EOF as shutdown** (never `stdin.end()` before
-  responses land) and its stdout must be read line-by-line, never
-  buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as
-  `--with` flags (the latter hung). Mood stage: effnet wants essentia
-  `TensorflowInputMusiCNN` melspec in **128-frame chunks** (fixed batch on
-  the ONNX export); head label order is **positive FIRST for every head
-  except mood_party** (`['non_party', 'party']` — the first archive pass
-  shipped inverted and was caught by saturated output; pinned by a
-  regression test);
-  emomusic reads **(valence, arousal) on a 1–9 scale**; vggish wants
-  400/200 frames → 96-frame patches transposed to (64, 96).
+- **m4a**: tags go through mutagen (ffmpeg's ipod muxer has NO metadata mapping for bpm/energy/remixer/mbid/AI-\* — they vanish silently, and every remux wipes existing freeform atoms); covers still remux via ffmpeg (mjpeg + `attached_pic`).
+- **tmp files keep their extension** — ffmpeg infers the muxer from the filename; an extensionless `.fa` tmp fails with "Unable to choose an output format" (a real bug this migration fixed in the old `fetch-lib` path).
+- **failed writes clean up** — a corrupt input must never leave an orphan `.tagged` tmp in the folder (Bun's `$` throws on non-zero exit, so the unlink lives in `catch`, not after an exit-code check).
+- **analysis-stage envs** (see roadmap rev 4 §7 + rev 6.1 §2/#4 for the full list): beat_this has no tempo field on the programmatic path (derive `60/median(Δbeats)`; beats arrive in seconds); **compressed containers (mp3/m4a/aac) decode IN-PROCESS via PyAV** — beat_this's own loader and the key analyzer's librosa both fail to demux them in this env (torchcodec needs FFmpeg ≤ 8; brew ships 9), so no temp WAV is ever written: the beat worker decodes to a sample array (PyAV → `Audio2Beats`) and the key server's PyAV fast path (`KEYSCAN_PYAV` gate, darwin-enabled since Sep 15 2026, `av` pinned in its requirements.txt) takes the file path directly. If a re-clone of the analyzer repo loses the darwin gate, the m4a key regression test fails loudly — re-apply the two-line gate flip.
+- **beat sessions amortize the env load** (`openBeatSession`, Sep 15 2026): a one-shot spawn pays uv resolve + torch import + model load every call (~1.5–1.9 s/track measured); the session is a persistent NDJSON worker (same script, single-flight per session — batches open one per `--jobs` worker, as `megadj beats` does) and measured **61% faster over 3 tracks** on the same files, byte-equal results. A timed-out request kills the session so a late response can never be misattributed to the next track; close() is idempotent and a dead session degrades to null. OpenKeyScan treats **stdin EOF as shutdown** (never `stdin.end()` before responses land) and its stdout must be read line-by-line, never buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as `--with` flags (the latter hung). Mood stage: effnet wants essentia `TensorflowInputMusiCNN` melspec in **128-frame chunks** (fixed batch on the ONNX export); head label order is **positive FIRST for every head except mood_party** (`['non_party', 'party']` — the first archive pass shipped inverted and was caught by saturated output; pinned by a regression test); emomusic reads **(valence, arousal) on a 1–9 scale**; vggish wants 400/200 frames → 96-frame patches transposed to (64, 96).
 
 ## 🧪 Usage
 
@@ -208,29 +125,19 @@ bun src/fulltags/cli/cli.ts audit <archive-folder>         # completeness gate (
 bun src/fulltags/cli/cli.ts ensure-models                  # pre-pull the ~320 MB mood model set
 ```
 
-Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key
---mood` (default: all; analysis stages need fpcalc / beat-this / the
-openkeyscan-analyzer clone / the ONNX mood models — missing envs skip with
-a note). Other flags: `--jobs N`, `--upgrade-sc-art`,
-`--artwork-queue PATH | --no-queue`, `--archive-dir DIR`.
+Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key --mood` (default: all; analysis stages need fpcalc / beat-this / the openkeyscan-analyzer clone / the ONNX mood models — missing envs skip with a note). Other flags: `--jobs N`, `--upgrade-sc-art`, `--artwork-queue PATH | --no-queue`, `--archive-dir DIR`.
 
-**Env**: `OPENROUTER_API_KEY` for the AI genre/year fallback. Artwork misses
-append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing
-`megadj artwork` AI-cover pass can pick them up. Mood models live in
-`~/.local/share/fulltags-models` (MTG/UPF exports, CC BY-NC-SA — personal
-use).
+**Env**: `OPENROUTER_API_KEY` for the AI genre/year fallback. Artwork misses append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing `megadj artwork` AI-cover pass can pick them up. Mood models live in `~/.local/share/fulltags-models` (MTG/UPF exports, CC BY-NC-SA — personal use).
 
 ## 🔗 Relationship to megadj commands
 
-| megadj command  | What it does now                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------- |
-| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims                           |
-| `megadj fetch`  | `src/fulltags/fetch/fetch-pipeline.ts` writes through FullTags `writePatch` (#184 — re-homed) |
-| `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                                       |
-| `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted)          |
-| `megadj mood`   | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline  |
-| `megadj cues`   | 8-bar phrase cues from the beats ledger → `cues` DB table (no player writes)                  |
+| megadj command | What it does now |
+| --- | --- |
+| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims |
+| `megadj fetch` | `src/fulltags/fetch/fetch-pipeline.ts` writes through FullTags `writePatch` (#184 — re-homed) |
+| `megadj audit` | same completeness gate as `fulltags audit` (one reader) |
+| `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted) |
+| `megadj mood` | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline |
+| `megadj cues` | 8-bar phrase cues from the beats ledger → `cues` DB table (no player writes) |
 
-The **roadmap** for what comes next (rekordbox cue writes, vocal density,
-similarity) lives in
-[docs/fulltags/fulltags-roadmap.md](../docs/fulltags/fulltags-roadmap.md).
+The **roadmap** for what comes next (rekordbox cue writes, vocal density, similarity) lives in [docs/fulltags/fulltags-roadmap.md](../docs/fulltags/fulltags-roadmap.md).

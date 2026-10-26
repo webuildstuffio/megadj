@@ -27,19 +27,13 @@ describe("intakePhaseFor", () => {
     expect(probe!.nextIdx).toBe(0);
     idx = probe!.nextIdx;
     // dedupe marker (in-batch dupe)
-    const dupe = intakePhaseFor(
-      "  [dupe] a.wav — byte-identical twin of b.wav (md5)",
-      idx,
-    );
+    const dupe = intakePhaseFor("  [dupe] a.wav — byte-identical twin of b.wav (md5)", idx);
     expect(dupe).not.toBeNull();
     expect(dupe!.progress).toBe(0.15);
     idx = dupe!.nextIdx;
     // archive-check marker: Phase-C's "already in archive" line must win
     // over the dedupe "[dupe]" class when dedupe already ran
-    const arch = intakePhaseFor(
-      "  [dupe] c.wav already in archive: c.wav — quarantining",
-      idx,
-    );
+    const arch = intakePhaseFor("  [dupe] c.wav already in archive: c.wav — quarantining", idx);
     expect(arch).not.toBeNull();
     expect(arch!.progress).toBe(0.3);
     idx = arch!.nextIdx;
@@ -65,9 +59,7 @@ describe("intakePhaseFor", () => {
     // the trimmed regex regression: "  ~ file: title" never matched
     expect(INTAKE_FILE_LINE.test("  ~ file.wav: title, artist")).toBe(true);
     expect(INTAKE_FILE_LINE.test("  = ok: file.wav")).toBe(true);
-    expect(INTAKE_FILE_LINE.test("  ⛔ player-incompatible (x): f.wav")).toBe(
-      true,
-    );
+    expect(INTAKE_FILE_LINE.test("  ⛔ player-incompatible (x): f.wav")).toBe(true);
     expect(INTAKE_FILE_LINE.test("~ no indent")).toBe(false);
   });
 });

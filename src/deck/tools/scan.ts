@@ -39,10 +39,7 @@ export function ageBucket(mtimeMs: number, now = Date.now()): keyof AgeBuckets {
 
 /** Free bytes on the volume holding `mountPoint`, via `df -k` (async). */
 export async function freeBytes(mountPoint: string): Promise<number | null> {
-  const proc = Bun.spawn(["df", "-k", mountPoint], {
-    stdout: "pipe",
-    stderr: "ignore",
-  });
+  const proc = Bun.spawn(["df", "-k", mountPoint], { stdout: "pipe", stderr: "ignore" });
   const exitedTimer = proc.exited;
   const out = await new Response(proc.stdout).text();
   await exitedTimer;

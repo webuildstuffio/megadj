@@ -7,12 +7,7 @@
 import type { FixRow, FixesPayload } from "../../../../shared/leaf/fixes";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
-import {
-  Verdict,
-  useScanApply,
-  ScanApplyGate,
-  ScanApplyActions,
-} from "../shared";
+import { Verdict, useScanApply, ScanApplyGate, ScanApplyActions } from "../shared";
 import { HELP_TERMS } from "../../../shared/help";
 
 /** Work-queue order: rows WITH a safe autofix first (rename, then tag
@@ -35,10 +30,7 @@ const REASON_LABEL: Record<string, string> = {
   "path-too-deep": "Folder path too deep for the players",
 };
 
-const ACTION_TONE: Record<string, string> = {
-  rename: "rename",
-  "sanitize-tags": "tags",
-};
+const ACTION_TONE: Record<string, string> = { rename: "rename", "sanitize-tags": "tags" };
 
 function reasonLabel(reasons: FixRow["reasons"]): string {
   const first = reasons[0];
@@ -51,17 +43,15 @@ function actionLabel(action: FixRow["action"]): string {
 }
 
 export function FixesTab(_props: { driveId: string; driveName: string }) {
-  const { payload, loadErr, busy, enqueue } = useScanApply<FixesPayload | null>(
-    {
-      readPath: "/api/fixes",
-      actionPath: "/api/fixes",
-      label: {
-        thing: "fixes",
-        scanDone: "Booth audit queued",
-        applyDone: "Apply queued — safe fixes only, nothing deletes",
-      },
+  const { payload, loadErr, busy, enqueue } = useScanApply<FixesPayload | null>({
+    readPath: "/api/fixes",
+    actionPath: "/api/fixes",
+    label: {
+      thing: "fixes",
+      scanDone: "Booth audit queued",
+      applyDone: "Apply queued — safe fixes only, nothing deletes",
     },
-  );
+  });
 
   // payload may be null (fetched, never scanned) — the banner below owns
   // that state; narrow the row views to the scanned case up front.
@@ -69,13 +59,9 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
   // Gate's guard is the scanned-or-never case, so `!` on scannedPath is safe.
   const scanned = payload as FixesPayload | null | undefined;
   const fixRows =
-    scanned?.rows
-      .filter((r) => r.action !== "none")
-      .toSorted((a, b) => rank(a) - rank(b)) ?? [];
+    scanned?.rows.filter((r) => r.action !== "none").toSorted((a, b) => rank(a) - rank(b)) ?? [];
   const manualRows =
-    scanned?.rows
-      .filter((r) => r.action === "none")
-      .toSorted((a, b) => rank(a) - rank(b)) ?? [];
+    scanned?.rows.filter((r) => r.action === "none").toSorted((a, b) => rank(a) - rank(b)) ?? [];
   const boothTerm = HELP_TERMS.find((t) => t.term === "Booth fleet");
 
   const banner =
@@ -99,8 +85,7 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
       loadErr={loadErr}
       payload={payload}
       unavailable={`Fixes audit unavailable: ${loadErr ?? ""}`}
-      loading="Loading the fixes plan…"
-    >
+      loading="Loading the fixes plan…">
       <Verdict cls={banner.cls} text={banner.text} />
 
       <div class="actions" style={{ marginTop: 10 }}>
@@ -109,17 +94,14 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
           applyDisabled={fixRows.length === 0}
           scanTitle="Dry-run megadj booth-fix over the shelf Contents (job)"
           applyTitle="Apply the SAFE subset: renames + tag rewrites. After this, relink in rekordbox (Collection → ⌘A → Relocate Lost Files)."
-          applyLabel={() =>
-            `Apply ${fixRows.length} safe fix${fixRows.length === 1 ? "" : "es"}`
-          }
+          applyLabel={() => `Apply ${fixRows.length} safe fix${fixRows.length === 1 ? "" : "es"}`}
           onScan={() => enqueue("scan")}
           onApply={() => enqueue("apply")}
         />
         <InfoTip
           title="Booth fleet"
           body={
-            boothTerm?.def ??
-            "Every check enforces the player fleet selected on Fleet → Booth."
+            boothTerm?.def ?? "Every check enforces the player fleet selected on Fleet → Booth."
           }
           why={
             boothTerm?.why ??
@@ -129,9 +111,9 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
       </div>
 
       <p class="note">
-        After applying renames on the shelf, open rekordbox → Collection → ⌘A →
-        right-click <b>Relocate Lost Files</b> (one pass), then re-sync any
-        stick. See <code>.claude/skills/booth-check/SKILL.md</code>.
+        After applying renames on the shelf, open rekordbox → Collection → ⌘A → right-click{" "}
+        <b>Relocate Lost Files</b> (one pass), then re-sync any stick. See{" "}
+        <code>.claude/skills/booth-check/SKILL.md</code>.
       </p>
 
       {fixRows.length > 0 && (
@@ -150,8 +132,8 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
                     {r.plan ? ` — ${r.plan}` : ""}
                   </span>
                   <code class="hyg-cmd">
-                    MEGADJ_MUSIC_DIR={payload?.scannedPath ?? "<shelf>"} megadj
-                    booth-fix --apply --yes
+                    MEGADJ_MUSIC_DIR={payload?.scannedPath ?? "<shelf>"} megadj booth-fix --apply
+                    --yes
                   </code>
                 </span>
               </div>

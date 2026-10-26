@@ -31,11 +31,7 @@ export interface IngestDigest {
   available: boolean;
   counts: Record<string, number>;
   total: number;
-  recent_tracks: {
-    title: string | null;
-    artist: string | null;
-    updated_at: string;
-  }[];
+  recent_tracks: { title: string | null; artist: string | null; updated_at: string }[];
 }
 
 export interface LowqDigest {
@@ -89,20 +85,18 @@ export async function fetchWeeklyPrepInput(
   const [pf, redundancy, ingest, lowq, sweep] = await Promise.all([
     getJson<PreflightReport>("/api/preflight"),
     getJson<{
-      playlists: {
-        playlist: string;
-        verdict: RedundancyVerdict;
-        tracks: { at_risk: boolean }[];
-      }[];
+      playlists: { playlist: string; verdict: RedundancyVerdict; tracks: { at_risk: boolean }[] }[];
     }>("/api/fleet/redundancy"),
     getJson<IngestDigest>("/api/archive/ingest-status"),
     getJson<LowqDigest>("/api/archive/lowq"),
     // D30 sweep (~15s on the real archive): the default apiGet deadline is
     // 10s, so the sweep leg would time out and silently vanish from the
     // digest. Give it a deadline sized to the documented sweep duration.
-    getJson<SweepDigest>("/api/archive/sweep", 60_000).catch(
-      (): SweepDigest => ({ available: false, checked: 0, findings: [] }),
-    ),
+    getJson<SweepDigest>("/api/archive/sweep", 60_000).catch((): SweepDigest => ({
+      available: false,
+      checked: 0,
+      findings: [],
+    })),
   ]);
   return {
     preflight: pf,
@@ -160,9 +154,7 @@ function preflightSection(input: WeeklyPrepInput): string[] {
   const lines: string[] = [];
   for (const d of pf.drives) {
     if (!d.drive.mounted || d.overall === "ready") continue;
-    lines.push(
-      `## ${d.drive.nickname ?? d.drive.name} — ${icon(d.overall)} ${d.overall}`,
-    );
+    lines.push(`## ${d.drive.nickname ?? d.drive.name} — ${icon(d.overall)} ${d.overall}`);
     for (const c of d.checks) {
       if (c.status === "pass") continue;
       lines.push(`- ${icon(c.status)} **${c.label}** — ${c.detail}`);
@@ -183,9 +175,7 @@ function redundancySection(input: WeeklyPrepInput): string[] {
     lines.push("All playlists fully protected. ✓");
   } else {
     for (const p of risky)
-      lines.push(
-        `- ${icon(p.verdict)} **${p.name}** — ${p.missing_count} track(s) below floor`,
-      );
+      lines.push(`- ${icon(p.verdict)} **${p.name}** — ${p.missing_count} track(s) below floor`);
   }
   lines.push("");
   return lines;
@@ -229,8 +219,7 @@ function lowqSection(input: WeeklyPrepInput): string[] {
   } else {
     for (const t of lowq.tracks.slice(0, 10))
       lines.push(`- ${t.artist ?? "?"} — ${t.title ?? "?"}: ${t.reason}`);
-    if (lowq.tracks.length > 10)
-      lines.push(`- …and ${lowq.tracks.length - 10} more`);
+    if (lowq.tracks.length > 10) lines.push(`- …and ${lowq.tracks.length - 10} more`);
   }
   lines.push("");
   return lines;
@@ -246,11 +235,8 @@ function sweepSection(input: WeeklyPrepInput): string[] {
       lines.push(`All ${sweep.checked} files match known-good hashes. ✓`);
     } else {
       for (const f of sweep.findings.slice(0, 10))
-        lines.push(
-          `- ${f.verdict}: ${f.artist ?? "?"} — ${f.title ?? "?"} (${f.detail})`,
-        );
-      if (sweep.findings.length > 10)
-        lines.push(`- …and ${sweep.findings.length - 10} more`);
+        lines.push(`- ${f.verdict}: ${f.artist ?? "?"} — ${f.title ?? "?"} (${f.detail})`);
+      if (sweep.findings.length > 10) lines.push(`- …and ${sweep.findings.length - 10} more`);
     }
     lines.push("");
   }

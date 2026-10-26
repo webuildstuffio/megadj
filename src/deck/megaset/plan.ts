@@ -183,9 +183,7 @@ export function buildPlan(input: PlanInput): MegasetPlan {
  *  candidateDuration (kept local: the fill needs it per-slot too). */
 export const planCandidateDuration = (c: SetCandidate): number => {
   const seconds = c.durationS;
-  return seconds !== null && Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : 300;
+  return seconds !== null && Number.isFinite(seconds) && seconds > 0 ? seconds : 300;
 };
 
 /** S7 track floor/cap — the plan's probe reuses the SAME constants the
@@ -193,9 +191,7 @@ export const planCandidateDuration = (c: SetCandidate): number => {
 
 /** Guard so the fill can prove its pool matches the plan's expectation
  *  (S7 window) — mixability (BPM presence) is the fill's own gate. */
-export function planPoolProbe(candidates: readonly SetCandidate[]): {
-  size: number;
-} {
+export function planPoolProbe(candidates: readonly SetCandidate[]): { size: number } {
   return {
     size: candidates.filter(
       (c) =>

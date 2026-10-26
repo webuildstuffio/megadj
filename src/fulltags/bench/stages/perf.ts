@@ -11,11 +11,7 @@ import type { Database } from "bun:sqlite";
 import { registerStage } from "../runner";
 import type { BenchRow, BenchSplit, StageResult } from "../types";
 
-function runPerfStage(
-  db: Database,
-  _answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runPerfStage(db: Database, _answerKey: string, _split: BenchSplit): StageResult {
   const benchRows: BenchRow[] = [];
   const metrics: Record<string, number | string | null> = {};
 
@@ -26,11 +22,9 @@ function runPerfStage(
       const timeCol = stage === "beats" ? "analyzed_at" : "analyzed_at";
       const count =
         (
-          db
-            .query(
-              `SELECT count(*) AS n FROM ${table} WHERE ${timeCol} IS NOT NULL`,
-            )
-            .get() as { n: number } | null
+          db.query(`SELECT count(*) AS n FROM ${table} WHERE ${timeCol} IS NOT NULL`).get() as {
+            n: number;
+          } | null
         )?.n ?? 0;
 
       metrics[`${stage}_count`] = count;
@@ -50,19 +44,12 @@ function runPerfStage(
   }
 
   const totalTracks =
-    (db.query(`SELECT count(*) AS n FROM tracks`).get() as { n: number } | null)
-      ?.n ?? 0;
+    (db.query(`SELECT count(*) AS n FROM tracks`).get() as { n: number } | null)?.n ?? 0;
 
   metrics.total_tracks = totalTracks;
   metrics.gate = "REPORT";
 
-  return {
-    stage: "perf",
-    answerKey: "internal",
-    rows: benchRows,
-    metrics,
-    configHash: "perf-v1",
-  };
+  return { stage: "perf", answerKey: "internal", rows: benchRows, metrics, configHash: "perf-v1" };
 }
 
 registerStage("perf", runPerfStage);

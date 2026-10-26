@@ -111,12 +111,8 @@ function spawnYtdlp(opts: {
   });
   if (proc.exitCode !== 0) {
     const err =
-      new TextDecoder()
-        .decode(proc.stderr)
-        .split("\n")
-        .slice(-2)
-        .join(" ")
-        .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
+      new TextDecoder().decode(proc.stderr).split("\n").slice(-2).join(" ").slice(0, 200) ||
+      `yt-dlp exit ${proc.exitCode}`;
     return { downloaded: 0, error: err };
   }
   return { downloaded: 1 };
@@ -156,12 +152,8 @@ export function missedEntry(
   stderr: Uint8Array,
 ): MissedEntry {
   const tail =
-    new TextDecoder()
-      .decode(stderr)
-      .split("\n")
-      .filter(Boolean)
-      .slice(-1)[0]
-      ?.slice(0, 160) ?? `yt-dlp exit ${exitCode}`;
+    new TextDecoder().decode(stderr).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160) ??
+    `yt-dlp exit ${exitCode}`;
   return {
     trackId,
     class: tail === `yt-dlp exit ${exitCode}` ? "unknown" : scClassOf(tail),
@@ -241,10 +233,7 @@ async function downloadScUrl(
   const setId = await scSetTrackIds(target);
   if (setId.ok) {
     const slug = target.split("/sets/")[1]?.split(/[?#]/)[0] ?? "set";
-    const batchDir = resolveIntakeDir(
-      musicDir,
-      intakeFolderName(`${slug} soundcloud`),
-    );
+    const batchDir = resolveIntakeDir(musicDir, intakeFolderName(`${slug} soundcloud`));
     mkdirSync(batchDir, { recursive: true });
     let okCount = 0;
     let missCount = 0;
@@ -287,12 +276,7 @@ async function downloadScUrl(
         missedDetail.push(missedEntry(id, one.exitCode, one.stderr));
     }
     // Registration is INGEST's job (see the single-track path).
-    return {
-      downloaded: okCount,
-      folder: batchDir,
-      missed: missCount,
-      missedDetail,
-    };
+    return { downloaded: okCount, folder: batchDir, missed: missCount, missedDetail };
   }
   // Not a /sets/ URL (or the resolve failed): fall through to the legacy
   // single-probe path below for single tracks and user pages.
@@ -304,12 +288,8 @@ async function downloadScUrl(
   });
   if (flat.exitCode !== 0) {
     const err =
-      new TextDecoder()
-        .decode(flat.stderr)
-        .split("\n")
-        .slice(-2)
-        .join(" ")
-        .slice(0, 200) || `yt-dlp exit ${flat.exitCode}`;
+      new TextDecoder().decode(flat.stderr).split("\n").slice(-2).join(" ").slice(0, 200) ||
+      `yt-dlp exit ${flat.exitCode}`;
     return { downloaded: 0, error: err || `yt-dlp exit ${flat.exitCode}` };
   }
   let parsed: unknown;
@@ -358,9 +338,7 @@ async function downloadScUrl(
   const decision = ripDecision(links, opts.forceRip === true);
   if (decision.action === "surface" && decision.link) {
     const scId =
-      typeof info.id === "string" && info.id.length > 0
-        ? info.id
-        : scTrackIdFromUrl(target);
+      typeof info.id === "string" && info.id.length > 0 ? info.id : scTrackIdFromUrl(target);
     if (scId) {
       // #258-superfix: only PENDING rows take the link_surfaced flip. If
       // the row already downloaded (this URL was ripped before the link
@@ -528,35 +506,20 @@ const STAGE_RUNNERS: StageSpec[] = [
         : "models absent (bun run src/fulltags/cli/cli.ts ensure-models)";
     },
     run: async ({ opts }) => {
-      await mood({
-        state: opts.state,
-        musicDir: opts.musicDir,
-        dryRun: opts.dryRun,
-        json: true,
-      });
+      await mood({ state: opts.state, musicDir: opts.musicDir, dryRun: opts.dryRun, json: true });
     },
   },
   {
     name: "cues",
     // Stage 4 — phrase cues from the beats ledger (DB-side).
-    run: ({ opts }) =>
-      cues({
-        state: opts.state,
-        dryRun: opts.dryRun,
-        json: true,
-      }),
+    run: ({ opts }) => cues({ state: opts.state, dryRun: opts.dryRun, json: true }),
   },
   {
     name: "organize",
     // Stage 5 — sweep loose root files into the dated batch folder (never
     // deletes; moves only; batch folders themselves stay untouched).
     run: ({ opts }) =>
-      organize({
-        state: opts.state,
-        musicDir: opts.musicDir,
-        dryRun: opts.dryRun,
-        json: true,
-      }),
+      organize({ state: opts.state, musicDir: opts.musicDir, dryRun: opts.dryRun, json: true }),
   },
   {
     name: "tag-check",
@@ -577,9 +540,7 @@ const STAGE_RUNNERS: StageSpec[] = [
           `${bad.length} file(s) with broken tags: ${bad
             .slice(0, 3)
             .map((b) => `${b.file.split("/").pop()} [${b.reasons.join(",")}]`)
-            .join(
-              "; ",
-            )}${bad.length > 3 ? "; …" : ""} — megadj tag-check for the full list`,
+            .join("; ")}${bad.length > 3 ? "; …" : ""} — megadj tag-check for the full list`,
         );
     },
   },
@@ -609,12 +570,7 @@ async function downloadStage(
   opts: DropOptions,
   stages: DropStage[],
   log: (m: string) => void,
-): Promise<{
-  folder: string;
-  ok: boolean;
-  ledgerSource: string;
-  terminal?: true;
-}> {
+): Promise<{ folder: string; ok: boolean; ledgerSource: string; terminal?: true }> {
   const notSc = { ledgerSource: "ingest" } as const;
   if (!isUrl(opts.target)) return { folder: opts.target, ok: true, ...notSc };
   log(`downloading ${opts.target}…`);
@@ -650,8 +606,7 @@ async function downloadStage(
   if (r.missedDetail?.length) {
     // #277: per-entry evidence, one log line per miss (human surface;
     // the JSON epilogue carries the same array on the download stage).
-    for (const m of r.missedDetail)
-      log(`  missed ${m.trackId} (${m.class}): ${m.detail}`);
+    for (const m of r.missedDetail) log(`  missed ${m.trackId} (${m.class}): ${m.detail}`);
     stages[stages.length - 1]!.missedDetail = r.missedDetail;
   }
   return {
@@ -662,11 +617,7 @@ async function downloadStage(
 }
 
 /** Human report: one line per stage, honest symbols. */
-function printStageReport(
-  stages: DropStage[],
-  ok: boolean,
-  log: (m: string) => void,
-): void {
+function printStageReport(stages: DropStage[], ok: boolean, log: (m: string) => void): void {
   log("");
   log(ok ? "✓ drop complete" : "✗ drop incomplete — see stages above");
   for (const s of stages)
@@ -681,12 +632,7 @@ export async function drop(opts: DropOptions): Promise<void> {
   let ok = true;
 
   // Stage 0 — download when the target is a URL, then run the table.
-  const {
-    folder,
-    ok: downloaded,
-    ledgerSource,
-    terminal,
-  } = await downloadStage(opts, stages, log);
+  const { folder, ok: downloaded, ledgerSource, terminal } = await downloadStage(opts, stages, log);
   ok = downloaded;
   const ctx: StageCtx = { opts, folder, ledgerSource };
   for (const spec of STAGE_RUNNERS) {
@@ -695,19 +641,11 @@ export async function drop(opts: DropOptions): Promise<void> {
       continue;
     }
     if (opts.noFetch && spec.noFetchDetail) {
-      stages.push({
-        stage: spec.name,
-        status: "skipped",
-        detail: spec.noFetchDetail,
-      });
+      stages.push({ stage: spec.name, status: "skipped", detail: spec.noFetchDetail });
       continue;
     }
     if (opts.noMood && spec.noMoodDetail) {
-      stages.push({
-        stage: spec.name,
-        status: "skipped",
-        detail: spec.noMoodDetail,
-      });
+      stages.push({ stage: spec.name, status: "skipped", detail: spec.noMoodDetail });
       continue;
     }
     if (spec.skipDetail) {
@@ -720,12 +658,7 @@ export async function drop(opts: DropOptions): Promise<void> {
     ok = await runStage(spec.name, () => spec.run(ctx), stages, log);
   }
 
-  const summary: DropSummary = {
-    command: "drop",
-    target: opts.target,
-    ok,
-    stages,
-  };
+  const summary: DropSummary = { command: "drop", target: opts.target, ok, stages };
   if (opts.json) {
     // P1: one summary object as the LAST stdout line — compact, so the
     // rollup parses as a single line even with per-stage objects above it.

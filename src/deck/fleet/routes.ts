@@ -38,27 +38,19 @@ function radarEnvelope(
   };
 }
 
-function radarSummary(
-  rows: unknown[] | null,
-  drives: RadarResult[],
-): FleetRadar {
+function radarSummary(rows: unknown[] | null, drives: RadarResult[]): FleetRadar {
   const archiveTracks = rows?.length ?? 0;
   const totalMissing = drives.reduce((s, d) => s + d.missingCount, 0);
   const stale = drives.filter((d) => d.snapshotAt === null).length;
   const light = drives.filter((d) => !d.inventoryAvailable).length;
   const parts: string[] = [];
   if (rows === null) parts.push("archive DB absent — radar unavailable");
-  else if (totalMissing === 0)
-    parts.push(`fleet matches the archive (${archiveTracks} tracks)`);
+  else if (totalMissing === 0) parts.push(`fleet matches the archive (${archiveTracks} tracks)`);
   else parts.push(`${totalMissing} archive track(s) missing across the fleet`);
   if (stale > 0)
-    parts.push(
-      `${stale} drive${stale === 1 ? "" : "s"} never scanned — radar unknown there`,
-    );
+    parts.push(`${stale} drive${stale === 1 ? "" : "s"} never scanned — radar unknown there`);
   if (light > 0)
-    parts.push(
-      `${light} drive${light === 1 ? "" : "s"} light-scanned only — run a full scan`,
-    );
+    parts.push(`${light} drive${light === 1 ? "" : "s"} light-scanned only — run a full scan`);
   return {
     drives,
     totalMissing,
@@ -113,8 +105,7 @@ export function makeFleetRoutes(deps: {
           ? new Date(snap.taken_at).toISOString()
           : null;
       const displayName = names.get(d.id) ?? d.name;
-      const inventoryAvailable =
-        (snap?.kind ?? "full") === "full" || inv.length > 0;
+      const inventoryAvailable = (snap?.kind ?? "full") === "full" || inv.length > 0;
       if (rows === null) {
         drives.push(
           radarEnvelope(d, displayName, snapshotAt, {
@@ -136,24 +127,22 @@ export function makeFleetRoutes(deps: {
             driveTracks: inv.length,
             missingCount: 0,
             missing: [],
-            summary:
-              "light scan only — no track inventory; run a full scan for the radar delta",
+            summary: "light scan only — no track inventory; run a full scan for the radar delta",
             archiveAvailable: true,
             inventoryAvailable: false,
           }),
         );
         continue;
       }
-      const archive: (RadarSource & {
-        videoId: string;
-        firstSeenAt: string | null;
-      })[] = rows.map((r) => ({
-        path: r.file_path,
-        title: r.title,
-        artist: r.artist,
-        videoId: r.video_id,
-        firstSeenAt: r.first_seen_at,
-      }));
+      const archive: (RadarSource & { videoId: string; firstSeenAt: string | null })[] = rows.map(
+        (r) => ({
+          path: r.file_path,
+          title: r.title,
+          artist: r.artist,
+          videoId: r.video_id,
+          firstSeenAt: r.first_seen_at,
+        }),
+      );
       const driveRows: RadarSource[] = inv.map((t) => ({
         path: t.path,
         title: t.title,
@@ -170,23 +159,14 @@ export function makeFleetRoutes(deps: {
     return radarSummary(rows, drives);
   }
 
-  return async function fleetRoutes(
-    route: string,
-    url: URL,
-  ): Promise<Response> {
+  return async function fleetRoutes(route: string, url: URL): Promise<Response> {
     if (route === "/fleet/coverage") {
-      const minCopies = Math.max(
-        1,
-        parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
-      );
+      const minCopies = Math.max(1, parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2);
       const names = driveNames();
       const result = coverage(db.fleetInventories(), minCopies);
       return json({
         ...result,
-        drives: result.drives.map((d) => ({
-          ...d,
-          name: names.get(d.id) ?? d.id,
-        })),
+        drives: result.drives.map((d) => ({ ...d, name: names.get(d.id) ?? d.id })),
         rows: undefined, // full matrix is huge; at_risk + lookups cover the UI
       });
     }
@@ -209,26 +189,16 @@ export function makeFleetRoutes(deps: {
       );
     }
     if (route === "/fleet/redundancy") {
-      const minCopies = Math.max(
-        1,
-        parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
-      );
+      const minCopies = Math.max(1, parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2);
       const names = driveNames();
-      const result = redundancy(
-        db.fleetInventories(),
-        db.fleetPlaylistEntries(),
-        minCopies,
-      );
+      const result = redundancy(db.fleetInventories(), db.fleetPlaylistEntries(), minCopies);
       return json({
         ...result,
         playlists: result.playlists.map((p) => ({
           ...p,
           tracks: p.tracks.map((t) => ({
             ...t,
-            drives: t.drives.map((id) => ({
-              id,
-              name: names.get(id) ?? id,
-            })),
+            drives: t.drives.map((id) => ({ id, name: names.get(id) ?? id })),
           })),
         })),
       });

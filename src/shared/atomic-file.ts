@@ -23,22 +23,13 @@
  * AGENTS-sacred (ID3v2.3/mutagen/AIFF format-specific muxers).
  */
 
-import {
-  existsSync,
-  renameSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, extname, join } from "node:path";
 
 /** Collision-proof hidden temp-sibling path beside `target`. Keeps the
  * extension when `keepExt` (muxers infer format from filenames). */
-export function tempSiblingPath(
-  target: string,
-  opts?: { keepExt?: boolean },
-): string {
+export function tempSiblingPath(target: string, opts?: { keepExt?: boolean }): string {
   const dir = dirname(target);
   const base = basename(target);
   const ext = opts?.keepExt ? extname(target) : "";
@@ -68,10 +59,7 @@ export function withTempSiblingSync<T>(
 /** Write `content` to a temp sibling and atomically rename it over
  * `target` (mode preserved from the incumbent, 0644 for a fresh file).
  * The common form of the seam. */
-export function atomicReplace(
-  target: string,
-  content: string | Uint8Array,
-): void {
+export function atomicReplace(target: string, content: string | Uint8Array): void {
   withTempSiblingSync(target, (tmp) => {
     const mode = existsSync(target) ? statSync(target).mode : 0o644;
     writeFileSync(tmp, content, { mode });

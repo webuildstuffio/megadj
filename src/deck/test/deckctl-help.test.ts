@@ -15,26 +15,21 @@ import { join } from "node:path";
 import { JOB_KINDS } from "../shared/types/jobs";
 
 /** Spawn deckctl with an unreachable server port; return exit code + output. */
-async function runDeckctl(args: string[]): Promise<{
-  code: number;
-  stdout: string;
-  stderr: string;
-}> {
-  const proc = Bun.spawn(
-    ["bun", "run", join("src", "deck", "deckctl.ts"), ...args],
-    {
-      cwd: join(import.meta.dir, "..", "..", ".."),
-      env: {
-        ...process.env,
-        // Unreachable: anything requiring the server fails fast (exit 4);
-        // `help`/`--help` never get that far — they must exit 0 offline.
-        CRATEDECK_PORT: "59998",
-        CRATEDECK_ENSURE_TIMEOUT_MS: "1500",
-      },
-      stdout: "pipe",
-      stderr: "pipe",
+async function runDeckctl(
+  args: string[],
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const proc = Bun.spawn(["bun", "run", join("src", "deck", "deckctl.ts"), ...args], {
+    cwd: join(import.meta.dir, "..", "..", ".."),
+    env: {
+      ...process.env,
+      // Unreachable: anything requiring the server fails fast (exit 4);
+      // `help`/`--help` never get that far — they must exit 0 offline.
+      CRATEDECK_PORT: "59998",
+      CRATEDECK_ENSURE_TIMEOUT_MS: "1500",
     },
-  );
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   const [stdout, stderr] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -134,9 +129,7 @@ describe("deckctl help + --help (work with the server down)", () => {
     // read the source: every DECK_COMMANDS table key (the dispatch SSOT —
     // the old switch's `case "x":` arms) plus the PRE_SERVER_VERBS must
     // appear in usage()
-    const src = await Bun.file(
-      join(import.meta.dir, "..", "deckctl.ts"),
-    ).text();
+    const src = await Bun.file(join(import.meta.dir, "..", "deckctl.ts")).text();
     const tableStart = src.indexOf("DECK_COMMANDS: Record<");
     const tableEnd = src.indexOf("};", tableStart);
     const table = src.slice(tableStart, tableEnd > 0 ? tableEnd : undefined);
@@ -152,10 +145,7 @@ describe("deckctl help + --help (work with the server down)", () => {
     const usage = src.slice(usageStart, mainStart > 0 ? mainStart : undefined);
     expect(cases.length).toBeGreaterThanOrEqual(22);
     for (const verb of new Set([...cases, ...preServer])) {
-      expect(
-        usage.includes(verb),
-        `usage text must document "${verb}"`,
-      ).toBeTrue();
+      expect(usage.includes(verb), `usage text must document "${verb}"`).toBeTrue();
     }
   });
 });

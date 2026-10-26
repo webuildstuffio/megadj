@@ -86,8 +86,7 @@ export function PresetOption(props: {
           ?.querySelectorAll<HTMLElement>('[role="radio"]')
           .item(nextIndex)
           .focus();
-      }}
-    >
+      }}>
       <span class="megaset-preset-head">
         <strong>{preset.label}</strong>
         {selected && (
@@ -100,8 +99,7 @@ export function PresetOption(props: {
         class="megaset-preset-arc"
         viewBox="0 0 120 36"
         role="img"
-        aria-label={`${preset.label} energy ${rising ? "rises" : "falls"} from ${energyBand(start)} to ${energyBand(end)}`}
-      >
+        aria-label={`${preset.label} energy ${rising ? "rises" : "falls"} from ${energyBand(start)} to ${energyBand(end)}`}>
         <path class="megaset-preset-guide" d="M4 30 H116" />
         <path
           class="megaset-preset-line"
@@ -128,11 +126,7 @@ export function SequencerRow(props: {
   disabled: boolean;
 }) {
   return (
-    <div
-      class="megaset-duration-presets"
-      role="group"
-      aria-label="Sequencer strategy"
-    >
+    <div class="megaset-duration-presets" role="group" aria-label="Sequencer strategy">
       {(
         [
           ["auto", "Auto", "Let the pool size decide — nothing to think about"],
@@ -141,11 +135,7 @@ export function SequencerRow(props: {
             "Deep",
             "Force the deep search: explores past dead-ends when few tracks are compatible",
           ],
-          [
-            "greedy",
-            "Standard",
-            "Force the fast chain — best when the whole library is in play",
-          ],
+          ["greedy", "Standard", "Force the fast chain — best when the whole library is in play"],
         ] as const
       ).map(([value, label, why]) => (
         <button
@@ -155,8 +145,7 @@ export function SequencerRow(props: {
           aria-pressed={props.searchChoice === value}
           title={why}
           disabled={props.disabled}
-          onClick={() => props.onChoice(value)}
-        >
+          onClick={() => props.onChoice(value)}>
           {label}
         </button>
       ))}
@@ -177,20 +166,15 @@ export function AdvancedDrawer(props: {
     <details class="megaset-advanced">
       <summary>
         <span>Advanced</span>
-        <small>
-          pool cap · scoring weights · the same knobs the CLI and API take
-        </small>
+        <small>pool cap · scoring weights · the same knobs the CLI and API take</small>
       </summary>
       <div class="megaset-advanced-grid">
         <label
           class="megaset-limit"
-          title={`Cap the candidate pool to the newest N imports (1–${MEGASET_POOL_MAX}). Empty = the whole analyzed library.`}
-        >
+          title={`Cap the candidate pool to the newest N imports (1–${MEGASET_POOL_MAX}). Empty = the whole analyzed library.`}>
           <span>
             Pool cap
-            <small>
-              newest N of the library · 1–{MEGASET_POOL_MAX} · empty = all
-            </small>
+            <small>newest N of the library · 1–{MEGASET_POOL_MAX} · empty = all</small>
           </span>
           <input
             type="number"
@@ -200,15 +184,13 @@ export function AdvancedDrawer(props: {
             value={props.poolLimitInput}
             aria-label={`Candidate pool cap, 1 to ${MEGASET_POOL_MAX}; empty uses the whole library`}
             disabled={props.disabled}
-            onInput={(event) =>
-              props.onPoolLimitInput((event.target as HTMLInputElement).value)
-            }
+            onInput={(event) => props.onPoolLimitInput((event.target as HTMLInputElement).value)}
             onBlur={props.onPoolLimitBlur}
           />
           {props.poolLimitInput.trim() !== "" && (
             <small class="megaset-limit-hint">
-              builds from the {props.poolLimitInput.trim()} newest imports —
-              clear it to use the whole library
+              builds from the {props.poolLimitInput.trim()} newest imports — clear it to use the
+              whole library
             </small>
           )}
         </label>
@@ -216,47 +198,44 @@ export function AdvancedDrawer(props: {
           <div>
             <dt>tempo rule</dt>
             <dd>
-              within ±{Math.round(MEGASET_TEMPO_PERFECT * 100)}% scores full;
-              beyond ±{Math.round(MEGASET_TEMPO_WINDOW * 100)}% a track is
-              unmixable and never joins the chain
+              within ±{Math.round(MEGASET_TEMPO_PERFECT * 100)}% scores full; beyond ±
+              {Math.round(MEGASET_TEMPO_WINDOW * 100)}% a track is unmixable and never joins the
+              chain
             </dd>
           </div>
           <div>
             <dt>transition score</dt>
             <dd>
-              tempo {MEGASET_TRANSITION_WEIGHTS.tempo} · key{" "}
-              {MEGASET_TRANSITION_WEIGHTS.key} · arc fit{" "}
-              {MEGASET_TRANSITION_WEIGHTS.arcFit} — key clashes and tempo misses
-              are hard gates, not soft penalties
+              tempo {MEGASET_TRANSITION_WEIGHTS.tempo} · key {MEGASET_TRANSITION_WEIGHTS.key} · arc
+              fit {MEGASET_TRANSITION_WEIGHTS.arcFit} — key clashes and tempo misses are hard gates,
+              not soft penalties
             </dd>
           </div>
           <div>
             <dt>track limits</dt>
             <dd>
-              {MEGASET_TRACK_MINUTES_MIN}–{MEGASET_TRACK_MINUTES_MAX} min per
-              track — shorter are samples, longer are continuous mixes
+              {MEGASET_TRACK_MINUTES_MIN}–{MEGASET_TRACK_MINUTES_MAX} min per track — shorter are
+              samples, longer are continuous mixes
             </dd>
           </div>
           <div>
             <dt>deep search</dt>
             <dd>
-              joins automatically under {MEGASET_BEAM_POOL_MAX} tracks (width{" "}
-              {MEGASET_BEAM_WIDTH}); big pools keep the fast chain — measured,
-              no quality loss
+              joins automatically under {MEGASET_BEAM_POOL_MAX} tracks (width {MEGASET_BEAM_WIDTH});
+              big pools keep the fast chain — measured, no quality loss
             </dd>
           </div>
           <div>
             <dt>openers</dt>
             <dd>
-              the auto-pick needs ≥15 tempo-neighbors so your first track never
-              dead-ends the set
+              the auto-pick needs ≥15 tempo-neighbors so your first track never dead-ends the set
             </dd>
           </div>
           <div>
             <dt>determinism</dt>
             <dd>
-              same settings → the same chain, every time (ties break by track
-              id) — safe to rebuild and re-check
+              same settings → the same chain, every time (ties break by track id) — safe to rebuild
+              and re-check
             </dd>
           </div>
         </dl>
@@ -278,9 +257,7 @@ export function AdvancedDrawer(props: {
  *  from its request context, review, then press Build. The parse is
  *  pure (parseDraft in megaset-draft.ts); this widget owns the file
  *  input + feedback only. Wrong files get a message, never a crash. */
-export function LoadDraft(props: {
-  onLoad: (knobs: MegasetDraftKnobs) => void;
-}) {
+export function LoadDraft(props: { onLoad: (knobs: MegasetDraftKnobs) => void }) {
   const [error, setError] = useState<string | null>(null);
   const onFile = (event: Event) => {
     const input = event.target as HTMLInputElement;

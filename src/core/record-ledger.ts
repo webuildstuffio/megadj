@@ -43,11 +43,7 @@ export class RecordLedger {
   }
 
   /** One row by video id, null when never written. */
-  protected row<T>(
-    table: string,
-    videoId: string,
-    columns: string[],
-  ): T | null {
+  protected row<T>(table: string, videoId: string, columns: string[]): T | null {
     return (this.db
       .query(
         `SELECT video_id, ${columns.join(", ")} FROM ${table}

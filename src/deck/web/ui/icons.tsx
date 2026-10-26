@@ -114,11 +114,7 @@ export const ICON_NAMES = Object.freeze(Object.keys(P));
  *  exactly like the table). */
 export type IconName = keyof typeof P;
 
-export function Icon(props: {
-  name: IconName | string;
-  size?: number;
-  class?: string;
-}) {
+export function Icon(props: { name: IconName | string; size?: number; class?: string }) {
   // table wins (renames stay centralized); unknown names fall back to dot
   const Cmp = P[props.name] ?? Circle;
   return (

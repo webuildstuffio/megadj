@@ -19,15 +19,10 @@
  */
 
 /** The 7 vibe buckets derived from aggressive + happy + valence. */
-export type Vibe =
-  "Hard" | "Driving" | "Groovy" | "Medium" | "Bright" | "Deep" | "Smooth";
+export type Vibe = "Hard" | "Driving" | "Groovy" | "Medium" | "Bright" | "Deep" | "Smooth";
 
 /** Derive vibe bucket from mood model dimensions. */
-export function vibeFromMood(
-  aggressive: number,
-  happy: number,
-  valence: number,
-): Vibe {
+export function vibeFromMood(aggressive: number, happy: number, valence: number): Vibe {
   if (aggressive > 0.7) return "Hard";
   if (aggressive > 0.4) return "Driving";
   if (aggressive > 0.2 && happy > 0.3) return "Groovy";
@@ -112,8 +107,7 @@ export function buildCommentV3(input: CommentV3Input): string {
   // Dedup: skip secondary when it matches primary (casefold compare).
   const primaryLower = input.primaryGenre?.toLowerCase() ?? "";
   const genres = [input.genre2, input.genre3].filter(
-    (g): g is string =>
-      g !== null && g.length > 0 && g.toLowerCase() !== primaryLower,
+    (g): g is string => g !== null && g.length > 0 && g.toLowerCase() !== primaryLower,
   );
   if (genres.length > 0) {
     parts.push(genres.join("-"));
@@ -127,23 +121,9 @@ export function buildCommentV3(input: CommentV3Input): string {
   return parts.join("·");
 }
 
-const VIBES = new Set<string>([
-  "Hard",
-  "Driving",
-  "Groovy",
-  "Medium",
-  "Bright",
-  "Deep",
-  "Smooth",
-]);
+const VIBES = new Set<string>(["Hard", "Driving", "Groovy", "Medium", "Bright", "Deep", "Smooth"]);
 
-const PLACEMENTS = new Set<string>([
-  "Peak",
-  "Build",
-  "Floor",
-  "Opener",
-  "Closer",
-]);
+const PLACEMENTS = new Set<string>(["Peak", "Build", "Floor", "Opener", "Closer"]);
 
 /** Parse a v3 comment string back into components. */
 export function parseCommentV3(comment: string): {

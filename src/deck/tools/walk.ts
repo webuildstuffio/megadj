@@ -72,8 +72,7 @@ async function rec(
   const skipDirs = opts.skipDirs ?? DEFAULT_SKIP_DIRS;
   const skipPrefixes = opts.skipPrefixes ?? [];
   for (const e of entries) {
-    if (skipDirs.has(e.name) || skipPrefixes.some((p) => e.name.startsWith(p)))
-      continue;
+    if (skipDirs.has(e.name) || skipPrefixes.some((p) => e.name.startsWith(p))) continue;
     const p = join(dir, e.name);
     const relPath = rel ? `${rel}/${e.name}` : e.name;
     let st: Stats;

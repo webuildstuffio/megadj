@@ -54,10 +54,7 @@ async function ytdlpYearsBatch(urls: string[]): Promise<[string, number][]> {
     timeout: 120_000,
   });
   const resolved: [string, number][] = [];
-  for (const line of new TextDecoder()
-    .decode(result.stdout)
-    .trim()
-    .split("\n")) {
+  for (const line of new TextDecoder().decode(result.stdout).trim().split("\n")) {
     const [resolvedUrl, timestamp, uploadDate] = line.split("|");
     if (!resolvedUrl) continue;
     const timestampNumber = Number(timestamp);
@@ -149,14 +146,7 @@ export async function runFixYears(
     state.close();
   }
   if (opts.json) {
-    await writeJson({
-      command: "years",
-      dryRun,
-      scPage,
-      ytdlp,
-      kept,
-      unresolved: failed.length,
-    });
+    await writeJson({ command: "years", dryRun, scPage, ytdlp, kept, unresolved: failed.length });
   } else
     console.log(
       `\n${dryRun ? "DRY " : ""}DONE — sc-page: ${scPage} | yt-dlp: ${ytdlp} | kept: ${kept} | unresolved: ${failed.length}`,

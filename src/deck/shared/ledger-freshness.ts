@@ -32,10 +32,7 @@ export interface LedgerFreshness {
 
 const HOUR_MS = 3_600_000;
 
-export function ledgerFreshness(
-  newestAt: string | null,
-  now: Date = new Date(),
-): LedgerFreshness {
+export function ledgerFreshness(newestAt: string | null, now: Date = new Date()): LedgerFreshness {
   if (newestAt === null) {
     return { newestAt: null, ageHours: null, band: "none" };
   }
@@ -46,8 +43,7 @@ export function ledgerFreshness(
     return { newestAt, ageHours: null, band: "red" };
   }
   const ageHours = Math.max(0, Math.floor((now.getTime() - parsed) / HOUR_MS));
-  const band: FreshnessBand =
-    ageHours < 24 ? "green" : ageHours < 24 * 7 ? "amber" : "red";
+  const band: FreshnessBand = ageHours < 24 ? "green" : ageHours < 24 * 7 ? "amber" : "red";
   return { newestAt, ageHours, band };
 }
 
@@ -61,14 +57,6 @@ export function formatAge(f: LedgerFreshness): string {
 /** Worst (highest-severity) band across a set — the "any ledger stale →
  * surface stale" rollup the FreshnessLine UI bakes in. */
 export function worstBand(bands: readonly FreshnessBand[]): FreshnessBand {
-  const rank: Record<FreshnessBand, number> = {
-    none: 0,
-    green: 1,
-    amber: 2,
-    red: 3,
-  };
-  return bands.reduce<FreshnessBand>(
-    (worst, b) => (rank[b] > rank[worst] ? b : worst),
-    "none",
-  );
+  const rank: Record<FreshnessBand, number> = { none: 0, green: 1, amber: 2, red: 3 };
+  return bands.reduce<FreshnessBand>((worst, b) => (rank[b] > rank[worst] ? b : worst), "none");
 }

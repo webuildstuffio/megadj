@@ -60,18 +60,14 @@ const DEFAULT_ATOMIC_OPS: WriterAtomicOps = {
   fsyncFile,
 };
 
-export function atomicOps(
-  overrides?: Partial<WriterAtomicOps>,
-): WriterAtomicOps {
+export function atomicOps(overrides?: Partial<WriterAtomicOps>): WriterAtomicOps {
   return { ...DEFAULT_ATOMIC_OPS, ...overrides };
 }
 
 /** Defined entries of a TagPatch — set fields only (year/bpm/energy are numeric). */
 export type TagPair = [keyof TagPatch, string | number];
 export function tagPairs(patch: TagPatch): TagPair[] {
-  return Object.entries(patch).filter(
-    (pair): pair is TagPair => pair[1] !== undefined,
-  );
+  return Object.entries(patch).filter((pair): pair is TagPair => pair[1] !== undefined);
 }
 
 /** Keep the extension on ffmpeg tmp outputs — the muxer is inferred from
@@ -83,11 +79,7 @@ export function tmpLike(p: string, suffix: string): string {
 
 /** A unique same-directory lease whose final suffix remains the media type,
  * so mutagen/ffmpeg infer the same container as the source. */
-export function uniqueTempLike(
-  p: string,
-  purpose: string,
-  extension = extname(p),
-) {
+export function uniqueTempLike(p: string, purpose: string, extension = extname(p)) {
   const ext = extension.toLowerCase();
   const stem = basename(p, extname(p));
   return join(dirname(p), `.${stem}.fulltags-${purpose}-${randomUUID()}${ext}`);
@@ -116,8 +108,7 @@ export function hasValidContainerHeader(path: string): boolean {
     if (fd !== null) closeSync(fd);
   }
   const fourcc = (at: number): string => header.toString("ascii", at, at + 4);
-  if (ext === ".wav")
-    return ["RIFF", "RF64"].includes(fourcc(0)) && fourcc(8) === "WAVE";
+  if (ext === ".wav") return ["RIFF", "RF64"].includes(fourcc(0)) && fourcc(8) === "WAVE";
   if (ext === ".aiff" || ext === ".aif")
     return fourcc(0) === "FORM" && ["AIFF", "AIFC"].includes(fourcc(8));
   if (ext === ".m4a" || ext === ".m4b") return fourcc(4) === "ftyp";
@@ -183,8 +174,7 @@ export function mutagenPatchFrame(
     if (!pairs.length) return true;
     return atomicMutagenWrite(
       filePath,
-      (tempPath) =>
-        frame.script(tempPath, frame.sets(pairs), frame.verifies(pairs)),
+      (tempPath) => frame.script(tempPath, frame.sets(pairs), frame.verifies(pairs)),
       ops,
     );
   } catch (error) {
@@ -254,13 +244,10 @@ export const WAV_ID3_READ: Record<keyof TagPatch, string> = {
  *  (a TXXX desc cannot express them): year/bpm/isrc/comment, the TPE2/
  *  TIT1 frames from the old switch's explicit cases, plus the WAV_ID3
  *  text frames. */
-const WAV_FRAME_STATEMENT: Partial<
-  Record<keyof TagPatch, (t: string, raw: string) => string>
-> = {
+const WAV_FRAME_STATEMENT: Partial<Record<keyof TagPatch, (t: string, raw: string) => string>> = {
   year: (_t, raw) => `a.tags.add(TDRC(encoding=3, text="${raw}"))`,
   bpm: (_t, raw) => `a.tags.add(TBPM(encoding=3, text="${raw}"))`,
-  comment: (t) =>
-    `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${t}))`,
+  comment: (t) => `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${t}))`,
   isrc: (t) => `a.tags.add(TSRC(encoding=3, text=${t}))`,
   albumArtist: (t) => `a.tags.add(TPE2(encoding=3, text=${t}))`,
   grouping: (t) => `a.tags.add(TIT1(encoding=3, text=${t}))`,
@@ -272,20 +259,12 @@ const WAV_FRAME_STATEMENT: Partial<
  *  the SAME frame/verify language serves both containers (#280). */
 export type MutagenReceiver = "a.tags" | "tags";
 
-export function id3StatementFor(
-  k: keyof TagPatch,
-  v: unknown,
-  recv: MutagenReceiver,
-): string {
+export function id3StatementFor(k: keyof TagPatch, v: unknown, recv: MutagenReceiver): string {
   const stmt = wavId3Statement(k, v);
   return stmt ? stmt.replaceAll("a.tags.", `${recv}.`) : "";
 }
 
-export function id3VerifyFor(
-  k: keyof TagPatch,
-  v: unknown,
-  recv: MutagenReceiver,
-): string {
+export function id3VerifyFor(k: keyof TagPatch, v: unknown, recv: MutagenReceiver): string {
   return wavVerifyStatement(k, v).replaceAll("a.tags.", `${recv}.`);
 }
 
@@ -329,11 +308,7 @@ export const mp3VerifyStatement = (k: keyof TagPatch, v: unknown): string =>
  *  write. `ID3(path)` returns the loaded tag (or None when absent);
  *  the fallback creates a fresh tag so a stamp-less file still writes.
  */
-export function mp3MutagenScript(
-  tempPath: string,
-  sets: string,
-  verifies: string,
-): string {
+export function mp3MutagenScript(tempPath: string, sets: string, verifies: string): string {
   return `from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, TSRC, COMM
 a = ID3(${JSON.stringify(tempPath)})
 if a is None:

@@ -22,9 +22,7 @@ describe("evaluateAK4", () => {
         silverSubgenre: "deep house",
       },
     ];
-    const est = new Map([
-      ["t1", { family: "house" as GenreFamily, subgenre: "deep house" }],
-    ]);
+    const est = new Map([["t1", { family: "house" as GenreFamily, subgenre: "deep house" }]]);
     const result = evaluateAK4(silver, est);
     expect(result.agreement).toBe(1);
     expect(result.l3Enrichment).toBe(1);
@@ -42,9 +40,7 @@ describe("evaluateAK4", () => {
         silverSubgenre: null,
       },
     ];
-    const est = new Map([
-      ["t1", { family: "house" as GenreFamily, subgenre: null }],
-    ]);
+    const est = new Map([["t1", { family: "house" as GenreFamily, subgenre: null }]]);
     const result = evaluateAK4(silver, est);
     expect(result.disputes).toBe(1);
     expect(result.agreement).toBe(0);

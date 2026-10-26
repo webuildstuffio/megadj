@@ -66,15 +66,9 @@ export class FleetStore {
     const entries = snap.playlist_entries ?? [];
     const manifest = snap.manifest ?? [];
     const tx = this.sqlite.transaction(() => {
-      this.sqlite
-        .query("DELETE FROM fleet_tracks WHERE drive_id=?")
-        .run(driveId);
-      this.sqlite
-        .query("DELETE FROM fleet_playlist_entries WHERE drive_id=?")
-        .run(driveId);
-      this.sqlite
-        .query("DELETE FROM fleet_manifest WHERE drive_id=?")
-        .run(driveId);
+      this.sqlite.query("DELETE FROM fleet_tracks WHERE drive_id=?").run(driveId);
+      this.sqlite.query("DELETE FROM fleet_playlist_entries WHERE drive_id=?").run(driveId);
+      this.sqlite.query("DELETE FROM fleet_manifest WHERE drive_id=?").run(driveId);
       const insTrack = this.sqlite.query(
         `INSERT INTO fleet_tracks (drive_id, path, title, artist, bpm, key, duration_ms, taken_at)
          VALUES (?,?,?,?,?,?,?,?)`,
@@ -147,9 +141,7 @@ export class FleetStore {
             )
             .all(...driveIds)
         : this.sqlite
-            .query(
-              `SELECT drive_id, playlist_name, track_path FROM fleet_playlist_entries`,
-            )
+            .query(`SELECT drive_id, playlist_name, track_path FROM fleet_playlist_entries`)
             .all()
     ) as PlaylistEntryRow[];
     return this.byDrive(rows);
@@ -165,9 +157,7 @@ export class FleetStore {
                WHERE drive_id IN (${driveIds.map(() => "?").join(",")})`,
             )
             .all(...driveIds)
-        : this.sqlite
-            .query(`SELECT drive_id, path, bytes, mtime_ms FROM fleet_manifest`)
-            .all()
+        : this.sqlite.query(`SELECT drive_id, path, bytes, mtime_ms FROM fleet_manifest`).all()
     ) as ManifestRow[];
     return this.byDrive(rows);
   }

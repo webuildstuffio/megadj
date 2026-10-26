@@ -5,20 +5,13 @@
 import { existsSync } from "node:fs";
 import { groundTruth } from "../../fulltags/write/readers";
 import { resolve, sep } from "node:path";
-import {
-  isFiniteNumber,
-  isFiniteNumberArray,
-  isRecord,
-} from "../../shared/leaf/guards";
+import { isFiniteNumber, isFiniteNumberArray, isRecord } from "../../shared/leaf/guards";
 import {
   megasetGenreFallbackTerms,
   megasetGenreTerms,
   MEGASET_BEAM_POOL_MAX,
 } from "../shared/megaset";
-import type {
-  ArchiveFreshness,
-  ArchiveSetCandidates,
-} from "../shared/archive-wire";
+import type { ArchiveFreshness, ArchiveSetCandidates } from "../shared/archive-wire";
 import type { ArchiveQuery } from "../shared/types/archive-reader";
 
 /** ExFAT is case-insensitive. Normalize separators, Unicode, and case so two
@@ -47,16 +40,10 @@ const physicalPathKey = (path: string): string =>
  * 3. ".mp3" suffix riding INSIDE the title ("…(HÄWK VIP Edit).mp3") —
  *    the extension strip ran only on unknown-artist raw titles, not on
  *    the tagged-title path. */
-const poolTitleKey = (row: {
-  title: string | null;
-  artist: string | null;
-}): string => {
+const poolTitleKey = (row: { title: string | null; artist: string | null }): string => {
   // extension strip FIRST so "…(VIP Edit).mp3" loses the suffix on both
   // the tagged and the stray path (it used to run only on strays)
-  const rawTitle = (row.title ?? "").replace(
-    /\.(?:mp3|wav|aiff|m4a|flac)$/i,
-    "",
-  );
+  const rawTitle = (row.title ?? "").replace(/\.(?:mp3|wav|aiff|m4a|flac)$/i, "");
   const artistRaw = row.artist ?? "";
   // Multi-credit collapse runs on the RAW string — poolNormText erases the
   // commas, so the split must happen before normalization. "a, b, c" →
@@ -160,9 +147,7 @@ function measuredBpm(row: {
   if (row.bpm_folded !== null && Number.isFinite(row.bpm_folded)) {
     return row.bpm_folded;
   }
-  return row.rekordbox_bpm !== null &&
-    Number.isFinite(row.rekordbox_bpm) &&
-    row.rekordbox_bpm > 0
+  return row.rekordbox_bpm !== null && Number.isFinite(row.rekordbox_bpm) && row.rekordbox_bpm > 0
     ? row.rekordbox_bpm
     : null;
 }
@@ -174,10 +159,7 @@ function measuredBpm(row: {
  *  build, and the handoff derivation degrades to null, never invented
  *  bars. The `memory` flag and model fields are ignored here (the
  *  memory spine is a CDJ-write concern, not a proposal concern). */
-function parsePoolCues(raw: string | null): {
-  bar: number;
-  position: number;
-}[] {
+function parsePoolCues(raw: string | null): { bar: number; position: number }[] {
   if (raw === null) return [];
   let value: unknown;
   try {
@@ -193,11 +175,7 @@ function parsePoolCues(raw: string | null): {
   }
   const out: { bar: number; position: number }[] = [];
   for (const entry of value as unknown[]) {
-    if (
-      isRecord(entry) &&
-      isFiniteNumber(entry.bar) &&
-      isFiniteNumber(entry.position)
-    ) {
+    if (isRecord(entry) && isFiniteNumber(entry.bar) && isFiniteNumber(entry.position)) {
       out.push({ bar: entry.bar, position: entry.position });
     }
   }
@@ -274,9 +252,7 @@ export function setCandidates(
   const t0 = Date.now();
   // Escape LIKE wildcards so a literal "% house" query is a substring,
   // never a pattern (SQLite LIKE has no ESCAPE default here — strip).
-  const strictTerms = megasetGenreTerms(genre).map((t) =>
-    t.replace(/[%_]/g, ""),
-  );
+  const strictTerms = megasetGenreTerms(genre).map((t) => t.replace(/[%_]/g, ""));
   // Starvation fallback: when the strict family matches fewer rows than
   // the beam-search activation threshold, widen with the family's
   // fallback terms (e.g. tropical house → house) so the chain doesn't
@@ -293,23 +269,16 @@ export function setCandidates(
     const strictCount = reader.row<{ n: number }>(
       `SELECT COUNT(*) AS n FROM tracks t
        WHERE t.status = 'downloaded'
-         AND (${strictTerms
-           .map(() => `LOWER(t.genre) LIKE '%' || ? || '%'`)
-           .join(" OR ")})`,
+         AND (${strictTerms.map(() => `LOWER(t.genre) LIKE '%' || ? || '%'`).join(" OR ")})`,
       ...strictTerms,
     )?.n;
     if ((strictCount ?? 0) < MEGASET_BEAM_POOL_MAX) {
-      genreTerms = [
-        ...strictTerms,
-        ...fallbacks.map((t) => t.replace(/[%_]/g, "")),
-      ];
+      genreTerms = [...strictTerms, ...fallbacks.map((t) => t.replace(/[%_]/g, ""))];
     }
   }
   const genreWhere =
     genreTerms.length > 0
-      ? ` AND (${genreTerms
-          .map(() => `LOWER(t.genre) LIKE '%' || ? || '%'`)
-          .join(" OR ")})`
+      ? ` AND (${genreTerms.map(() => `LOWER(t.genre) LIKE '%' || ? || '%'`).join(" OR ")})`
       : "";
   const genreParams = genreTerms;
   const hasRekordboxContent =
@@ -349,9 +318,7 @@ export function setCandidates(
       `SELECT 1 AS present FROM sqlite_master
      WHERE type = 'table' AND name = 'embeddings'`,
     )?.present === 1;
-  const embJoin = hasEmbeddings
-    ? `LEFT JOIN embeddings e ON e.video_id = t.video_id`
-    : "";
+  const embJoin = hasEmbeddings ? `LEFT JOIN embeddings e ON e.video_id = t.video_id` : "";
   const embColumn = hasEmbeddings ? "e.vec_json" : "NULL";
   const rows = reader.rows<{
     video_id: string;
@@ -394,13 +361,8 @@ export function setCandidates(
    *  rekordbox mirror's BPM (analysis rekordbox ran itself). Both are
    *  real measurements, not guesses. Metadata-only rows keep filePath
    *  null so no surface can export a dead path. */
-  type CandidateRow = (typeof rows)[number] & {
-    relocated: boolean;
-    metadataOnly: boolean;
-  };
-  const [existingRows, metadataRows] = rows.reduce<
-    [CandidateRow[], CandidateRow[]]
-  >(
+  type CandidateRow = (typeof rows)[number] & { relocated: boolean; metadataOnly: boolean };
+  const [existingRows, metadataRows] = rows.reduce<[CandidateRow[], CandidateRow[]]>(
     (acc, row) => {
       const resolvedPath = existingCandidatePath(row.file_path, shelfContents);
       if (resolvedPath) {
@@ -413,12 +375,7 @@ export function setCandidates(
       } else if (measuredBpm(row) !== null) {
         // no file, but measured tempo — admitted as metadata-only (the
         // duration falls back to the engine's 300 s assumption)
-        acc[1].push({
-          ...row,
-          file_path: null,
-          relocated: false,
-          metadataOnly: true,
-        });
+        acc[1].push({ ...row, file_path: null, relocated: false, metadataOnly: true });
       }
       // else: no file AND no measured tempo — unscorable, stays excluded
       return acc;
@@ -453,8 +410,7 @@ export function setCandidates(
       seenTitles.add(tk);
       return true;
     });
-  const duplicateFiles =
-    existingRows.length - (actualRows.length - metadataRows.length);
+  const duplicateFiles = existingRows.length - (actualRows.length - metadataRows.length);
   // #286: the path-existence/rebase pass (existingCandidatePath per row)
   const fileCheckMs = Date.now() - t0 - sqlMs;
   const relocatedFiles = actualRows.filter((row) => row.relocated).length;
@@ -469,8 +425,7 @@ export function setCandidates(
     // no file to read — the mirror key (if any) is its ceiling, and no
     // live read/count is attempted.
     let key: string | null = null;
-    const cached =
-      r.file_path !== null ? reader.keyRecord(r.video_id, r.file_path) : null;
+    const cached = r.file_path !== null ? reader.keyRecord(r.video_id, r.file_path) : null;
     if (cached) {
       key = cached.key === "" ? null : cached.key;
     } else if (r.rekordbox_key?.trim()) {
@@ -480,11 +435,7 @@ export function setCandidates(
       keyReads++;
       try {
         key = groundTruth(r.file_path).key;
-        reader.rememberKeyRecord({
-          videoId: r.video_id,
-          key: key ?? "",
-          sourcePath: r.file_path,
-        });
+        reader.rememberKeyRecord({ videoId: r.video_id, key: key ?? "", sourcePath: r.file_path });
       } catch (error) {
         // The count is the public diagnostic; raw decoder errors may contain
         // private local paths, so do not put their text on the wire.
@@ -494,9 +445,7 @@ export function setCandidates(
       }
     }
     const rekordboxBpm =
-      r.rekordbox_bpm !== null &&
-      Number.isFinite(r.rekordbox_bpm) &&
-      r.rekordbox_bpm > 0
+      r.rekordbox_bpm !== null && Number.isFinite(r.rekordbox_bpm) && r.rekordbox_bpm > 0
         ? r.rekordbox_bpm
         : null;
     const bpm = r.bpm_folded ?? rekordboxBpm;
@@ -559,10 +508,7 @@ export function poolFreshness(reader: ArchiveQuery): ArchiveFreshness {
        (SELECT MAX(analyzed_at) FROM beats) AS beats_at,
        (SELECT MAX(analyzed_at) FROM mood) AS mood_at`,
   );
-  return {
-    beatsAt: row?.beats_at ?? null,
-    moodAt: row?.mood_at ?? null,
-  };
+  return { beatsAt: row?.beats_at ?? null, moodAt: row?.mood_at ?? null };
 }
 
 /** Test surface for the #283 dedupe key (module-private by scoping rule;

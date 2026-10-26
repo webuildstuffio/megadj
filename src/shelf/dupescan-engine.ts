@@ -79,9 +79,7 @@ export async function fingerprintFiles(
   }
   let done = 0;
   const workers = Array.from(
-    {
-      length: Math.max(1, Math.min(opts.jobs ?? 1, missing.length || 1)),
-    },
+    { length: Math.max(1, Math.min(opts.jobs ?? 1, missing.length || 1)) },
     async () => {
       for (;;) {
         const next = missing[done];
@@ -92,8 +90,7 @@ export async function fingerprintFiles(
         // the row permanently and drop the file out of every future
         // dedupe pass (the Sep 11 poisoning trap class).
         if (fp !== null) cache.put(next.path, next.size, fp);
-        if (every > 0 && done % every === 0)
-          log(`  ${done}/${missing.length} fingerprints…`);
+        if (every > 0 && done % every === 0) log(`  ${done}/${missing.length} fingerprints…`);
       }
     },
   );
@@ -179,11 +176,7 @@ export interface ApplyHooks {
  *  trusted from the scan. An md5 mismatch inside a same-size group is
  *  surfaced through onError (a possible long-mix collision) and the
  *  loser goes to review. */
-export function sameSizeSafe(
-  loser: DupFile,
-  ctx: GroupContext,
-  hooks: ApplyHooks = {},
-): boolean {
+export function sameSizeSafe(loser: DupFile, ctx: GroupContext, hooks: ApplyHooks = {}): boolean {
   if (loser.bytes !== ctx.keeper.bytes) return false;
   const lm = md5sum(loser.path);
   if (ctx.keeperMd5 === null || lm !== ctx.keeperMd5) {

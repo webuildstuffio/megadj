@@ -74,9 +74,7 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value, (_k, v: unknown) => {
     if (v !== null && typeof v === "object" && !Array.isArray(v)) {
       return Object.fromEntries(
-        Object.entries(v as Record<string, unknown>).toSorted(([a], [b]) =>
-          a.localeCompare(b),
-        ),
+        Object.entries(v as Record<string, unknown>).toSorted(([a], [b]) => a.localeCompare(b)),
       );
     }
     return v;
@@ -110,12 +108,7 @@ describe("#327 M3 golden chain (pre-extraction pin)", () => {
       landmarkIds: ["t33", "t09", "t51", "zzz-unknown"],
       openerId: "t05",
     },
-    {
-      name: "afterhours+opener",
-      preset: SET_PRESETS.afterhours,
-      minutes: 30,
-      openerId: "t02",
-    },
+    { name: "afterhours+opener", preset: SET_PRESETS.afterhours, minutes: 30, openerId: "t02" },
   ];
 
   for (const s of scenarios) {
@@ -124,9 +117,7 @@ describe("#327 M3 golden chain (pre-extraction pin)", () => {
         candidates: [...pool],
         preset: s.preset,
         minutes: s.minutes,
-        ...(s.searchOverride !== undefined
-          ? { searchOverride: s.searchOverride }
-          : {}),
+        ...(s.searchOverride !== undefined ? { searchOverride: s.searchOverride } : {}),
         ...(s.landmarkIds !== undefined ? { landmarkIds: s.landmarkIds } : {}),
         ...(s.openerId !== undefined ? { openerId: s.openerId } : {}),
       };
@@ -152,9 +143,7 @@ describe("#327 M3 golden chain (pre-extraction pin)", () => {
       // slot and MUST stay missing)
       landmarkIds: ["t05", "t22", "t30", "zzz-unknown"],
     });
-    const placedIds = new Set(
-      r.steps.filter((s) => s.landmark).map((s) => s.videoId),
-    );
+    const placedIds = new Set(r.steps.filter((s) => s.landmark).map((s) => s.videoId));
     for (const id of ["t05", "t22", "t30"]) {
       expect(placedIds.has(id)).toBe(true);
     }
@@ -192,11 +181,7 @@ describe("#327 M3 plan seam (post-extraction contract)", () => {
   });
 
   test("plan reflects its inputs: override/pins/size change the plan", () => {
-    const base = {
-      preset: SET_PRESETS.warmup,
-      minutes: 45,
-      poolSize: planPoolProbe(pool).size,
-    };
+    const base = { preset: SET_PRESETS.warmup, minutes: 45, poolSize: planPoolProbe(pool).size };
     const beam = buildPlan({ ...base, searchOverride: "beam" });
     const greedy = buildPlan({ ...base, searchOverride: "greedy" });
     expect(beam.strategy).toBe("beam");
@@ -229,11 +214,7 @@ describe("#327 M3 plan seam (post-extraction contract)", () => {
   });
 
   test("plan shape: arc thirds + opener policy + drift + budget", () => {
-    const plan = buildPlan({
-      preset: SET_PRESETS.warmup,
-      minutes: 45,
-      poolSize: 42,
-    });
+    const plan = buildPlan({ preset: SET_PRESETS.warmup, minutes: 45, poolSize: 42 });
     expect(plan.version).toBe(1);
     expect(plan.presetId).toBe("warmup");
     expect(plan.budgetS).toBe(45 * 60);
@@ -242,9 +223,7 @@ describe("#327 M3 plan seam (post-extraction contract)", () => {
     expect(plan.segments[0]!.window).toEqual([0, 1 / 3]);
     expect(plan.segments[2]!.window).toEqual([2 / 3, 1]);
     // warmup climbs: energy ranges ascend across segments
-    expect(plan.segments[2]!.energyRange[1]!).toBeGreaterThan(
-      plan.segments[0]!.energyRange[0]!,
-    );
+    expect(plan.segments[2]!.energyRange[1]!).toBeGreaterThan(plan.segments[0]!.energyRange[0]!);
     // keyRegion null until a track anchors (M3: opener key lands at fill)
     expect(plan.segments.every((s) => s.keyRegion === null)).toBe(true);
     expect(plan.opener.minNeighbors).toBe(15);
@@ -252,9 +231,6 @@ describe("#327 M3 plan seam (post-extraction contract)", () => {
     expect(plan.driftBudget).toBe(0.12);
     expect(plan.branchLanes).toEqual([2, 0.5]);
     // S8 neighbor floor rides the plan (the fill enforces it)
-    expect(plan.opener.startArousal).toBeCloseTo(
-      SET_PRESETS.warmup.arousal[0] / 9,
-      12,
-    );
+    expect(plan.opener.startArousal).toBeCloseTo(SET_PRESETS.warmup.arousal[0] / 9, 12);
   });
 });

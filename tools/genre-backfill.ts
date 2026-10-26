@@ -11,11 +11,7 @@
  */
 import { Database } from "bun:sqlite";
 import { beatportLookup, bpGenre } from "../src/fulltags/sources/beatport";
-import {
-  bcSearch,
-  bcFetchPage,
-  bcGenre,
-} from "../src/fulltags/sources/bandcamp";
+import { bcSearch, bcFetchPage, bcGenre } from "../src/fulltags/sources/bandcamp";
 import { mbGenreForArtist } from "../src/fulltags/sources/mb-lookup";
 import { scSearch } from "../src/fulltags/sources/sc-search";
 import {
@@ -119,10 +115,7 @@ async function runLookups(): Promise<{
     title = title
       .replace(/\s*\[archive(?:\s+\d+)?\]\s*$/i, "")
       .replace(/\s*\[BACKUP\d*\]\s*$/i, "")
-      .replace(
-        /\s*\(Official (?:Video|Audio|Music Video|Lyric Video)\)\s*$/i,
-        "",
-      )
+      .replace(/\s*\(Official (?:Video|Audio|Music Video|Lyric Video)\)\s*$/i, "")
       .replace(/\s*\(Official\)\s*$/i, "")
       .replace(/\s*\[Official (?:Video|Audio)\]\s*$/i, "")
       .trim();
@@ -139,14 +132,10 @@ async function runLookups(): Promise<{
 
     // ---- Beatport (W3, 0.6) ----
     try {
-      const bpHit = await beatportLookup({
-        artist,
-        title,
-      });
+      const bpHit = await beatportLookup({ artist, title });
       if (bpHit) {
         const g = bpGenre(bpHit);
-        if (g)
-          votes.push({ rung: "bp", genre: g, weight: GENRE_VOTE_WEIGHTS.bp });
+        if (g) votes.push({ rung: "bp", genre: g, weight: GENRE_VOTE_WEIGHTS.bp });
       }
     } catch {
       /* degrade */
@@ -155,12 +144,7 @@ async function runLookups(): Promise<{
     // ---- MusicBrainz folksonomy (W5, 0.4) ----
     try {
       const mbGenre = await mbGenreForArtist(artist);
-      if (mbGenre)
-        votes.push({
-          rung: "mb",
-          genre: mbGenre,
-          weight: GENRE_VOTE_WEIGHTS.mb,
-        });
+      if (mbGenre) votes.push({ rung: "mb", genre: mbGenre, weight: GENRE_VOTE_WEIGHTS.mb });
     } catch {
       /* degrade */
     }
@@ -172,12 +156,7 @@ async function runLookups(): Promise<{
         const page = await bcFetchPage(bcHit.url);
         if (page) {
           const g = bcGenre(page, canonGenre);
-          if (g)
-            votes.push({
-              rung: "bc",
-              genre: g,
-              weight: GENRE_VOTE_WEIGHTS.bc,
-            });
+          if (g) votes.push({ rung: "bc", genre: g, weight: GENRE_VOTE_WEIGHTS.bc });
         }
       }
     } catch {
@@ -186,20 +165,12 @@ async function runLookups(): Promise<{
 
     // ---- SoundCloud (W2, 0.35) ----
     try {
-      const scHits = scSearch({
-        title: `${artist} - ${title}`,
-        artist,
-        file_path: row.file_path,
-      });
+      const scHits = scSearch({ title: `${artist} - ${title}`, artist, file_path: row.file_path });
       const best = scHits[0];
       if (best?.genre) {
         const canon = canonGenre(best.genre);
         if (canon && canon !== "Music")
-          votes.push({
-            rung: "sc",
-            genre: canon,
-            weight: GENRE_VOTE_WEIGHTS.sc,
-          });
+          votes.push({ rung: "sc", genre: canon, weight: GENRE_VOTE_WEIGHTS.sc });
       }
     } catch {
       /* degrade */
@@ -227,12 +198,7 @@ async function runLookups(): Promise<{
         `UPDATE tracks SET genre = COALESCE(?, genre),
          genre_secondary = COALESCE(?, genre_secondary),
          genre_votes = ? WHERE video_id = ?`,
-      ).run(
-        result.genre,
-        result.secondaryGenre,
-        serializeVotes(votes),
-        row.video_id,
-      );
+      ).run(result.genre, result.secondaryGenre, serializeVotes(votes), row.video_id);
     }
     resolved++;
 
@@ -253,10 +219,7 @@ async function runLookups(): Promise<{
 }
 
 // ---- Phase 2: Embedding KNN genre inference ----
-async function runEmbeddingInference(): Promise<{
-  resolved: number;
-  missed: number;
-}> {
+async function runEmbeddingInference(): Promise<{ resolved: number; missed: number }> {
   // Get all tracks with embeddings + genre
   const genreKnown = db
     .query(
@@ -276,12 +239,7 @@ async function runEmbeddingInference(): Promise<{
        WHERE t.status='downloaded' AND t.file_path IS NOT NULL
          AND (t.genre_votes IS NULL OR t.genre_votes = '' OR t.genre_votes = '[]')`,
     )
-    .all() as {
-    video_id: string;
-    title: string;
-    artist: string | null;
-    vec_json: string;
-  }[];
+    .all() as { video_id: string; title: string; artist: string | null; vec_json: string }[];
 
   log(
     `\n--- Phase 2: Embedding KNN (${needGenre.length} tracks, ${genreKnown.length} references) ---`,
@@ -292,10 +250,7 @@ async function runEmbeddingInference(): Promise<{
     return { resolved: 0, missed: needGenre.length };
   }
 
-  const refs = genreKnown.map((r) => ({
-    genre: r.genre,
-    emb: parseEmb(r.vec_json),
-  }));
+  const refs = genreKnown.map((r) => ({ genre: r.genre, emb: parseEmb(r.vec_json) }));
 
   let resolved = 0;
   let missed = 0;
@@ -351,8 +306,7 @@ async function runEmbeddingInference(): Promise<{
     const rawBest = best;
     best = canonGenre(best);
     const avgSim = (
-      knn.filter((n) => n.genre === rawBest).reduce((s, n) => s + n.sim, 0) /
-      bestCount
+      knn.filter((n) => n.genre === rawBest).reduce((s, n) => s + n.sim, 0) / bestCount
     ).toFixed(3);
 
     log(
@@ -400,9 +354,7 @@ const lookupResult = embeddingsOnly
   ? { resolved: 0, missed: 0, errors: 0, remaining: 0 }
   : await runLookups();
 
-const embResult = lookupsOnly
-  ? { resolved: 0, missed: 0 }
-  : await runEmbeddingInference();
+const embResult = lookupsOnly ? { resolved: 0, missed: 0 } : await runEmbeddingInference();
 
 // ---- Phase 3: Propagation pass (archive copies inherit from base) ----
 if (!dryRun) {
@@ -452,9 +404,7 @@ if (!dryRun) {
       if (guessed) canon = guessed;
     }
     if (canon !== raw) {
-      db.query(
-        `UPDATE tracks SET genre_secondary = ? WHERE genre_secondary = ?`,
-      ).run(canon, raw);
+      db.query(`UPDATE tracks SET genre_secondary = ? WHERE genre_secondary = ?`).run(canon, raw);
       canonFixed++;
     }
   }
@@ -481,10 +431,7 @@ const finalCount = db
   .get() as { total: number; has_votes: number; has_secondary: number };
 
 const coverage = ((finalCount.has_votes / finalCount.total) * 100).toFixed(1);
-const secCoverage = (
-  (finalCount.has_secondary / finalCount.total) *
-  100
-).toFixed(1);
+const secCoverage = ((finalCount.has_secondary / finalCount.total) * 100).toFixed(1);
 
 const summary = {
   command: "genre-backfill",

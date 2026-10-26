@@ -41,15 +41,16 @@ export class ArchiveTracks extends ArchiveCore {
   trackById(trackId: string): TrackRow | null {
     return (
       (this.db.query("SELECT * FROM tracks WHERE video_id = ?").get(trackId) as
-        TrackRow | undefined) ?? null
+        | TrackRow
+        | undefined) ?? null
     );
   }
 
   markAttempt(videoId: string, error: string | null): void {
     const now = this.now();
-    const row = this.db
-      .query("SELECT attempts FROM tracks WHERE video_id = ?")
-      .get(videoId) as { attempts: number } | null;
+    const row = this.db.query("SELECT attempts FROM tracks WHERE video_id = ?").get(videoId) as {
+      attempts: number;
+    } | null;
     this.db
       .query(
         "UPDATE tracks SET attempts = ?, last_attempt_at = ?, last_error = ?, updated_at = ? WHERE video_id = ?",
@@ -113,11 +114,7 @@ export class ArchiveTracks extends ArchiveCore {
   private markStatus(
     videoId: string,
     status: TrackStatus,
-    fields: {
-      filePath?: string;
-      durationS?: number | null;
-      lastError?: string;
-    } = {},
+    fields: { filePath?: string; durationS?: number | null; lastError?: string } = {},
   ): void {
     this.db
       .query(
@@ -135,9 +132,7 @@ export class ArchiveTracks extends ArchiveCore {
 
   updateFilePath(videoId: string, newFilePath: string): void {
     this.db
-      .query(
-        "UPDATE tracks SET file_path = ?, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET file_path = ?, updated_at = ? WHERE video_id = ?")
       .run(newFilePath, this.now(), videoId);
   }
 
@@ -150,26 +145,18 @@ export class ArchiveTracks extends ArchiveCore {
   trackByFilePath(filePath: string): TrackRow | null {
     return (
       (this.db
-        .query(
-          "SELECT * FROM tracks WHERE file_path = ? AND status = 'downloaded' LIMIT 1",
-        )
+        .query("SELECT * FROM tracks WHERE file_path = ? AND status = 'downloaded' LIMIT 1")
         .get(filePath) as TrackRow | undefined) ?? null
     );
   }
 
-  markShortSkipped(
-    videoId: string,
-    filePath: string,
-    durationS: number | null,
-  ): void {
+  markShortSkipped(videoId: string, filePath: string, durationS: number | null): void {
     this.markStatus(videoId, "skipped_short", { filePath, durationS });
   }
 
   updateGenre(videoId: string, genre: string | null): void {
     this.db
-      .query(
-        "UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?")
       .run(genre, this.now(), videoId);
   }
 
@@ -190,9 +177,7 @@ export class ArchiveTracks extends ArchiveCore {
         .run(elected.genre, serializeVotes(votes), this.now(), videoId);
     } else {
       this.db
-        .query(
-          "UPDATE tracks SET genre_votes = ?, updated_at = ? WHERE video_id = ?",
-        )
+        .query("UPDATE tracks SET genre_votes = ?, updated_at = ? WHERE video_id = ?")
         .run(serializeVotes(votes), this.now(), videoId);
     }
     return elected.genre;
@@ -200,9 +185,9 @@ export class ArchiveTracks extends ArchiveCore {
 
   /** The persisted vote breakdown for one track (null when never voted). */
   genreVotes(videoId: string): GenreVote[] {
-    const row = this.db
-      .query("SELECT genre_votes FROM tracks WHERE video_id = ?")
-      .get(videoId) as { genre_votes: string | null } | null;
+    const row = this.db.query("SELECT genre_votes FROM tracks WHERE video_id = ?").get(videoId) as {
+      genre_votes: string | null;
+    } | null;
     return parseVotes(row?.genre_votes ?? null);
   }
 
@@ -212,9 +197,7 @@ export class ArchiveTracks extends ArchiveCore {
    *  placeholder rows (#61) needs a real clear. Idempotent by nature. */
   clearGenre(videoId: string): void {
     this.db
-      .query(
-        "UPDATE tracks SET genre = NULL, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET genre = NULL, updated_at = ? WHERE video_id = ?")
       .run(this.now(), videoId);
   }
 
@@ -237,9 +220,7 @@ export class ArchiveTracks extends ArchiveCore {
       return;
     }
     this.db
-      .query(
-        "UPDATE tracks SET genre_flag = ?, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET genre_flag = ?, updated_at = ? WHERE video_id = ?")
       .run(flag, this.now(), videoId);
   }
 
@@ -258,12 +239,7 @@ export class ArchiveTracks extends ArchiveCore {
          WHERE genre_flag = 'disputed' AND genre IS NOT NULL AND genre != ''
          ORDER BY updated_at DESC`,
       )
-      .all() as {
-      video_id: string;
-      title: string | null;
-      artist: string | null;
-      genre: string;
-    }[];
+      .all() as { video_id: string; title: string | null; artist: string | null; genre: string }[];
   }
 
   /** The CURRENT kNN consensus for (flagged) rows, computed over the
@@ -275,11 +251,7 @@ export class ArchiveTracks extends ArchiveCore {
    *  this accessor only supplies the raw rows (seeds + the flagged
    *  queries), keeping the state layer engine-free. */
   disputeVoteInputs(): {
-    flagged: {
-      video_id: string;
-      vec_json: string;
-      analyzed_at: string;
-    }[];
+    flagged: { video_id: string; vec_json: string; analyzed_at: string }[];
     seeds: { video_id: string; genre: string; vec_json: string }[];
   } {
     const flagged = this.db
@@ -288,11 +260,7 @@ export class ArchiveTracks extends ArchiveCore {
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          WHERE t.genre_flag = 'disputed' AND t.status = 'downloaded'`,
       )
-      .all() as {
-      video_id: string;
-      vec_json: string;
-      analyzed_at: string;
-    }[];
+      .all() as { video_id: string; vec_json: string; analyzed_at: string }[];
     const seeds = this.db
       .query(
         `SELECT e.video_id, t.genre, e.vec_json
@@ -310,9 +278,7 @@ export class ArchiveTracks extends ArchiveCore {
    *  the row re-enters seeding (self-heal). */
   agreeDispute(videoId: string, genre: string): void {
     this.db
-      .query(
-        "UPDATE tracks SET genre = ?, genre_flag = NULL, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET genre = ?, genre_flag = NULL, updated_at = ? WHERE video_id = ?")
       .run(genre, this.now(), videoId);
   }
 
@@ -321,20 +287,13 @@ export class ArchiveTracks extends ArchiveCore {
    *  the census can count resolutions without a join. */
   setGenreFlagNote(videoId: string, note: string): void {
     this.db
-      .query(
-        "UPDATE tracks SET genre_flag = 'resolved:' || ?, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET genre_flag = 'resolved:' || ?, updated_at = ? WHERE video_id = ?")
       .run(note.slice(0, 120), this.now(), videoId);
   }
 
   genreSeeds(): {
     seeds: { video_id: string; genre: string; vec_json: string }[];
-    queries: {
-      video_id: string;
-      title: string | null;
-      vec_json: string;
-      section_vecs: string[];
-    }[];
+    queries: { video_id: string; title: string | null; vec_json: string; section_vecs: string[] }[];
   } {
     // Seeds use whole-track embeddings: their genres are trusted labels,
     // and whole-track gives maximum coverage (section embeddings are sparse).
@@ -422,17 +381,13 @@ export class ArchiveTracks extends ArchiveCore {
 
   updateArtworkStatus(videoId: string, status: string): void {
     this.db
-      .query(
-        "UPDATE tracks SET artwork_status = ?, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET artwork_status = ?, updated_at = ? WHERE video_id = ?")
       .run(status, this.now(), videoId);
   }
 
   queuedArtworkTracks(): TrackRow[] {
     return this.db
-      .query(
-        "SELECT * FROM tracks WHERE artwork_status = 'queued' ORDER BY updated_at",
-      )
+      .query("SELECT * FROM tracks WHERE artwork_status = 'queued' ORDER BY updated_at")
       .all() as TrackRow[];
   }
 
@@ -462,9 +417,9 @@ export class ArchiveTracks extends ArchiveCore {
    *  uses, and `skipped_not_music` is sticky across playlist refreshes
    *  (upsert never touches status). Category records WHO decided. */
   markNotMusicByUser(videoId: string): boolean {
-    const row = this.db
-      .query("SELECT status FROM tracks WHERE video_id = ?")
-      .get(videoId) as { status: string } | undefined;
+    const row = this.db.query("SELECT status FROM tracks WHERE video_id = ?").get(videoId) as
+      | { status: string }
+      | undefined;
     if (!row) return false;
     this.markNotMusic(videoId, "user-marked not-music");
     return row.status !== "skipped_not_music";
@@ -521,9 +476,7 @@ export class ArchiveTracks extends ArchiveCore {
    *  gate `surfaced-note` checks before flipping the timestamp). */
   markSurfacedDoneExists(trackId: string): boolean {
     const row = this.db
-      .query(
-        "SELECT 1 FROM tracks WHERE video_id = ? AND status = 'link_surfaced'",
-      )
+      .query("SELECT 1 FROM tracks WHERE video_id = ? AND status = 'link_surfaced'")
       .get(trackId);
     return row !== null && row !== undefined;
   }
@@ -533,11 +486,7 @@ export class ArchiveTracks extends ArchiveCore {
    *  so a row marked gone/link_surfaced at probe time never learned its
    *  title/artist. Fills ONLY empty columns — never overwrites real
    *  metadata (same fill-don't-clobber contract as markDownloaded). */
-  backfillTrackIdentity(
-    videoId: string,
-    title: string | null,
-    artist: string | null,
-  ): void {
+  backfillTrackIdentity(videoId: string, title: string | null, artist: string | null): void {
     this.db
       .query(
         `UPDATE tracks SET
@@ -553,9 +502,7 @@ export class ArchiveTracks extends ArchiveCore {
    *  the decision is kept on the row for provenance. */
   markForcedRip(trackId: string, linksJson: string): void {
     this.db
-      .query(
-        "UPDATE tracks SET source_links = ?, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET source_links = ?, updated_at = ? WHERE video_id = ?")
       .run(linksJson, this.now(), trackId);
   }
 
@@ -579,9 +526,7 @@ export class ArchiveTracks extends ArchiveCore {
   /** Every surfaced-link row — the "go get these properly" queue. */
   linkSurfacedTracks(): TrackRow[] {
     return this.db
-      .query(
-        "SELECT * FROM tracks WHERE status = 'link_surfaced' ORDER BY first_seen_at",
-      )
+      .query("SELECT * FROM tracks WHERE status = 'link_surfaced' ORDER BY first_seen_at")
       .all() as TrackRow[];
   }
 
@@ -593,14 +538,10 @@ export class ArchiveTracks extends ArchiveCore {
   }
 
   allTracks(): TrackRow[] {
-    return this.db
-      .query("SELECT * FROM tracks ORDER BY liked_position")
-      .all() as TrackRow[];
+    return this.db.query("SELECT * FROM tracks ORDER BY liked_position").all() as TrackRow[];
   }
 
   downloadedWithFiles(): TrackRow[] {
-    return this.allTracks().filter(
-      (track) => track.status === "downloaded" && track.file_path,
-    );
+    return this.allTracks().filter((track) => track.status === "downloaded" && track.file_path);
   }
 }

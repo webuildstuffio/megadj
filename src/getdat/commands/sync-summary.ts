@@ -42,10 +42,7 @@ export async function finishRun(
   }
   // #256: surfaced links are NOT downloads — their own cohort, never
   // folded into the downloaded count (the honesty rule).
-  const surfaced =
-    totals.surfaced > 0
-      ? totals.surfaced
-      : (opts.state.linkSurfacedCount?.() ?? 0);
+  const surfaced = totals.surfaced > 0 ? totals.surfaced : (opts.state.linkSurfacedCount?.() ?? 0);
   log(
     `\nrun complete: ${totals.downloaded} downloaded, ${totals.notMusic} not-music, ${surfaced} link-surfaced, ${totals.gone} gone, ${totals.failed} failed, ${(totals.bytes / 1e6).toFixed(1)} MB`,
   );

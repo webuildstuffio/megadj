@@ -24,9 +24,7 @@ export interface EnergyReference {
  * @param scores - All track energy scores (0–1 range)
  * @returns Reference with 9 percentile thresholds (p10–p90)
  */
-export function buildEnergyReference(
-  scores: readonly number[],
-): EnergyReference {
+export function buildEnergyReference(scores: readonly number[]): EnergyReference {
   if (scores.length === 0) {
     return {
       percentiles: Array.from({ length: 9 }, () => 0),
@@ -42,11 +40,7 @@ export function buildEnergyReference(
     percentiles.push(round3(sorted[Math.min(idx, sorted.length - 1)]!));
   }
 
-  return {
-    percentiles,
-    trackCount: scores.length,
-    frozenAt: new Date().toISOString(),
-  };
+  return { percentiles, trackCount: scores.length, frozenAt: new Date().toISOString() };
 }
 
 /**
@@ -56,10 +50,7 @@ export function buildEnergyReference(
  * @param reference - Frozen reference
  * @returns Band 1–9 (E1–E9 per plan spec; above p90 → E9)
  */
-export function bandFromReference(
-  score: number,
-  reference: EnergyReference,
-): number {
+export function bandFromReference(score: number, reference: EnergyReference): number {
   if (reference.trackCount === 0) return 5;
 
   for (let i = 0; i < reference.percentiles.length; i++) {

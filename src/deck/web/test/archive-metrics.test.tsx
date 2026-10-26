@@ -46,33 +46,23 @@ describe("archiveMetrics", () => {
   });
 
   test("retryBacklog = failed + gone; inArchive = downloaded", () => {
-    const m = archiveMetrics(
-      ingest({ failed: 2, gone: 3, downloaded: 10 }),
-      null,
-      null,
-      null,
-    );
+    const m = archiveMetrics(ingest({ failed: 2, gone: 3, downloaded: 10 }), null, null, null);
     expect(m.retryBacklog).toBe(5);
     expect(m.inArchive).toBe(10);
   });
 
   test("unanalyzed = inArchive − analyzed, floored at 0, only when mood ran", () => {
-    expect(
-      archiveMetrics(ingest({ downloaded: 10 }), moodAt(true, 4), null, null)
-        .unanalyzed,
-    ).toBe(6);
+    expect(archiveMetrics(ingest({ downloaded: 10 }), moodAt(true, 4), null, null).unanalyzed).toBe(
+      6,
+    );
     // mood never ran → no backlog claim
     expect(
-      archiveMetrics(ingest({ downloaded: 10 }), moodAt(false, 0), null, null)
-        .unanalyzed,
+      archiveMetrics(ingest({ downloaded: 10 }), moodAt(false, 0), null, null).unanalyzed,
     ).toBe(0);
   });
 
   test("qualityDebt tracks the LOWQ track list length", () => {
-    const lowq = {
-      available: true,
-      tracks: [{}, {}, {}],
-    } as unknown as ArchiveLowqQueue;
+    const lowq = { available: true, tracks: [{}, {}, {}] } as unknown as ArchiveLowqQueue;
     expect(archiveMetrics(ingest({}), null, lowq, null).qualityDebt).toBe(3);
   });
 });

@@ -21,8 +21,7 @@ const { loadConfig } = await import("../config");
 const cfg = loadConfig(FIX);
 const db = new DB(cfg.dbPath);
 const registry = new Registry(cfg, db, () => {});
-const json = (data: unknown, status = 200): Response =>
-  Response.json(data, { status });
+const json = (data: unknown, status = 200): Response => Response.json(data, { status });
 
 db.upsertDrive({
   id: "d1",
@@ -71,10 +70,7 @@ afterAll(() => {
 describe("POST /api/drives/:id/name (#226)", () => {
   test("malformed JSON body → 400 invalid JSON body, not 500", async () => {
     const r = await routes.driveSubroute(
-      new Request("http://127.0.0.1:7742/api/drives/d1/name", {
-        method: "POST",
-        body: "not json",
-      }),
+      new Request("http://127.0.0.1:7742/api/drives/d1/name", { method: "POST", body: "not json" }),
       new URL("http://127.0.0.1:7742/api/drives/d1/name"),
       "d1",
       "/name",

@@ -48,13 +48,7 @@ export const SIGNAL_BLOCS: Readonly<Record<SignalName, BlocName>> = {
   arousalDrop: "perceptual",
 };
 
-export const BLOC_NAMES = [
-  "rhythm",
-  "brightness",
-  "body",
-  "activity",
-  "perceptual",
-] as const;
+export const BLOC_NAMES = ["rhythm", "brightness", "body", "activity", "perceptual"] as const;
 export type BlocName = (typeof BLOC_NAMES)[number];
 
 /** Signals that are INVERTED (lower raw = higher energy).
@@ -73,43 +67,19 @@ export interface WeightPreset {
 export const WEIGHT_PRESETS: readonly WeightPreset[] = [
   {
     name: "equal",
-    weights: {
-      rhythm: 0.2,
-      brightness: 0.2,
-      body: 0.2,
-      activity: 0.2,
-      perceptual: 0.2,
-    },
+    weights: { rhythm: 0.2, brightness: 0.2, body: 0.2, activity: 0.2, perceptual: 0.2 },
   },
   {
     name: "default",
-    weights: {
-      rhythm: 0.2,
-      brightness: 0.2,
-      body: 0.2,
-      activity: 0.1,
-      perceptual: 0.3,
-    },
+    weights: { rhythm: 0.2, brightness: 0.2, body: 0.2, activity: 0.1, perceptual: 0.3 },
   },
   {
     name: "dsp-heavy",
-    weights: {
-      rhythm: 0.25,
-      brightness: 0.25,
-      body: 0.25,
-      activity: 0.15,
-      perceptual: 0.1,
-    },
+    weights: { rhythm: 0.25, brightness: 0.25, body: 0.25, activity: 0.15, perceptual: 0.1 },
   },
   {
     name: "perceptual-heavy",
-    weights: {
-      rhythm: 0.15,
-      brightness: 0.15,
-      body: 0.15,
-      activity: 0.05,
-      perceptual: 0.5,
-    },
+    weights: { rhythm: 0.15, brightness: 0.15, body: 0.15, activity: 0.05, perceptual: 0.5 },
   },
 ];
 
@@ -125,9 +95,7 @@ export interface FrozenSignals {
 const IQR_DEAD_THRESHOLD = 0.02;
 
 /** Build a frozen reference from all library rows. Dead signals (IQR < threshold) are excluded. */
-export function freezeSignals(
-  rows: readonly EnergyFeatureRow[],
-): FrozenSignals {
+export function freezeSignals(rows: readonly EnergyFeatureRow[]): FrozenSignals {
   const values: Record<string, number[]> = {};
   const deadSignals: string[] = [];
 
@@ -199,9 +167,10 @@ export function signalPercentiles(
 export function blocPercentiles(
   sigPcts: Readonly<Record<string, number>>,
 ): Record<BlocName, number> {
-  const blocAccum = Object.fromEntries(
-    BLOC_NAMES.map((b) => [b, [] as number[]]),
-  ) as Record<BlocName, number[]>;
+  const blocAccum = Object.fromEntries(BLOC_NAMES.map((b) => [b, [] as number[]])) as Record<
+    BlocName,
+    number[]
+  >;
   for (const [sig, pct] of Object.entries(sigPcts)) {
     const bloc = SIGNAL_BLOCS[sig as SignalName];
     if (bloc !== undefined) blocAccum[bloc].push(pct);
@@ -209,12 +178,7 @@ export function blocPercentiles(
   const result = Object.fromEntries(
     BLOC_NAMES.map((name) => {
       const arr = blocAccum[name];
-      return [
-        name,
-        arr.length > 0
-          ? round4(arr.reduce((a, b) => a + b, 0) / arr.length)
-          : 0.5,
-      ];
+      return [name, arr.length > 0 ? round4(arr.reduce((a, b) => a + b, 0) / arr.length) : 0.5];
     }),
   ) as Record<BlocName, number>;
   return result;
@@ -234,9 +198,7 @@ export function compositeScore(
 
 /** Energy confidence: low if Tier A (rhythm+brightness+body+activity) and
  *  Tier B (perceptual) disagree by > 0.30 percentile points. */
-export function energyConfidence(
-  blocs: Readonly<Record<BlocName, number>>,
-): "high" | "low" {
+export function energyConfidence(blocs: Readonly<Record<BlocName, number>>): "high" | "low" {
   const tierA = [blocs.rhythm, blocs.brightness, blocs.body, blocs.activity];
   const meanA = tierA.reduce((a, b) => a + b, 0) / tierA.length;
   const meanB = blocs.perceptual;
@@ -292,9 +254,7 @@ export function scoreAll(
 }
 
 /** Compute band distribution as share per band (E1–E9). */
-export function bandDistribution(
-  tracks: readonly ScoredTrack[],
-): Record<number, number> {
+export function bandDistribution(tracks: readonly ScoredTrack[]): Record<number, number> {
   const counts: Record<number, number> = {};
   for (let i = 1; i <= 9; i++) counts[i] = 0;
   for (const t of tracks) {

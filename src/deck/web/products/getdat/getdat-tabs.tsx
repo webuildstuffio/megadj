@@ -31,14 +31,7 @@ import {
   CountStat,
 } from "../../ui/data";
 import { StatCard } from "../../ui/DrivePanels";
-import {
-  ArchiveAbsentGate,
-  Meter,
-  SectionHead,
-  ShareBar,
-  Verdict,
-  TrackTitle,
-} from "../shared";
+import { ArchiveAbsentGate, Meter, SectionHead, ShareBar, Verdict, TrackTitle } from "../shared";
 import { SurfacedLinksCard } from "./surfaced-card";
 import { fmtBytes } from "../../../../shared/leaf/fmt";
 
@@ -51,9 +44,7 @@ function jumpTo(id: string) {
 }
 
 export function PipelineTab() {
-  const page = useFetched<
-    [ArchiveIngestStatus, ArchiveSkipCensus, ArchiveAnalysisCoverage]
-  >(
+  const page = useFetched<[ArchiveIngestStatus, ArchiveSkipCensus, ArchiveAnalysisCoverage]>(
     () =>
       Promise.all([
         api<ArchiveIngestStatus>("/api/archive/ingest-status"),
@@ -62,8 +53,7 @@ export function PipelineTab() {
       ]),
     [],
   );
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading pipeline status…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading pipeline status…" />;
   const [ingest, skips, coverage] = page.data;
   const c = ingest.available ? ingest.counts : {};
   const entry = (k: string) => c[k] ?? 0;
@@ -77,9 +67,7 @@ export function PipelineTab() {
     entry("skipped_low_quality");
   const surfacedRows = ingest.surfaced;
   const surfaced = surfacedRows.length;
-  const runs = ingest.recent_runs.filter(
-    (r) => r.downloaded + r.failed + r.gone > 0,
-  );
+  const runs = ingest.recent_runs.filter((r) => r.downloaded + r.failed + r.gone > 0);
   const stages = coverage.available ? coverage.stages : undefined;
 
   return (
@@ -160,8 +148,7 @@ export function PipelineTab() {
                   n: surfaced,
                   cls: "surfaced",
                   label: "links surfaced",
-                  title:
-                    "an official link exists — rip skipped on purpose (#256)",
+                  title: "an official link exists — rip skipped on purpose (#256)",
                   onClick: () => jumpTo("pipeline-surfaced"),
                 },
                 {
@@ -198,9 +185,7 @@ export function PipelineTab() {
             <span class="sect-n">{runs.length}</span>
           </SectionHead>
           {runs.length === 0 ? (
-            <div class="fleet-note">
-              no active runs recorded yet — `megadj sync` makes one.
-            </div>
+            <div class="fleet-note">no active runs recorded yet — `megadj sync` makes one.</div>
           ) : (
             <DataTable
               columns={[
@@ -216,9 +201,7 @@ export function PipelineTab() {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
-                      {!r.finished_at && (
-                        <span class="arch-pill warn">running</span>
-                      )}
+                      {!r.finished_at && <span class="arch-pill warn">running</span>}
                     </>
                   ),
                   sortValue: (r) => r.started_at,
@@ -247,8 +230,7 @@ export function PipelineTab() {
                       ? Math.max(
                           1,
                           Math.round(
-                            (new Date(r.finished_at).getTime() -
-                              new Date(r.started_at).getTime()) /
+                            (new Date(r.finished_at).getTime() - new Date(r.started_at).getTime()) /
                               60000,
                           ),
                         )
@@ -263,9 +245,7 @@ export function PipelineTab() {
                   cell: (r) => (
                     <>
                       <span class="ok-text">+{r.downloaded}</span>
-                      {r.failed ? (
-                        <span class="bad"> / {r.failed}✗</span>
-                      ) : null}
+                      {r.failed ? <span class="bad"> / {r.failed}✗</span> : null}
                     </>
                   ),
                   sortValue: (r) => r.downloaded,
@@ -308,8 +288,7 @@ export function PipelineTab() {
                   n={skips.gone + skips.skipped}
                   hint="Every non-downloaded row records its reason. 'Gone from source' = the video vanished from YouTube Music (re-source it or drop it — those are Backlog work). 'Skipped (category: …)' = the ingest skipper deliberately passed on non-music (podcasts, news, trailers) — bookkeeping, not backlog."
                   lines={skips.buckets.map(
-                    (b) =>
-                      `[${b.kind}] ${b.reason}: ${b.count} track${b.count === 1 ? "" : "s"}`,
+                    (b) => `[${b.kind}] ${b.reason}: ${b.count} track${b.count === 1 ? "" : "s"}`,
                   )}
                 />
                 <BarList
@@ -369,8 +348,7 @@ export function BacklogTab() {
       ]),
     [],
   );
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading backlog…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading backlog…" />;
   const [ingest, lowq, pendingQ] = page.data;
   const c = ingest.available ? ingest.counts : {};
   const failed = c["failed"] ?? 0;
@@ -403,16 +381,11 @@ export function BacklogTab() {
                   : "Backlog is empty — nothing to retry, nothing to upgrade."
                 : `${total.toLocaleString()} item${total === 1 ? "" : "s"} in the backlog: ${retry} download${retry === 1 ? "" : "s"}, ${quality.length} quality upgrade${quality.length === 1 ? "" : "s"}.`
             }
-            meta={
-              retry > 0 ? "fix the failed half with one command" : undefined
-            }
+            meta={retry > 0 ? "fix the failed half with one command" : undefined}
           />
 
           {pending.length > 0 && (
-            <PendingQueueCard
-              tracks={pending}
-              onSkipped={() => page.refresh?.()}
-            />
+            <PendingQueueCard tracks={pending} onSkipped={() => page.refresh?.()} />
           )}
 
           {retry > 0 && (
@@ -425,8 +398,8 @@ export function BacklogTab() {
                 lines={[`failed: ${failed}`, `gone from source: ${gone}`]}
               />
               <div class="arch-fix">
-                fix: <code>megadj retry</code> then <code>megadj sync</code> —
-                "gone" tracks need a new source
+                fix: <code>megadj retry</code> then <code>megadj sync</code> — "gone" tracks need a
+                new source
               </div>
             </div>
           )}
@@ -438,9 +411,7 @@ export function BacklogTab() {
                 title="Quality upgrades (LOWQ)"
                 n={quality.length}
                 hint="Downloaded tracks below the set-ready floor (AAC < 256 kbps, MP3 < 320). Work this queue to empty and everything in the archive is gig-safe on quality."
-                lines={quality.map(
-                  (t) => `${t.title ?? t.video_id} — ${t.reason}`,
-                )}
+                lines={quality.map((t) => `${t.title ?? t.video_id} — ${t.reason}`)}
               />
               <KVRows>
                 {quality.slice(0, 30).map((t) => (
@@ -457,13 +428,10 @@ export function BacklogTab() {
                     </KVVal>
                   </KVRow>
                 ))}
-                {quality.length > 30 && (
-                  <Truncated shown={30} total={quality.length} />
-                )}
+                {quality.length > 30 && <Truncated shown={30} total={quality.length} />}
               </KVRows>
               <div class="arch-fix">
-                fix: re-download from a better source, then{" "}
-                <code>megadj ingest</code>
+                fix: re-download from a better source, then <code>megadj ingest</code>
               </div>
             </div>
           )}
@@ -528,20 +496,14 @@ export function PendingQueueCard(props: {
         hint="What megadj sync WILL download next. Anything here that isn't actually music you want (podcasts, mixes you already have, junk), mark it not-music — the row leaves the queue permanently and sync skips it."
         lines={[
           `showing ${Math.min(n, 30)} of ${n}`,
-          ...props.tracks
-            .slice(0, 3)
-            .map((t) => `${t.title ?? t.video_id} — ${t.source}`),
+          ...props.tracks.slice(0, 3).map((t) => `${t.title ?? t.video_id} — ${t.source}`),
         ]}
       />
       <KVRows>
         {props.tracks.slice(0, 30).map((t) => (
           <KVRow key={t.video_id}>
             <KVKey>
-              <TrackTitle
-                title={t.title ?? t.video_id}
-                videoId={t.video_id}
-                artist={t.artist}
-              />
+              <TrackTitle title={t.title ?? t.video_id} videoId={t.video_id} artist={t.artist} />
               <span class="dt-sub">
                 {t.source}
                 {t.attempts > 0
@@ -555,8 +517,7 @@ export function PendingQueueCard(props: {
                 class="btn tiny"
                 disabled={busy === t.video_id}
                 onClick={() => void skip(t.video_id)}
-                title="Mark as not-YouTube-music — sync will never download this"
-              >
+                title="Mark as not-YouTube-music — sync will never download this">
                 {busy === t.video_id ? "…" : "not music"}
               </button>
             </KVVal>
@@ -565,8 +526,7 @@ export function PendingQueueCard(props: {
         {n > 30 && <Truncated shown={30} total={n} />}
       </KVRows>
       <div class="arch-fix">
-        CLI equivalent: <code>megadj skip &lt;video_id…&gt;</code> — bulk-mark
-        from a terminal
+        CLI equivalent: <code>megadj skip &lt;video_id…&gt;</code> — bulk-mark from a terminal
       </div>
     </div>
   );
@@ -599,9 +559,8 @@ export function EnrichmentFunnel(props: {
         ]}
       />
       <div class="fleet-note">
-        {stages.noGenre.toLocaleString()} without genre ·{" "}
-        {stages.genreVoted.toLocaleString()} genre-voted ·{" "}
-        {rawFiles.toLocaleString()} raw in {raw.length} batch folder
+        {stages.noGenre.toLocaleString()} without genre · {stages.genreVoted.toLocaleString()}{" "}
+        genre-voted · {rawFiles.toLocaleString()} raw in {raw.length} batch folder
         {raw.length === 1 ? "" : "s"}
       </div>
       <KVRows>
@@ -610,8 +569,8 @@ export function EnrichmentFunnel(props: {
             genre system (voted) coverage
             <span class="dt-sub">
               {" "}
-              — re-run after the system changes:{" "}
-              <code>megadj fetch --genres --all</code> or the Run tab
+              — re-run after the system changes: <code>megadj fetch --genres --all</code> or the Run
+              tab
             </span>
           </KVKey>
           <KVVal>
@@ -627,19 +586,12 @@ export function EnrichmentFunnel(props: {
           <KVRow>
             <KVKey>
               raw batch folder{raw.length === 1 ? "" : "s"}
-              <span class="dt-sub">
-                {" "}
-                — fresh downloads, not yet tagged/artworked/analyzed
-              </span>
+              <span class="dt-sub"> — fresh downloads, not yet tagged/artworked/analyzed</span>
             </KVKey>
             <KVVal>
               <span class="surfaced-links">
                 {raw.map((b) => (
-                  <ProcessBatchButton
-                    key={b.folder}
-                    folder={b.folder}
-                    files={b.files}
-                  />
+                  <ProcessBatchButton key={b.folder} folder={b.folder} files={b.files} />
                 ))}
               </span>
             </KVVal>
@@ -651,15 +603,12 @@ export function EnrichmentFunnel(props: {
               type="button"
               class="btn btn-sm surfaced-link"
               onClick={goGenre}
-              title="Open the FullTags Run tab — the live genre ladder with progress and cancel"
-            >
+              title="Open the FullTags Run tab — the live genre ladder with progress and cancel">
               run the genre pass <Icon name="compass" size={12} />
             </button>
           </KVKey>
           <KVVal>
-            <span class="dt-sub">
-              the fulltags page's coverage strip tracks beats/mood/cues
-            </span>
+            <span class="dt-sub">the fulltags page's coverage strip tracks beats/mood/cues</span>
           </KVVal>
         </KVRow>
       </KVRows>
@@ -692,10 +641,7 @@ export function ProcessBatchButton(props: { folder: string; files: number }) {
       );
       navigateProduct("getdat", "intake");
     } catch (e: unknown) {
-      toast(
-        `intake refused: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
+      toast(`intake refused: ${e instanceof Error ? e.message : String(e)}`, "err");
     } finally {
       setBusy(false);
     }
@@ -706,8 +652,7 @@ export function ProcessBatchButton(props: { folder: string; files: number }) {
       class="btn btn-sm surfaced-link"
       disabled={busy}
       onClick={() => void start()}
-      title={`Run the full intake pipeline on ${props.folder} (${props.files} files)`}
-    >
+      title={`Run the full intake pipeline on ${props.folder} (${props.files} files)`}>
       {busy ? (
         <span class="spin">
           <Icon name="refresh" size={12} />

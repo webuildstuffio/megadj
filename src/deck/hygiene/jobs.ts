@@ -2,11 +2,7 @@
 // extracted from jobs.ts (file-length guard). The shared spawn/drain/
 // summary runner lives in cli_job_leg.ts (one implementation; this module
 // was its byte-twin until jscpd flagged it).
-import {
-  runCliJobLeg,
-  summaryCount,
-  type CliJobDeps,
-} from "../jobs/cli-job-leg";
+import { runCliJobLeg, summaryCount, type CliJobDeps } from "../jobs/cli-job-leg";
 
 /** Kept as a named alias — the deps shape is the shared CliJobDeps. */
 export type HygieneJobDeps = CliJobDeps;
@@ -24,27 +20,18 @@ async function runShelfHygiene(
     {
       command: "shelf-hygiene",
       label: "megadj shelf-hygiene",
-      argv: [
-        ...(apply ? ["--apply", "--yes"] : []),
-        "--json",
-        "--shelf",
-        shelfVolume,
-      ],
+      argv: [...(apply ? ["--apply", "--yes"] : []), "--json", "--shelf", shelfVolume],
       scan: { message: "walking the shelf…", phase: "walk" },
       apply: { message: "applying confirmed findings…", phase: "apply" },
     },
     apply,
     handle,
   );
-  const tick = (m: string, phase: string): void =>
-    deps.tick(0, 1, m, phase, true);
+  const tick = (m: string, phase: string): void => deps.tick(0, 1, m, phase, true);
   const detected = summaryCount(summary?.detected);
   const applied = summaryCount(summary?.applied);
   const failed = summaryCount(summary?.failed);
-  tick(
-    apply ? `applied ${applied}, failed ${failed}` : `${detected} findings`,
-    "done",
-  );
+  tick(apply ? `applied ${applied}, failed ${failed}` : `${detected} findings`, "done");
   return summary;
 }
 

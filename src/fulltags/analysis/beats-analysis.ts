@@ -216,22 +216,14 @@ export async function openBeatSession(): Promise<BeatSession | null> {
   return openWorkerSession<string, BeatResult>({
     spawn: () =>
       Bun.spawn({
-        cmd: [
-          "uv",
-          "run",
-          ...beatWorkerArgs(useDbn),
-          "python",
-          "-c",
-          beatWorkerScript(useDbn),
-        ],
+        cmd: ["uv", "run", ...beatWorkerArgs(useDbn), "python", "-c", beatWorkerScript(useDbn)],
         stdin: "pipe",
         stdout: "pipe",
         stderr: "ignore",
       }),
     isReady: lineIsReady,
     readyTimeoutMs: BEAT_READY_TIMEOUT_MS,
-    encodeRequest: (path, enc, proc) =>
-      writeNdjsonRequest(proc, enc, { id: path, path }),
+    encodeRequest: (path, enc, proc) => writeNdjsonRequest(proc, enc, { id: path, path }),
     isResponse: lineHasRequestId,
     responseTimeoutMs: BEAT_RESPONSE_TIMEOUT_MS,
     parse: (line, path) => {
@@ -249,17 +241,11 @@ export function parseBeatThisJson(stdout: string): BeatResult | null {
   const last = stdout.trim().split("\n").at(-1);
   if (!last) return null;
   const value = parseJsonOrNull(last);
-  if (
-    !value ||
-    typeof value.bpm !== "number" ||
-    !Number.isFinite(value.bpm) ||
-    value.bpm <= 0
-  )
+  if (!value || typeof value.bpm !== "number" || !Number.isFinite(value.bpm) || value.bpm <= 0)
     return null;
   const beats = finiteNumberArray(value.beats);
   const downbeats = finiteNumberArray(value.downbeats);
-  if (!beats || beats.length < 4 || !downbeats || downbeats.length === 0)
-    return null;
+  if (!beats || beats.length < 4 || !downbeats || downbeats.length === 0) return null;
   const fit = fitConstantTempo(beats);
   return {
     bpm: value.bpm,

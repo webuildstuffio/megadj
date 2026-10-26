@@ -28,13 +28,9 @@ export function MegasetArcChart(props: {
   const bpmTop = 62;
   const bpmBottom = 100;
   const arousalScale = linearScale(1, 9, arousalBottom, arousalTop);
-  const bpms = props.steps
-    .map((s) => s.bpm)
-    .filter((b): b is number => b !== null);
+  const bpms = props.steps.map((s) => s.bpm).filter((b): b is number => b !== null);
   const bpmScale =
-    bpms.length >= 2
-      ? linearScale(Math.min(...bpms), Math.max(...bpms), bpmBottom, bpmTop)
-      : null;
+    bpms.length >= 2 ? linearScale(Math.min(...bpms), Math.max(...bpms), bpmBottom, bpmTop) : null;
   const xAt = (atMin: number): number => {
     const last = props.steps[props.steps.length - 1];
     const total = last && last.atMin > 0 ? last.atMin : 1;
@@ -42,16 +38,12 @@ export function MegasetArcChart(props: {
   };
   const arousalPts = props.steps
     .filter((s) => s.arousal !== null)
-    .map(
-      (s) =>
-        `${xAt(s.atMin).toFixed(1)},${arousalScale(s.arousal!).toFixed(1)}`,
-    )
+    .map((s) => `${xAt(s.atMin).toFixed(1)},${arousalScale(s.arousal!).toFixed(1)}`)
     .join(" ");
   const targetPts = [0, 1]
     .map((t) => {
       const env =
-        props.preset.arousal[0]! +
-        (props.preset.arousal[1]! - props.preset.arousal[0]!) * t;
+        props.preset.arousal[0]! + (props.preset.arousal[1]! - props.preset.arousal[0]!) * t;
       const x = padL + t * (W - padL - padR);
       return `${x.toFixed(1)},${arousalScale(env).toFixed(1)}`;
     })
@@ -61,22 +53,16 @@ export function MegasetArcChart(props: {
       ? null
       : props.steps
           .filter((s) => s.bpm !== null)
-          .map(
-            (s) => `${xAt(s.atMin).toFixed(1)},${bpmScale(s.bpm!).toFixed(1)}`,
-          )
+          .map((s) => `${xAt(s.atMin).toFixed(1)},${bpmScale(s.bpm!).toFixed(1)}`)
           .join(" ");
   const bpmMin = bpms.length > 0 ? Math.round(Math.min(...bpms)) : 0;
   const bpmMax = bpms.length > 0 ? Math.round(Math.max(...bpms)) : 0;
   return (
-    <figure
-      class="megaset-arcchart"
-      aria-label="Energy and BPM arc of the chain"
-    >
+    <figure class="megaset-arcchart" aria-label="Energy and BPM arc of the chain">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Energy ${props.preset.label} envelope with the chain's arousal path, and ${bpmMin}–${bpmMax} BPM below`}
-      >
+        aria-label={`Energy ${props.preset.label} envelope with the chain's arousal path, and ${bpmMin}–${bpmMax} BPM below`}>
         {/* preset target envelope (dashed) + measured arousal (solid) */}
         <polyline class="arc-envelope" points={targetPts} />
         {arousalPts && <polyline class="arc-arousal" points={arousalPts} />}
@@ -120,12 +106,9 @@ export function MegasetArcChart(props: {
           <i class="arc-sw envelope" /> {props.preset.label} target
           {bpmPts && <i class="arc-sw bpm" />} {bpmPts ? "bpm" : ""}
         </span>
-        {props.keyGlide && (
-          <span class="muted">key glide {props.keyGlide}</span>
-        )}
+        {props.keyGlide && <span class="muted">key glide {props.keyGlide}</span>}
         <span class="muted">
-          {props.steps.length} tracks ·{" "}
-          {Math.round(props.steps[props.steps.length - 1]!.atMin)} min
+          {props.steps.length} tracks · {Math.round(props.steps[props.steps.length - 1]!.atMin)} min
         </span>
       </figcaption>
     </figure>

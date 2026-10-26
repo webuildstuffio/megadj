@@ -28,9 +28,8 @@ export function MegasetPanel() {
     <Card class="megaset">
       <SectionHead icon="compass" title="Build a set from your entire shelf" />
       <p class="megaset-lead">
-        Choose the room's energy and a familiar length. FullTags checks the
-        whole archive, removes missing files and duplicates, then orders a
-        playable draft using tempo, key, and mood.
+        Choose the room's energy and a familiar length. FullTags checks the whole archive, removes
+        missing files and duplicates, then orders a playable draft using tempo, key, and mood.
       </p>
       <LoadDraft onLoad={model.loadDraft} />
       <MegasetSettings model={model} openerPicker={openerPicker} />

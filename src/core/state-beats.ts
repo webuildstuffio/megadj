@@ -3,11 +3,7 @@ import { sqliteRowId } from "./sweeps";
 import type { RunRow, TrackRow } from "./state-types";
 import { isFiniteNumberArray } from "../shared/leaf/guards";
 
-function parseNumberArray(
-  raw: string,
-  field: string,
-  videoId: string,
-): number[] | null {
+function parseNumberArray(raw: string, field: string, videoId: string): number[] | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (isFiniteNumberArray(parsed)) {
@@ -37,9 +33,7 @@ export class ArchiveBeats extends ArchiveTracks {
   }
 
   startRun(): number {
-    const result = this.db
-      .query("INSERT INTO runs (started_at) VALUES (?)")
-      .run(this.now());
+    const result = this.db.query("INSERT INTO runs (started_at) VALUES (?)").run(this.now());
     return sqliteRowId(result.lastInsertRowid);
   }
 
@@ -72,16 +66,14 @@ export class ArchiveBeats extends ArchiveTracks {
    *  guard in sync()'s finally reads this — finish-then-finalize must
    *  never double-stamp or zero a finished run's real totals). */
   runIsFinished(id: number): boolean {
-    const row = this.db
-      .query("SELECT finished_at FROM runs WHERE id = ?")
-      .get(id) as { finished_at: string | null } | null;
+    const row = this.db.query("SELECT finished_at FROM runs WHERE id = ?").get(id) as {
+      finished_at: string | null;
+    } | null;
     return row !== null && row.finished_at !== null;
   }
 
   lastRuns(n: number): RunRow[] {
-    return this.db
-      .query("SELECT * FROM runs ORDER BY id DESC LIMIT ?")
-      .all(n) as RunRow[];
+    return this.db.query("SELECT * FROM runs ORDER BY id DESC LIMIT ?").all(n) as RunRow[];
   }
 
   setBeatRecord(rec: {
@@ -120,7 +112,9 @@ export class ArchiveBeats extends ArchiveTracks {
       );
   }
 
-  beatRecord(videoId: string): {
+  beatRecord(
+    videoId: string,
+  ): {
     videoId: string;
     bpmRaw: number | null;
     bpmFolded: number | null;
@@ -152,11 +146,7 @@ export class ArchiveBeats extends ArchiveTracks {
     } | null;
     if (!row) return null;
     const beats = parseNumberArray(row.beats_json, "beats_json", videoId);
-    const downbeats = parseNumberArray(
-      row.downbeats_json,
-      "downbeats_json",
-      videoId,
-    );
+    const downbeats = parseNumberArray(row.downbeats_json, "downbeats_json", videoId);
     if (!beats || !downbeats) return null;
     return {
       videoId: row.video_id,
@@ -197,16 +187,8 @@ export class ArchiveBeats extends ArchiveTracks {
       bpm_residual_std: number | null;
     })[];
     return rows.flatMap((row) => {
-      const beats = parseNumberArray(
-        row.beats_json,
-        "beats_json",
-        row.video_id,
-      );
-      const downbeats = parseNumberArray(
-        row.downbeats_json,
-        "downbeats_json",
-        row.video_id,
-      );
+      const beats = parseNumberArray(row.beats_json, "beats_json", row.video_id);
+      const downbeats = parseNumberArray(row.downbeats_json, "downbeats_json", row.video_id);
       if (!beats || !downbeats) return [];
       return [
         {
@@ -224,9 +206,7 @@ export class ArchiveBeats extends ArchiveTracks {
 
   setContentHash(videoId: string, hash: string): void {
     this.db
-      .query(
-        "UPDATE tracks SET content_hash = ?, updated_at = ? WHERE video_id = ?",
-      )
+      .query("UPDATE tracks SET content_hash = ?, updated_at = ? WHERE video_id = ?")
       .run(hash, this.now(), videoId);
   }
 
@@ -237,9 +217,6 @@ export class ArchiveBeats extends ArchiveTracks {
          WHERE status = 'downloaded' AND content_hash IS NULL`,
       )
       .all() as { video_id: string; file_path: string | null }[];
-    return rows.map((row) => ({
-      videoId: row.video_id,
-      filePath: row.file_path,
-    }));
+    return rows.map((row) => ({ videoId: row.video_id, filePath: row.file_path }));
   }
 }

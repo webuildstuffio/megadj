@@ -104,11 +104,8 @@ function flagsFromBody(body: string, into: ArmFlags): void {
   }
   // positionalArgs/firstPositional carry MORE stringOpts (the same list
   // by contract — the stringOpts bug class); union them in.
-  for (const p of body.matchAll(
-    /(?:positionalArgs|firstPositional)\([^;]*?\[([^\]]*)\]/g,
-  )) {
-    for (const s of (p[1] ?? "").matchAll(/"([a-z][a-z-]+)"/g))
-      if (s[1]) into.strings.add(s[1]);
+  for (const p of body.matchAll(/(?:positionalArgs|firstPositional)\([^;]*?\[([^\]]*)\]/g)) {
+    for (const s of (p[1] ?? "").matchAll(/"([a-z][a-z-]+)"/g)) if (s[1]) into.strings.add(s[1]);
   }
   // manyOf(rest, "flag") — repeatable raw-parsed list flags
   for (const p of body.matchAll(/manyOf\(\s*\w+,\s*"([a-z][a-z-]+)"\s*\)/g)) {
@@ -130,10 +127,7 @@ const SHARED_OPT_HELPERS: Readonly<
   Record<string, { strings: readonly string[]; bools: readonly string[] }>
 > = {
   // rbWriteOpts (rekordbox/cli-commands.ts): the playlist+group+apply/yes+json block
-  rbWriteOpts: {
-    strings: ["playlist", "group"],
-    bools: ["apply", "yes", "json"],
-  },
+  rbWriteOpts: { strings: ["playlist", "group"], bools: ["apply", "yes", "json"] },
   // parseAnalysisFlags (fulltags/cli-commands.ts, #316): the analysis
   // flag block shared by beats + catch-up — the nonNegOpt chain moved
   // INTO this helper, so the census must read the flags THROUGH it
@@ -185,9 +179,7 @@ function dispatchFlags(): Map<string, ArmFlags> {
     // "a" | "b") => async ...`) — one shared body parses the same flag
     // list for every verb it produces; stored under `name#body` so the
     // factory table rows below can resolve them.
-    for (const m of src.matchAll(
-      /^const (\w+)\s*=\s*\(command: [\w " |]+\): \w+ =>\s*$/gm,
-    )) {
+    for (const m of src.matchAll(/^const (\w+)\s*=\s*\(command: [\w " |]+\): \w+ =>\s*$/gm)) {
       const factory = m[1];
       if (!factory) continue;
       const body = bodyFrom(src, m.index ?? 0);
@@ -221,9 +213,7 @@ function dispatchFlags(): Map<string, ArmFlags> {
       // factory rows: `verb: factory("verb")` — the factory's own body
       // (a `const factory = (arg) => async (rest...)` arrow) carries the
       // flags; bind them to each produced verb.
-      for (const t of body.matchAll(
-        /^\s{2}([a-z][a-z-]+): (\w+)\("([a-z][a-z-]+)"\),$/gm,
-      )) {
+      for (const t of body.matchAll(/^\s{2}([a-z][a-z-]+): (\w+)\("([a-z][a-z-]+)"\),$/gm)) {
         const verb = t[1];
         const factory = t[2];
         if (!verb || !factory) continue;
@@ -240,9 +230,7 @@ function dispatchFlags(): Map<string, ArmFlags> {
       const body = bodyFrom(src, m.index ?? 0);
       const flags = emptyFlags();
       flagsFromBody(body, flags);
-      const verb = fn
-        .replace(/^runShelf/, "")
-        .replace(/^[A-Z]/, (c) => c.toLowerCase());
+      const verb = fn.replace(/^runShelf/, "").replace(/^[A-Z]/, (c) => c.toLowerCase());
       if (verb === "sync" || verb === "archive" || verb === "sweeps")
         out.set(`shelf-${verb}`, flags);
     }
@@ -268,9 +256,7 @@ describe("help-flag census (audit gap G1: help can't lie about flags)", () => {
     const problems: string[] = [];
     for (const { name, block } of entries) {
       const helpText = block.join(" ");
-      const advertised = [...helpText.matchAll(/--([a-z][a-z0-9-]+)/g)].map(
-        (m) => m[1] ?? "",
-      );
+      const advertised = [...helpText.matchAll(/--([a-z][a-z0-9-]+)/g)].map((m) => m[1] ?? "");
       for (const flag of advertised) {
         const known =
           flags.get(name)?.strings.has(flag) === true ||
@@ -303,8 +289,7 @@ describe("help-flag census (audit gap G1: help can't lie about flags)", () => {
         if ((HAND_PARSED[name] ?? []).includes(flag)) continue;
         // positional-anchor stringOpts name the command token / a
         // positional alias, not agent-facing option flags
-        if ((NOT_AGENT_FLAGS[name] ?? []).includes(flag) || flag === name)
-          continue;
+        if ((NOT_AGENT_FLAGS[name] ?? []).includes(flag) || flag === name) continue;
         problems.push(
           `${name}: arm accepts --${flag} but help never mentions it (a usable flag half the agent surface can't discover)`,
         );

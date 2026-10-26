@@ -40,8 +40,7 @@ function classifyRefoldPopulation(opts: GenreOptions): {
       continue;
     }
     if (isUmbrellaLabel(detail.label)) {
-      const casingOnly =
-        detail.label.toLowerCase() === row.genre.trim().toLowerCase();
+      const casingOnly = detail.label.toLowerCase() === row.genre.trim().toLowerCase();
       if (!detail.split && !casingOnly) {
         abstained++;
         continue;
@@ -69,13 +68,9 @@ function classifyRefoldPopulation(opts: GenreOptions): {
 }
 
 /** Propose or apply canonicalization over the labeled population. */
-export async function runGenreRefold(
-  opts: GenreOptions,
-  log: CommandLog,
-): Promise<boolean> {
+export async function runGenreRefold(opts: GenreOptions, log: CommandLog): Promise<boolean> {
   if (!opts.refold) return false;
-  const { labeled, changes, unstrand, unchanged, abstained } =
-    classifyRefoldPopulation(opts);
+  const { labeled, changes, unstrand, unchanged, abstained } = classifyRefoldPopulation(opts);
   log(
     `genre refold: ${changes.length} changeable of ${labeled.length} labeled (${abstained} umbrella rows kept honest, ${unchanged} already canonical, ${unstrand.length} placeholder rows to unstrand) — ${opts.apply ? "WRITTEN" : "proposals only (use --apply to write)"}`,
   );
@@ -93,10 +88,8 @@ export async function runGenreRefold(
     samples: changes.slice(0, 40),
   });
   if (opts.apply) {
-    for (const change of changes)
-      opts.state.updateGenre(change.video_id, change.to);
-    for (const placeholder of unstrand)
-      opts.state.clearGenre(placeholder.video_id);
+    for (const change of changes) opts.state.updateGenre(change.video_id, change.to);
+    for (const placeholder of unstrand) opts.state.clearGenre(placeholder.video_id);
   }
   return true;
 }

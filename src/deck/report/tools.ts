@@ -16,18 +16,7 @@ import {
   MEGASET_PRESET_IDS,
   MEGASET_POOL_MAX,
 } from "../shared/types";
-import {
-  str,
-  num,
-  optLimit,
-  optNum,
-  RpcParamError,
-  obj,
-  noArgs,
-  s,
-  sArr,
-  n,
-} from "../mcp/params";
+import { str, num, optLimit, optNum, RpcParamError, obj, noArgs, s, sArr, n } from "../mcp/params";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 
 /** The archive_* + megaset/getdat-adjacent tool table (O82b: readonly
@@ -45,8 +34,7 @@ function setLimitParam(
   const rawLimit = args.limit;
   if (rawLimit !== undefined) {
     const parsedLimit = numFn(args, "limit");
-    if (parsedLimit === undefined)
-      throw new RpcParamError("limit must be a finite number");
+    if (parsedLimit === undefined) throw new RpcParamError("limit must be a finite number");
     q.set("limit", String(clampMegasetPool(parsedLimit)));
   }
 }
@@ -67,16 +55,12 @@ export function archiveTools(): Record<string, ToolDef> {
       description:
         "Search megadj's downloaded archive by artist/title/album/file path (case-insensitive substring, min 2 chars). Read-only.",
       inputSchema: obj(
-        {
-          q: s("search text (≥2 chars)"),
-          limit: n("max rows (default 50, max 200)"),
-        },
+        { q: s("search text (≥2 chars)"), limit: n("max rows (default 50, max 200)") },
         ["q"],
       ),
       run: async (args: Record<string, unknown>) => {
         const q = str(args, "q");
-        if (!q || q.trim().length < 2)
-          throw new RpcParamError("q must be at least 2 characters");
+        if (!q || q.trim().length < 2) throw new RpcParamError("q must be at least 2 characters");
         const res = await apiGet(
           `/api/archive/search?q=${encodeURIComponent(q)}&limit=${num(args, "limit") ?? 50}`,
         );
@@ -91,11 +75,8 @@ export function archiveTools(): Record<string, ToolDef> {
       run: async (args: Record<string, unknown>) => {
         const id = str(args, "video_id");
         if (!id) throw new RpcParamError("video_id is required");
-        const res = await apiGet(
-          `/api/archive/track?id=${encodeURIComponent(id)}`,
-        );
-        if (res.status === 404)
-          throw new RpcParamError(`no archive track with video_id ${id}`);
+        const res = await apiGet(`/api/archive/track?id=${encodeURIComponent(id)}`);
+        if (res.status === 404) throw new RpcParamError(`no archive track with video_id ${id}`);
         return res.json();
       },
     },
@@ -104,8 +85,7 @@ export function archiveTools(): Record<string, ToolDef> {
       description:
         "Ingest pipeline health: per-status track counts, last 5 sync runs (downloaded/failed/gone), 10 most recently updated tracks. Answers 'what did I ingest lately'. Read-only.",
       inputSchema: noArgs(),
-      run: async () =>
-        apiGet("/api/archive/ingest-status").then((r) => r.json()),
+      run: async () => apiGet("/api/archive/ingest-status").then((r) => r.json()),
     },
 
     archive_lowq_queue: {
@@ -118,13 +98,9 @@ export function archiveTools(): Record<string, ToolDef> {
     archive_skip_census: {
       description:
         "[READ-ONLY] Why non-downloaded archive rows didn't land: buckets every gone/skipped track by its recorded reason (YouTube 'video unavailable', ingest 'category: …' skips, etc.). gone= actionables (re-source or drop); skipped= deliberate not-music skips. Answers 'what does the pipeline decide about my liked list'.",
-      inputSchema: obj({
-        limit: n("max buckets per kind (default 12, max 50)"),
-      }),
+      inputSchema: obj({ limit: n("max buckets per kind (default 12, max 50)") }),
       run: async (args: Record<string, unknown>) => {
-        const res = await apiGet(
-          `/api/archive/skip-census?limit=${optLimit(args, 12, 50)}`,
-        );
+        const res = await apiGet(`/api/archive/skip-census?limit=${optLimit(args, 12, 50)}`);
         return res.json();
       },
     },
@@ -140,22 +116,17 @@ export function archiveTools(): Record<string, ToolDef> {
       description:
         "[READ-ONLY] Analysis coverage in one read: how many downloaded tracks exist vs how many carry beats / mood / cues ledger rows. null = that ledger doesn't exist yet (pre-analysis DB). The 'is the whole archive analyzed' gate for agents deciding whether to run megadj beats|mood|cues.",
       inputSchema: noArgs(),
-      run: async () =>
-        apiGet("/api/archive/analysis-coverage").then((r) => r.json()),
+      run: async () => apiGet("/api/archive/analysis-coverage").then((r) => r.json()),
     },
 
     archive_source_diff: {
       description:
         "Diff two archive sources (e.g. 'liked' vs 'PLxxxx…'): video ids only in one of them, and the shared count. Read-only.",
-      inputSchema: obj(
-        { a: s("first source tag"), b: s("second source tag") },
-        ["a", "b"],
-      ),
+      inputSchema: obj({ a: s("first source tag"), b: s("second source tag") }, ["a", "b"]),
       run: async (args: Record<string, unknown>) => {
         const a = str(args, "a");
         const b = str(args, "b");
-        if (!a || !b)
-          throw new RpcParamError("a and b source tags are required");
+        if (!a || !b) throw new RpcParamError("a and b source tags are required");
         const res = await apiGet(
           `/api/archive/source-diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`,
         );
@@ -166,13 +137,9 @@ export function archiveTools(): Record<string, ToolDef> {
     archive_grid_cross_check: {
       description:
         "[READ-ONLY] Independent beatgrid cross-check: beat_this beat arrays (megadj beats ledger) fitted to a constant tempo and compared against each track's rekordbox BPM. Returns ok/off/octave/drift verdicts and offender lists — 'off' = grid tempo >2% from RB, 'octave' = grid locked half/double tempo, 'drift' = grid slides >15 ms positionally across the track (wrong tempo — the class count-based checks can't see). Empty ledgered=0 means run `megadj beats` first.",
-      inputSchema: obj({
-        limit: n("max tracks to check (default 200, max 500)"),
-      }),
+      inputSchema: obj({ limit: n("max tracks to check (default 200, max 500)") }),
       run: async (args: Record<string, unknown>) => {
-        const res = await apiGet(
-          `/api/archive/grid-cross-check?limit=${optLimit(args, 200, 500)}`,
-        );
+        const res = await apiGet(`/api/archive/grid-cross-check?limit=${optLimit(args, 200, 500)}`);
         return res.json();
       },
     },
@@ -180,13 +147,9 @@ export function archiveTools(): Record<string, ToolDef> {
     archive_mood_profile: {
       description:
         "[READ-ONLY] Mood / dance / valence profile of the archive (roadmap #4): ledger averages (danceability, valence, arousal, party, electronic, aggressive) + the highest/lowest tracks per axis — 'play me something dark/hyped/smooth' picker data from megadj's mood ledger (TXXX:MOOD mirror). analyzed=0 means run `megadj mood` first.",
-      inputSchema: obj({
-        limit: n("extremes per axis, high+low each (default 5, max 25)"),
-      }),
+      inputSchema: obj({ limit: n("extremes per axis, high+low each (default 5, max 25)") }),
       run: async (args: Record<string, unknown>) => {
-        const res = await apiGet(
-          `/api/archive/mood?limit=${optLimit(args, 5, 25)}`,
-        );
+        const res = await apiGet(`/api/archive/mood?limit=${optLimit(args, 5, 25)}`);
         return res.json();
       },
     },
@@ -206,8 +169,7 @@ export function archiveTools(): Record<string, ToolDef> {
         const id = str(args, "id");
         if (!id) throw new RpcParamError("id is required");
         const space = args.space === undefined ? "raw" : String(args.space);
-        if (!isSimilarSpace(space))
-          throw new RpcParamError("space must be raw or whitened");
+        if (!isSimilarSpace(space)) throw new RpcParamError("space must be raw or whitened");
         const res = await apiGet(
           `/api/archive/similar?id=${encodeURIComponent(id)}&k=${optNum(args, "k", 10, 50)}&space=${space}`,
         );
@@ -285,17 +247,14 @@ export function archiveTools(): Record<string, ToolDef> {
             throw new RpcParamError("landmarks must be an array of video_ids");
           for (const id of landmarks as unknown[]) {
             if (typeof id !== "string" || id.trim() === "")
-              throw new RpcParamError(
-                "landmarks must be an array of video_id strings",
-              );
+              throw new RpcParamError("landmarks must be an array of video_id strings");
             q.append("landmark", id.trim());
           }
         }
         setLimitParam(args, q, num);
         // S14 (#288): N-candidates mode — pass through to the route
         const candidateCount = num(args, "candidates");
-        if (candidateCount !== undefined)
-          q.set("candidates", String(candidateCount));
+        if (candidateCount !== undefined) q.set("candidates", String(candidateCount));
         const res = await apiGet(`/api/archive/megaset?${q.toString()}`);
         return res.json();
       },
@@ -330,9 +289,7 @@ export function archiveTools(): Record<string, ToolDef> {
           const ids: string[] = [];
           for (const f of families as unknown[]) {
             if (typeof f !== "string" || f.trim() === "")
-              throw new RpcParamError(
-                "families must be an array of family-id strings",
-              );
+              throw new RpcParamError("families must be an array of family-id strings");
             ids.push(f.trim());
           }
           if (ids.length > 0) q.set("families", ids.join(","));
@@ -340,9 +297,7 @@ export function archiveTools(): Record<string, ToolDef> {
         setLimitParam(args, q, num);
         const qs = q.toString();
         const res = await apiGet(
-          qs === ""
-            ? "/api/archive/megaset-cohorts"
-            : `/api/archive/megaset-cohorts?${qs}`,
+          qs === "" ? "/api/archive/megaset-cohorts" : `/api/archive/megaset-cohorts?${qs}`,
         );
         return res.json();
       },
@@ -351,13 +306,9 @@ export function archiveTools(): Record<string, ToolDef> {
     archive_cue_ledger: {
       description:
         "[READ-ONLY] Structure-cues ledger (roadmap 'structure cues'): 8-bar DJ phrase markers per track, derived from the beats ledger's downbeats by `megadj cues`. Returns per-track cue counts + the freshest tracks' first-cue positions. analyzed=0 means run `megadj cues` first.",
-      inputSchema: obj({
-        limit: n("max tracks to list (default 40, max 200)"),
-      }),
+      inputSchema: obj({ limit: n("max tracks to list (default 40, max 200)") }),
       run: async (args: Record<string, unknown>) => {
-        const res = await apiGet(
-          `/api/archive/cues?limit=${optLimit(args, 40, 200)}`,
-        );
+        const res = await apiGet(`/api/archive/cues?limit=${optLimit(args, 40, 200)}`);
         return res.json();
       },
     },
@@ -365,13 +316,9 @@ export function archiveTools(): Record<string, ToolDef> {
     archive_library_overview: {
       description:
         "[READ-ONLY] FullTags read side — what the enrichment engine has stamped across the playable archive: genre distribution, year coverage, energy stamps, artwork provenance (which art-ladder rung each track's cover came from), codec/size profile, and the freshest tag updates. Read-only mirror of the file tags; run `megadj fetch` / `megadj enrich` to fill gaps this shows.",
-      inputSchema: obj({
-        recent: n("recently-updated tracks to list (default 12, max 100)"),
-      }),
+      inputSchema: obj({ recent: n("recently-updated tracks to list (default 12, max 100)") }),
       run: async (args: Record<string, unknown>) => {
-        const res = await apiGet(
-          `/api/archive/library?recent=${optLimit(args, 12, 100)}`,
-        );
+        const res = await apiGet(`/api/archive/library?recent=${optLimit(args, 12, 100)}`);
         return res.json();
       },
     },
@@ -380,14 +327,10 @@ export function archiveTools(): Record<string, ToolDef> {
       description:
         "[READ-ONLY] FullTags ↔ rekordbox tag census: every playable track's DB mirrors compared (archive tracks.genre/track_keys/beats vs the rb-adopt rekordbox_content mirror — genre, key, BPM, title, artist, year, label). Returns per-track difference lists + per-field disagreement counts, worst first. Pure DB — files are NOT read on this path (per-file ground truth lives in archive_tag_compare). rekordboxMirror:false means `megadj rb-adopt` never ran.",
       inputSchema: obj({
-        limit: n(
-          "rows to return (default 200; census totals are always full-population)",
-        ),
+        limit: n("rows to return (default 200; census totals are always full-population)"),
       }),
       run: async (args: Record<string, unknown>) => {
-        const res = await apiGet(
-          `/api/archive/tag-census?limit=${optLimit(args, 200, 2000)}`,
-        );
+        const res = await apiGet(`/api/archive/tag-census?limit=${optLimit(args, 200, 2000)}`);
         return res.json();
       },
     },
@@ -395,14 +338,10 @@ export function archiveTools(): Record<string, ToolDef> {
     archive_tag_compare: {
       description:
         "[READ-ONLY] One track, three sources side by side: the physical FILE's live tags (ffprobe+mutagen ground truth), the archive DB mirror (FullTags genre/genre_flag/energy + beats BPM + mood), and the rekordbox mirror row (rb-adopt payload: Title/ArtistName/GenreName/KeyName/BPM/ReleaseYear/LabelName/Commnt + the lossless metadata dict). Returns each source's values plus a precomputed differences table. The per-track ground-truth read is the expensive twin of the census — call this for the ONE track you're auditing.",
-      inputSchema: obj({
-        id: s("video_id of the track (archive_search_tracks finds them)"),
-      }),
+      inputSchema: obj({ id: s("video_id of the track (archive_search_tracks finds them)") }),
       run: async (args: Record<string, unknown>) => {
         const id = requireId(args);
-        const res = await apiGet(
-          `/api/archive/tag-compare?id=${encodeURIComponent(id)}`,
-        );
+        const res = await apiGet(`/api/archive/tag-compare?id=${encodeURIComponent(id)}`);
         return res.json();
       },
     },
@@ -417,14 +356,10 @@ export function archiveTools(): Record<string, ToolDef> {
     archive_genre_why: {
       description:
         "[READ-ONLY] #215 explainability read: one track's #173 weighted genre vote-ladder breakdown. Every rung's claim (rung, genre, weight, elected flag, provenance detail) is returned, re-elected through the SAME seam the write path used (`electGenre`) so the replay always matches the stored genre — plus matches_db drift detection, and an honest voted:false empty-state for never-voted tracks. Answers 'why Techno?' from the row, not from code.",
-      inputSchema: obj({
-        id: s("video_id of the track (archive_search_tracks finds them)"),
-      }),
+      inputSchema: obj({ id: s("video_id of the track (archive_search_tracks finds them)") }),
       run: async (args: Record<string, unknown>) => {
         const id = requireId(args);
-        const res = await apiGet(
-          `/api/archive/genre-why?id=${encodeURIComponent(id)}`,
-        );
+        const res = await apiGet(`/api/archive/genre-why?id=${encodeURIComponent(id)}`);
         return res.json();
       },
     },

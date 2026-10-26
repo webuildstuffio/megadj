@@ -25,9 +25,7 @@ afterAll(() => {
 describe("ingest fingerprint dedupe", () => {
   test("same recording as mp3 re-encode quarantines vs the wav original", async () => {
     const dump = join(DB_DIR, "dump");
-    const wav = ffmpegTone(join(dump, "Good Track [Radio Edit].wav"), {
-      title: "Good Track",
-    });
+    const wav = ffmpegTone(join(dump, "Good Track [Radio Edit].wav"), { title: "Good Track" });
     // Re-encode to mp3: different container, different bytes, different
     // size, different extension — but the SAME decoded recording.
     ffmpegTone(join(dump, "good track rip.mp3"), {
@@ -38,12 +36,7 @@ describe("ingest fingerprint dedupe", () => {
     });
 
     const { state } = ts.next();
-    await ingest({
-      state,
-      musicDir: ARCHIVE,
-      folder: dump,
-      minDuration: 10,
-    });
+    await ingest({ state, musicDir: ARCHIVE, folder: dump, minDuration: 10 });
     state.close();
 
     const batch = readdirSync(ARCHIVE, { withFileTypes: true })

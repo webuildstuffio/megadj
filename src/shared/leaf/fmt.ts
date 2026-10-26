@@ -41,8 +41,7 @@ export const round2 = (v: number): number => Math.round(v * 100) / 100;
 export const round3 = (v: number): number => Math.round(v * 1000) / 1000;
 
 /** Round to 3dp, null degrades to 0 (wire payloads where null = absent). */
-export const round3n = (v: number | null): number =>
-  Math.round((v ?? 0) * 1000) / 1000;
+export const round3n = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
 
 /** Round to 4 decimal places (embedding scores, vote weights). */
 export const round4 = (v: number): number => Math.round(v * 10000) / 10000;
@@ -63,15 +62,9 @@ export function fmtPct(x: number): string {
 }
 
 /** Split after rounding the total, so seconds always stay within 0..59. */
-function roundedDurationParts(s: number): {
-  minutes: number;
-  seconds: number;
-} {
+function roundedDurationParts(s: number): { minutes: number; seconds: number } {
   const totalSeconds = Math.round(s);
-  return {
-    minutes: Math.floor(totalSeconds / 60),
-    seconds: totalSeconds % 60,
-  };
+  return { minutes: Math.floor(totalSeconds / 60), seconds: totalSeconds % 60 };
 }
 
 /** m:ss for durations given in seconds. */
@@ -103,11 +96,7 @@ export function fmtWhen(ts: number): string {
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
-  const time = d.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   if (sameDay) return `today ${time}`;
   return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
 }
@@ -119,8 +108,7 @@ export function fmtEventData(data: Record<string, unknown>): string {
     if (k === "dismissed_at") return null; // O88: dismissal is UI state, not text
     if (Array.isArray(v)) return `${k}×${v.length}`;
     if (typeof v === "object") return null;
-    if (typeof v === "string" && v.length > 120)
-      return `${k} ${v.slice(0, 117)}…`;
+    if (typeof v === "string" && v.length > 120) return `${k} ${v.slice(0, 117)}…`;
     return `${k} ${String(v)}`;
   });
   const out = parts.filter((x): x is string => x !== null);

@@ -5,19 +5,11 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { writeFileSync, readFileSync } from "node:fs";
-import {
-  printRbPlaylistReport,
-  rbPlaylist,
-  __test,
-  type RbPlaylistResult,
-} from "./rb-playlist";
+import { printRbPlaylistReport, rbPlaylist, __test, type RbPlaylistResult } from "./rb-playlist";
 import { renderKitMarkers } from "./rb-command-kit";
 import { tempDir } from "../test-support/testutil";
 
-const scriptsSource = readFileSync(
-  join(import.meta.dir, "rb-playlist-scripts.ts"),
-  "utf8",
-);
+const scriptsSource = readFileSync(join(import.meta.dir, "rb-playlist-scripts.ts"), "utf8");
 
 /** The RENDERED write/predict programs — kit markers resolved exactly as
  *  rbPythonFile does at spawn time (#194 corpus extraction). */
@@ -38,20 +30,14 @@ const lines = (r: RbPlaylistResult): string[] => {
 
 describe("rb-playlist gates", () => {
   test("--apply without --yes is refused before any I/O", async () => {
-    const r = await rbPlaylist({
-      mount: "/definitely-not-a-volume",
-      apply: true,
-    });
+    const r = await rbPlaylist({ mount: "/definitely-not-a-volume", apply: true });
     expect(r.ok).toBe(false);
     expect(r.error).toContain("--apply requires --yes");
     expect(r.db).toContain("PIONEER");
   });
 
   test("bad preset is a validation error (same parser as setbuild)", async () => {
-    const r = await rbPlaylist({
-      mount: "/definitely-not-a-volume",
-      preset: "nope",
-    });
+    const r = await rbPlaylist({ mount: "/definitely-not-a-volume", preset: "nope" });
     expect(r.ok).toBe(false);
     expect(r.error).toContain("preset");
   });
@@ -109,8 +95,7 @@ describe("rb-playlist report contract", () => {
       unmatched: [
         {
           title: "Only Track",
-          reason:
-            "no content row in master — run the fullpush import for it first",
+          reason: "no content row in master — run the fullpush import for it first",
         },
       ],
       cueWindows: [
@@ -168,11 +153,7 @@ describe("rb-playlist report contract", () => {
       linked: 0,
       unmatched: [],
       cueWindows: [
-        {
-          title: "Cued Opener",
-          mixIn: "45s @ bar 25",
-          mixOut: "107s @ bar 57",
-        },
+        { title: "Cued Opener", mixIn: "45s @ bar 25", mixOut: "107s @ bar 57" },
         { title: "Cueless Track", mixIn: null, mixOut: null },
       ],
       playlistId: null,
@@ -205,9 +186,7 @@ describe("rb-playlist subprocess boundaries", () => {
         }),
       ).playlistId,
     ).toBe(id);
-    expect(renderKitMarkers(writeScriptSource)).toContain(
-      'out["playlistId"] = str(pl.ID)',
-    );
+    expect(renderKitMarkers(writeScriptSource)).toContain('out["playlistId"] = str(pl.ID)');
     expect(writeScriptSource).toContain("from pyrekordbox.db6.tables import");
     expect(writeScriptSource).toContain("DjmdSongPlaylist");
     // #88 item 2: builders/parsers live in rb-playlist-scripts.ts; #194:
@@ -226,19 +205,11 @@ describe("rb-playlist subprocess boundaries", () => {
 
   test("a failed or malformed dry-run probe is a hard error", () => {
     expect(() =>
-      __test.parsePredictionProcess({
-        status: 2,
-        stdout: "",
-        stderr: "cannot open master",
-      }),
+      __test.parsePredictionProcess({ status: 2, stdout: "", stderr: "cannot open master" }),
     ).toThrow("match probe failed");
-    expect(() =>
-      __test.parsePredictionProcess({
-        status: 0,
-        stdout: "{}",
-        stderr: "",
-      }),
-    ).toThrow("invalid result");
+    expect(() => __test.parsePredictionProcess({ status: 0, stdout: "{}", stderr: "" })).toThrow(
+      "invalid result",
+    );
   });
 
   test("verify counters and contiguity are strongly typed", () => {
@@ -246,9 +217,7 @@ describe("rb-playlist subprocess boundaries", () => {
       rows: 2,
       contiguous: true,
     });
-    expect(() =>
-      __test.parseVerifyOutput('{"rows":"2","contiguous":true}'),
-    ).toThrow();
+    expect(() => __test.parseVerifyOutput('{"rows":"2","contiguous":true}')).toThrow();
   });
 
   test("the requested group is matched at the root only, via the kit ladder", () => {
@@ -278,9 +247,7 @@ describe("rb-playlist chain→payload shape", () => {
     const prediction = renderKitMarkers(predictScriptSource);
     expect(script).toContain('path = path_key(track["path"])');
     expect(script).toContain("return nfc(s).casefold()");
-    expect(script).toContain(
-      "expected_parent_id = parent.ID if parent is not None else 0",
-    );
+    expect(script).toContain("expected_parent_id = parent.ID if parent is not None else 0");
     expect(script).toContain("str(p.ParentID or 0) == str(expected_parent_id)");
     expect(prediction).toContain("return nfc(s).casefold()");
     expect(prediction).toContain('path = path_key(track["path"])');
@@ -293,9 +260,7 @@ describe("rb-playlist chain→payload shape", () => {
     const p = join(dir, "payload.json");
     writeFileSync(
       p,
-      JSON.stringify({
-        chain: [{ path: "/archive/a.mp3", base: "a.mp3", title: "A" }],
-      }),
+      JSON.stringify({ chain: [{ path: "/archive/a.mp3", base: "a.mp3", title: "A" }] }),
     );
     const parsed = JSON.parse(await Bun.file(p).text()) as {
       chain: { path: string; base: string }[];
@@ -306,17 +271,11 @@ describe("rb-playlist chain→payload shape", () => {
 });
 
 describe("#283-followup: option passthrough integrity", () => {
-  const rbSource = readFileSync(
-    join(import.meta.dir, "rb-playlist.ts"),
-    "utf8",
-  );
+  const rbSource = readFileSync(join(import.meta.dir, "rb-playlist.ts"), "utf8");
   // #316: the options/result CONTRACT moved to rb-playlist-types.ts —
   // the passthrough pin reads both files so the flag chain stays pinned
   // wherever the shape lives.
-  const typesSource = readFileSync(
-    join(import.meta.dir, "rb-playlist-types.ts"),
-    "utf8",
-  );
+  const typesSource = readFileSync(join(import.meta.dir, "rb-playlist-types.ts"), "utf8");
 
   test("--search reaches the engine (it parsed but was never forwarded — a silent no-op flag)", () => {
     // Regression: rb-playlist accepted --search at the CLI but buildMegaset
@@ -325,9 +284,7 @@ describe("#283-followup: option passthrough integrity", () => {
     // tracks). Pin the full forwarding chain by source: CLI parses the
     // flag, dispatch forwards it, engine call consumes it.
     const cli = readFileSync(join(import.meta.dir, "cli-commands.ts"), "utf8");
-    expect(cli).toContain(
-      'parseMegasetSearchOverride(flags.strings.get("search"))',
-    );
+    expect(cli).toContain('parseMegasetSearchOverride(flags.strings.get("search"))');
     expect(rbSource).toContain("searchOverride: opts.search");
     expect(typesSource).toContain("search?: SetSearchOverride | undefined");
   });
@@ -337,8 +294,6 @@ describe("#283-followup: option passthrough integrity", () => {
     // (378-shelf-rescue) as missing → smaller pool → shorter chain. The
     // constructor now receives the same configured root the megaset CLI
     // passes.
-    expect(rbSource).toContain(
-      'join(cfg.volumesRoot, cfg.shelfDrive, "Contents")',
-    );
+    expect(rbSource).toContain('join(cfg.volumesRoot, cfg.shelfDrive, "Contents")');
   });
 });

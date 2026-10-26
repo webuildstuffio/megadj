@@ -15,16 +15,12 @@ export const GETDAT_COMMAND_DOCS: readonly CommandDocEntry[] = [
   {
     name: "status",
     group: "getdat",
-    block: [
-      "  megadj status [--json]                       archive summary + recent runs",
-    ],
+    block: ["  megadj status [--json]                       archive summary + recent runs"],
   },
   {
     name: "list",
     group: "getdat",
-    block: [
-      "  megadj list    [filter] [--json]             list tracks (by status or text)",
-    ],
+    block: ["  megadj list    [filter] [--json]             list tracks (by status or text)"],
   },
   {
     name: "adopt",

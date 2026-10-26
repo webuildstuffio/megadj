@@ -76,18 +76,15 @@ describe("buildReviewQueue", () => {
   });
 
   test("maxItems limits output", () => {
-    const summaries: EvidenceSummary[] = Array.from(
-      { length: 200 },
-      (_, i) => ({
-        trackId: `t${i}`,
-        title: `Track ${i}`,
-        artist: "A",
-        dbGenre: "house",
-        posteriorFamily: "house",
-        posteriorConfidence: 0.5,
-        evidenceFamilies: ["house"],
-      }),
-    );
+    const summaries: EvidenceSummary[] = Array.from({ length: 200 }, (_, i) => ({
+      trackId: `t${i}`,
+      title: `Track ${i}`,
+      artist: "A",
+      dbGenre: "house",
+      posteriorFamily: "house",
+      posteriorConfidence: 0.5,
+      evidenceFamilies: ["house"],
+    }));
     const queue = buildReviewQueue(summaries, 50);
     expect(queue).toHaveLength(50);
   });

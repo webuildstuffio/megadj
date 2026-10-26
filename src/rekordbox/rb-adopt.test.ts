@@ -10,12 +10,7 @@ import { tempDir, stateIn } from "../test-support/testutil";
 const t = tempDir("megadj-rb-adopt-").rippable();
 afterAll(() => t.rippleAll());
 
-function fixture(): {
-  root: string;
-  state: ArchiveState;
-  existingPath: string;
-  newPath: string;
-} {
+function fixture(): { root: string; state: ArchiveState; existingPath: string; newPath: string } {
   const root = t.dir();
   const existingPath = join(root, "existing.aiff");
   const newPath = join(root, "new.mp3");
@@ -118,16 +113,11 @@ describe("rb-adopt", () => {
       expect(applied).toMatchObject({ ok: true, total: 3, applied: 3 });
       expect(applied.backedUpTo).not.toBeNull();
       expect(existsSync(applied.backedUpTo!)).toBe(true);
-      const backup = new Database(applied.backedUpTo!, {
-        readonly: true,
-        create: false,
-      });
+      const backup = new Database(applied.backedUpTo!, { readonly: true, create: false });
       try {
-        expect(
-          backup.query("SELECT COUNT(*) AS n FROM tracks").get() as {
-            n: number;
-          },
-        ).toEqual({ n: 1 });
+        expect(backup.query("SELECT COUNT(*) AS n FROM tracks").get() as { n: number }).toEqual({
+          n: 1,
+        });
       } finally {
         backup.close();
       }
@@ -147,11 +137,9 @@ describe("rb-adopt", () => {
       });
       expect(result.ok).toBe(false);
       expect(result.error).toContain("empty");
-      expect(
-        state.db.query("SELECT COUNT(*) AS n FROM tracks").get() as {
-          n: number;
-        },
-      ).toEqual({ n: 1 });
+      expect(state.db.query("SELECT COUNT(*) AS n FROM tracks").get() as { n: number }).toEqual({
+        n: 1,
+      });
     } finally {
       state.close();
     }
@@ -177,16 +165,12 @@ describe("rb-adopt", () => {
         missingFiles: 0,
         applied: 0,
       });
-      expect(
-        state.db.query("SELECT COUNT(*) AS n FROM tracks").get() as {
-          n: number;
-        },
-      ).toEqual({ n: 1 });
+      expect(state.db.query("SELECT COUNT(*) AS n FROM tracks").get() as { n: number }).toEqual({
+        n: 1,
+      });
       expect(
         state.db
-          .query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='rekordbox_content'",
-          )
+          .query("SELECT name FROM sqlite_master WHERE type='table' AND name='rekordbox_content'")
           .get(),
       ).toBeNull();
     } finally {
@@ -204,28 +188,15 @@ describe("rb-adopt", () => {
         rows: input,
         apply: true,
       });
-      expect(first).toMatchObject({
-        ok: true,
-        total: 3,
-        linked: 3,
-        created: 1,
-        applied: 3,
-      });
+      expect(first).toMatchObject({ ok: true, total: 3, linked: 3, created: 1, applied: 3 });
 
       const tracks = state.db
-        .query(
-          "SELECT video_id, file_path, source, status FROM tracks ORDER BY video_id",
-        )
-        .all() as {
-        video_id: string;
-        file_path: string;
-        source: string;
-        status: string;
-      }[];
+        .query("SELECT video_id, file_path, source, status FROM tracks ORDER BY video_id")
+        .all() as { video_id: string; file_path: string; source: string; status: string }[];
       expect(tracks).toHaveLength(2);
-      expect(
-        tracks.find((row) => row.file_path === existingPath)?.video_id,
-      ).toBe("youtube-real-id");
+      expect(tracks.find((row) => row.file_path === existingPath)?.video_id).toBe(
+        "youtube-real-id",
+      );
       expect(tracks.find((row) => row.file_path === newPath)).toMatchObject({
         video_id: "rb-1002",
         source: "rekordbox",
@@ -236,22 +207,12 @@ describe("rb-adopt", () => {
         .query(
           "SELECT content_id, video_id, metadata_json FROM rekordbox_content ORDER BY content_id",
         )
-        .all() as {
-        content_id: string;
-        video_id: string;
-        metadata_json: string;
-      }[];
+        .all() as { content_id: string; video_id: string; metadata_json: string }[];
       expect(links).toHaveLength(3);
-      expect(links[0]).toMatchObject({
-        content_id: "1001",
-        video_id: "youtube-real-id",
-      });
+      expect(links[0]).toMatchObject({ content_id: "1001", video_id: "youtube-real-id" });
       expect(links[1]?.video_id).toBe("rb-1002");
       expect(links[2]?.video_id).toBe("rb-1002");
-      expect(JSON.parse(links[0]!.metadata_json)).toMatchObject({
-        ID: "1001",
-        Rating: 5,
-      });
+      expect(JSON.parse(links[0]!.metadata_json)).toMatchObject({ ID: "1001", Rating: 5 });
 
       state.db
         .query(
@@ -270,15 +231,11 @@ describe("rb-adopt", () => {
       });
       expect(second.created).toBe(0);
       expect(second.staleLinksRemoved).toBe(1);
+      expect(state.db.query("SELECT COUNT(*) AS n FROM tracks").get() as { n: number }).toEqual({
+        n: 2,
+      });
       expect(
-        state.db.query("SELECT COUNT(*) AS n FROM tracks").get() as {
-          n: number;
-        },
-      ).toEqual({ n: 2 });
-      expect(
-        state.db.query("SELECT COUNT(*) AS n FROM rekordbox_content").get() as {
-          n: number;
-        },
+        state.db.query("SELECT COUNT(*) AS n FROM rekordbox_content").get() as { n: number },
       ).toEqual({ n: 3 });
       expect(existsSync(existingPath)).toBe(true);
       expect(existsSync(newPath)).toBe(true);
@@ -304,9 +261,7 @@ describe("rb-adopt", () => {
     expect(rekordboxCodec({ FileType: 99 })).toBeNull();
     expect(rekordboxCodec({})).toBeNull();
     // .m4a name with FileType 11 (WAV) = WAV — extensions lie
-    expect(
-      rekordboxCodec({ FileType: 11, BitDepth: 16, FileNameL: "x.m4a" }),
-    ).toBe("pcm_s16le");
+    expect(rekordboxCodec({ FileType: 11, BitDepth: 16, FileNameL: "x.m4a" })).toBe("pcm_s16le");
   });
 
   test("re-adopt backfills codec on pre-existing mirror rows", () => {
@@ -337,9 +292,7 @@ describe("rb-adopt", () => {
       });
       expect(again.ok).toBe(true);
       const codecs = state.db
-        .query(
-          "SELECT video_id, codec FROM tracks WHERE status = 'downloaded' ORDER BY video_id",
-        )
+        .query("SELECT video_id, codec FROM tracks WHERE status = 'downloaded' ORDER BY video_id")
         .all() as { video_id: string; codec: string | null }[];
       expect(codecs).toEqual([
         { video_id: "rb-1002", codec: "mp3" },

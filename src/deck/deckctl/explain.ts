@@ -33,8 +33,7 @@ export async function cmdExplain(
     return;
   }
   if (!kind) {
-    for (const [name, doc] of Object.entries(KIND_DOCS))
-      printKindDoc(name, doc, log);
+    for (const [name, doc] of Object.entries(KIND_DOCS)) printKindDoc(name, doc, log);
     return;
   }
   const doc = KIND_DOCS[kind];

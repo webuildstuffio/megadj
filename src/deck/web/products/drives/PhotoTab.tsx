@@ -36,8 +36,8 @@ export function PhotoTab(props: {
   return (
     <div>
       <div class="note">
-        <Icon name="photo" size={14} /> Pick a cover photo for this drive's card
-        — saved to <b>both</b> your Mac and the stick itself
+        <Icon name="photo" size={14} /> Pick a cover photo for this drive's card — saved to{" "}
+        <b>both</b> your Mac and the stick itself
         {mounted ? (
           <> (Contents/CrateDeck/), so it travels with the hardware.</>
         ) : (
@@ -47,14 +47,7 @@ export function PhotoTab(props: {
         )}
       </div>
       {props.drive.photo_path ? (
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            margin: "8px 0",
-          }}
-        >
+        <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "8px 0" }}>
           <img
             src={`/photos/${props.driveId}?v=${encodeURIComponent(
               `${String(props.drive.last_seen_at ?? "")}:${Date.now()}`,
@@ -72,15 +65,12 @@ export function PhotoTab(props: {
           />
         </div>
       ) : (
-        <div
-          class="note-card"
-          style={{ margin: "8px 0", padding: "22px 16px" }}
-        >
+        <div class="note-card" style={{ margin: "8px 0", padding: "22px 16px" }}>
           <Icon name="photo" size={22} />
           <b>No cover photo yet</b>
           <span>
-            Upload one below, pick an image off the drive, or search the web —
-            it shows on this drive's card and travels on the stick.
+            Upload one below, pick an image off the drive, or search the web — it shows on this
+            drive's card and travels on the stick.
           </span>
         </div>
       )}
@@ -97,17 +87,13 @@ export function PhotoTab(props: {
             (e.target as HTMLInputElement).value = "";
           }}
         />
-        <button
-          type="button"
-          class="btn"
-          onClick={() => fileInput.current?.click()}
-        >
+        <button type="button" class="btn" onClick={() => fileInput.current?.click()}>
           <Icon name="photo" size={14} /> Upload from Mac…
         </button>
       </div>
       <div class="note">
-        <Icon name="photo" size={14} /> Click a thumbnail to set it as the cover
-        — or Tab to one and press Enter (the web results below work the same).
+        <Icon name="photo" size={14} /> Click a thumbnail to set it as the cover — or Tab to one and
+        press Enter (the web results below work the same).
       </div>
       <h3 class="sect" style={{ marginTop: 14 }}>
         <Icon name="usb" size={14} /> On this drive
@@ -121,8 +107,7 @@ export function PhotoTab(props: {
               type="button"
               class="photopick-btn"
               title={`${img.rel} — set as cover`}
-              onClick={() => props.onChooseDriveImage(img.rel)}
-            >
+              onClick={() => props.onChooseDriveImage(img.rel)}>
               <img src={img.url} alt={img.rel} />
             </button>
           ))}
@@ -142,9 +127,7 @@ export function PhotoTab(props: {
         <input
           placeholder={`Search images for “${props.name}”…`}
           value={props.photoQuery}
-          onInput={(e) =>
-            props.setPhotoQuery((e.target as HTMLInputElement).value)
-          }
+          onInput={(e) => props.setPhotoQuery((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => e.key === "Enter" && props.onSearch()}
         />
         <button type="button" class="btn" onClick={props.onSearch}>
@@ -159,8 +142,7 @@ export function PhotoTab(props: {
               type="button"
               class="photopick-btn"
               title={`source: ${h.source}`}
-              onClick={() => props.onChoose(h)}
-            >
+              onClick={() => props.onChoose(h)}>
               <img src={h.thumb} alt={h.source} />
             </button>
           ))}

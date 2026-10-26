@@ -26,14 +26,7 @@ describe("check matrix (tier SSOT)", () => {
   });
 
   test("data-integrity checks apply to EVERY tier (they are never omitted)", () => {
-    const integrity: CheckId[] = [
-      "verify",
-      "bitrot",
-      "junk",
-      "space",
-      "dupes",
-      "artwork",
-    ];
+    const integrity: CheckId[] = ["verify", "bitrot", "junk", "space", "dupes", "artwork"];
     for (const id of integrity) {
       expect(CHECK_APPLIES[id].archive).toBe(true);
       expect(CHECK_APPLIES[id].gig).toBe(true);
@@ -41,13 +34,7 @@ describe("check matrix (tier SSOT)", () => {
   });
 
   test("player-facing checks are gig-only (omitted on archive)", () => {
-    const gigOnly: CheckId[] = [
-      "dual-db",
-      "grids",
-      "mirror",
-      "speed",
-      "players",
-    ];
+    const gigOnly: CheckId[] = ["dual-db", "grids", "mirror", "speed", "players"];
     for (const id of gigOnly) {
       expect(CHECK_APPLIES[id].archive).toBe(false);
       expect(CHECK_APPLIES[id].gig).toBe(true);
@@ -146,17 +133,7 @@ describe("surfaces derive from the matrix (derived, not hardcoded)", () => {
       // input); speed is quiet-when-fast (90 MB/s > CDJ floor) — intersect
       // the derived law accordingly
       const want = applicableIds(role)
-        .filter(
-          (id) =>
-            ![
-              "junk",
-              "dupes",
-              "artwork",
-              "mirror",
-              "players",
-              "speed",
-            ].includes(id),
-        )
+        .filter((id) => !["junk", "dupes", "artwork", "mirror", "players", "speed"].includes(id))
         .toSorted();
       expect(got).toEqual(want);
     });
@@ -165,11 +142,7 @@ describe("surfaces derive from the matrix (derived, not hardcoded)", () => {
   test("badges[shelf] never contain gig-tier signals when verify passes", () => {
     const snap = { ...FULL_SNAP, grid_coverage: 0, db_mtime: 999 };
     const b = driveBadges(
-      drive({
-        role: "shelf",
-        name: "SHELF1",
-        last_snapshot_json: JSON.stringify(snap),
-      }),
+      drive({ role: "shelf", name: "SHELF1", last_snapshot_json: JSON.stringify(snap) }),
       { latestVerify: { ran_at: 1, ok: true } },
     );
     expect(b.some((x) => x.label.startsWith("grids"))).toBe(false);

@@ -64,9 +64,7 @@ describe("setQuality (M4 #328)", () => {
   });
 
   test("single-step chain → transition component is 100 (no transitions)", () => {
-    const q = setQuality(
-      result({ steps: [step({ transition: null, atMin: 5 })] }),
-    );
+    const q = setQuality(result({ steps: [step({ transition: null, atMin: 5 })] }));
     expect(q.transition).toBe(100);
     expect(q.floor).toBe(100);
   });
@@ -114,12 +112,7 @@ describe("setQuality (M4 #328)", () => {
 
   test("incomplete budget reduces budget component", () => {
     const q = setQuality(
-      result({
-        complete: false,
-        minutes: 60,
-        actualMinutes: 30,
-        shortfallMinutes: 30,
-      }),
+      result({ complete: false, minutes: 60, actualMinutes: 30, shortfallMinutes: 30 }),
     );
     expect(q.budget).toBe(50);
   });
@@ -134,12 +127,7 @@ describe("setQuality (M4 #328)", () => {
       step({ transition: null, landmark: true, atMin: 5 }),
       step({ landmark: false, atMin: 10 }),
     ];
-    const q = setQuality(
-      result({
-        steps,
-        landmarks_missing: ["track-a", "track-b"],
-      }),
-    );
+    const q = setQuality(result({ steps, landmarks_missing: ["track-a", "track-b"] }));
     // 1 placed / 3 requested = 33.3
     expect(q.landmark).toBeCloseTo(33.3, 0);
   });
@@ -154,14 +142,7 @@ describe("setQuality (M4 #328)", () => {
     expect(q.total).toBeGreaterThanOrEqual(0);
     expect(q.total).toBeLessThanOrEqual(100);
     // Components exist and are valid ranges
-    for (const key of [
-      "transition",
-      "floor",
-      "arc",
-      "diversity",
-      "budget",
-      "landmark",
-    ] as const) {
+    for (const key of ["transition", "floor", "arc", "diversity", "budget", "landmark"] as const) {
       expect(q[key]).toBeGreaterThanOrEqual(0);
       expect(q[key]).toBeLessThanOrEqual(100);
     }
@@ -171,11 +152,7 @@ describe("setQuality (M4 #328)", () => {
     // peak preset: arousal [6, 8.5]
     const steps = Array.from({ length: 10 }, (_, i) => {
       const t = i / 9;
-      return step({
-        arousal: 6 + t * 2.5,
-        atMin: (i + 1) * 5,
-        transition: i === 0 ? null : 0.8,
-      });
+      return step({ arousal: 6 + t * 2.5, atMin: (i + 1) * 5, transition: i === 0 ? null : 0.8 });
     });
     const q = setQuality(result({ steps, preset: "peak" }));
     expect(q.arc).toBeGreaterThan(85);
@@ -185,11 +162,7 @@ describe("setQuality (M4 #328)", () => {
     // peak preset arousal climbs 6→8.5; we send it 8→3
     const steps = Array.from({ length: 10 }, (_, i) => {
       const t = i / 9;
-      return step({
-        arousal: 8 - t * 5,
-        atMin: (i + 1) * 5,
-        transition: i === 0 ? null : 0.8,
-      });
+      return step({ arousal: 8 - t * 5, atMin: (i + 1) * 5, transition: i === 0 ? null : 0.8 });
     });
     const q = setQuality(result({ steps, preset: "peak" }));
     expect(q.arc).toBeLessThan(50);

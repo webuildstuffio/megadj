@@ -4,11 +4,7 @@ export type { LegArgs } from "./job-legs-types";
 export { runScan, runVerify, runMirror } from "./job-legs-drive";
 export { runIngest } from "./job-legs-intake";
 export { runFetchJob } from "./job-legs-fetch";
-export {
-  fetchArgs,
-  parseFetchStart,
-  parseFetchTask,
-} from "./job-legs-fetch-protocol";
+export { fetchArgs, parseFetchStart, parseFetchTask } from "./job-legs-fetch-protocol";
 export {
   runBenchmark,
   runChecksum,

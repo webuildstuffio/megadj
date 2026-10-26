@@ -65,8 +65,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "src/deck/setbuild.ts": "dated migration plan (rename executed)",
     "src/deck/shared/setbuild.ts": "dated migration plan (rename executed)",
     "src/deck/test/setbuild.test.ts": "dated migration plan (rename executed)",
-    "src/deck/test/archive-setbuild-surface.test.ts":
-      "dated migration plan (rename executed)",
+    "src/deck/test/archive-setbuild-surface.test.ts": "dated migration plan (rename executed)",
     "src/fulltags/setbuild.ts": "dated migration plan (rename executed)",
     "fulltags/intake-cue-postmortem.md":
       "relative link inside the planned-docs table (resolves from docs/)",
@@ -78,8 +77,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     // Dated architecture diagram naming the setbuild layout as it was
     // when written — historical structure text.
     "src/deck/setbuild.ts": "dated architecture diagram (rename executed)",
-    "src/deck/shared/setbuild.ts":
-      "dated architecture diagram (rename executed)",
+    "src/deck/shared/setbuild.ts": "dated architecture diagram (rename executed)",
     "src/fulltags/setbuild.ts": "dated architecture diagram (rename executed)",
   },
   // docs/usb-sync-log.md is INTENTIONALLY GITIGNORED (.gitignore) — the
@@ -89,42 +87,32 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   "docs/README.md": {
     "fulltags/intake-cue-postmortem.md":
       "relative link — resolves correctly from docs/ to docs/fulltags/…",
-    "src/deck/web/ui/DESIGN-NOTES.md":
-      "docs/-relative link into the deck tree (link is correct)",
+    "src/deck/web/ui/DESIGN-NOTES.md": "docs/-relative link into the deck tree (link is correct)",
     "src/deck/web/products/fulltags/DESIGN-NOTES.md":
       "docs/-relative link into the deck tree (link is correct)",
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/FEATURES.md": {
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/product-state-2026-09-07.md": {
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/agent-playbook.md": {
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
-    "fulltags/test/analysis.test.ts":
-      "past-tense perf note ('the former … monolith')",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
+    "fulltags/test/analysis.test.ts": "past-tense perf note ('the former … monolith')",
   },
   "docs/runbooks/0a-evacuate-extra.md": {
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/runbooks/0b-cold-backup.md": {
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/runbooks/0c-orphan-verdict.md": {
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/runbooks/0e-full-pipeline.md": {
-    "docs/usb-sync-log.md":
-      "intentionally gitignored local operator log (.gitignore)",
+    "docs/usb-sync-log.md": "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/fulltags/energy-v3-plan-2026-10-01.md": {
     "src/fulltags/analysis/energy-features.py":
@@ -141,8 +129,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
     "fulltags/src/genre/genre-vocab.ts":
       "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
-    "fulltags/write/artwork.ts":
-      "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
+    "fulltags/write/artwork.ts": "verbatim moved AGENTS.md history (pre-fold fulltags/ root path)",
   },
 };
 
@@ -160,21 +147,13 @@ function docFiles(): string[] {
   return out;
 }
 
-function stalePathsFor(
-  doc: string,
-  text: string,
-): {
-  path: string;
-  reason?: string;
-}[] {
+function stalePathsFor(doc: string, text: string): { path: string; reason?: string }[] {
   const stale: { path: string; reason?: string }[] = [];
   const rel = relative(ROOT, doc);
   const allowed = ALLOWED[rel] ?? {};
   // Which package subtree does this doc describe? (acceptance.md and the
   // deck/* docs cite deck/-relative paths (cratedeck/ kept: #222 boundary guard)
-  const packageRoot = PACKAGE_ROOTS.find((pkg) =>
-    rel.startsWith(`docs/${pkg}/`),
-  );
+  const packageRoot = PACKAGE_ROOTS.find((pkg) => rel.startsWith(`docs/${pkg}/`));
   for (const m of text.matchAll(PATH_RE)) {
     const p = m[1];
     if (!p) continue;
@@ -182,9 +161,7 @@ function stalePathsFor(
       stale.push({ path: p, reason: allowed[p] });
       continue;
     }
-    const candidates = packageRoot
-      ? [join(ROOT, p), join(ROOT, packageRoot, p)]
-      : [join(ROOT, p)];
+    const candidates = packageRoot ? [join(ROOT, p), join(ROOT, packageRoot, p)] : [join(ROOT, p)];
     if (!candidates.some((c) => existsSync(c))) stale.push({ path: p });
   }
   return stale;
@@ -217,28 +194,22 @@ describe("docs paths census (issue #58 regression gate)", () => {
     for (const doc of docs) {
       const rel = relative(ROOT, doc);
       const text = readFileSync(doc, "utf8");
-      for (const s of stalePathsFor(doc, text))
-        if (s.reason) used.add(`${rel}::${s.path}`);
+      for (const s of stalePathsFor(doc, text)) if (s.reason) used.add(`${rel}::${s.path}`);
     }
     const unused: string[] = [];
     for (const [file, entries] of Object.entries(ALLOWED)) {
       for (const [path, reason] of Object.entries(entries)) {
-        if (!used.has(`${file}::${path}`))
-          unused.push(`  ${file}::${path} — ${reason}`);
+        if (!used.has(`${file}::${path}`)) unused.push(`  ${file}::${path} — ${reason}`);
       }
     }
-    expect(
-      unused,
-      "allowlist entries the docs no longer contain — delete them:",
-    ).toEqual(unused.length ? unused : []);
+    expect(unused, "allowlist entries the docs no longer contain — delete them:").toEqual(
+      unused.length ? unused : [],
+    );
   });
 
   test("the #58 classes stay fixed", () => {
     // acceptance.md: three hardware checks + release policy, not "four"
-    const acceptance = readFileSync(
-      join(ROOT, "docs/deck/acceptance.md"),
-      "utf8",
-    );
+    const acceptance = readFileSync(join(ROOT, "docs/deck/acceptance.md"), "utf8");
     expect(acceptance).toMatch(/three hardware checks/u);
     expect(acceptance).not.toMatch(/four hardware checks/u);
     expect(acceptance).toMatch(/issue #29/u);
@@ -249,10 +220,7 @@ describe("docs paths census (issue #58 regression gate)", () => {
     expect(deckctl).not.toMatch(/only mutating/u);
 
     // set findings: no volatile concurrent-agent WIP status
-    const findings = readFileSync(
-      join(ROOT, "docs/megaset/10-findings.md"),
-      "utf8",
-    );
+    const findings = readFileSync(join(ROOT, "docs/megaset/10-findings.md"), "utf8");
     expect(findings).not.toMatch(/do not touch; wait/u);
   });
 });

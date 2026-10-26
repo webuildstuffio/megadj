@@ -40,10 +40,7 @@ export function energyBand(percentile: number): number {
 
 /** Compute energy band from a track's energy score and all library scores.
  *  Returns E1–E9. */
-export function energyBandFromScores(
-  trackEnergy: number,
-  allEnergies: readonly number[],
-): number {
+export function energyBandFromScores(trackEnergy: number, allEnergies: readonly number[]): number {
   if (allEnergies.length === 0) return 5;
   const sorted = [...allEnergies].toSorted((a, b) => a - b);
   let rank = 0;
@@ -75,10 +72,7 @@ export function familyPercentile(
 
 /** Subgenre confidence gate: emit only when top score ≥ 0.5
  *  and lead over runner-up ≥ 0.15. */
-export function passesSubgenreGate(
-  topScore: number,
-  runnerUpScore: number,
-): boolean {
+export function passesSubgenreGate(topScore: number, runnerUpScore: number): boolean {
   return topScore >= 0.5 && topScore - runnerUpScore >= 0.15;
 }
 

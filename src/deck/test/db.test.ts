@@ -18,23 +18,13 @@ const UUID_B = "4444-5555-6666";
 
 describe("db drives", () => {
   it("inserts a new drive on first sight and updates on re-sight", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "DJMASTER",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "DJMASTER", mounted: true });
     const d1 = db.getDrive(UUID_A)!;
     expect(d1.first_seen_at).toBeGreaterThan(0);
     expect(d1.plug_count).toBe(1);
     expect(d1.role).toBe("master");
 
-    db.upsertDrive({
-      id: UUID_A,
-      name: "DJMASTER",
-      mounted: true,
-      capacity_bytes: 128,
-    });
+    db.upsertDrive({ id: UUID_A, name: "DJMASTER", mounted: true, capacity_bytes: 128 });
     const d2 = db.getDrive(UUID_A)!;
     expect(d2.plug_count).toBe(1); // upsert of same sighting doesn't bump
     expect(d2.capacity_bytes).toBe(128);
@@ -42,63 +32,33 @@ describe("db drives", () => {
   });
 
   it("distinguishes two identical drives by uuid", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "CRATE1",
-      mounted: true,
-    });
-    db.upsertDrive({
-      id: UUID_B,
-      volume_uuid: UUID_B,
-      name: "CRATE1",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "CRATE1", mounted: true });
+    db.upsertDrive({ id: UUID_B, volume_uuid: UUID_B, name: "CRATE1", mounted: true });
     expect(db.allDrives().length).toBe(2);
   });
 
   it("setMounted ghosts a drive", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.setMounted(UUID_A, false);
     expect(db.getDrive(UUID_A)!.mounted).toBe(false);
   });
 
   it("nickname and photo persist", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.setNickname(UUID_A, "Resident Crate");
     db.setPhoto(UUID_A, "/tmp/p");
     expect(db.getDrive(UUID_A)!.nickname).toBe("Resident Crate");
   });
 
   it("setNickname treats empty string as clear (never stores '')", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.setNickname(UUID_A, "Resident Crate");
     db.setNickname(UUID_A, "");
     expect(db.getDrive(UUID_A)!.nickname).toBeNull();
   });
 
   it("setNickname trims whitespace and clears whitespace-only names", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.setNickname(UUID_A, "  Padded Name  ");
     expect(db.getDrive(UUID_A)!.nickname).toBe("Padded Name");
     db.setNickname(UUID_A, "   ");
@@ -108,23 +68,11 @@ describe("db drives", () => {
 
 describe("db snapshots", () => {
   it("skips corrupt snapshot rows without hiding valid fleet data", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
-    db.upsertDrive({
-      id: UUID_B,
-      volume_uuid: UUID_B,
-      name: "Y",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
+    db.upsertDrive({ id: UUID_B, volume_uuid: UUID_B, name: "Y", mounted: true });
     db.setSnapshot(UUID_A, { kind: "light", taken_at: 1, file_count: 10 });
     db.setSnapshot(UUID_B, { kind: "light", taken_at: 2, file_count: 20 });
-    db.sqlite
-      .query("UPDATE snapshots SET data_json=? WHERE drive_id=?")
-      .run("{broken", UUID_A);
+    db.sqlite.query("UPDATE snapshots SET data_json=? WHERE drive_id=?").run("{broken", UUID_A);
 
     expect(() => db.latestSnapshots()).not.toThrow();
     expect(db.latestSnapshots().has(UUID_A)).toBe(false);
@@ -134,12 +82,7 @@ describe("db snapshots", () => {
   });
 
   it("stores and retrieves latest snapshot", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     const snap: SnapshotData = { kind: "light", taken_at: 1, file_count: 10 };
     db.setSnapshot(UUID_A, snap);
     const snap2: SnapshotData = { kind: "light", taken_at: 2, file_count: 12 };
@@ -150,12 +93,7 @@ describe("db snapshots", () => {
   });
 
   it("setSnapshot skips an identical re-scan (only taken_at differs)", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     const base = {
       kind: "full" as const,
       track_count: 100,
@@ -172,22 +110,9 @@ describe("db snapshots", () => {
   });
 
   it("setSnapshot still writes when content actually changes", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
-    db.setSnapshot(UUID_A, {
-      kind: "light",
-      taken_at: 1000,
-      file_count: 10,
-    } as SnapshotData);
-    db.setSnapshot(UUID_A, {
-      kind: "light",
-      taken_at: 2000,
-      file_count: 11,
-    } as SnapshotData);
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
+    db.setSnapshot(UUID_A, { kind: "light", taken_at: 1000, file_count: 10 } as SnapshotData);
+    db.setSnapshot(UUID_A, { kind: "light", taken_at: 2000, file_count: 11 } as SnapshotData);
     expect(db.snapshots(UUID_A).length).toBe(2);
     expect(db.latestSnapshots().get(UUID_A)!.file_count).toBe(11);
   });
@@ -197,12 +122,7 @@ describe("db snapshots", () => {
   // objects stringified as {} and any same-length nested change was
   // silently swallowed (stale fleet tables, wrong verify-freshness/parity).
   it("setSnapshot detects a nested-only change between scans", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     const base = {
       kind: "full" as const,
       track_count: 2,
@@ -237,20 +157,13 @@ describe("db snapshots", () => {
     db.setSnapshot(UUID_A, t2); // must NOT be treated as a no-op
     expect(db.snapshots(UUID_A).length).toBe(2);
     expect(db.latestSnapshots().get(UUID_A)!.playlists?.[0]?.entries).toBe(2);
-    expect(db.latestSnapshots().get(UUID_A)!.tracks?.[0]?.title).toBe(
-      "New Title (Extended Mix)",
-    );
+    expect(db.latestSnapshots().get(UUID_A)!.tracks?.[0]?.title).toBe("New Title (Extended Mix)");
   });
 });
 
 describe("db jobs", () => {
   it("job lifecycle + orphan reaping", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     const job = {
       id: "j1",
       drive_id: UUID_A,
@@ -275,12 +188,7 @@ describe("db jobs", () => {
   });
 
   it("latestVerify parses verdict", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     const base = {
       id: "j2",
       drive_id: UUID_A,
@@ -305,12 +213,7 @@ describe("db jobs", () => {
   });
 
   it("latestChecksum returns real changed-count, null when never run", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     expect(db.latestChecksum(UUID_A)).toBeNull(); // never run
     const base = {
       id: "j3",
@@ -336,12 +239,7 @@ describe("db jobs", () => {
   });
 
   it("setJobProgress keeps ETA when a log-line update omits it", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.insertJob({
       id: "j4",
       drive_id: UUID_A,
@@ -376,12 +274,7 @@ describe("db jobs", () => {
   });
 
   it("setJobProgress can explicitly clear the ETA with null", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.insertJob({
       id: "j5",
       drive_id: UUID_A,
@@ -405,18 +298,9 @@ describe("db jobs", () => {
   });
 
   it("setSnapshot prunes snapshot history (disk-burn guard)", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     for (let i = 0; i < 25; i++) {
-      db.setSnapshot(UUID_A, {
-        kind: "light",
-        taken_at: 1_000 + i,
-        file_count: i,
-      });
+      db.setSnapshot(UUID_A, { kind: "light", taken_at: 1_000 + i, file_count: i });
     }
     expect(db.snapshots(UUID_A).length).toBeLessThanOrEqual(20);
     // newest kept, oldest dropped
@@ -456,12 +340,7 @@ describe("inferRole", () => {
 
 describe("job origin attribution (O87)", () => {
   it("insertJob stores origin; SELECT * flows it back out", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     const base = {
       id: "jo1",
       drive_id: UUID_A,
@@ -496,12 +375,7 @@ describe("job origin attribution (O87)", () => {
     // simulate a row written before the origin column existed: insert with
     // the DEFAULT keyword path — insertJob always writes it explicitly, so
     // raw-SQL a row without the column value
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.sqlite
       .query(
         `INSERT INTO jobs (id, drive_id, kind, status, progress, created_at)
@@ -536,19 +410,12 @@ describe("agent notes (O88)", () => {
     const { id } = notes[0]!;
     expect(dismissAgentNote(db, UUID_A, id)).toBe(true);
     expect(dismissAgentNote(db, UUID_A, id)).toBe(true); // idempotent
-    expect(agentNotes(db, UUID_A).map((n) => n.note)).toEqual([
-      "firmware 3.30 flagged",
-    ]);
+    expect(agentNotes(db, UUID_A).map((n) => n.note)).toEqual(["firmware 3.30 flagged"]);
     expect(agentNotes(db, UUID_A)[0]!.dismissed_at).toBeNull();
   });
 
   it("dismiss rejects non-note events and unknown ids", () => {
-    db.upsertDrive({
-      id: UUID_A,
-      volume_uuid: UUID_A,
-      name: "X",
-      mounted: true,
-    });
+    db.upsertDrive({ id: UUID_A, volume_uuid: UUID_A, name: "X", mounted: true });
     db.event(UUID_A, "job-queued", { kind: "scan" });
     const ev = db.timeline(UUID_A)[0]!;
     expect(dismissAgentNote(db, UUID_A, ev.id)).toBe(false);

@@ -53,11 +53,7 @@ interface LastfmApiTag {
 }
 
 interface LastfmApiResponse {
-  track?: {
-    name?: string;
-    artist?: { name?: string };
-    toptags?: { tag?: LastfmApiTag[] };
-  };
+  track?: { name?: string; artist?: { name?: string }; toptags?: { tag?: LastfmApiTag[] } };
 }
 
 /** In-process cache: artist::title → result (including verified misses). */
@@ -88,9 +84,7 @@ export async function fetchLastfmTags(
   const url = `${LASTFM_API_URL}?${params.toString()}`;
   let response: Response;
   try {
-    response = await fetch(url, {
-      signal: AbortSignal.timeout(LASTFM_TIMEOUT_MS),
-    });
+    response = await fetch(url, { signal: AbortSignal.timeout(LASTFM_TIMEOUT_MS) });
   } catch {
     // Network error or timeout — degrade silently per track
     lastfmCache.set(cacheKey, null);
@@ -119,15 +113,9 @@ export async function fetchLastfmTags(
   const tags: LastfmTag[] = rawTags
     .filter(
       (t): t is { name: string; count: number } =>
-        typeof t.name === "string" &&
-        typeof t.count === "number" &&
-        t.count >= MIN_TAG_COUNT,
+        typeof t.name === "string" && typeof t.count === "number" && t.count >= MIN_TAG_COUNT,
     )
-    .map((t) => ({
-      name: t.name,
-      count: t.count,
-      family: mapToFamily(t.name),
-    }));
+    .map((t) => ({ name: t.name, count: t.count, family: mapToFamily(t.name) }));
 
   // Find the top genre: highest-count tag that maps to a family.
   // Each tag is tried individually (never joined — #351 lesson).

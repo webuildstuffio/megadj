@@ -88,10 +88,7 @@ function insert(
 function fixtureDb(
   name: string,
   n: number,
-  opts?: {
-    corrupt?: boolean;
-    dropTable?: boolean;
-  },
+  opts?: { corrupt?: boolean; dropTable?: boolean },
 ): string {
   const p = join(dir, name);
   if (opts?.corrupt) {
@@ -187,20 +184,14 @@ test("reader: default read excludes terminal 'archived' rows (#269)", () => {
   const p = fixtureDb("archived.db", 3);
   {
     const db = new Database(p);
-    insert(db, {
-      id: "a0",
-      status: "archived",
-      walkToken: "stale-archived-token",
-    });
+    insert(db, { id: "a0", status: "archived", walkToken: "stale-archived-token" });
     db.close();
   }
   const r = new HygieneReader(p);
   // filter-less read (the web queue's default, no query params)
   const def = r.list();
   expect(def.some((f) => f.id === "a0")).toBe(false);
-  expect(def.find((f) => f.id === "f0")?.walkToken).not.toBe(
-    "stale-archived-token",
-  );
+  expect(def.find((f) => f.id === "f0")?.walkToken).not.toBe("stale-archived-token");
   // archived never pins the payload walkToken
   expect(def[0]?.walkToken).not.toBe("stale-archived-token");
   // explicit opt-in stays legal for history views
@@ -269,12 +260,8 @@ test("routes: audio/stats guard — traversal, non-audio, outside-root are 403",
   // missing file under root
   expect(api.audio(u(join(root, "Contents", "gone.mp3"))).status).toBe(403);
   // stats route shares the guard
-  expect(api.stats(hygieneUrl("http://x/api/hygiene/stats", song)).status).toBe(
-    200,
-  );
-  expect(
-    api.stats(hygieneUrl("http://x/api/hygiene/stats", "/etc/passwd")).status,
-  ).toBe(403);
+  expect(api.stats(hygieneUrl("http://x/api/hygiene/stats", song)).status).toBe(200);
+  expect(api.stats(hygieneUrl("http://x/api/hygiene/stats", "/etc/passwd")).status).toBe(403);
   guardShelf = undefined;
 });
 
@@ -368,17 +355,12 @@ test("routes: decide rejects empty body; CLI failure surfaces 409 + stderr", asy
     quarantineCensus: async () => ({ files: 0, bytes: 0, stale: 0 }),
     json,
   });
-  const bad = await api.decide(
-    new Request("http://x", { method: "POST", body: "not json" }),
-  );
+  const bad = await api.decide(new Request("http://x", { method: "POST", body: "not json" }));
   expect(bad.status).toBe(400);
   expect(cap.length).toBe(0);
   fail = true;
   const err = await api.decide(
-    new Request("http://x", {
-      method: "POST",
-      body: JSON.stringify({ id: "a" }),
-    }),
+    new Request("http://x", { method: "POST", body: JSON.stringify({ id: "a" }) }),
   );
   expect(err.status).toBe(409);
   const payload = (await err.json()) as { stderr: string };
@@ -389,17 +371,12 @@ test("routes: decide rejects empty body; CLI failure surfaces 409 + stderr", asy
 
 test("routes: restore requires an id and delegates to the engine CLI", async () => {
   const { api, cap } = harness(new HygieneReader(join(dir, "empty.db")));
-  const noId = await api.restore(
-    new Request("http://x", { method: "POST", body: "{}" }),
-  );
+  const noId = await api.restore(new Request("http://x", { method: "POST", body: "{}" }));
   expect(noId.status).toBe(400);
   expect(cap.cli.length).toBe(0);
 
   const ok = await api.restore(
-    new Request("http://x", {
-      method: "POST",
-      body: JSON.stringify({ id: "abc" }),
-    }),
+    new Request("http://x", { method: "POST", body: JSON.stringify({ id: "abc" }) }),
   );
   expect(ok.status).toBe(200);
   expect(cap.cli[0]).toEqual(["shelf-restore", "abc", "--json"]);
@@ -414,10 +391,7 @@ test("routes: restore requires an id and delegates to the engine CLI", async () 
     json,
   });
   const bad = await failing.restore(
-    new Request("http://x", {
-      method: "POST",
-      body: JSON.stringify({ id: "abc" }),
-    }),
+    new Request("http://x", { method: "POST", body: JSON.stringify({ id: "abc" }) }),
   );
   expect(bad.status).toBe(409);
   const body = (await bad.json()) as { error?: string };
@@ -466,10 +440,7 @@ test("routes: quarantine census reads the injected census; empty requires DELETE
 
   // empty without the literal confirm → 400, engine never invoked
   const noConfirm = await api.quarantineEmpty(
-    new Request("http://x", {
-      method: "POST",
-      body: JSON.stringify({ confirm: "yes" }),
-    }),
+    new Request("http://x", { method: "POST", body: JSON.stringify({ confirm: "yes" }) }),
   );
   expect(noConfirm.status).toBe(400);
   const wrong = await api.quarantineEmpty(
@@ -478,10 +449,7 @@ test("routes: quarantine census reads the injected census; empty requires DELETE
   expect(wrong.status).toBe(400);
 
   const ok = await api.quarantineEmpty(
-    new Request("http://x", {
-      method: "POST",
-      body: JSON.stringify({ confirm: "DELETE" }),
-    }),
+    new Request("http://x", { method: "POST", body: JSON.stringify({ confirm: "DELETE" }) }),
   );
   expect(ok.status).toBe(200);
 });

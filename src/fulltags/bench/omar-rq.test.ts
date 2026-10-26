@@ -2,11 +2,7 @@
  * omar-rq.test.ts — Tests for OMAR-RQ challenger framework (B9.1).
  */
 import { describe, expect, test } from "bun:test";
-import {
-  summarizeOmarBars,
-  correlateWithEnergy,
-  type OmarBarResult,
-} from "./omar-rq";
+import { summarizeOmarBars, correlateWithEnergy, type OmarBarResult } from "./omar-rq";
 
 describe("summarizeOmarBars", () => {
   test("empty bars → zeros", () => {
@@ -17,12 +13,7 @@ describe("summarizeOmarBars", () => {
 
   test("single bar → bar values", () => {
     const bars: OmarBarResult[] = [
-      {
-        barIndex: 0,
-        rhythmComplexity: 0.8,
-        grooveConsistency: 0.9,
-        syncopation: 0.3,
-      },
+      { barIndex: 0, rhythmComplexity: 0.8, grooveConsistency: 0.9, syncopation: 0.3 },
     ];
     const result = summarizeOmarBars("t1", bars);
     expect(result.barCount).toBe(1);
@@ -32,18 +23,8 @@ describe("summarizeOmarBars", () => {
 
   test("averages multiple bars", () => {
     const bars: OmarBarResult[] = [
-      {
-        barIndex: 0,
-        rhythmComplexity: 0.6,
-        grooveConsistency: 0.8,
-        syncopation: 0.2,
-      },
-      {
-        barIndex: 1,
-        rhythmComplexity: 0.8,
-        grooveConsistency: 0.6,
-        syncopation: 0.4,
-      },
+      { barIndex: 0, rhythmComplexity: 0.6, grooveConsistency: 0.8, syncopation: 0.2 },
+      { barIndex: 1, rhythmComplexity: 0.8, grooveConsistency: 0.6, syncopation: 0.4 },
     ];
     const result = summarizeOmarBars("t1", bars);
     expect(result.meanRhythmComplexity).toBe(0.7);
@@ -59,30 +40,10 @@ describe("correlateWithEnergy", () => {
 
   test("perfect positive correlation → 1", () => {
     const omar: OmarBarResult[] = [
-      {
-        barIndex: 0,
-        rhythmComplexity: 0,
-        grooveConsistency: 0.2,
-        syncopation: 0,
-      },
-      {
-        barIndex: 1,
-        rhythmComplexity: 0,
-        grooveConsistency: 0.4,
-        syncopation: 0,
-      },
-      {
-        barIndex: 2,
-        rhythmComplexity: 0,
-        grooveConsistency: 0.6,
-        syncopation: 0,
-      },
-      {
-        barIndex: 3,
-        rhythmComplexity: 0,
-        grooveConsistency: 0.8,
-        syncopation: 0,
-      },
+      { barIndex: 0, rhythmComplexity: 0, grooveConsistency: 0.2, syncopation: 0 },
+      { barIndex: 1, rhythmComplexity: 0, grooveConsistency: 0.4, syncopation: 0 },
+      { barIndex: 2, rhythmComplexity: 0, grooveConsistency: 0.6, syncopation: 0 },
+      { barIndex: 3, rhythmComplexity: 0, grooveConsistency: 0.8, syncopation: 0 },
     ];
     const energy = [
       { barIndex: 0, energy: 0.2 },
@@ -95,12 +56,7 @@ describe("correlateWithEnergy", () => {
 
   test("no matching bars → 0", () => {
     const omar: OmarBarResult[] = [
-      {
-        barIndex: 0,
-        rhythmComplexity: 0,
-        grooveConsistency: 0.5,
-        syncopation: 0,
-      },
+      { barIndex: 0, rhythmComplexity: 0, grooveConsistency: 0.5, syncopation: 0 },
     ];
     const energy = [{ barIndex: 99, energy: 0.5 }];
     expect(correlateWithEnergy(omar, energy)).toBe(0);

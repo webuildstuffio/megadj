@@ -86,11 +86,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
             { path: p, title: "Signal", artist: "Test Artist" },
             // Genre/year ride the BP ladder (SC seam returns no hits);
             // identity fields ride the tags stage.
-            {
-              hints: noMbHints,
-              only: ["tags", "year", "genre"],
-              artworkQueue: null,
-            },
+            { hints: noMbHints, only: ["tags", "year", "genre"], artworkQueue: null },
           );
           const t = groundTruth(p);
           expect(t.label).toBe("Ropeadope");
@@ -133,15 +129,8 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
         async () => [hit()],
         async () => {
           const p = await makeFile("idem.mp3");
-          const opts = {
-            hints: noMbHints,
-            only: ["tags" as const],
-            artworkQueue: null,
-          };
-          await enrichTrack(
-            { path: p, title: "Signal", artist: "Test Artist" },
-            opts,
-          );
+          const opts = { hints: noMbHints, only: ["tags" as const], artworkQueue: null };
+          await enrichTrack({ path: p, title: "Signal", artist: "Test Artist" }, opts);
           const second = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
             opts,
@@ -239,12 +228,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           const p = await makeFile("dry.mp3");
           const res = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            {
-              hints: noMbHints,
-              only: ["tags", "year"],
-              dryRun: true,
-              artworkQueue: null,
-            },
+            { hints: noMbHints, only: ["tags", "year"], dryRun: true, artworkQueue: null },
           );
           expect(searched).toBe(false);
           // Dry-run notes report what WOULD be written: the two hint

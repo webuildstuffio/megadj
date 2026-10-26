@@ -16,8 +16,7 @@ function ctx(
     fpForRow?: (row: DbContentRow) => string | null;
   } = {},
 ): CheckCtx {
-  const fpFor =
-    opts.fpFor ?? ((p: string) => `fp:${p.normalize("NFC").toLowerCase()}`);
+  const fpFor = opts.fpFor ?? ((p: string) => `fp:${p.normalize("NFC").toLowerCase()}`);
   const fpForRow = opts.fpForRow ?? ((r: DbContentRow) => `fp:${r.title}`);
   return {
     volume: "/Volumes/SHELF1",

@@ -29,11 +29,7 @@
 
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import {
-  applyConfirmationRefusal,
-  makeFail,
-  printResult,
-} from "./rb-command-kit.js";
+import { applyConfirmationRefusal, makeFail, printResult } from "./rb-command-kit.js";
 import { QUARANTINE_DIR, quarantineDest } from "../core/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";
@@ -104,23 +100,16 @@ function topDir(p: string): string {
 export function classifyUnmatched(
   disk: string[],
   rowPaths: string[],
-): {
-  matched: string[];
-  twinNamed: string[];
-  unknown: string[];
-} {
+): { matched: string[]; twinNamed: string[]; unknown: string[] } {
   const rowSet = new Set(rowPaths.map((p) => p.normalize("NFC").toLowerCase()));
-  const rowBase = new Set(
-    rowPaths.map((p) => basename(p).normalize("NFC").toLowerCase()),
-  );
+  const rowBase = new Set(rowPaths.map((p) => basename(p).normalize("NFC").toLowerCase()));
   const matched: string[] = [];
   const twinNamed: string[] = [];
   const unknown: string[] = [];
   for (const f of disk) {
     const key = f.normalize("NFC").toLowerCase();
     if (rowSet.has(key)) matched.push(f);
-    else if (rowBase.has(basename(f).normalize("NFC").toLowerCase()))
-      twinNamed.push(f);
+    else if (rowBase.has(basename(f).normalize("NFC").toLowerCase())) twinNamed.push(f);
     else unknown.push(f);
   }
   return { matched, twinNamed, unknown };
@@ -134,28 +123,16 @@ export async function quarantineUnmatched(
   files: string[],
   volume: string,
   log: (s: string) => void,
-): Promise<{
-  moved: { from: string; dest: string }[];
-  manifestPath: string;
-}> {
+): Promise<{ moved: { from: string; dest: string }[]; manifestPath: string }> {
   const qDir = join(volume, QUARANTINE_DIR, "unmatched");
   mkdirSync(qDir, { recursive: true });
   const stamp = new Date()
     .toISOString()
     .replace(/[-:T.]/gu, "")
     .slice(0, 14);
-  const manifestPath = join(
-    qDir,
-    `manifest-${stamp}-${crypto.randomUUID()}.jsonl`,
-  );
-  const planned = files.map((from) => ({
-    from,
-    dest: quarantineDest(qDir, from),
-  }));
-  await Bun.write(
-    manifestPath,
-    `${planned.map((p) => JSON.stringify(p)).join("\n")}\n`,
-  );
+  const manifestPath = join(qDir, `manifest-${stamp}-${crypto.randomUUID()}.jsonl`);
+  const planned = files.map((from) => ({ from, dest: quarantineDest(qDir, from) }));
+  await Bun.write(manifestPath, `${planned.map((p) => JSON.stringify(p)).join("\n")}\n`);
   const moved: { from: string; dest: string }[] = [];
   for (const p of planned) {
     try {
@@ -164,8 +141,7 @@ export async function quarantineUnmatched(
       statSync(p.from);
       mkdirSync(dirname(p.dest), { recursive: true });
       renameSync(p.from, p.dest);
-      if (!existsSync(p.dest))
-        throw new Error(`dest missing after move: ${p.dest}`);
+      if (!existsSync(p.dest)) throw new Error(`dest missing after move: ${p.dest}`);
       moved.push(p);
     } catch (e) {
       log(`rb-unmatched: move FAILED (${errorText(e)}) — ${p.from}`);
@@ -174,9 +150,7 @@ export async function quarantineUnmatched(
   return { moved, manifestPath };
 }
 
-export async function rbUnmatched(
-  opts: RbUnmatchedOptions,
-): Promise<RbUnmatchedResult> {
+export async function rbUnmatched(opts: RbUnmatchedOptions): Promise<RbUnmatchedResult> {
   const log = opts.log ?? commandLog({ json: opts.json });
   const mount = normalizeMount(opts.mount);
   const dbPath = masterDbPath(opts.mount);
@@ -202,18 +176,12 @@ export async function rbUnmatched(
 
   // flag validation precedes any I/O — bad invocation = exit-worthy, zero work
   if (
-    applyConfirmationRefusal({
-      apply: opts.quarantine,
-      yes: opts.yes,
-      flag: "--quarantine",
-    }) !== null
+    applyConfirmationRefusal({ apply: opts.quarantine, yes: opts.yes, flag: "--quarantine" }) !==
+    null
   )
     return fail(
-      applyConfirmationRefusal({
-        apply: opts.quarantine,
-        yes: opts.yes,
-        flag: "--quarantine",
-      }) ?? "unreachable",
+      applyConfirmationRefusal({ apply: opts.quarantine, yes: opts.yes, flag: "--quarantine" }) ??
+        "unreachable",
     );
   if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
 
@@ -222,10 +190,7 @@ export async function rbUnmatched(
   // buildIndex walks the same roots and applies the same junk rules — its
   // byNorm keys ARE the disk file list; filter by --ext after.
   let disk = [...idx.byNorm.values()];
-  if (exts)
-    disk = disk.filter((f) =>
-      exts.has(f.slice(f.lastIndexOf(".")).toLowerCase()),
-    );
+  if (exts) disk = disk.filter((f) => exts.has(f.slice(f.lastIndexOf(".")).toLowerCase()));
 
   log(`rb-unmatched: reading ${dbPath}`);
   let rows: [string, string][];
@@ -236,9 +201,7 @@ export async function rbUnmatched(
     log(`rb-unmatched: ${message}`);
     return fail(message);
   }
-  log(
-    `rb-unmatched: ${rows.length} content row(s) · ${disk.length} disk audio file(s) in scope`,
-  );
+  log(`rb-unmatched: ${rows.length} content row(s) · ${disk.length} disk audio file(s) in scope`);
 
   const { matched, twinNamed, unknown } = classifyUnmatched(
     disk,
@@ -259,9 +222,7 @@ export async function rbUnmatched(
     quarantined = r.moved.length;
     quarantineLog = r.moved;
     manifestPath = r.manifestPath;
-    log(
-      `rb-unmatched: quarantined ${quarantined}/${unknown.length} → manifest ${manifestPath}`,
-    );
+    log(`rb-unmatched: quarantined ${quarantined}/${unknown.length} → manifest ${manifestPath}`);
   }
 
   return {
@@ -284,25 +245,17 @@ export async function rbUnmatched(
 }
 
 /** Emit the human report (non-json mode). */
-export function printRbUnmatchedReport(
-  r: RbUnmatchedResult,
-  log: (s: string) => void,
-): void {
+export function printRbUnmatchedReport(r: RbUnmatchedResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     log(
       `${body.diskFiles} disk file(s) · ${body.dbRows} DB row(s) · ${body.matched} matched · ${body.twinNamed} twin-named (dupescan's queue) · ${body.unknown} unknown to rekordbox`,
     );
-    const dirs = Object.entries(body.unknownByDir).toSorted(
-      (a, b) => b[1] - a[1],
-    );
-    for (const [d, n] of dirs.slice(0, 10))
-      log(`  ${String(n).padStart(5)}  Contents/${d}/`);
+    const dirs = Object.entries(body.unknownByDir).toSorted((a, b) => b[1] - a[1]);
+    for (const [d, n] of dirs.slice(0, 10)) log(`  ${String(n).padStart(5)}  Contents/${d}/`);
     if (dirs.length > 10) log(`  … ${dirs.length - 10} more folder(s)`);
     for (const u of body.unknownList.slice(0, HUMAN_LIST_CAP)) log(`    ${u}`);
     if (body.unknownList.length > HUMAN_LIST_CAP)
-      log(
-        `    … ${body.unknownList.length - HUMAN_LIST_CAP} more (--json for the full list)`,
-      );
+      log(`    … ${body.unknownList.length - HUMAN_LIST_CAP} more (--json for the full list)`);
     if (body.quarantined)
       log(
         `quarantined ${body.quarantined} file(s); manifest: ${body.manifestPath ?? "?"} — nothing deleted, restore = move back`,

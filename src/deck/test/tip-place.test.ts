@@ -97,12 +97,7 @@ describe("tipPlace.placeCard", () => {
 
   test("fits exactly at the boundary counts as fitting (edge == margin)", () => {
     // anchor top such that the top-placed card's top lands exactly on TIP_EDGE
-    const anchor = {
-      left: 600,
-      top: TIP_EDGE + TIP_GAP + CARD.height,
-      width: 15,
-      height: 15,
-    };
+    const anchor = { left: 600, top: TIP_EDGE + TIP_GAP + CARD.height, width: 15, height: 15 };
     const p = placeCard(anchor, CARD, VP, "top");
     expect(p.place).toBe("top");
     expect(p.top).toBe(TIP_EDGE);

@@ -30,26 +30,20 @@ const hit = (over: Partial<BcTrack>): BcTrack => ({
 
 describe("bandcamp: bcQueryTerm", () => {
   test("primary artist (lowercased) + title as given, ≤8 tokens", () => {
-    expect(
-      bcQueryTerm({
-        artist: "Tvardovsky, Aleksei",
-        title: "Depths of Consciousness",
-      }),
-    ).toBe("tvardovsky Depths of Consciousness");
+    expect(bcQueryTerm({ artist: "Tvardovsky, Aleksei", title: "Depths of Consciousness" })).toBe(
+      "tvardovsky Depths of Consciousness",
+    );
   });
 
   test("keeps bracket content (Bandcamp titles use it)", () => {
-    expect(
-      bcQueryTerm({ artist: "HI-LO", title: "REESE (Original Mix)" }),
-    ).toBe("hi-lo REESE (Original Mix)");
+    expect(bcQueryTerm({ artist: "HI-LO", title: "REESE (Original Mix)" })).toBe(
+      "hi-lo REESE (Original Mix)",
+    );
   });
 });
 
 describe("bandcamp: scoreBcHits (relevance + hard artist gate)", () => {
-  const q = {
-    artist: "Unusual Cosmic Process",
-    title: "Depths of Consciousness",
-  };
+  const q = { artist: "Unusual Cosmic Process", title: "Depths of Consciousness" };
 
   test("matching band passes and gains gate points", () => {
     const kept = scoreBcHits([hit({})], q);
@@ -58,22 +52,13 @@ describe("bandcamp: scoreBcHits (relevance + hard artist gate)", () => {
   });
 
   test("wrong-band same-title hit is DROPPED (the Taylor Swift class)", () => {
-    const kept = scoreBcHits(
-      [hit({ bandName: "Totally Unrelated Label", artist: null })],
-      q,
-    );
+    const kept = scoreBcHits([hit({ bandName: "Totally Unrelated Label", artist: null })], q);
     expect(kept).toHaveLength(0);
   });
 
   test("credited track artist counts as a gate candidate", () => {
     const kept = scoreBcHits(
-      [
-        hit({
-          name: "REESE (Original Mix)",
-          bandName: "Drumcode",
-          artist: "HI-LO",
-        }),
-      ],
+      [hit({ name: "REESE (Original Mix)", bandName: "Drumcode", artist: "HI-LO" })],
       { artist: "HI-LO", title: "REESE" },
     );
     expect(kept).toHaveLength(1);

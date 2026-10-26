@@ -16,26 +16,21 @@ import { describe, it, expect } from "bun:test";
 import { join } from "node:path";
 
 /** Spawn deckctl with piped stdout; return exit code + full stdout. */
-async function runDeckctl(args: string[]): Promise<{
-  code: number;
-  stdout: string;
-  stderr: string;
-}> {
-  const proc = Bun.spawn(
-    ["bun", "run", join("src", "deck", "deckctl.ts"), ...args],
-    {
-      cwd: join(import.meta.dir, "..", "..", ".."),
-      env: {
-        ...process.env,
-        // Unreachable: never used by the server-less verbs under test, but
-        // keeps an accidental regression from hitting the real dashboard.
-        CRATEDECK_PORT: "59997",
-        CRATEDECK_ENSURE_TIMEOUT_MS: "1500",
-      },
-      stdout: "pipe",
-      stderr: "pipe",
+async function runDeckctl(
+  args: string[],
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const proc = Bun.spawn(["bun", "run", join("src", "deck", "deckctl.ts"), ...args], {
+    cwd: join(import.meta.dir, "..", "..", ".."),
+    env: {
+      ...process.env,
+      // Unreachable: never used by the server-less verbs under test, but
+      // keeps an accidental regression from hitting the real dashboard.
+      CRATEDECK_PORT: "59997",
+      CRATEDECK_ENSURE_TIMEOUT_MS: "1500",
     },
-  );
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   const [stdout, stderr] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -49,9 +44,7 @@ describe("deckctl --json emit (piped consumer reads complete JSON)", () => {
     const { code, stdout } = await runDeckctl(["--help"]);
     expect(code).toBe(0);
     // pins the FULL document: the exact last line, no dropped tail
-    expect(stdout.trimEnd().endsWith("(works with the server down)")).toBe(
-      true,
-    );
+    expect(stdout.trimEnd().endsWith("(works with the server down)")).toBe(true);
     expect(stdout).toContain("usage: deckctl <command> [args] [--json]");
   });
 
@@ -66,9 +59,7 @@ describe("deckctl --json emit (piped consumer reads complete JSON)", () => {
   it("explain verify --json parses and carries the help-doc SSOT shape", async () => {
     const { code, stdout } = await runDeckctl(["explain", "verify", "--json"]);
     expect(code).toBe(0);
-    const parsed = JSON.parse(stdout) as {
-      verify?: { intro?: string; checks?: unknown[] };
-    };
+    const parsed = JSON.parse(stdout) as { verify?: { intro?: string; checks?: unknown[] } };
     expect(parsed.verify?.intro).toBeTruthy();
     expect(Array.isArray(parsed.verify?.checks)).toBe(true);
   });

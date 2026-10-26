@@ -67,16 +67,9 @@ export interface SectionClassification {
  * @param pssiCodes - Per-bar PSSI type codes (one per bar)
  * @returns Section classification
  */
-export function classifySections(
-  pssiCodes: readonly number[],
-): SectionClassification {
+export function classifySections(pssiCodes: readonly number[]): SectionClassification {
   if (pssiCodes.length === 0) {
-    return {
-      sections: [],
-      distribution: new Map(),
-      hasCanonicalArc: false,
-      totalBars: 0,
-    };
+    return { sections: [], distribution: new Map(), hasCanonicalArc: false, totalBars: 0 };
   }
 
   // Run-length encode consecutive same-type bars into sections
@@ -111,12 +104,7 @@ export function classifySections(
   const hasOutro = sections.some((s) => s.type === PSSI_TYPES.OUTRO);
   const hasCanonicalArc = hasIntro && hasDrop && hasOutro;
 
-  return {
-    sections,
-    distribution,
-    hasCanonicalArc,
-    totalBars: pssiCodes.length,
-  };
+  return { sections, distribution, hasCanonicalArc, totalBars: pssiCodes.length };
 }
 
 /**
@@ -129,9 +117,7 @@ export function sectionFeatures(
   return sections.map((s) => {
     const lufsSlice = barLufs.slice(s.startBar, s.endBar);
     const meanLufs =
-      lufsSlice.length > 0
-        ? round3(lufsSlice.reduce((a, b) => a + b, 0) / lufsSlice.length)
-        : 0;
+      lufsSlice.length > 0 ? round3(lufsSlice.reduce((a, b) => a + b, 0) / lufsSlice.length) : 0;
     return { name: s.name, meanLufs, lengthBars: s.lengthBars };
   });
 }

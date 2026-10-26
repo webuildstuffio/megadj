@@ -18,16 +18,10 @@ export class BenchLedger {
       .run(driveId, Date.now(), seq, rand4k);
   }
 
-  benchmarks(
-    driveId: string,
-  ): { ran_at: number; seq_mbps: number; rand4k_mbps: number }[] {
+  benchmarks(driveId: string): { ran_at: number; seq_mbps: number; rand4k_mbps: number }[] {
     return this.sqlite
       .query("SELECT * FROM benchmarks WHERE drive_id=? ORDER BY ran_at")
-      .all(driveId) as {
-      ran_at: number;
-      seq_mbps: number;
-      rand4k_mbps: number;
-    }[];
+      .all(driveId) as { ran_at: number; seq_mbps: number; rand4k_mbps: number }[];
   }
 
   /** Record a minimal speed probe. Stored in the same benchmarks table with
@@ -35,9 +29,7 @@ export class BenchLedger {
    *  no parallel table to keep in sync. */
   addSpeedProbe(driveId: string, mbps: number, bytesRead: number): void {
     this.sqlite
-      .query(
-        "INSERT INTO benchmarks (drive_id, ran_at, seq_mbps, rand4k_mbps) VALUES (?,?,?,NULL)",
-      )
+      .query("INSERT INTO benchmarks (drive_id, ran_at, seq_mbps, rand4k_mbps) VALUES (?,?,?,NULL)")
       .run(driveId, Date.now(), mbps);
     void bytesRead; // kept in the job result_json; table stays 4-column
   }
@@ -79,13 +71,7 @@ export class BenchLedger {
     ).map((r) => r.path);
   }
 
-  ledgerPut(
-    driveId: string,
-    path: string,
-    size: number,
-    mtime: number,
-    hash: string,
-  ): void {
+  ledgerPut(driveId: string, path: string, size: number, mtime: number, hash: string): void {
     this.sqlite
       .query(
         `INSERT INTO ledger (drive_id, path, size, mtime, hash, last_ok)
@@ -96,20 +82,11 @@ export class BenchLedger {
       .run(driveId, path, size, mtime, hash, Date.now());
   }
 
-  ledgerGet(
-    driveId: string,
-    path: string,
-  ): { hash: string; size: number; mtime: number } | null {
+  ledgerGet(driveId: string, path: string): { hash: string; size: number; mtime: number } | null {
     return (
       (this.sqlite
-        .query(
-          "SELECT hash, size, mtime FROM ledger WHERE drive_id=? AND path=?",
-        )
-        .get(driveId, path) as {
-        hash: string;
-        size: number;
-        mtime: number;
-      } | null) ?? null
+        .query("SELECT hash, size, mtime FROM ledger WHERE drive_id=? AND path=?")
+        .get(driveId, path) as { hash: string; size: number; mtime: number } | null) ?? null
     );
   }
 

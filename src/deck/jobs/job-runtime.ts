@@ -25,13 +25,7 @@ export function recordProgressIncrease(
   now: number,
   stage = "default",
 ): boolean {
-  if (
-    fraction === null ||
-    !Number.isFinite(fraction) ||
-    fraction < 0 ||
-    fraction > 1
-  )
-    return false;
+  if (fraction === null || !Number.isFinite(fraction) || fraction < 0 || fraction > 1) return false;
   const fractionKey = `${jobId}:p:${stage}`;
   const previous = progressAt.get(fractionKey);
   if (previous !== undefined && fraction <= previous) return false;
@@ -41,11 +35,7 @@ export function recordProgressIncrease(
 }
 
 /** Rolling ETA estimator over the most recent complete sample window. */
-export function createEtaEstimator(): (
-  done: number,
-  total: number,
-  now: number,
-) => number | null {
+export function createEtaEstimator(): (done: number, total: number, now: number) => number | null {
   let lastCount = 0;
   let lastTime = -1;
   let etaS: number | null = null;
@@ -76,11 +66,7 @@ export async function withJobBudget<T>(
     timer = setTimeout(() => {
       handle.cancelled = true;
       handle.proc?.kill();
-      reject(
-        new Error(
-          `job exceeded its ${timeoutMin} min wall-clock budget — cancelled`,
-        ),
-      );
+      reject(new Error(`job exceeded its ${timeoutMin} min wall-clock budget — cancelled`));
     }, timeoutMin * 60_000);
   });
   try {

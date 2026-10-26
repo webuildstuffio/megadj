@@ -33,9 +33,7 @@ function electedFamily(row: TrackGenreRow): string | null {
   if (row.genre_votes) {
     try {
       const votes = JSON.parse(row.genre_votes) as Record<string, unknown>[];
-      const elected = votes.find(
-        (v) => (v as Record<string, unknown>).elected === true,
-      );
+      const elected = votes.find((v) => (v as Record<string, unknown>).elected === true);
       if (elected && typeof elected.family === "string") {
         return elected.family;
       }
@@ -46,11 +44,7 @@ function electedFamily(row: TrackGenreRow): string | null {
   return row.genre ?? null;
 }
 
-function runGenreL2Stage(
-  db: Database,
-  answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runGenreL2Stage(db: Database, answerKey: string, _split: BenchSplit): StageResult {
   const tracks = db
     .query(
       `SELECT video_id, genre, genre_votes FROM tracks
@@ -59,9 +53,7 @@ function runGenreL2Stage(
     .all() as TrackGenreRow[];
 
   const benchRows: BenchRow[] = [];
-  const metrics: Record<string, number | string | null> = {
-    n_tracks: tracks.length,
-  };
+  const metrics: Record<string, number | string | null> = { n_tracks: tracks.length };
 
   const akIds = answerKey === "all" ? ["AK3", "AK4", "AK5"] : [answerKey];
 
@@ -84,8 +76,7 @@ function runGenreL2Stage(
       const pred = electedFamily(t);
       if (pred !== null && isUmbrella(pred)) continue;
       const truth = truthRow.value;
-      const isCorrect =
-        pred !== null && pred.toLowerCase() === truth.toLowerCase();
+      const isCorrect = pred !== null && pred.toLowerCase() === truth.toLowerCase();
       if (isCorrect) correct++;
       let bucket = familyCorrect.get(truth);
       if (!bucket) {
@@ -106,8 +97,7 @@ function runGenreL2Stage(
 
     const prefix = akId.toLowerCase();
     metrics[`${prefix}_matched`] = matched;
-    metrics[`${prefix}_accuracy`] =
-      matched > 0 ? round4(correct / matched) : null;
+    metrics[`${prefix}_accuracy`] = matched > 0 ? round4(correct / matched) : null;
 
     let macroF1Sum = 0;
     let classCount = 0;
@@ -117,17 +107,10 @@ function runGenreL2Stage(
       const precision = bucket.tp / bucket.total;
       macroF1Sum += precision;
     }
-    metrics[`${prefix}_macro_precision`] =
-      classCount > 0 ? round4(macroF1Sum / classCount) : null;
+    metrics[`${prefix}_macro_precision`] = classCount > 0 ? round4(macroF1Sum / classCount) : null;
   }
 
-  return {
-    stage: "genre-l2",
-    answerKey,
-    rows: benchRows,
-    metrics,
-    configHash: "genre-l2-v1",
-  };
+  return { stage: "genre-l2", answerKey, rows: benchRows, metrics, configHash: "genre-l2-v1" };
 }
 
 registerStage("genre-l2", runGenreL2Stage);

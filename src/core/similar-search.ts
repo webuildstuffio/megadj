@@ -11,20 +11,13 @@ export interface SimilarHit {
 /** k nearest neighbours of `queryVec` within `corpus`, excluding the query
  * track itself. Pure — the DB read happens in embeddingCorpus(). */
 export function similarTracks(
-  corpus: {
-    videoId: string;
-    title: string | null;
-    artist: string | null;
-    vec: number[];
-  }[],
+  corpus: { videoId: string; title: string | null; artist: string | null; vec: number[] }[],
   queryVideoId: string,
   queryVec: number[],
   k: number,
 ): SimilarHit[] {
   return corpus
-    .filter(
-      (c) => c.videoId !== queryVideoId && c.vec.length === queryVec.length,
-    )
+    .filter((c) => c.videoId !== queryVideoId && c.vec.length === queryVec.length)
     .map((c) => ({
       videoId: c.videoId,
       title: c.title,

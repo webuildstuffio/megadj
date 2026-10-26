@@ -23,12 +23,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { nonEmptyEnv } from "../shared/leaf/guards";
-import {
-  DECK_SERVICE_LABEL,
-  classifyDeckService,
-  plistPath,
-  renderPlist,
-} from "./deck-service";
+import { DECK_SERVICE_LABEL, classifyDeckService, plistPath, renderPlist } from "./deck-service";
 import { DEFAULT_PORT, resolveServerPort } from "../deck/server/server-port";
 
 // ops/ sits at <repo>/src/ops (the Sep 2026 cratedeck fold) — the repo
@@ -46,8 +41,7 @@ function sh(cmd: string[], quiet = true): { code: number; out: string } {
     stderr: "pipe",
     env: { ...process.env },
   });
-  const out =
-    `${new TextDecoder().decode(p.stdout)}${new TextDecoder().decode(p.stderr)}`.trim();
+  const out = `${new TextDecoder().decode(p.stdout)}${new TextDecoder().decode(p.stderr)}`.trim();
   if (!quiet && p.exitCode !== 0) console.error(out);
   return { code: p.exitCode ?? 0, out };
 }
@@ -56,10 +50,9 @@ function sh(cmd: string[], quiet = true): { code: number; out: string } {
  *  shell-config `bun` on PATH is a wrapper script — launchd has no login
  *  shell, so it needs the real executable). */
 function resolveBunPath(): string {
-  const candidates = [
-    nonEmptyEnv("MEGADJ_DECK_BUN"),
-    join(homedir(), ".bun", "bin", "bun"),
-  ].filter((p): p is string => Boolean(p) && existsSync(p as string));
+  const candidates = [nonEmptyEnv("MEGADJ_DECK_BUN"), join(homedir(), ".bun", "bin", "bun")].filter(
+    (p): p is string => Boolean(p) && existsSync(p as string),
+  );
   const bun = candidates[0];
   if (!bun) {
     console.error("deck:install: no bun binary found (~/.bun/bin/bun missing)");
@@ -105,9 +98,7 @@ async function main(): Promise<void> {
   const configPath = join(REPO_ROOT, "src", "deck", "config.toml");
   const port = resolveServerPort(
     process.env.CRATEDECK_PORT,
-    existsSync(configPath)
-      ? configPath
-      : join(REPO_ROOT, "src", "deck", "config.sample.toml"),
+    existsSync(configPath) ? configPath : join(REPO_ROOT, "src", "deck", "config.sample.toml"),
   );
 
   // 1-2. Render + write the plist (idempotent: same bytes → same file).
@@ -128,11 +119,7 @@ async function main(): Promise<void> {
   }
 
   // 3. Replace any ORPHAN server first (it would steal the health probe).
-  const bootout = sh([
-    "/bin/launchctl",
-    "bootout",
-    `gui/${uid}/${DECK_SERVICE_LABEL}`,
-  ]);
+  const bootout = sh(["/bin/launchctl", "bootout", `gui/${uid}/${DECK_SERVICE_LABEL}`]);
   const wasLoaded = bootout.code === 0;
   if (wasLoaded) console.log("removed previously loaded service");
   for (const pid of orphanDeckProcesses()) {
@@ -147,20 +134,12 @@ async function main(): Promise<void> {
   if (bootstrap.code !== 0) {
     // EEXIST (already bootstrapped by a concurrent run) is fine — the
     // kickstart below still converges us to healthy.
-    if (
-      !bootstrap.out.includes("already bootstrapped") &&
-      !bootstrap.out.includes("EBUSY")
-    ) {
+    if (!bootstrap.out.includes("already bootstrapped") && !bootstrap.out.includes("EBUSY")) {
       console.error(`bootstrap failed: ${bootstrap.out}`);
       process.exit(1);
     }
   }
-  const kick = sh([
-    "/bin/launchctl",
-    "kickstart",
-    "-k",
-    `gui/${uid}/${DECK_SERVICE_LABEL}`,
-  ]);
+  const kick = sh(["/bin/launchctl", "kickstart", "-k", `gui/${uid}/${DECK_SERVICE_LABEL}`]);
   if (kick.code !== 0) console.error(`kickstart: ${kick.out}`);
 
   // 5. Wait for health (launchd needs a beat to spawn; budget ~20s).
@@ -176,16 +155,11 @@ async function main(): Promise<void> {
   // Verdict via the SHARED classifier (the same one doctor uses). The
   // pid regex mirrors deckServiceStatus in doctor-checks: launchd prints
   // `pid = N` when the job is running.
-  const print = sh([
-    "/bin/launchctl",
-    "print",
-    `gui/${uid}/${DECK_SERVICE_LABEL}`,
-  ]);
+  const print = sh(["/bin/launchctl", "print", `gui/${uid}/${DECK_SERVICE_LABEL}`]);
   const serviceLoaded = print.code === 0;
   const pidMatch = /pid = (\d+)/.exec(print.out);
   // finite-gated parse (boundary-number census hygiene).
-  const parsedPid =
-    pidMatch?.[1] !== undefined ? Number(pidMatch[1]) : Number.NaN;
+  const parsedPid = pidMatch?.[1] !== undefined ? Number(pidMatch[1]) : Number.NaN;
   const verdict = classifyDeckService({
     serviceLoaded,
     servicePid: Number.isFinite(parsedPid) ? parsedPid : null,
@@ -198,9 +172,7 @@ async function main(): Promise<void> {
     console.log(`  server log: ${join(STATE_DIR, "deck.log")}`);
     process.exit(1);
   }
-  console.log(
-    `deck server: http://127.0.0.1:${port} (launchd-managed, KeepAlive on)`,
-  );
+  console.log(`deck server: http://127.0.0.1:${port} (launchd-managed, KeepAlive on)`);
 }
 
 try {

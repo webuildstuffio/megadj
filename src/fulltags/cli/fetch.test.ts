@@ -85,15 +85,14 @@ describe("auditArchive folder walk", () => {
  */
 describe("fetch flag forwarding", () => {
   test("every parsed option maps to its fetch pipeline scope", () => {
-    expect(
-      fetchAllArgs({
-        all: true,
-        only: "art",
-        jobs: 8,
-        dryRun: true,
-        json: true,
-      }),
-    ).toEqual(["--json", "--all", "--art", "--jobs", "8", "--dry-run"]);
+    expect(fetchAllArgs({ all: true, only: "art", jobs: 8, dryRun: true, json: true })).toEqual([
+      "--json",
+      "--all",
+      "--art",
+      "--jobs",
+      "8",
+      "--dry-run",
+    ]);
   });
 
   test("only=all is the default (no flag) and no options yields empty args", () => {

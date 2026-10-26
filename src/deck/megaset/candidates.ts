@@ -30,8 +30,7 @@ export const MAX_CANDIDATES = 8;
 /** Minimum candidates (1 = the default single-build mode). */
 export const MIN_CANDIDATES = 1;
 
-const seedLabel = (seed: number): string =>
-  String.fromCodePoint(65 + (seed % 26));
+const seedLabel = (seed: number): string => String.fromCodePoint(65 + (seed % 26));
 
 /** Build N variants from the same pool. Each variant uses a different
  *  seed (opener rotation + strategy flip on odd seeds). The input's
@@ -39,14 +38,8 @@ const seedLabel = (seed: number): string =>
  *  applies to dimensions NOT explicitly pinned by the caller.
  *
  *  Returns variants sorted by quality (best first). */
-export function buildMegasetCandidates(
-  input: MegasetInput,
-  n: number,
-): MegasetVariant[] {
-  const count = Math.max(
-    MIN_CANDIDATES,
-    Math.min(MAX_CANDIDATES, Math.round(n)),
-  );
+export function buildMegasetCandidates(input: MegasetInput, n: number): MegasetVariant[] {
+  const count = Math.max(MIN_CANDIDATES, Math.min(MAX_CANDIDATES, Math.round(n)));
   const variants: MegasetVariant[] = [];
   for (let seed = 0; seed < count; seed++) {
     const result = buildMegaset({ ...input, seed });

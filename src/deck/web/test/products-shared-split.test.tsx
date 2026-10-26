@@ -10,16 +10,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render } from "preact-render-to-string";
 import { ArchiveAbsentGate, Meter, collectBreakers } from "../products/shared";
-import {
-  gridDeltaPct,
-  mkBreaker,
-  beatSyncCopy,
-} from "../products/shared/beat-sync";
+import { gridDeltaPct, mkBreaker, beatSyncCopy } from "../products/shared/beat-sync";
 import { ProductIntro } from "../products/shared/product-meta";
 import { ScanApplyActions } from "../products/shared/scan-apply";
 
-const read = (p: string): string =>
-  readFileSync(join(import.meta.dir, "..", p), "utf8");
+const read = (p: string): string => readFileSync(join(import.meta.dir, "..", p), "utf8");
 const sharedSource = read("products/shared/index.tsx");
 const productMetaSource = read("products/shared/product-meta.tsx");
 
@@ -41,10 +36,7 @@ describe("products/shared split (#89 item 2, re-homed #242)", () => {
 
   test("ProductIntro renders the phase chip + product voice", () => {
     const html = render(
-      <ProductIntro
-        product="getdat"
-        sub="the download pipeline — archive what's playable"
-      />,
+      <ProductIntro product="getdat" sub="the download pipeline — archive what's playable" />,
     );
     expect(html).toContain("pintro");
     expect(html).toContain("GetDat");
@@ -71,36 +63,18 @@ describe("products/shared split (#89 item 2, re-homed #242)", () => {
     expect(gridDeltaPct(120, 125)).toBe(4);
     expect(gridDeltaPct(120, 0)).toBe(0);
     const b = mkBreaker(
-      {
-        video_id: "v1",
-        title: "T",
-        ledgerBpm: 120,
-        rbBpm: 125,
-        driftMs: 30,
-      },
+      { video_id: "v1", title: "T", ledgerBpm: 120, rbBpm: 125, driftMs: 30 },
       "drift",
     );
     expect(b.cls).toBe("drift");
     expect(b.deltaPct).toBe(4);
     expect(b.videoId).toBe("v1");
     expect(collectBreakers(null)).toEqual([]);
-    expect(
-      collectBreakers({ available: false, octave: [], drift: [], off: [] }),
-    ).toEqual([]);
+    expect(collectBreakers({ available: false, octave: [], drift: [], off: [] })).toEqual([]);
     const rows = collectBreakers({
       available: true,
-      octave: [
-        { video_id: "a", title: "A", ledgerBpm: 60, rbBpm: 120, driftMs: 0 },
-      ],
-      drift: [
-        {
-          video_id: "v1",
-          title: "T",
-          ledgerBpm: 120,
-          rbBpm: 125,
-          driftMs: 30,
-        },
-      ],
+      octave: [{ video_id: "a", title: "A", ledgerBpm: 60, rbBpm: 120, driftMs: 0 }],
+      drift: [{ video_id: "v1", title: "T", ledgerBpm: 120, rbBpm: 125, driftMs: 30 }],
       off: [],
     });
     // severity order: octave first, then drift

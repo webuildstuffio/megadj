@@ -22,11 +22,7 @@
 //
 // Pure: no DB, no IO — the caller (genre.ts eval mode) feeds rows.
 
-import {
-  cosineSimilarity,
-  type GenreSeed,
-  type LoORowOutcome,
-} from "../../core/similar";
+import { cosineSimilarity, type GenreSeed, type LoORowOutcome } from "../../core/similar";
 import { round3 } from "../../shared/leaf/fmt";
 
 /** The four Tier-0 readouts, one JSON-serializable shape. */
@@ -92,8 +88,7 @@ export function tier0Diagnostics(
   const disagreements = gated.filter((row) => row.predicted !== row.family);
   const byArtist = new Map<string, number>();
   for (const row of disagreements) {
-    const artist =
-      pop.find((p) => p.videoId === row.videoId)?.artist ?? "unknown";
+    const artist = pop.find((p) => p.videoId === row.videoId)?.artist ?? "unknown";
     byArtist.set(artist, (byArtist.get(artist) ?? 0) + 1);
   }
   const total = disagreements.length;
@@ -106,13 +101,9 @@ export function tier0Diagnostics(
     .toSorted((a, b) => b.disagreements - a.disagreements);
   const top10Share =
     total > 0
-      ? round3(
-          ranked.slice(0, 10).reduce((acc, r) => acc + r.disagreements, 0) /
-            total,
-        )
+      ? round3(ranked.slice(0, 10).reduce((acc, r) => acc + r.disagreements, 0) / total)
       : 0;
-  const verdict =
-    top10Share >= 0.4 ? "systematic" : top10Share >= 0.2 ? "mixed" : "random";
+  const verdict = top10Share >= 0.4 ? "systematic" : top10Share >= 0.2 ? "mixed" : "random";
 
   // ---- 0.2 artist overlap in top-5 + 0.3 hubness histogram ----
   // one shared pass: each row's top-k (id + artist) feeds both readouts
@@ -123,11 +114,7 @@ export function tier0Diagnostics(
     const held = pop[i]!;
     const nn = pop
       .filter((s, j) => j !== i && s.vec.length === held.vec.length)
-      .map((s) => ({
-        id: s.videoId,
-        artist: s.artist,
-        score: cosineSimilarity(held.vec, s.vec),
-      }))
+      .map((s) => ({ id: s.videoId, artist: s.artist, score: cosineSimilarity(held.vec, s.vec) }))
       .toSorted((a, b) => b.score - a.score || a.id.localeCompare(b.id))
       .slice(0, k);
     const same = nn.filter((n) => n.artist === held.artist).length;
@@ -140,9 +127,7 @@ export function tier0Diagnostics(
   const at = (p: number): number =>
     counts.length === 0
       ? 0
-      : counts[
-          Math.min(counts.length - 1, Math.floor((p / 100) * counts.length))
-        ]!;
+      : counts[Math.min(counts.length - 1, Math.floor((p / 100) * counts.length))]!;
 
   // ---- 0.4 confusion matrix + top-2 ----
   const matrix: Record<string, Record<string, number>> = {};
@@ -153,8 +138,7 @@ export function tier0Diagnostics(
     const held = pop.find((p) => p.videoId === row.videoId);
     if (!held) continue;
     matrix[held.family] ??= {};
-    matrix[held.family]![row.predicted] =
-      (matrix[held.family]![row.predicted] ?? 0) + 1;
+    matrix[held.family]![row.predicted] = (matrix[held.family]![row.predicted] ?? 0) + 1;
     if (row.predicted !== held.family) {
       disagreeTotal++;
       if (TRIANGLE.has(held.family) && TRIANGLE.has(row.predicted)) triangle++;
@@ -167,12 +151,7 @@ export function tier0Diagnostics(
   }).length;
 
   return {
-    labelErrors: {
-      artists: byArtist.size,
-      top10Share,
-      top: ranked.slice(0, 10),
-      verdict,
-    },
+    labelErrors: { artists: byArtist.size, top10Share, top: ranked.slice(0, 10), verdict },
     artistOverlap: {
       meanTop5SameArtist: meanTop5,
       rowsMajoritySameArtist: majorityRows,

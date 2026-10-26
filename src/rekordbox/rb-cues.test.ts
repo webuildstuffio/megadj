@@ -1,23 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  __test,
-  HOT_CUE_KIND,
-  LOOP_CUE_KIND,
-  MAX_HOT_CUES,
-} from "./rb-cues.js";
+import { __test, HOT_CUE_KIND, LOOP_CUE_KIND, MAX_HOT_CUES } from "./rb-cues.js";
 import { renderKitMarkers } from "./rb-command-kit";
 
 /** The RENDERED restamp program — kit markers resolved exactly as
  *  pyUvFileArgv does at spawn time (#194 corpus extraction). */
 const restampScript = () =>
-  renderKitMarkers(
-    readFileSync(
-      join(import.meta.dir, "rb-scripts", "cue-restamp.kit.py"),
-      "utf8",
-    ),
-  );
+  renderKitMarkers(readFileSync(join(import.meta.dir, "rb-scripts", "cue-restamp.kit.py"), "utf8"));
 
 /** Fake RbCommandRuntime with the green path stubbed; spread overrides in.
  *  One factory instead of seven hand-copied hook objects (jscpd cluster). */
@@ -91,18 +81,10 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   });
 
   test("rejects malformed and partial restamp summaries", () => {
-    expect(() => __test.parseRestampOutput("not json", true)).toThrow(
-      /malformed JSON/u,
-    );
+    expect(() => __test.parseRestampOutput("not json", true)).toThrow(/malformed JSON/u);
     expect(() =>
       __test.parseRestampOutput(
-        JSON.stringify({
-          found: 2,
-          written: 1,
-          protected: 0,
-          written_ids: ["42"],
-          errors: [],
-        }),
+        JSON.stringify({ found: 2, written: 1, protected: 0, written_ids: ["42"], errors: [] }),
         true,
       ),
     ).toThrow(/restamped 1\/2 rows/u);
@@ -111,9 +93,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   test("failed dry-run subprocess fails closed", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST" },
-      fakeRuntime({
-        spawn: () => ({ status: 9, stdout: "", stderr: "boom" }),
-      }),
+      fakeRuntime({ spawn: () => ({ status: 9, stdout: "", stderr: "boom" }) }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("census failed (exit 9)");
@@ -207,9 +187,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     expect(result.ok).toBe(false);
     expect(result.error).toContain("malformed JSON");
     expect(result.error).toContain("restored backup");
-    expect(restores).toEqual([
-      ["/Volumes/TEST/PIONEER/Master/master.db", "/tmp/master.db.bak"],
-    ]);
+    expect(restores).toEqual([["/Volumes/TEST/PIONEER/Master/master.db", "/tmp/master.db.bak"]]);
   });
 
   test("surfaces both the verification failure and a failed restore", async () => {

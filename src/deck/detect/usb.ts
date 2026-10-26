@@ -3,11 +3,7 @@
 // seam, the port-key join against diskutil's DeviceTreePath, and the
 // 2s tree cache that keeps the 5s sweep from spawning python per volume.
 import { join } from "node:path";
-import {
-  isFiniteNumber,
-  isRecord,
-  isUnknownArray,
-} from "../../shared/leaf/guards";
+import { isFiniteNumber, isRecord, isUnknownArray } from "../../shared/leaf/guards";
 
 export interface UsbDevice {
   product: string;
@@ -74,22 +70,16 @@ export function invalidateUsbTreeCache(): void {
  *  used to spawn python3 on every volume detail (per poll). */
 export function usbTree(): UsbDevice[] {
   const now = Date.now();
-  if (usbTreeCache && now - usbTreeCache.at < USB_TREE_TTL_MS)
-    return usbTreeCache.devices;
-  const p = Bun.spawnSync(
-    ["python3", join(import.meta.dir, "..", "python", "usb_tree.py")],
-    {
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  );
+  if (usbTreeCache && now - usbTreeCache.at < USB_TREE_TTL_MS) return usbTreeCache.devices;
+  const p = Bun.spawnSync(["python3", join(import.meta.dir, "..", "python", "usb_tree.py")], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   let devices: UsbDevice[] = [];
   if (p.exitCode === 0) {
     devices = parseUsbTreeJson(p.stdout.toString());
   } else {
-    console.error(
-      `usb_tree.py exited ${p.exitCode}: ${p.stderr.toString().slice(0, 200)}`,
-    );
+    console.error(`usb_tree.py exited ${p.exitCode}: ${p.stderr.toString().slice(0, 200)}`);
   }
   usbTreeCache = { at: now, devices };
   return devices;
@@ -139,9 +129,7 @@ export function pickUsbDevice(
       .replace(/\s*media$/, "")
       .trim();
     const match = pool.find(
-      (d) =>
-        med.includes(d.product.toLowerCase()) ||
-        d.product.toLowerCase().includes(med),
+      (d) => med.includes(d.product.toLowerCase()) || d.product.toLowerCase().includes(med),
     );
     if (match) return match;
   }

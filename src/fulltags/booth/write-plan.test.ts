@@ -2,11 +2,7 @@
  * write-plan.test.ts — Tests for write plan/apply (B10.3).
  */
 import { describe, expect, test } from "bun:test";
-import {
-  buildWritePlan,
-  formatWritePlan,
-  type WriteChange,
-} from "./write-plan";
+import { buildWritePlan, formatWritePlan, type WriteChange } from "./write-plan";
 
 describe("buildWritePlan", () => {
   test("empty changes → empty plan", () => {
@@ -49,14 +45,7 @@ describe("buildWritePlan", () => {
         oldValue: null,
         newValue: "8A · E6",
       },
-      {
-        trackId: "t1",
-        title: "A",
-        artist: "A",
-        field: "colour",
-        oldValue: "0",
-        newValue: "5",
-      },
+      { trackId: "t1", title: "A", artist: "A", field: "colour", oldValue: "0", newValue: "5" },
       {
         trackId: "t2",
         title: "B",

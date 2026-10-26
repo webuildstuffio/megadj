@@ -6,11 +6,7 @@
 import { Card } from "../../ui/data";
 import { Icon } from "../../ui/icons";
 import { SectionHead } from "../shared";
-import {
-  cohortsExportHref,
-  type CohortArmWire,
-  type CohortsPlanner,
-} from "./cohorts-view";
+import { cohortsExportHref, type CohortArmWire, type CohortsPlanner } from "./cohorts-view";
 
 function armSummary(arm: CohortArmWire): string {
   const flag = arm.complete ? "" : ` · short ${arm.shortfallMinutes}m`;
@@ -27,15 +23,11 @@ function ArmCard(props: { arm: CohortArmWire }) {
         pool {arm.pool.toLocaleString()}
         {arm.avgTransition !== null
           ? ` · blend ${arm.avgTransition.toFixed(3)}${
-              arm.minTransition !== null
-                ? ` (worst ${arm.minTransition.toFixed(3)})`
-                : ""
+              arm.minTransition !== null ? ` (worst ${arm.minTransition.toFixed(3)})` : ""
             }`
           : ""}
         {arm.sameArtistPairs > 0
-          ? ` · ${arm.sameArtistPairs} same-artist pair${
-              arm.sameArtistPairs === 1 ? "" : "s"
-            }`
+          ? ` · ${arm.sameArtistPairs} same-artist pair${arm.sameArtistPairs === 1 ? "" : "s"}`
           : ""}
       </small>
     </div>
@@ -49,9 +41,8 @@ export function MegasetCohorts(props: { planner: CohortsPlanner }) {
     <Card class="megaset cohorts">
       <SectionHead icon="grid" title="Plan the session, one cohort at a time" />
       <p class="megaset-lead">
-        Builds a warmup + peak pair per genre family in one pass — the full
-        night's arc per crowd. Same engine, census, and honesty rules as the
-        Build tab; nothing writes.
+        Builds a warmup + peak pair per genre family in one pass — the full night's arc per crowd.
+        Same engine, census, and honesty rules as the Build tab; nothing writes.
       </p>
       <div class="megaset-cohort-controls">
         <label>
@@ -61,9 +52,7 @@ export function MegasetCohorts(props: { planner: CohortsPlanner }) {
             min={10}
             max={240}
             value={planner.minutesInput}
-            onInput={(e) =>
-              planner.setMinutesInput((e.target as HTMLInputElement).value)
-            }
+            onInput={(e) => planner.setMinutesInput((e.target as HTMLInputElement).value)}
           />
         </label>
         <label>
@@ -72,16 +61,10 @@ export function MegasetCohorts(props: { planner: CohortsPlanner }) {
             type="text"
             placeholder="edm, house, techno, tech house"
             value={planner.familiesInput}
-            onInput={(e) =>
-              planner.setFamiliesInput((e.target as HTMLInputElement).value)
-            }
+            onInput={(e) => planner.setFamiliesInput((e.target as HTMLInputElement).value)}
           />
         </label>
-        <button
-          class="primary"
-          disabled={state.loading}
-          onClick={() => planner.request()}
-        >
+        <button class="primary" disabled={state.loading} onClick={() => planner.request()}>
           {state.loading ? "Planning cohorts…" : "Plan cohorts"}
         </button>
       </div>
@@ -110,10 +93,8 @@ export function MegasetCohorts(props: { planner: CohortsPlanner }) {
             class="btn ghostbtn"
             href={cohortsExportHref(state.data, planner.familiesInput)}
             download
-            title="Download the whole session as one UTF-8 M3U8 playlist; this does not open or change Rekordbox"
-          >
-            <Icon name="download" size={13} /> Export session .m3u8 for
-            Rekordbox
+            title="Download the whole session as one UTF-8 M3U8 playlist; this does not open or change Rekordbox">
+            <Icon name="download" size={13} /> Export session .m3u8 for Rekordbox
           </a>
           <details class="megaset-cohort-scope">
             <summary>what's outside every cohort</summary>

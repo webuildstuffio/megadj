@@ -40,17 +40,11 @@ export function mutagenJson<T>(script: string, fallback: T): T {
 
 export type MutagenJsonParseResult<T> =
   | { ok: true; value: T }
-  | {
-      ok: false;
-      context: "fulltags mutagen subprocess";
-      detail: string;
-    };
+  | { ok: false; context: "fulltags mutagen subprocess"; detail: string };
 
 /** Parse the final JSON line from mutagen. The failure result is contextual,
  * leaving mutagenJson free to preserve its fallback API while reporting why. */
-export function parseMutagenJsonOutput<T = unknown>(
-  stdout: string,
-): MutagenJsonParseResult<T> {
+export function parseMutagenJsonOutput<T = unknown>(stdout: string): MutagenJsonParseResult<T> {
   const context = "fulltags mutagen subprocess" as const;
   const last = stdout.trim().split("\n").at(-1);
   if (!last) return { ok: false, context, detail: "empty stdout" };
@@ -60,18 +54,13 @@ export function parseMutagenJsonOutput<T = unknown>(
       return { ok: false, context, detail: "response is not an object" };
     return { ok: true, value: value as T };
   } catch (error) {
-    return {
-      ok: false,
-      context,
-      detail: `malformed JSON: ${errorText(error)}`,
-    };
+    return { ok: false, context, detail: `malformed JSON: ${errorText(error)}` };
   }
 }
 
 /** Python opener line for the ID3-chunk containers (WAV RIFF / AIFF). */
 export function id3Open(p: string): string {
-  return extname(p).toLowerCase() === ".aiff" ||
-    extname(p).toLowerCase() === ".aif"
+  return extname(p).toLowerCase() === ".aiff" || extname(p).toLowerCase() === ".aif"
     ? `from mutagen.aiff import AIFF\na = AIFF(${JSON.stringify(p)})`
     : `from mutagen.wave import WAVE\na = WAVE(${JSON.stringify(p)})`;
 }

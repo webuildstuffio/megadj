@@ -33,8 +33,7 @@ describe("#159: one awaited JSON emit path (writeJson)", () => {
     for (const root of roots) {
       for (const file of walkFiles(root, TS_EXTS, { skipTests: true })) {
         if (file.endsWith(".test.ts") || file.endsWith(".d.ts")) continue;
-        if (file.includes("/legacy/") || file.includes("/__pycache__/"))
-          continue;
+        if (file.includes("/legacy/") || file.includes("/__pycache__/")) continue;
         const code = readFileSync(file, "utf8");
         if (RAW_EMIT.test(code)) offenders.push(relative(".", file));
       }

@@ -1,19 +1,9 @@
 // cueStats + libraryOverview — the FullTags-read-side halves of the archive
 // surface. Split from archive.ts for the file-length guard; ArchiveReader
 // delegates so the call sites (`archive.cueStats(... + `) are unchanged.
-import type {
-  ArchiveQuery,
-  ArchiveTrack,
-} from "../shared/types/archive-reader";
-import type {
-  ArchiveCueStats,
-  ArchiveLibraryOverview,
-} from "../shared/archive-wire";
-import {
-  isFiniteNumber,
-  isRecord,
-  isUnknownArray,
-} from "../../shared/leaf/guards";
+import type { ArchiveQuery, ArchiveTrack } from "../shared/types/archive-reader";
+import type { ArchiveCueStats, ArchiveLibraryOverview } from "../shared/archive-wire";
+import { isFiniteNumber, isRecord, isUnknownArray } from "../../shared/leaf/guards";
 import { round1 } from "../../shared/leaf/fmt";
 
 interface CuePoint {
@@ -78,9 +68,7 @@ export function cueStats(reader: ArchiveQuery, limit = 40): ArchiveCueStats {
     // owns the ledger treats it the same way)
     const cues = parseCuePoints(r.cues_json);
     if (cues === null) {
-      console.error(
-        `cue row for ${r.video_id} has invalid cues_json — skipping`,
-      );
+      console.error(`cue row for ${r.video_id} has invalid cues_json — skipping`);
       return [];
     }
     return [
@@ -111,10 +99,7 @@ export function cueStats(reader: ArchiveQuery, limit = 40): ArchiveCueStats {
  * and the freshest updates. All from the archive DB's own columns (the
  * mirror of the file tags fulltags writes); read-only as always.
  */
-export function libraryOverview(
-  reader: ArchiveQuery,
-  recentLimit = 60,
-): ArchiveLibraryOverview {
+export function libraryOverview(reader: ArchiveQuery, recentLimit = 60): ArchiveLibraryOverview {
   const empty = {
     available: reader.available(),
     tracks: 0,
@@ -127,9 +112,7 @@ export function libraryOverview(
     recent: [],
   };
   const n = Math.min(Math.max(recentLimit, 1), 100);
-  const base = {
-    available: reader.available(),
-  };
+  const base = { available: reader.available() };
   // Pre-enrichment archive DBs lack the year/artwork_status/energy columns
   // (megadj adds them by migration) — detect once per handle and degrade
   // those sections to zeros instead of SQLiteError-ing every call.
@@ -140,11 +123,8 @@ export function libraryOverview(
   const hasYear = has("year");
   const hasArt = has("artwork_status");
   const hasEnergy = has("energy");
-  const count = (sql: string): number =>
-    reader.rows<{ n: number }>(sql)[0]?.n ?? 0;
-  const tracks = count(
-    `SELECT COUNT(*) n FROM tracks WHERE status = 'downloaded'`,
-  );
+  const count = (sql: string): number => reader.rows<{ n: number }>(sql)[0]?.n ?? 0;
+  const tracks = count(`SELECT COUNT(*) n FROM tracks WHERE status = 'downloaded'`);
   if (!tracks) return { ...empty, ...base };
   const embedded = hasArt
     ? count(
@@ -211,10 +191,7 @@ export function libraryOverview(
         : 0,
     },
     codecs,
-    sizes: {
-      files: sizes?.files ?? 0,
-      total_bytes: sizes?.total_bytes ?? 0,
-    },
+    sizes: { files: sizes?.files ?? 0, total_bytes: sizes?.total_bytes ?? 0 },
     recent,
   };
 }

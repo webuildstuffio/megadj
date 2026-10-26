@@ -21,9 +21,7 @@ describe("#262 dump wire contract (derived, never redeclared)", () => {
     // directly; knip flags the re-export as dead) — only the census shape
     // routes through here, so that is the pinned re-export.
     expect(SOURCE).not.toContain("interface DumpRecord");
-    expect(SOURCE).toContain(
-      'export type { DumpCensus as IntakeDumpsResponse } from "../dump"',
-    );
+    expect(SOURCE).toContain('export type { DumpCensus as IntakeDumpsResponse } from "../dump"');
   });
 
   test("the owner leaf actually declares the shapes", () => {

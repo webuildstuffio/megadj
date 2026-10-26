@@ -62,19 +62,12 @@ describe("#308 mood pre-first-chunk visibility", () => {
     for (const id of ["f1", "f2", "f3", "f4"]) addDownloaded(id);
     const { mood } = await import("./mood");
     const lines: string[] = [];
-    await mood({
-      state,
-      musicDir: dir,
-      json: false,
-      onProgress: (m) => lines.push(m),
-    });
+    await mood({ state, musicDir: dir, json: false, onProgress: (m) => lines.push(m) });
     const text = lines.join("\n");
     // stage announcements, in pipeline order, all BEFORE the chunk line
     const queueLine = lines.findIndex((l) => l.includes("queue: 4 downloaded"));
     const syncLine = lines.findIndex((l) => l.includes("stamp sync done"));
-    const probeLine = lines.findIndex((l) =>
-      l.includes("analysis probe: 4 file(s)"),
-    );
+    const probeLine = lines.findIndex((l) => l.includes("analysis probe: 4 file(s)"));
     const chunkLine = lines.findIndex((l) => l.includes("parallel worker(s)"));
     for (const [name, idx] of [
       ["queue", queueLine],
@@ -97,9 +90,7 @@ describe("#308 mood pre-first-chunk visibility", () => {
     // worker errored on each — fake audio — and mood-queue.test.ts pins
     // the counters via the console.log capture path). Here the DB-level
     // proof: the 4 tracks exist, none was silently dropped by a stage.
-    const ledgered = state
-      .allTracks()
-      .filter((t) => ["f1", "f2", "f3", "f4"].includes(t.video_id));
+    const ledgered = state.allTracks().filter((t) => ["f1", "f2", "f3", "f4"].includes(t.video_id));
     expect(ledgered.length).toBe(4);
   }, 60000);
 
@@ -123,12 +114,7 @@ describe("#308 mood pre-first-chunk visibility", () => {
     }
     const { mood } = await import("./mood");
     const lines: string[] = [];
-    await mood({
-      state,
-      musicDir: dir,
-      json: false,
-      onProgress: (m) => lines.push(m),
-    });
+    await mood({ state, musicDir: dir, json: false, onProgress: (m) => lines.push(m) });
     const probeLine = lines.find((l) => l.includes("analysis probe:"));
     expect(probeLine).toBeDefined();
     expect(probeLine).toContain("skipping 2 ledgered");

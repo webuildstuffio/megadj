@@ -29,23 +29,11 @@ describe("parseMegasetQuery", () => {
     });
   });
   test("minutes clamp into 10–240; absent stays default, PRESENT-but-invalid errors (B7)", () => {
-    expect(parseMegasetQuery({ minutes: "999" })).toEqual({
-      preset: "peak",
-      minutes: 240,
-    });
-    expect(parseMegasetQuery({ minutes: "1" })).toEqual({
-      preset: "peak",
-      minutes: 10,
-    });
-    expect(parseMegasetQuery({ minutes: "90" })).toEqual({
-      preset: "peak",
-      minutes: 90,
-    });
+    expect(parseMegasetQuery({ minutes: "999" })).toEqual({ preset: "peak", minutes: 240 });
+    expect(parseMegasetQuery({ minutes: "1" })).toEqual({ preset: "peak", minutes: 10 });
+    expect(parseMegasetQuery({ minutes: "90" })).toEqual({ preset: "peak", minutes: 90 });
     // a number delivered as a number is fine too (MCP surface)
-    expect(parseMegasetQuery({ minutes: 45 })).toEqual({
-      preset: "peak",
-      minutes: 45,
-    });
+    expect(parseMegasetQuery({ minutes: 45 })).toEqual({ preset: "peak", minutes: 45 });
     // B7 regression (issue #105): "banana" used to silently re-score as
     // the 60-minute default; now it errors like the unknown-preset path
     const bad = parseMegasetQuery({ minutes: "banana" });
@@ -54,10 +42,7 @@ describe("parseMegasetQuery", () => {
       error: 'minutes must be a number (got "NaN")',
     });
     // empty string = absent → default (the UI's blank input)
-    expect(parseMegasetQuery({ minutes: "" })).toEqual({
-      preset: "peak",
-      minutes: 60,
-    });
+    expect(parseMegasetQuery({ minutes: "" })).toEqual({ preset: "peak", minutes: 60 });
   });
   test("valid preset accepted", () => {
     expect(parseMegasetQuery({ preset: "afterhours" })).toEqual({
@@ -146,12 +131,7 @@ describe("isShelfOffline (the unmounted-shelf signature)", () => {
   test("B1 (#104): metadata-only rows are part of the missing population — the identity includes them", () => {
     // the audit's live offline census WITH B1 admission: 8 mounted +
     // 3,500 mirror-scored + 156 unmeasurable missing = 3,664 total
-    const offlineWithMeta = {
-      ...offline,
-      pool: 8,
-      metadata_only: 3500,
-      missing_files: 156,
-    };
+    const offlineWithMeta = { ...offline, pool: 8, metadata_only: 3500, missing_files: 156 };
     // steps empty + every row accounted by (pool + metadata + missing)
     // and nothing relocated → still the shelf-offline signature
     expect(isShelfOffline(offlineWithMeta, offlineWithMeta)).toBe(true);

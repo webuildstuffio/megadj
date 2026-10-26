@@ -22,9 +22,6 @@ export function normalize(s: string): string {
 }
 
 /** Dedupe/compare key: `artist|title` with normalize() applied to both. */
-export function identityKey(
-  artist: string | null | undefined,
-  title: string,
-): string {
+export function identityKey(artist: string | null | undefined, title: string): string {
   return `${normalize(artist ?? "")}|${normalize(title)}`;
 }

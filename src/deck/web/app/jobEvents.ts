@@ -5,10 +5,7 @@ type Refresh = () => Promise<void>;
 
 /** Coalesce a burst of job SSE events. The trailing refresh wins, so a
  * stream of progress ticks never causes a matching stream of SQLite reads. */
-export function createJobRefreshCoalescer(
-  refresh: Refresh,
-  delayMs = JOB_EVENT_COALESCE_MS,
-) {
+export function createJobRefreshCoalescer(refresh: Refresh, delayMs = JOB_EVENT_COALESCE_MS) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   return {
     schedule(): void {

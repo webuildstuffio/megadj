@@ -10,10 +10,7 @@ import type { Drive, DriveImage } from "../../../shared/types";
 import { ShareBar } from "../shared";
 
 const tabSrc = readFileSync(join(import.meta.dir, "PhotoTab.tsx"), "utf8");
-const baseCss = readFileSync(
-  join(import.meta.dir, "../../styles/base.css"),
-  "utf8",
-);
+const baseCss = readFileSync(join(import.meta.dir, "../../styles/base.css"), "utf8");
 
 const drive: Drive = {
   id: "d1",
@@ -47,10 +44,7 @@ const hits: PhotoHit[] = [
   { id: "h2", thumb: "/t2", full: "/f2", source: "openverse" },
 ];
 
-function renderTab(
-  searchHits: PhotoHit[] | null,
-  driveImages: DriveImage[] | null,
-) {
+function renderTab(searchHits: PhotoHit[] | null, driveImages: DriveImage[] | null) {
   return render(
     <PhotoTab
       drive={drive}
@@ -90,13 +84,7 @@ describe("cover-photo picking is keyboard-operable (#520)", () => {
       <ShareBar
         total={4}
         segs={[
-          {
-            n: 3,
-            cls: "ok",
-            label: "in archive",
-            title: "In archive",
-            onClick: () => {},
-          },
+          { n: 3, cls: "ok", label: "in archive", title: "In archive", onClick: () => {} },
           { n: 1, cls: "bad", label: "failed", title: "Failed" },
         ]}
       />,

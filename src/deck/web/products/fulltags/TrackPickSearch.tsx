@@ -36,11 +36,7 @@ export function TrackPickSearch(props: {
 }) {
   return (
     <>
-      <SearchBar
-        value={props.query}
-        onInput={props.onQuery}
-        placeholder={props.placeholder}
-      />
+      <SearchBar value={props.query} onInput={props.onQuery} placeholder={props.placeholder} />
       {props.query.trim().length === 1 && (
         <div class="fleet-note" role="status" aria-live="polite">
           Type 2 or more characters to search.
@@ -56,34 +52,31 @@ export function TrackPickSearch(props: {
           Search failed. Try again.
         </div>
       )}
-      {props.hitsStatus === "ok" &&
-        props.hits &&
-        props.query.trim().length >= 2 && (
-          <Card>
-            <KVRows>
-              {props.hits.slice(0, 8).map((t) => (
-                <button
-                  type="button"
-                  class="kvrow kvrow-btn"
-                  key={t.video_id}
-                  onClick={() => props.onPick(t)}
-                >
-                  <KVKey>
-                    <TrackTitle
-                      title={t.title ?? t.video_id}
-                      videoId={t.video_id}
-                      artist={t.artist}
-                    />
-                  </KVKey>
-                  <KVVal>pick →</KVVal>
-                </button>
-              ))}
-              {props.hits.length === 0 && props.emptyNote && (
-                <div class="fleet-note">{props.emptyNote}</div>
-              )}
-            </KVRows>
-          </Card>
-        )}
+      {props.hitsStatus === "ok" && props.hits && props.query.trim().length >= 2 && (
+        <Card>
+          <KVRows>
+            {props.hits.slice(0, 8).map((t) => (
+              <button
+                type="button"
+                class="kvrow kvrow-btn"
+                key={t.video_id}
+                onClick={() => props.onPick(t)}>
+                <KVKey>
+                  <TrackTitle
+                    title={t.title ?? t.video_id}
+                    videoId={t.video_id}
+                    artist={t.artist}
+                  />
+                </KVKey>
+                <KVVal>pick →</KVVal>
+              </button>
+            ))}
+            {props.hits.length === 0 && props.emptyNote && (
+              <div class="fleet-note">{props.emptyNote}</div>
+            )}
+          </KVRows>
+        </Card>
+      )}
     </>
   );
 }
@@ -107,9 +100,7 @@ export function PickedTrackSearch(props: {
   const search = useFetched<ArchiveSearchHit[] | null>(
     () =>
       query.trim().length >= 2
-        ? api<ArchiveSearchHit[]>(
-            `/api/archive/search?q=${encodeURIComponent(query)}`,
-          )
+        ? api<ArchiveSearchHit[]>(`/api/archive/search?q=${encodeURIComponent(query)}`)
         : Promise.resolve(null),
     [query],
   );

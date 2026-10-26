@@ -96,13 +96,11 @@ describe("cutDupGroups (#142 engine)", () => {
     const db = new Database(":memory:");
     const cache = new DupFpCache(db, "engine_test_cut");
     const dir = t3.dir();
-    const files = ["big.mp3", "small.mp3", "mid.mp3", "lonely.mp3"].map(
-      (n, i) => {
-        const p = join(dir, n);
-        writeFileSync(p, "x".repeat(10 - i));
-        return p;
-      },
-    );
+    const files = ["big.mp3", "small.mp3", "mid.mp3", "lonely.mp3"].map((n, i) => {
+      const p = join(dir, n);
+      writeFileSync(p, "x".repeat(10 - i));
+      return p;
+    });
     // big+small+mid share FP1 (keeper = largest = big.mp3); lonely differs
     cache.put(files[0]!, 10, "FP1");
     cache.put(files[1]!, 9, "FP1");
@@ -164,10 +162,7 @@ describe("applyGroupsSafety (#142 engine — the ONE safety gate)", () => {
       // accept only loser-a
       (loser) => loser.path === loserA,
       () => 1,
-      {
-        onQuarantined: (p) => quarantined.push(p),
-        onReview: (p) => reviewed.push(p),
-      },
+      { onQuarantined: (p) => quarantined.push(p), onReview: (p) => reviewed.push(p) },
     );
     expect(tally.quarantined).toBe(1);
     expect(tally.skippedForReview).toBe(1);

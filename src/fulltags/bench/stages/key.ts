@@ -23,24 +23,9 @@ interface AKRow {
 }
 
 /** MIREX key scoring: exact=1, fifth=0.5, relative=0.3, parallel=0.2, else=0. */
-const PITCH_CLASSES = [
-  "C",
-  "C#",
-  "D",
-  "D#",
-  "E",
-  "F",
-  "F#",
-  "G",
-  "G#",
-  "A",
-  "A#",
-  "B",
-] as const;
+const PITCH_CLASSES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
 
-function parseKey(
-  raw: string,
-): { pitch: number; mode: "major" | "minor" } | null {
+function parseKey(raw: string): { pitch: number; mode: "major" | "minor" } | null {
   const norm = raw.trim().replace(/\s+/gu, " ");
   for (let i = 0; i < PITCH_CLASSES.length; i++) {
     const pc = PITCH_CLASSES[i]!;
@@ -79,35 +64,17 @@ function mirexScore(truth: string, pred: string): number {
   const interval = (p.pitch - t.pitch + 12) % 12;
   if (interval === 7 && t.mode === p.mode) return 0.5; // fifth
   if (interval === 5 && t.mode === p.mode) return 0.5; // fourth (inverse fifth)
-  if (
-    t.mode === "major" &&
-    p.mode === "minor" &&
-    (t.pitch + 9) % 12 === p.pitch
-  )
-    return 0.3; // relative
-  if (
-    t.mode === "minor" &&
-    p.mode === "major" &&
-    (t.pitch + 3) % 12 === p.pitch
-  )
-    return 0.3; // relative
+  if (t.mode === "major" && p.mode === "minor" && (t.pitch + 9) % 12 === p.pitch) return 0.3; // relative
+  if (t.mode === "minor" && p.mode === "major" && (t.pitch + 3) % 12 === p.pitch) return 0.3; // relative
   if (t.pitch === p.pitch && t.mode !== p.mode) return 0.2; // parallel
   return 0;
 }
 
-function runKeyStage(
-  db: Database,
-  answerKey: string,
-  _split: BenchSplit,
-): StageResult {
-  const keys = db
-    .query("SELECT video_id, key FROM track_keys")
-    .all() as KeyRow[];
+function runKeyStage(db: Database, answerKey: string, _split: BenchSplit): StageResult {
+  const keys = db.query("SELECT video_id, key FROM track_keys").all() as KeyRow[];
 
   const benchRows: BenchRow[] = [];
-  const metrics: Record<string, number | string | null> = {
-    n_tracks: keys.length,
-  };
+  const metrics: Record<string, number | string | null> = { n_tracks: keys.length };
 
   const akIds = answerKey === "all" ? ["AK1", "AK2"] : [answerKey];
   for (const akId of akIds) {
@@ -140,17 +107,10 @@ function runKeyStage(
     const prefix = akId.toLowerCase();
     metrics[`${prefix}_matched`] = matched;
     metrics[`${prefix}_exact`] = matched > 0 ? round4(exact / matched) : null;
-    metrics[`${prefix}_mirex`] =
-      matched > 0 ? round4(mirexSum / matched) : null;
+    metrics[`${prefix}_mirex`] = matched > 0 ? round4(mirexSum / matched) : null;
   }
 
-  return {
-    stage: "key",
-    answerKey,
-    rows: benchRows,
-    metrics,
-    configHash: "key-v1",
-  };
+  return { stage: "key", answerKey, rows: benchRows, metrics, configHash: "key-v1" };
 }
 
 registerStage("key", runKeyStage);

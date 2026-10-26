@@ -29,9 +29,7 @@ function indexPlaylists(playlistEntries: Map<string, PlaylistEntryRow[]>): {
     for (const e of rows) {
       const pl = fold(e.playlist_name);
       plDisplay.set(pl, e.playlist_name);
-      (plTracks.get(pl) ?? plTracks.set(pl, new Set()).get(pl)!).add(
-        fold(e.track_path),
-      );
+      (plTracks.get(pl) ?? plTracks.set(pl, new Set()).get(pl)!).add(fold(e.track_path));
     }
   }
   return { plTracks, plDisplay };
@@ -43,10 +41,7 @@ function buildTrackIndex(
   playlistEntries: Map<string, PlaylistEntryRow[]>,
   minCopies: number,
 ): Map<string, { cov: TrackCoverage; playlists: Set<string> }> {
-  const trackIndex = new Map<
-    string,
-    { cov: TrackCoverage; playlists: Set<string> }
-  >();
+  const trackIndex = new Map<string, { cov: TrackCoverage; playlists: Set<string> }>();
   const cov = coverage(inventories, minCopies);
   for (const row of cov.rows) {
     trackIndex.set(row.identity.path, { cov: row, playlists: new Set() });
@@ -77,13 +72,7 @@ function auditPlaylist(
   const gaps = rows.filter((r) => r.copies < minCopies);
   const fails = gaps.filter((r) => r.copies <= 1).length;
   const verdict: PlaylistRedundancy["verdict"] =
-    rows.length === 0
-      ? "unknown"
-      : fails > 0
-        ? "fail"
-        : gaps.length > 0
-          ? "warn"
-          : "pass";
+    rows.length === 0 ? "unknown" : fails > 0 ? "fail" : gaps.length > 0 ? "warn" : "pass";
   return {
     playlist: plDisplay.get(plKey) ?? plKey,
     unique_tracks: rows.length,
@@ -121,9 +110,7 @@ export function redundancy(
 
   out.sort((a, b) => {
     const rank = { fail: 0, warn: 1, unknown: 2, pass: 3 } as const;
-    return (
-      rank[a.verdict] - rank[b.verdict] || b.unique_tracks - a.unique_tracks
-    );
+    return rank[a.verdict] - rank[b.verdict] || b.unique_tracks - a.unique_tracks;
   });
   const fails = out.filter((p) => p.verdict === "fail").length;
   const warns = out.filter((p) => p.verdict === "warn").length;
@@ -196,17 +183,7 @@ export function diff(
   const changed: DiffRow[] = [];
 
   const matchedB = new Set<string>();
-  reconcileA(
-    ia,
-    ib,
-    fa,
-    fb,
-    diffRowOf,
-    diffBytesOf,
-    matchedB,
-    removed,
-    changed,
-  );
+  reconcileA(ia, ib, fa, fb, diffRowOf, diffBytesOf, matchedB, removed, changed);
   for (const [path, rb] of ib.byPath) {
     if (matchedB.has(path)) continue;
     const m = metaKey(rb);
@@ -248,8 +225,7 @@ const diffBytesOf = (r?: DiffSource): number | undefined => r?.bytes;
 /** Playlist-diff row ordering: by display path. Captures nothing from
  *  `diff()` — module-level so it isn't re-created per call (oxlint
  *  consistent-function-scoping). */
-const byPathCompare = (x: DiffRow, y: DiffRow): number =>
-  x.path.localeCompare(y.path);
+const byPathCompare = (x: DiffRow, y: DiffRow): number => x.path.localeCompare(y.path);
 
 /** A-side reconcile pass: match by path, fall back to artist-title join,
  *  then classify changed (byte drift) / removed. Bytes compare at each
@@ -282,12 +258,7 @@ function reconcileA(
       const ba = bytesOf(fa.byPath.get(path)) ?? bytesOf(ra);
       const bb = bytesOf(fb.byPath.get(fold(rb.path))) ?? bytesOf(rb);
       if (ba !== undefined && bb !== undefined && ba !== bb) {
-        changed.push({
-          ...rowOf(ra, rb),
-          kind: "changed",
-          bytes_a: ba,
-          bytes_b: bb,
-        });
+        changed.push({ ...rowOf(ra, rb), kind: "changed", bytes_a: ba, bytes_b: bb });
       }
     } else {
       removed.push({ ...rowOf(ra), kind: "removed" });

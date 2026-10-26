@@ -16,12 +16,7 @@ import type { LiveIndex, RbFixRow } from "./rb-fix-paths-types";
 
 /** One empty LiveIndex — was duplicated in buildIndex and the test seam. */
 export function emptyIndex(): LiveIndex {
-  return {
-    byNorm: new Map(),
-    byBasename: new Map(),
-    byStripped: new Map(),
-    byPrefix20: new Map(),
-  };
+  return { byNorm: new Map(), byBasename: new Map(), byStripped: new Map(), byPrefix20: new Map() };
 }
 
 function nfkc(s: string): string {
@@ -99,12 +94,7 @@ function largest(paths: string[]): string {
 }
 
 export function matchLadder(broken: string, idx: LiveIndex): RbFixRow {
-  const base: RbFixRow = {
-    id: "",
-    brokenPath: broken,
-    fixPath: null,
-    via: "unresolved",
-  };
+  const base: RbFixRow = { id: "", brokenPath: broken, fixPath: null, via: "unresolved" };
   // 1 — exact
   if (existsSync(broken)) return { ...base, via: "exists???" }; // not broken
   // 2 — NFC+casefold
@@ -115,9 +105,7 @@ export function matchLadder(broken: string, idx: LiveIndex): RbFixRow {
   if (bns && bns.length === 1 && bns[0] !== undefined)
     return { ...base, fixPath: bns[0], via: "basename" };
   // 4 — strip repeated -N copy suffixes (unique)
-  const sts = idx.byStripped.get(
-    stripCopySuffix(basename(broken)).toLowerCase(),
-  );
+  const sts = idx.byStripped.get(stripCopySuffix(basename(broken)).toLowerCase());
   if (sts && sts.length === 1 && sts[0] !== undefined)
     return { ...base, fixPath: sts[0], via: "copy-suffix" };
   // 5 — 20-char prefix (exFAT truncation), unique
@@ -125,9 +113,7 @@ export function matchLadder(broken: string, idx: LiveIndex): RbFixRow {
   if (pfs && pfs.length === 1 && pfs[0] !== undefined)
     return { ...base, fixPath: pfs[0], via: "prefix20" };
   // 6 — multiple stripped matches → largest twin
-  if (sts && sts.length > 1)
-    return { ...base, fixPath: largest(sts), via: "largest-twin" };
-  if (bns && bns.length > 1)
-    return { ...base, fixPath: largest(bns), via: "largest-twin" };
+  if (sts && sts.length > 1) return { ...base, fixPath: largest(sts), via: "largest-twin" };
+  if (bns && bns.length > 1) return { ...base, fixPath: largest(bns), via: "largest-twin" };
   return base; // genuinely dead — reported, never touched
 }

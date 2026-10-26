@@ -53,8 +53,7 @@ export async function beats(opts: BeatsOptions): Promise<void> {
   const jobs = Math.max(1, opts.jobs ?? 2);
 
   const candidates = opts.state.downloadedWithFiles();
-  const maxBeatSeconds =
-    opts.maxSeconds === undefined ? DEFAULT_MAX_BEAT_SECONDS : opts.maxSeconds;
+  const maxBeatSeconds = opts.maxSeconds === undefined ? DEFAULT_MAX_BEAT_SECONDS : opts.maxSeconds;
   const todo: TrackRow[] = [];
   let tooLong = 0;
   for (const t of candidates) {

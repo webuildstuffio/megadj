@@ -17,15 +17,7 @@ import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
-import {
-  DataTable,
-  KVKey,
-  KVRow,
-  KVRows,
-  KVVal,
-  ListHead,
-  StatCard,
-} from "../../ui/data";
+import { DataTable, KVKey, KVRow, KVRows, KVVal, ListHead, StatCard } from "../../ui/data";
 import {
   Meter,
   ArchiveAbsentGate,
@@ -49,8 +41,7 @@ export function BeatgridsTab() {
       ]),
     [],
   );
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading beats ledger…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading beats ledger…" />;
   const [grid, mood] = page.data;
   const off = grid.available ? grid.off : [];
   const octave = grid.available ? grid.octave : [];
@@ -100,8 +91,7 @@ export function BeatgridsTab() {
               />
               {inArchive > ledgered && (
                 <div class="arch-fix">
-                  {inArchive - ledgered} tracks not yet analyzed — fix:{" "}
-                  <code>megadj beats</code>
+                  {inArchive - ledgered} tracks not yet analyzed — fix: <code>megadj beats</code>
                 </div>
               )}
             </div>
@@ -114,8 +104,8 @@ export function BeatgridsTab() {
               hint="These tracks' independent beatgrid analysis disagrees with rekordbox — off by >2% tempo, locked an octave (half/double) out, or drifting positionally across the track (>15 ms). They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the worst (Sync lands on the wrong pulse entirely); drift rows slide out of phase as the track plays. Click a numeric header to sort."
               fixNote={
                 <>
-                  <code>megadj beats --force</code> re-analyzes — batch BPM tag
-                  writes stay gated (roadmap)
+                  <code>megadj beats --force</code> re-analyzes — batch BPM tag writes stay gated
+                  (roadmap)
                 </>
               }
             />
@@ -124,8 +114,8 @@ export function BeatgridsTab() {
           {ledgered === 0 && (
             <div class="note-card">
               <Icon name="pulse" size={20} />
-              The beats ledger is empty — <code>megadj beats</code> fills it
-              (beat_this BPM + beat arrays per track).
+              The beats ledger is empty — <code>megadj beats</code> fills it (beat_this BPM + beat
+              arrays per track).
             </div>
           )}
         </>
@@ -142,8 +132,7 @@ export function MoodTab() {
     () => api<ArchiveMoodProfile>("/api/archive/mood"),
     [],
   );
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading mood ledger…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading mood ledger…" />;
   const mood = page.data;
   if (!mood.available) return <ArchiveAbsentGate />;
 
@@ -158,8 +147,8 @@ export function MoodTab() {
       {mood.analyzed === 0 ? (
         <div class="note-card">
           <Icon name="bolt" size={20} />
-          Nothing analyzed yet — <code>megadj mood</code> runs the ONNX heads
-          (~320 MB of models on first run).
+          Nothing analyzed yet — <code>megadj mood</code> runs the ONNX heads (~320 MB of models on
+          first run).
         </div>
       ) : (
         <>
@@ -172,21 +161,14 @@ export function MoodTab() {
             {Object.entries(mood.avg).map(([k, v]) => (
               <StatCard
                 key={k}
-                v={
-                  k === "valence" || k === "arousal"
-                    ? v.toFixed(1)
-                    : v.toFixed(2)
-                }
+                v={k === "valence" || k === "arousal" ? v.toFixed(1) : v.toFixed(2)}
                 l={k}
                 em={(MOOD_GLOSS[k] ?? "").split("·")[1]?.trim()}
                 title={MOOD_GLOSS[k] ?? k}
               />
             ))}
           </div>
-          <SectionHead
-            icon="compass"
-            title="Extremes — the set-planning lookups"
-          />
+          <SectionHead icon="compass" title="Extremes — the set-planning lookups" />
           <div class="archive-cols">
             {(["valence", "arousal", "dance"] as const).map((dim) => {
               const list = mood.extremes[dim] ?? [];
@@ -200,12 +182,8 @@ export function MoodTab() {
                     n={list.length}
                     hint={`${MOOD_GLOSS[dim] ?? dim} — highest and lowest scored tracks. This is the 'play me something …' picker data.`}
                     lines={[
-                      ...high.map(
-                        (t) => `HIGH ${t.v} — ${t.title ?? t.video_id}`,
-                      ),
-                      ...low.map(
-                        (t) => `LOW ${t.v} — ${t.title ?? t.video_id}`,
-                      ),
+                      ...high.map((t) => `HIGH ${t.v} — ${t.title ?? t.video_id}`),
+                      ...low.map((t) => `LOW ${t.v} — ${t.title ?? t.video_id}`),
                     ]}
                   />
                   <KVRows>
@@ -239,9 +217,7 @@ export function MoodTab() {
                         </KVVal>
                       </KVRow>
                     ))}
-                    {list.length === 0 && (
-                      <div class="fleet-note">no scores on this axis</div>
-                    )}
+                    {list.length === 0 && <div class="fleet-note">no scores on this axis</div>}
                   </KVRows>
                 </div>
               );
@@ -264,12 +240,8 @@ function fmtCueAt(s: number): string {
 
 export function CuesTab() {
   const coverage = useCoverage();
-  const page = useFetched<ArchiveCueStats>(
-    () => api<ArchiveCueStats>("/api/archive/cues"),
-    [],
-  );
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading cues ledger…" />;
+  const page = useFetched<ArchiveCueStats>(() => api<ArchiveCueStats>("/api/archive/cues"), []);
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading cues ledger…" />;
   const cues = page.data;
   if (!cues.available) return <ArchiveAbsentGate />;
 
@@ -284,8 +256,8 @@ export function CuesTab() {
       {cues.analyzed === 0 ? (
         <div class="note-card">
           <Icon name="play" size={20} />
-          The cues ledger is empty — <code>megadj cues</code> derives phrase
-          markers from the beats ledger.
+          The cues ledger is empty — <code>megadj cues</code> derives phrase markers from the beats
+          ledger.
         </div>
       ) : (
         <>
@@ -295,21 +267,9 @@ export function CuesTab() {
             meta="DB-side — rekordbox cue writes are gated, not shipped"
           />
           <div class="statgrid">
-            <StatCard
-              v={cues.analyzed.toLocaleString()}
-              l="tracks with cues"
-              icon="disc"
-            />
-            <StatCard
-              v={cues.total_cues.toLocaleString()}
-              l="phrase markers total"
-              icon="play"
-            />
-            <StatCard
-              v={`${cues.avg_cues}`}
-              l="avg cues per track"
-              icon="hash"
-            />
+            <StatCard v={cues.analyzed.toLocaleString()} l="tracks with cues" icon="disc" />
+            <StatCard v={cues.total_cues.toLocaleString()} l="phrase markers total" icon="play" />
+            <StatCard v={`${cues.avg_cues}`} l="avg cues per track" icon="hash" />
           </div>
           <SectionHead icon="history" title="Freshest cue sets">
             <span class="sect-n">{cues.tracks.length}</span>

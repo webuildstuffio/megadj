@@ -10,10 +10,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
 import { MegasetCohorts } from "../products/megaset/MegasetCohorts";
-import {
-  cohortsExportHref,
-  type CohortPlanWire,
-} from "../products/megaset/cohorts-view";
+import { cohortsExportHref, type CohortPlanWire } from "../products/megaset/cohorts-view";
 import { PRODUCT_TABS } from "../products/shared/product-meta";
 
 const plan: CohortPlanWire = {
@@ -82,22 +79,14 @@ const plan: CohortPlanWire = {
   ],
   all_complete: false,
   outside_scope: {
-    blank_genre_note:
-      "tracks with no genre tag are outside every cohort's scope by design",
+    blank_genre_note: "tracks with no genre tag are outside every cohort's scope by design",
   },
   elapsed_ms: 812,
 };
 
-const planner = (
-  over: Partial<Parameters<typeof MegasetCohorts>[0]["planner"]> = {},
-) =>
+const planner = (over: Partial<Parameters<typeof MegasetCohorts>[0]["planner"]> = {}) =>
   ({
-    state: {
-      data: null,
-      loading: false,
-      error: null,
-      requestedMinutes: 60,
-    },
+    state: { data: null, loading: false, error: null, requestedMinutes: 60 },
     familiesInput: "",
     setFamiliesInput: () => undefined,
     minutesInput: "60",
@@ -111,10 +100,7 @@ describe("#295/rev-51 Cohorts tab", () => {
   test("the tab is registered in PRODUCT_TABS (nav + page switch together)", () => {
     expect(PRODUCT_TABS.megaset.map((t) => t.id)).toContain("cohorts");
     // and the page file switches on it
-    const page = readFileSync(
-      join(import.meta.dir, "../products/megaset/MegasetPage.tsx"),
-      "utf8",
-    );
+    const page = readFileSync(join(import.meta.dir, "../products/megaset/MegasetPage.tsx"), "utf8");
     expect(page).toContain('tab === "cohorts"');
   });
 
@@ -122,12 +108,7 @@ describe("#295/rev-51 Cohorts tab", () => {
     const html = render(
       <MegasetCohorts
         planner={planner({
-          state: {
-            data: plan,
-            loading: false,
-            error: null,
-            requestedMinutes: 30,
-          },
+          state: { data: plan, loading: false, error: null, requestedMinutes: 30 },
         })}
       />,
     );
@@ -146,12 +127,7 @@ describe("#295/rev-51 Cohorts tab", () => {
     const html = render(
       <MegasetCohorts
         planner={planner({
-          state: {
-            data: plan,
-            loading: false,
-            error: null,
-            requestedMinutes: 30,
-          },
+          state: { data: plan, loading: false, error: null, requestedMinutes: 30 },
         })}
       />,
     );
@@ -186,12 +162,7 @@ describe("#295/rev-51 Cohorts tab", () => {
     const html = render(
       <MegasetCohorts
         planner={planner({
-          state: {
-            data: plan,
-            loading: false,
-            error: null,
-            requestedMinutes: 30,
-          },
+          state: { data: plan, loading: false, error: null, requestedMinutes: 30 },
           familiesInput: "edm, techno",
         })}
       />,

@@ -130,11 +130,7 @@ export interface ScHit {
  *  each should get. Pure — no writes, no stats (stageTags applies it).
  *  #275: no "<artist> - Unknown Album" placeholder — an unknown album
  *  stays unknown (null), never a lie carved into the file. */
-function missingTagValues(
-  r: Row,
-  truth: StageCtx["truth"],
-  artist: string | null,
-): TagValues {
+function missingTagValues(r: Row, truth: StageCtx["truth"], artist: string | null): TagValues {
   const vals: TagValues = {};
   if (!truth.title) vals.title = stripJunkPrefix(r.title);
   if (!truth.artist && artist) vals.artist = artist;
@@ -146,9 +142,7 @@ function missingTagValues(
 /** Strip a composed junk prefix from a DB title ("UnknownArtist ·
  *  UnknownAlbum · real title" was baked in by the Sep 11 pool batch). */
 export function stripJunkPrefix(raw: string): string {
-  return raw
-    .replace(/^UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*/iu, "")
-    .trim();
+  return raw.replace(/^UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*/iu, "").trim();
 }
 
 /** Junk album detector: a literal "UnknownAlbum" carries no information. */
@@ -171,9 +165,7 @@ function refreshTrackRow(
   // existing real album, else leave what we wrote (never store junk).
   const junkAlbum = truth.album ? cleanAlbum(truth.album) : null;
   const junkArtist = cleanArtist(artist);
-  db.query(
-    "UPDATE tracks SET title=?, artist=?, album=?, genre=? WHERE video_id=?",
-  ).run(
+  db.query("UPDATE tracks SET title=?, artist=?, album=?, genre=? WHERE video_id=?").run(
     vals.title ?? truth.title ?? stripJunkPrefix(r.title),
     vals.artist ?? junkArtist ?? cleanArtist(r.artist),
     vals.album ?? junkAlbum,
@@ -223,10 +215,8 @@ function bpQueryArtist(t: StageCtx): string | null {
  *  Beatport-fed field is needed; SC wins every field it covers. */
 export async function fanOutBeatport(t: StageCtx): Promise<void> {
   const needsIdentity =
-    t.needTags &&
-    (!t.truth.label || !t.truth.mixName || !t.truth.isrc || !t.truth.remixer);
-  if (t.dry || !(t.needGenre || t.needArt || t.needYear || needsIdentity))
-    return;
+    t.needTags && (!t.truth.label || !t.truth.mixName || !t.truth.isrc || !t.truth.remixer);
+  if (t.dry || !(t.needGenre || t.needArt || t.needYear || needsIdentity)) return;
   t.bpBest = await beatportLookup({
     artist: bpQueryArtist(t),
     title:
@@ -240,8 +230,7 @@ export async function fanOutBeatport(t: StageCtx): Promise<void> {
  *  genre AND art AND year. Returns the first hit for the art/genre/year
  *  stages; null when nothing was wanted or the search missed. */
 export async function fanOutSoundcloud(t: StageCtx): Promise<ScHit | null> {
-  if (t.dry || !(t.needGenre || t.needArt || t.upgradeSc || t.needYear))
-    return null;
+  if (t.dry || !(t.needGenre || t.needArt || t.upgradeSc || t.needYear)) return null;
   const sc = await scSearch(t.row);
   return sc?.[0] ?? null;
 }
@@ -255,8 +244,7 @@ export async function fanOutBandcamp(
   scGenreWon: boolean,
   scYearWon: boolean,
 ): Promise<void> {
-  const wantsBcGenre =
-    t.needGenre && !scGenreWon && !(t.bpBest && bpGenre(t.bpBest));
+  const wantsBcGenre = t.needGenre && !scGenreWon && !(t.bpBest && bpGenre(t.bpBest));
   const wantsBcYear = t.needYear && !scYearWon && !t.bpBest?.year;
   const wantsBcLabel = t.needTags && !t.truth.label && !t.bpBest?.label;
   if (t.dry || !(wantsBcGenre || wantsBcYear || wantsBcLabel)) return;
@@ -281,10 +269,7 @@ import {
  *  #173: when the ctx carries a vote accumulator it COLLECTS (the
  *  election writes once, in stageGenreElection); without one it keeps
  *  the legacy first-win write. */
-export function applyScGenre(
-  t: Parameters<typeof stageGenreArm>[0],
-  rawGenre: string,
-): void {
+export function applyScGenre(t: Parameters<typeof stageGenreArm>[0], rawGenre: string): void {
   // Junk gate: numeric genres (SC genre IDs leaked through yt-dlp), the
   // placeholder "Music", and umbrella strings (EDM/Electronic/Dance) are
   // not actionable genres — refuse, never write them anywhere.
@@ -294,11 +279,7 @@ export function applyScGenre(
   if (UMBRELLA_STRINGS.has(g.toLowerCase())) return;
   if (t.genreVotes !== undefined) {
     // vote mode: collect, never write (the election owns the write)
-    t.genreVotes.push({
-      rung: "sc",
-      genre: g,
-      weight: GENRE_VOTE_WEIGHTS.sc,
-    });
+    t.genreVotes.push({ rung: "sc", genre: g, weight: GENRE_VOTE_WEIGHTS.sc });
     t.stats.genreSc++;
     t.notes.push(`genre:${g} (sc, vote)`);
     return;
@@ -331,11 +312,7 @@ function bcApplyGenre(t: StageCtx, page: BcPage): boolean {
   const g = bcGenre(page, canonGenre);
   if (!g || UMBRELLA_STRINGS.has(g.toLowerCase())) return false;
   if (t.genreVotes !== undefined) {
-    t.genreVotes.push({
-      rung: "bc",
-      genre: g,
-      weight: GENRE_VOTE_WEIGHTS.bc,
-    });
+    t.genreVotes.push({ rung: "bc", genre: g, weight: GENRE_VOTE_WEIGHTS.bc });
     t.stats.genreBc++;
     t.notes.push(`genre:${g} (bc, vote)`);
     return true; // consumed: the page fetch already happened
@@ -373,24 +350,16 @@ export async function stageBandcamp(
     wantYear &&
     !t.truth.year &&
     page.datePublished &&
-    setFileTags(t.row.file_path, {
-      year: Number(page.datePublished.slice(0, 4)),
-    })
+    setFileTags(t.row.file_path, { year: Number(page.datePublished.slice(0, 4)) })
   ) {
     const y = page.datePublished.slice(0, 4);
-    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-      y,
-      t.row.video_id,
-    );
+    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(y, t.row.video_id);
     t.stats.yearBc++;
     t.notes.push(`year:${y} (bc)`);
     filled = true;
   }
   if (wantLabel && !t.truth.label && page.label) {
-    db.query("UPDATE tracks SET label=? WHERE video_id=?").run(
-      page.label,
-      t.row.video_id,
-    );
+    db.query("UPDATE tracks SET label=? WHERE video_id=?").run(page.label, t.row.video_id);
     t.stats.bcFilled++;
     t.notes.push(`label:${page.label} (bc)`);
     filled = true;
@@ -473,13 +442,8 @@ export function stageBeatportIdentity(t: StageCtx): void {
   // here: the stored value is actively wrong, not merely absent).
   const bpArtist = t.bpBest.artists.join(", ");
   const split = splitArtistFromTitle(t.truth.title ?? t.row.title);
-  const expected =
-    split?.artist ?? cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist);
-  if (
-    bpArtist &&
-    expected !== null &&
-    bpArtist.toLowerCase() !== expected.toLowerCase()
-  ) {
+  const expected = split?.artist ?? cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist);
+  if (bpArtist && expected !== null && bpArtist.toLowerCase() !== expected.toLowerCase()) {
     vals.artist = bpArtist;
     bpFields.push(["artist", bpArtist]);
   }
@@ -487,11 +451,7 @@ export function stageBeatportIdentity(t: StageCtx): void {
     vals.label = t.bpBest.label;
     bpFields.push(["label", t.bpBest.label]);
   }
-  if (
-    !t.truth.mixName &&
-    t.bpBest.mixName &&
-    !/^original mix$/i.test(t.bpBest.mixName)
-  ) {
+  if (!t.truth.mixName && t.bpBest.mixName && !/^original mix$/i.test(t.bpBest.mixName)) {
     vals.mixName = t.bpBest.mixName;
     bpFields.push(["mix", t.bpBest.mixName]);
   }

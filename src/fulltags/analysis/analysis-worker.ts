@@ -100,11 +100,7 @@ export async function openWorkerSession<Req, Res>(
     async analyze(req: Req): Promise<Res | null> {
       if (!alive) return null;
       spec.encodeRequest(req, enc, proc);
-      const line = await readUntilLine(
-        lr,
-        spec.isResponse,
-        spec.responseTimeoutMs,
-      );
+      const line = await readUntilLine(lr, spec.isResponse, spec.responseTimeoutMs);
       if (line === null) {
         // Timeout/EOF desyncs the protocol — kill so a late response can
         // never be misattributed to the next request.

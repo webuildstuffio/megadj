@@ -26,13 +26,8 @@ export function megasetReproCommand(
     landmarkIds: readonly string[];
   },
 ): string {
-  const parts = [
-    "megadj megaset",
-    `--preset ${data.preset}`,
-    `--minutes ${data.minutes}`,
-  ];
-  if (knobs.searchChoice !== "auto")
-    parts.push(`--search ${knobs.searchChoice}`);
+  const parts = ["megadj megaset", `--preset ${data.preset}`, `--minutes ${data.minutes}`];
+  if (knobs.searchChoice !== "auto") parts.push(`--search ${knobs.searchChoice}`);
   if (knobs.poolLimit !== null) parts.push(`--limit ${knobs.poolLimit}`);
   if (knobs.openerId) parts.push(`--opener ${knobs.openerId}`);
   if (knobs.genre !== null && knobs.genre.trim() !== "")
@@ -50,13 +45,7 @@ export function saveDraft(
     openerId: string | null;
     genre: string | null;
     landmarkIds: readonly string[];
-  } = {
-    searchChoice: "auto",
-    poolLimit: null,
-    openerId: null,
-    genre: null,
-    landmarkIds: [],
-  },
+  } = { searchChoice: "auto", poolLimit: null, openerId: null, genre: null, landmarkIds: [] },
 ): void {
   const blob = new Blob(
     [
@@ -72,10 +61,7 @@ export function saveDraft(
             search: data.search,
             poolLimit: knobs.poolLimit,
             openerId: knobs.openerId,
-            genre:
-              knobs.genre !== null && knobs.genre.trim() !== ""
-                ? knobs.genre.trim()
-                : null,
+            genre: knobs.genre !== null && knobs.genre.trim() !== "" ? knobs.genre.trim() : null,
             // S13 (#107): the pins this build was asked to include
             landmarkIds: [...knobs.landmarkIds],
             // the one-line terminal repro (same knobs the screen shows)
@@ -97,10 +83,7 @@ export function saveDraft(
     .slice(0, 10)}-${data.complete ? "draft" : "partial"}.json`;
   anchor.click();
   URL.revokeObjectURL(anchor.href);
-  toast(
-    data.complete ? "MegaSet draft saved" : "Partial set draft saved",
-    "ok",
-  );
+  toast(data.complete ? "MegaSet draft saved" : "Partial set draft saved", "ok");
 }
 
 /** #293: the knobs a saved draft can restore into the builder controls.
@@ -128,8 +111,7 @@ export function parseDraft(
   // #274 rule: boundary JSON goes through the guarded parser seam — a
   // malformed draft file is an error MESSAGE, never a throw.
   const parsed = parseJsonOrNull(text);
-  if (parsed === null)
-    return { ok: false, error: "not valid JSON — is this the draft file?" };
+  if (parsed === null) return { ok: false, error: "not valid JSON — is this the draft file?" };
   if (parsed.kind !== undefined && parsed.kind !== "megadj-set-draft")
     return { ok: false, error: `wrong file kind: ${String(parsed.kind)}` };
   // preset: request{} first, payload fallback; must be a non-empty string
@@ -141,9 +123,7 @@ export function parseDraft(
   if (typeof minutes !== "number" || !Number.isFinite(minutes) || minutes <= 0)
     return { ok: false, error: "draft has no usable minutes value" };
   const search =
-    request?.search === "greedy" || request?.search === "beam"
-      ? request.search
-      : "auto";
+    request?.search === "greedy" || request?.search === "beam" ? request.search : "auto";
   const poolLimit =
     typeof request?.poolLimit === "number" &&
     Number.isFinite(request.poolLimit) &&
@@ -155,9 +135,7 @@ export function parseDraft(
       ? request.openerId.trim()
       : null;
   const genre =
-    typeof request?.genre === "string" && request.genre.trim() !== ""
-      ? request.genre.trim()
-      : null;
+    typeof request?.genre === "string" && request.genre.trim() !== "" ? request.genre.trim() : null;
   const landmarkIds = Array.isArray(request?.landmarkIds)
     ? // Array.isArray on unknown narrows to any[] — an implicit-any
       // type-predicate param (the f6f62026 class). Cast to unknown[] so
@@ -168,14 +146,6 @@ export function parseDraft(
     : [];
   return {
     ok: true,
-    knobs: {
-      preset: preset.trim(),
-      minutes,
-      search,
-      poolLimit,
-      openerId,
-      genre,
-      landmarkIds,
-    },
+    knobs: { preset: preset.trim(), minutes, search, poolLimit, openerId, genre, landmarkIds },
   };
 }

@@ -39,17 +39,13 @@ function resolveImport(from: string, specifier: string): string {
   ]) {
     if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
   }
-  throw new Error(
-    `unresolved relative runtime import ${specifier} from ${relative(root, from)}`,
-  );
+  throw new Error(`unresolved relative runtime import ${specifier} from ${relative(root, from)}`);
 }
 
 function localImports(path: string): string[] {
   const source = readFileSync(path, "utf8");
   const specs = [
-    ...source.matchAll(
-      /(?:^|[;\n])\s*import\s+(?!type\b)(?:[^"']*?\s+from\s+)?["']([^"']+)["']/gm,
-    ),
+    ...source.matchAll(/(?:^|[;\n])\s*import\s+(?!type\b)(?:[^"']*?\s+from\s+)?["']([^"']+)["']/gm),
     ...source.matchAll(/export\s+[^"']*?\s+from\s+["']([^"']+)["']/g),
     ...source.matchAll(/\bimport\(\s*["']([^"']+)["']\s*\)/g),
   ];
@@ -76,9 +72,7 @@ test("#46: the complete web dependency closure stays in web/shared leaves", () =
       !isWithin(sharedRoot, current) &&
       !isWithin(leafRoot, current)
     ) {
-      throw new Error(
-        `web dependency escaped browser-safe roots: ${relative(root, current)}`,
-      );
+      throw new Error(`web dependency escaped browser-safe roots: ${relative(root, current)}`);
     }
     const dependencies = localImports(current);
     graph.set(current, dependencies);
@@ -103,8 +97,7 @@ test("#46: the complete web dependency closure stays in web/shared leaves", () =
     const child = dependencies
       .map((dependency) => depthOf(dependency, nextStack))
       .reduce<DepthResult>(
-        (maximum, candidate) =>
-          candidate.depth > maximum.depth ? candidate : maximum,
+        (maximum, candidate) => (candidate.depth > maximum.depth ? candidate : maximum),
         { depth: 0, chain: [] },
       );
     const result = { depth: child.depth + 1, chain: [path, ...child.chain] };
@@ -113,9 +106,7 @@ test("#46: the complete web dependency closure stays in web/shared leaves", () =
   };
   const maximum = [...graph.keys()]
     .map((path) => depthOf(path))
-    .reduce((deepest, candidate) =>
-      candidate.depth > deepest.depth ? candidate : deepest,
-    );
+    .reduce((deepest, candidate) => (candidate.depth > deepest.depth ? candidate : deepest));
   expect(
     maximum.depth,
     maximum.chain.map((path) => relative(root, path)).join(" → "),

@@ -4,21 +4,10 @@
  * PQTZ-only byte change must be attributable to the grid section.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import {
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-  symlinkSync,
-  existsSync,
-} from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync, symlinkSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { anlzSpike } from "./anlz-spike";
-import {
-  buildAnlz,
-  parseAnlzGrid,
-  parseAnlzInventory,
-} from "../fulltags/analysis/anlz";
+import { buildAnlz, parseAnlzGrid, parseAnlzInventory } from "../fulltags/analysis/anlz";
 import { tempDir } from "../test-support/testutil";
 
 const t = tempDir("megadj-anlz-spike-test-").rippable();
@@ -30,9 +19,7 @@ afterAll(() => t.rippleAll());
 
 function fakeMount(): string {
   const mount = join(TEST_ROOT, `mount-${mountId++}`);
-  mkdirSync(join(mount, "PIONEER", "Master", "share", "ANLZ"), {
-    recursive: true,
-  });
+  mkdirSync(join(mount, "PIONEER", "Master", "share", "ANLZ"), { recursive: true });
   return mount;
 }
 
@@ -58,17 +45,8 @@ function writeSidecar(mount: string, name: string, bytes: Uint8Array): void {
 describe("anlzSpike", () => {
   test("snapshot records per-file hashes + section inventories", () => {
     const mount = fakeMount();
-    writeSidecar(
-      mount,
-      "ANLZ0000.DAT",
-      buildAnlz({ path: "/x", beats: beats(64) }),
-    );
-    const s = runSpike({
-      mount,
-      tag: "A",
-      mode: "snapshot",
-      log: () => {},
-    });
+    writeSidecar(mount, "ANLZ0000.DAT", buildAnlz({ path: "/x", beats: beats(64) }));
+    const s = runSpike({ mount, tag: "A", mode: "snapshot", log: () => {} });
     expect(s.ok).toBe(true);
     expect(s.baselinePath?.startsWith(`${TEST_SPIKE_DIR}/`)).toBe(true);
     expect(s.tracked).toBe(1);
@@ -81,11 +59,7 @@ describe("anlzSpike", () => {
 
   test("compare: untouched sidecar → identical; edited grid → CHANGED with PQTZ delta", () => {
     const mount = fakeMount();
-    writeSidecar(
-      mount,
-      "ANLZ0000.DAT",
-      buildAnlz({ path: "/x", beats: beats(64) }),
-    );
+    writeSidecar(mount, "ANLZ0000.DAT", buildAnlz({ path: "/x", beats: beats(64) }));
     runSpike({ mount, tag: "A", mode: "snapshot", log: () => {} });
 
     // simulate the rekordbox grid nudge: same file, shifted grid (+1 beat)
@@ -104,20 +78,12 @@ describe("anlzSpike", () => {
 
   test("compare: added + removed sidecars are listed", () => {
     const mount = fakeMount();
-    writeSidecar(
-      mount,
-      "ANLZ0000.DAT",
-      buildAnlz({ path: "/x", beats: beats(8) }),
-    );
+    writeSidecar(mount, "ANLZ0000.DAT", buildAnlz({ path: "/x", beats: beats(8) }));
     runSpike({ mount, tag: "B", mode: "snapshot", log: () => {} });
     // remove one, add another (a fresh analysis pass)
     const dir = join(mount, "PIONEER", "Master", "share", "ANLZ");
     rmSync(join(dir, "ANLZ0000.DAT"));
-    writeSidecar(
-      mount,
-      "ANLZ0001.DAT",
-      buildAnlz({ path: "/y", beats: beats(8) }),
-    );
+    writeSidecar(mount, "ANLZ0001.DAT", buildAnlz({ path: "/y", beats: beats(8) }));
     const c = runSpike({ mount, tag: "B", mode: "compare", log: () => {} });
     expect(c.added).toEqual(["collection/ANLZ0001.DAT"]);
     expect(c.removed).toEqual(["collection/ANLZ0000.DAT"]);
@@ -141,12 +107,7 @@ describe("anlzSpike", () => {
   test("undecodable sidecars are counted, never crashing the scan", () => {
     const mount = fakeMount();
     writeSidecar(mount, "ANLZ0002.DAT", new Uint8Array([1, 2, 3, 4]));
-    const s = runSpike({
-      mount,
-      tag: "C",
-      mode: "snapshot",
-      log: () => {},
-    });
+    const s = runSpike({ mount, tag: "C", mode: "snapshot", log: () => {} });
     expect(s.ok).toBe(true);
     expect(s.undecodable).toBe(1);
     expect(s.tracked).toBe(0);
@@ -161,46 +122,21 @@ describe("anlzSpike", () => {
     const h2 = join(mount, "PIONEER", "USBANLZ", "P001", "000000FF");
     mkdirSync(h1, { recursive: true });
     mkdirSync(h2, { recursive: true });
-    writeFileSync(
-      join(h1, "ANLZ0000.DAT"),
-      buildAnlz({ path: "/a", beats: beats(8) }),
-    );
-    writeFileSync(
-      join(h2, "ANLZ0000.DAT"),
-      buildAnlz({ path: "/b", beats: beats(8) }),
-    );
+    writeFileSync(join(h1, "ANLZ0000.DAT"), buildAnlz({ path: "/a", beats: beats(8) }));
+    writeFileSync(join(h2, "ANLZ0000.DAT"), buildAnlz({ path: "/b", beats: beats(8) }));
     // one flat shelf sidecar too — both roots in one snapshot
-    writeSidecar(
-      mount,
-      "ANLZ0000.DAT",
-      buildAnlz({ path: "/s", beats: beats(8) }),
-    );
-    const s = runSpike({
-      mount,
-      tag: "nest",
-      mode: "snapshot",
-      log: () => {},
-    });
+    writeSidecar(mount, "ANLZ0000.DAT", buildAnlz({ path: "/s", beats: beats(8) }));
+    const s = runSpike({ mount, tag: "nest", mode: "snapshot", log: () => {} });
     expect(s.ok).toBe(true);
     expect(s.tracked).toBe(3);
-    const raw = JSON.parse(readFileSync(s.baselinePath!, "utf8")) as {
-      recs: { file: string }[];
-    };
+    const raw = JSON.parse(readFileSync(s.baselinePath!, "utf8")) as { recs: { file: string }[] };
     const files = raw.recs.map((r) => r.file).toSorted();
     expect(files).toContain("collection/ANLZ0000.DAT"); // flat, keyed by name
     expect(files).toContain("usb/P001/0000000A/ANLZ0000.DAT"); // relative key
     expect(files).toContain("usb/P001/000000FF/ANLZ0000.DAT");
     // change ONE nested sidecar; the other must NOT join it by basename
-    writeFileSync(
-      join(h1, "ANLZ0000.DAT"),
-      buildAnlz({ path: "/a", beats: beats(8, 1000) }),
-    );
-    const c = runSpike({
-      mount,
-      tag: "nest",
-      mode: "compare",
-      log: () => {},
-    });
+    writeFileSync(join(h1, "ANLZ0000.DAT"), buildAnlz({ path: "/a", beats: beats(8, 1000) }));
+    const c = runSpike({ mount, tag: "nest", mode: "compare", log: () => {} });
     expect(c.ok).toBe(true);
     expect(c.changed).toHaveLength(1);
     expect(c.changed![0]!.file).toBe("usb/P001/0000000A/ANLZ0000.DAT");
@@ -209,59 +145,44 @@ describe("anlzSpike", () => {
 });
 
 describe("anlzSpike set-grid (#147 Q4 armament)", () => {
-  test.each(["sidecar", "parent", "backup"])(
-    "refuses %s symlink before any write",
-    (kind) => {
-      const mount = fakeMount();
-      const outsideDir = t.dir();
-      const outside = join(outsideDir, "outside.DAT");
-      const original = buildAnlz({ path: "/a", beats: beats(16) });
-      const outsideOriginal = buildAnlz({ path: "/outside", beats: beats(12) });
-      writeFileSync(outside, outsideOriginal);
-      let sidecar = join(mount, "inside.DAT");
-      if (kind === "sidecar") symlinkSync(outside, sidecar);
-      else if (kind === "parent") {
-        symlinkSync(outsideDir, join(mount, "linked"));
-        sidecar = join(mount, "linked", "outside.DAT");
-      } else {
-        writeFileSync(sidecar, original);
-        symlinkSync(outside, `${sidecar}.pre-grid-safe`);
-      }
-      const result = runSpike({
-        mount,
-        tag: "safe",
-        mode: "set-grid",
-        file: sidecar,
-        beats: beats(8),
-        apply: true,
-        log: () => {},
-      });
-      expect(result.ok).toBe(false);
-      expect(result.error).toMatch(/symlink|escapes the mount/u);
-      expect([...readFileSync(outside)]).toEqual([...outsideOriginal]);
-      expect([...readFileSync(sidecar)]).toEqual([
-        ...(kind === "backup" ? original : outsideOriginal),
-      ]);
-      if (kind !== "backup")
-        expect(existsSync(`${sidecar}.pre-grid-safe`)).toBe(false);
-    },
-  );
+  test.each(["sidecar", "parent", "backup"])("refuses %s symlink before any write", (kind) => {
+    const mount = fakeMount();
+    const outsideDir = t.dir();
+    const outside = join(outsideDir, "outside.DAT");
+    const original = buildAnlz({ path: "/a", beats: beats(16) });
+    const outsideOriginal = buildAnlz({ path: "/outside", beats: beats(12) });
+    writeFileSync(outside, outsideOriginal);
+    let sidecar = join(mount, "inside.DAT");
+    if (kind === "sidecar") symlinkSync(outside, sidecar);
+    else if (kind === "parent") {
+      symlinkSync(outsideDir, join(mount, "linked"));
+      sidecar = join(mount, "linked", "outside.DAT");
+    } else {
+      writeFileSync(sidecar, original);
+      symlinkSync(outside, `${sidecar}.pre-grid-safe`);
+    }
+    const result = runSpike({
+      mount,
+      tag: "safe",
+      mode: "set-grid",
+      file: sidecar,
+      beats: beats(8),
+      apply: true,
+      log: () => {},
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/symlink|escapes the mount/u);
+    expect([...readFileSync(outside)]).toEqual([...outsideOriginal]);
+    expect([...readFileSync(sidecar)]).toEqual([
+      ...(kind === "backup" ? original : outsideOriginal),
+    ]);
+    if (kind !== "backup") expect(existsSync(`${sidecar}.pre-grid-safe`)).toBe(false);
+  });
 
   test("dry run: reports the edit, writes NOTHING, keeps the grid", () => {
     const mount = fakeMount();
-    const sidecar = join(
-      mount,
-      "PIONEER",
-      "Master",
-      "share",
-      "ANLZ",
-      "ANLZ0000.DAT",
-    );
-    writeSidecar(
-      mount,
-      "ANLZ0000.DAT",
-      buildAnlz({ path: "/a", beats: beats(16) }),
-    );
+    const sidecar = join(mount, "PIONEER", "Master", "share", "ANLZ", "ANLZ0000.DAT");
+    writeSidecar(mount, "ANLZ0000.DAT", buildAnlz({ path: "/a", beats: beats(16) }));
     const before = new Uint8Array(readFileSync(sidecar));
 
     const r = runSpike({
@@ -281,19 +202,8 @@ describe("anlzSpike set-grid (#147 Q4 armament)", () => {
 
   test("apply: writes the new grid, keeps a pre-edit backup, re-verifies", () => {
     const mount = fakeMount();
-    const sidecar = join(
-      mount,
-      "PIONEER",
-      "Master",
-      "share",
-      "ANLZ",
-      "ANLZ0000.DAT",
-    );
-    writeSidecar(
-      mount,
-      "ANLZ0000.DAT",
-      buildAnlz({ path: "/a", beats: beats(16) }),
-    );
+    const sidecar = join(mount, "PIONEER", "Master", "share", "ANLZ", "ANLZ0000.DAT");
+    writeSidecar(mount, "ANLZ0000.DAT", buildAnlz({ path: "/a", beats: beats(16) }));
 
     const newBeats = beats(16, 500);
     const r = runSpike({
@@ -309,9 +219,7 @@ describe("anlzSpike set-grid (#147 Q4 armament)", () => {
     expect(r.backupPath).toBeDefined();
     // the backup holds the ORIGINAL bytes
     const backup = new Uint8Array(readFileSync(r.backupPath!));
-    expect([...backup]).toEqual([
-      ...buildAnlz({ path: "/a", beats: beats(16) }),
-    ]);
+    expect([...backup]).toEqual([...buildAnlz({ path: "/a", beats: beats(16) })]);
     // the live file now decodes to EXACTLY the requested grid
     const written = new Uint8Array(readFileSync(sidecar));
     const g = parseAnlzGrid(written);
@@ -327,11 +235,7 @@ describe("anlzSpike set-grid (#147 Q4 armament)", () => {
     writeSidecar(
       mount,
       "ANLZ0000.DAT",
-      buildAnlz({
-        path: "/a",
-        beats: beats(16),
-        extraSections: [{ tag: "PWAV", bytes: 400 }],
-      }),
+      buildAnlz({ path: "/a", beats: beats(16), extraSections: [{ tag: "PWAV", bytes: 400 }] }),
     );
     const r = runSpike({
       mount,
@@ -343,17 +247,8 @@ describe("anlzSpike set-grid (#147 Q4 armament)", () => {
       log: () => {},
     });
     expect(r.ok).toBe(true);
-    const sidecar = join(
-      mount,
-      "PIONEER",
-      "Master",
-      "share",
-      "ANLZ",
-      "ANLZ0000.DAT",
-    );
-    const inv = parseAnlzInventory(
-      new Uint8Array(readFileSync(sidecar)),
-    )!.sections;
+    const sidecar = join(mount, "PIONEER", "Master", "share", "ANLZ", "ANLZ0000.DAT");
+    const inv = parseAnlzInventory(new Uint8Array(readFileSync(sidecar)))!.sections;
     expect(inv.find((s) => s.tag === "PQTZ")!.bytes).toBe(24 + 8 * 8);
     expect(inv.find((s) => s.tag === "PWAV")!.bytes).toBe(400);
   });
@@ -375,14 +270,7 @@ describe("anlzSpike set-grid (#147 Q4 armament)", () => {
 
   test("refuses a sidecar with no decodable grid (zero writes)", () => {
     const mount = fakeMount();
-    const junk = join(
-      mount,
-      "PIONEER",
-      "Master",
-      "share",
-      "ANLZ",
-      "ANLZ0000.DAT",
-    );
+    const junk = join(mount, "PIONEER", "Master", "share", "ANLZ", "ANLZ0000.DAT");
     writeFileSync(junk, new TextEncoder().encode("not an anlz"));
     const r = runSpike({
       mount,

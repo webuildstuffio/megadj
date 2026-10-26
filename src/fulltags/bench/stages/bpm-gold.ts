@@ -20,11 +20,7 @@ interface BeatRow {
   bpm_raw: number | null;
 }
 
-function runBpmGoldStage(
-  db: Database,
-  _answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runBpmGoldStage(db: Database, _answerKey: string, _split: BenchSplit): StageResult {
   // Load analyzed beats from the DB
   const analyzed = db
     .query(
@@ -54,12 +50,7 @@ function runBpmGoldStage(
       stage: "bpm-gold",
       answerKey: "AK1",
       rows: [],
-      metrics: {
-        ...metrics,
-        matched: 0,
-        accuracy_1pct: null,
-        accuracy_2pct: null,
-      },
+      metrics: { ...metrics, matched: 0, accuracy_1pct: null, accuracy_2pct: null },
       configHash: "bpm-gold-v1",
     };
   }
@@ -92,8 +83,7 @@ function runBpmGoldStage(
 
     // Octave error detection
     const ratio = actual / expected;
-    const isOctave =
-      (ratio > 1.9 && ratio < 2.1) || (ratio > 0.45 && ratio < 0.55);
+    const isOctave = (ratio > 1.9 && ratio < 2.1) || (ratio > 0.45 && ratio < 0.55);
     if (isOctave) octaveErrors++;
 
     rows.push({
@@ -112,13 +102,7 @@ function runBpmGoldStage(
   metrics.octave_errors = octaveErrors;
   metrics.octave_rate = matched > 0 ? round4(octaveErrors / matched) : null;
 
-  return {
-    stage: "bpm-gold",
-    answerKey: "AK1",
-    rows,
-    metrics,
-    configHash: "bpm-gold-v1",
-  };
+  return { stage: "bpm-gold", answerKey: "AK1", rows, metrics, configHash: "bpm-gold-v1" };
 }
 
 registerStage("bpm-gold", runBpmGoldStage);

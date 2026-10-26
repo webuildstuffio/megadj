@@ -6,11 +6,7 @@ import { parseMoodStamp } from "../pipeline/pipeline";
 import type { ArchiveState, TrackRow } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
-import {
-  findDropSection,
-  findDropCandidates,
-  type DropSection,
-} from "./drop-finder";
+import { findDropSection, findDropCandidates, type DropSection } from "./drop-finder";
 
 /** M1 (#325): the model identifier written to `embeddings.model`. This is
  * the Essentia effnet tower producing 1280-d mean embeddings. Changing
@@ -66,8 +62,7 @@ const DEFAULT_MAX_MOOD_SECONDS = 10 * 60;
 
 export async function mood(opts: MoodOptions): Promise<void> {
   const log = commandLog(opts);
-  const maxSeconds =
-    opts.maxSeconds === undefined ? DEFAULT_MAX_MOOD_SECONDS : opts.maxSeconds;
+  const maxSeconds = opts.maxSeconds === undefined ? DEFAULT_MAX_MOOD_SECONDS : opts.maxSeconds;
   if (opts.dryRun) log("dry run: probing queue, no ONNX analysis");
 
   // #308 pre-first-chunk visibility: every expensive stage below logs its
@@ -76,13 +71,8 @@ export async function mood(opts: MoodOptions): Promise<void> {
   const t0 = Date.now();
   const candidates = opts.state
     .allTracks()
-    .filter(
-      (t) =>
-        t.status === "downloaded" && t.file_path && existsSync(t.file_path),
-    );
-  log(
-    `  queue: ${candidates.length} downloaded file(s) on disk (scan ${Date.now() - t0}ms)`,
-  );
+    .filter((t) => t.status === "downloaded" && t.file_path && existsSync(t.file_path));
+  log(`  queue: ${candidates.length} downloaded file(s) on disk (scan ${Date.now() - t0}ms)`);
 
   // Shared record shape for both passes (file-stamp sync + ONNX analysis).
   const record = (t: TrackRow, m: MoodResult): void => {
@@ -112,9 +102,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
         vec: m.sectionEmbedding,
         sourcePath: t.file_path!,
         model: sectionModelTag(0),
-        ...(sec !== undefined
-          ? { sectionStart: sec.start, sectionEnd: sec.end }
-          : {}),
+        ...(sec !== undefined ? { sectionStart: sec.start, sectionEnd: sec.end } : {}),
       });
     }
   };
@@ -157,15 +145,8 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // behavior analyzed the whole queue "dry" — a dry-run that takes an
   // hour is not a dry run).
   if (opts.dryRun) {
-    log(
-      `  would analyze ${runnable.length} file(s), skip ${overLengthCap} over cap`,
-    );
-    await emitMoodSummary(opts, {
-      ...pass1,
-      analyzed: 0,
-      failed: 0,
-      overLengthCap,
-    });
+    log(`  would analyze ${runnable.length} file(s), skip ${overLengthCap} over cap`);
+    await emitMoodSummary(opts, { ...pass1, analyzed: 0, failed: 0, overLengthCap });
     return;
   }
 
@@ -188,10 +169,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
 
   // Partition the queue into N roughly-equal slices — round-robin so
   // heterogeneous durations spread across workers instead of clustering.
-  const slices: TrackRow[][] = Array.from(
-    { length: Math.min(jobs, runnable.length) },
-    () => [],
-  );
+  const slices: TrackRow[][] = Array.from({ length: Math.min(jobs, runnable.length) }, () => []);
   for (let i = 0; i < runnable.length; i++) {
     slices[i % slices.length]!.push(runnable[i]!);
   }
@@ -211,10 +189,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
       if (b !== undefined && b.downbeats.length >= 16) {
         const section = findDropSection(b.downbeats, t.duration_s);
         if (section !== null && t.file_path !== null) {
-          sectionRanges.set(t.file_path, {
-            start: section.startSec,
-            end: section.endSec,
-          });
+          sectionRanges.set(t.file_path, { start: section.startSec, end: section.endSec });
         }
       }
     }
@@ -226,10 +201,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
   }
 
   // Build best-of-3 candidate map: path → [section1, section2, section3]
-  const candidateMap = new Map<
-    string,
-    { videoId: string; candidates: DropSection[] }
-  >();
+  const candidateMap = new Map<string, { videoId: string; candidates: DropSection[] }>();
   if (opts.embeddings) {
     const beatTracks = opts.state.beatAnalyzedTracks();
     const byVideoId = new Map(beatTracks.map((r) => [r.track.video_id, r]));
@@ -238,10 +210,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
       if (b !== undefined && b.downbeats.length >= 16 && t.file_path !== null) {
         const dropCands = findDropCandidates(b.downbeats, 3, t.duration_s);
         if (dropCands.length > 0) {
-          candidateMap.set(t.file_path, {
-            videoId: t.video_id,
-            candidates: dropCands,
-          });
+          candidateMap.set(t.file_path, { videoId: t.video_id, candidates: dropCands });
         }
       }
     }
@@ -295,10 +264,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
         if (cIdx >= info.candidates.length) continue;
         const sec = info.candidates[cIdx]!;
         batchPaths.push(filePath);
-        batchRanges.set(filePath, {
-          start: sec.startSec,
-          end: sec.endSec,
-        });
+        batchRanges.set(filePath, { start: sec.startSec, end: sec.endSec });
         batchVideoIds.set(filePath, info.videoId);
       }
 
@@ -312,29 +278,21 @@ export async function mood(opts: MoodOptions): Promise<void> {
 
       for (const [path, result] of results) {
         const videoId = batchVideoIds.get(path);
-        if (videoId === undefined || result.sectionEmbedding === undefined)
-          continue;
+        if (videoId === undefined || result.sectionEmbedding === undefined) continue;
         const sec = batchRanges.get(path);
         opts.state.setSectionEmbeddingRecord({
           videoId,
           vec: result.sectionEmbedding,
           sourcePath: path,
           model: sectionModelTag(cIdx),
-          ...(sec !== undefined
-            ? { sectionStart: sec.start, sectionEnd: sec.end }
-            : {}),
+          ...(sec !== undefined ? { sectionStart: sec.start, sectionEnd: sec.end } : {}),
         });
       }
     }
     log(`  section embeddings: best-of-3 post-pass complete`);
   }
 
-  await emitMoodSummary(opts, {
-    ...pass1,
-    analyzed,
-    failed,
-    overLengthCap,
-  });
+  await emitMoodSummary(opts, { ...pass1, analyzed, failed, overLengthCap });
 }
 
 /** Pass-1 counters (synced from file stamps). */
@@ -374,8 +332,7 @@ function syncPass(
     // --embeddings run has pass-2 work beyond fresh analysis (and under
     // --embeddings the gap check must run even in dry-run so the probe
     // reports the true would-do queue).
-    const owesEmbedding =
-      opts.embeddings === true && !opts.state.embeddingRecord(t.video_id);
+    const owesEmbedding = opts.embeddings === true && !opts.state.embeddingRecord(t.video_id);
     // DB short-circuit (#278, and — since #279 — for --embeddings runs
     // too): ledgered means ANALYZED. The old shape let --embeddings
     // disable this, so every ledgered row paid the per-file groundTruth
@@ -383,8 +340,7 @@ function syncPass(
     // for FULL ONNX re-analysis — the 3,113-file ~8h storm killed live
     // Sep 20. A ledgered row's only possible remaining work is the
     // embedding gap, and only when the file carries a stamp to re-read.
-    if (!owesEmbedding && !opts.force && opts.state.moodRecord(t.video_id))
-      continue;
+    if (!owesEmbedding && !opts.force && opts.state.moodRecord(t.video_id)) continue;
     const truth = groundTruth(t.file_path!);
     truthCache.set(t.file_path!, truth);
     // Energy stamp → DB column mirror (same idea as the mood ledger sync:
@@ -442,8 +398,7 @@ function buildAnalysisQueue(
   );
   let probed = 0;
   const needAnalysis = candidates.filter((t) => {
-    if (!opts.force && !opts.dryRun && opts.state.moodRecord(t.video_id))
-      return false;
+    if (!opts.force && !opts.dryRun && opts.state.moodRecord(t.video_id)) return false;
     probed++;
     if (probed % 250 === 0) {
       log(`  analysis probe: ${probed}/${toProbe.length} stamp checks done…`);
@@ -451,8 +406,7 @@ function buildAnalysisQueue(
     // Use the pass-1 cache to avoid a SECOND groundTruth spawn per file.
     // groundTruth is ffprobe + mutagen = ~100ms/file; on 5k files the
     // double scan cost ~8 minutes of pure overhead (fixed Sep 29).
-    const truth =
-      pass1.truthCache.get(t.file_path!) ?? groundTruth(t.file_path!);
+    const truth = pass1.truthCache.get(t.file_path!) ?? groundTruth(t.file_path!);
     return !(truth.mood && parseMoodStamp(truth.mood));
   });
   log(
@@ -474,20 +428,13 @@ function buildAnalysisQueue(
  *  nothing ran. */
 async function emitMoodSummary(
   opts: MoodOptions,
-  counts: SyncCounts & {
-    analyzed: number;
-    failed: number;
-    overLengthCap: number;
-  },
+  counts: SyncCounts & { analyzed: number; failed: number; overLengthCap: number },
 ): Promise<void> {
   const log = commandLog(opts);
   const { synced, analyzed, failed, energySynced, overLengthCap } = counts;
   const total = opts.state.moodSummary().analyzed;
-  const embedded = opts.embeddings
-    ? opts.state.embeddingCorpus().length
-    : undefined;
-  const capNote =
-    overLengthCap > 0 ? `, ${overLengthCap} over length cap (skipped)` : "";
+  const embedded = opts.embeddings ? opts.state.embeddingCorpus().length : undefined;
+  const capNote = overLengthCap > 0 ? `, ${overLengthCap} over length cap (skipped)` : "";
   if (
     synced === 0 &&
     analyzed === 0 &&

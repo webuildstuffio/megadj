@@ -37,9 +37,7 @@ export interface BarRerunProgress {
 /**
  * Compute rerun progress from queue entries.
  */
-export function computeProgress(
-  entries: readonly BarRerunEntry[],
-): BarRerunProgress {
+export function computeProgress(entries: readonly BarRerunEntry[]): BarRerunProgress {
   let analyzed = 0;
   let pending = 0;
   let failed = 0;

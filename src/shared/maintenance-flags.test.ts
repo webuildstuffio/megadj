@@ -33,10 +33,7 @@ function fakeMount(): string {
   const mount = TEST_ROOT.dir();
   const anlzDir = join(mount, "PIONEER", "Master", "share", "ANLZ");
   mkdirSync(anlzDir, { recursive: true });
-  writeFileSync(
-    join(anlzDir, "ANLZ0000.DAT"),
-    buildAnlz({ path: "/x", beats: beats(8) }),
-  );
+  writeFileSync(join(anlzDir, "ANLZ0000.DAT"), buildAnlz({ path: "/x", beats: beats(8) }));
   return mount;
 }
 
@@ -45,11 +42,7 @@ function fakeMount(): string {
 const ABSENT_DB = join(TEST_ROOT.dir(), "absent.db");
 
 function run(args: string[], extraEnv: Record<string, string> = {}) {
-  return runCli(args, {
-    MEGADJ_DB: ABSENT_DB,
-    MEGADJ_SPIKE_DIR: TEST_SPIKE_DIR,
-    ...extraEnv,
-  });
+  return runCli(args, { MEGADJ_DB: ABSENT_DB, MEGADJ_SPIKE_DIR: TEST_SPIKE_DIR, ...extraEnv });
 }
 
 describe("rb-anlz-spike flag forms (P1)", () => {
@@ -88,13 +81,7 @@ describe("rb-anlz-spike flag forms (P1)", () => {
 
   test("--json emits exactly one parseable object (snapshot + compare round-trip)", async () => {
     const mount = fakeMount();
-    const s = await run([
-      "rb-anlz-spike",
-      mount,
-      "snapshot",
-      "--tag=j",
-      "--json",
-    ]);
+    const s = await run(["rb-anlz-spike", mount, "snapshot", "--tag=j", "--json"]);
     expect(s.code).toBe(0);
     const snap = JSON.parse(s.stdout.trim()) as {
       ok: boolean;
@@ -104,13 +91,7 @@ describe("rb-anlz-spike flag forms (P1)", () => {
     expect(snap.ok).toBe(true);
     expect(snap.tracked).toBe(1);
     expect(snap.baselinePath?.startsWith(`${TEST_SPIKE_DIR}/`)).toBe(true);
-    const c = await run([
-      "rb-anlz-spike",
-      mount,
-      "compare",
-      "--tag=j",
-      "--json",
-    ]);
+    const c = await run(["rb-anlz-spike", mount, "compare", "--tag=j", "--json"]);
     expect(c.code).toBe(0);
     const cmp = JSON.parse(c.stdout.trim()) as { identical: number };
     expect(cmp.identical).toBe(1);
@@ -126,12 +107,8 @@ describe("rb-grid-triage flag forms (P1)", () => {
     // operator's hardware). The point of the regression: the command
     // must NOT succeed while doing zero work.
     const noDb = join(TEST_ROOT.dir(), "absent.db");
-    const a = await run(["rb-grid-triage", "--limit", "20", "--json"], {
-      MEGADJ_RB_MASTER: noDb,
-    });
-    const b = await run(["rb-grid-triage", "--limit=20", "--json"], {
-      MEGADJ_RB_MASTER: noDb,
-    });
+    const a = await run(["rb-grid-triage", "--limit", "20", "--json"], { MEGADJ_RB_MASTER: noDb });
+    const b = await run(["rb-grid-triage", "--limit=20", "--json"], { MEGADJ_RB_MASTER: noDb });
     expect(a.code).toBe(1); // ok:false → exit 1, never a fake pass
     expect(b.code).toBe(1);
     const ja = JSON.parse(a.stdout.trim().split("\n").pop() ?? "") as {
@@ -179,13 +156,7 @@ describe("positional vs space-form flag value across maintenance arms (Sep 17)",
     // misfired. Post-fix, the folder check fails on the FOLDER's
     // absence. json mode: usage class = exit 2 with the error in the
     // JSON payload (P1/#160 ring 3), never human text on stderr.
-    const r = await run([
-      "rb-import",
-      "--playlist",
-      "X",
-      "/Volumes/NOPE",
-      "--json",
-    ]);
+    const r = await run(["rb-import", "--playlist", "X", "/Volumes/NOPE", "--json"]);
     expect(r.code).toBe(2);
     expect(r.stderr).toBe("");
     const out = JSON.parse(r.stdout.trim()) as { error?: string };

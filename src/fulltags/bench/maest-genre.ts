@@ -40,9 +40,7 @@ export function mapMaestPredictions(
   predictions: readonly MaestPrediction[],
   topK = 5,
 ): MaestL3Result {
-  const top = predictions
-    .toSorted((a, b) => b.probability - a.probability)
-    .slice(0, topK);
+  const top = predictions.toSorted((a, b) => b.probability - a.probability).slice(0, topK);
 
   let bestFamily: GenreFamily | null = null;
   let bestSubgenre: string | null = null;
@@ -59,10 +57,7 @@ export function mapMaestPredictions(
 
   return {
     trackId,
-    topPredictions: top.map((p) => ({
-      label: p.label,
-      probability: round3(p.probability),
-    })),
+    topPredictions: top.map((p) => ({ label: p.label, probability: round3(p.probability) })),
     bestFamily,
     bestSubgenre,
     confidence: round3(bestConfidence),

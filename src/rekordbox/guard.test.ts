@@ -69,10 +69,7 @@ describe("guard", () => {
     // backup listing. (#232 moved the snapshot into rb-adopt-apply.ts —
     // the census follows the stamper, not the CLI head.)
     const guardSrc = readFileSync(new URL("guard.ts", import.meta.url), "utf8");
-    const adoptSrc = readFileSync(
-      new URL("rb-adopt-apply.ts", import.meta.url),
-      "utf8",
-    );
+    const adoptSrc = readFileSync(new URL("rb-adopt-apply.ts", import.meta.url), "utf8");
     expect(guardSrc).toContain("backupStamp()");
     expect(guardSrc).not.toMatch(/toISOString\(\)\.replace\(/u);
     expect(adoptSrc).toContain("backupStamp()");
