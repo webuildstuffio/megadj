@@ -23,10 +23,7 @@ export function isFiniteNumberArray(value: unknown): value is number[] {
 /** Finite non-negative integer (counts, lengths, IDs-as-numbers). */
 export function isNonNegativeInteger(value: unknown): value is number {
   return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    Number.isInteger(value) &&
-    value >= 0
+    typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0
   );
 }
 

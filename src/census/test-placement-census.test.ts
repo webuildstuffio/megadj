@@ -43,19 +43,14 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
   // ---- src/census/: the census dir itself is sanctioned by rule, but the
   // walker needs no special case — these prove the sanctioned regex works.
   // ---- fulltags co-location debt (rides #220's folder pass):
-  "src/fulltags/analysis/mood-queue.test.ts":
-    "#220: subject mood.ts lives in analysis/",
-  "src/fulltags/booth/booth-fix.e2e.test.ts":
-    "#220: subject booth-fix.ts lives in booth/",
-  "src/fulltags/genre/genre-vocab-crossmap.test.ts":
-    "#220: subject genre-vocab.ts",
+  "src/fulltags/analysis/mood-queue.test.ts": "#220: subject mood.ts lives in analysis/",
+  "src/fulltags/booth/booth-fix.e2e.test.ts": "#220: subject booth-fix.ts lives in booth/",
+  "src/fulltags/genre/genre-vocab-crossmap.test.ts": "#220: subject genre-vocab.ts",
   "src/fulltags/sources/clean-search-parts.test.ts":
     "#220: subject art-sources.ts + #322: query-building folded into name-match.ts",
   "src/fulltags/sources/mb-lookup.test.ts": "#220: subject mb_lookup.py seam",
-  "src/fulltags/sources/models.test.ts":
-    "#220: integration of models+pipeline+writer",
-  "src/fulltags/sources/pipeline-beatport.test.ts":
-    "#220: subject pipeline/pipeline.ts + beatport",
+  "src/fulltags/sources/models.test.ts": "#220: integration of models+pipeline+writer",
+  "src/fulltags/sources/pipeline-beatport.test.ts": "#220: subject pipeline/pipeline.ts + beatport",
   "src/fulltags/sources/sc-artist-gate.test.ts": "#220: subject sc-search.ts",
   // ---- archive/rekordbox/shelf/shared/getdat co-location debt (#214-adjacent
   // slices; migrate when the subject moves or name the subject test):
@@ -71,34 +66,26 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
     "#503: subject title-repair.kit.py (python corpus kit) — RB-closed guard topology pin",
   "src/rekordbox/comment-sync-guard.test.ts":
     "#503: subject comment-sync.kit.py (python corpus kit) — RB-closed guard topology pin",
-  "src/rekordbox/rb-scripts-census.test.ts":
-    "#214: census over rb-scripts corpus",
+  "src/rekordbox/rb-scripts-census.test.ts": "#214: census over rb-scripts corpus",
   "src/shared/maintenance-flags.test.ts":
     "#235: subject (dissolved maintenance arms) flag parsing — CLI-level",
   "src/shared/maintenance-verbs.test.ts":
     "#235: subject (dissolved maintenance arms) dispatch pin — CLI-level",
   "src/shelf/ext-drift.test.ts": "#214: subject dupescan ext-drift arm",
-  "src/getdat/commands/ingest-fingerprint.test.ts":
-    "#220: subject ingest.ts fingerprint arm",
-  "src/getdat/commands/ingest-md5-dedupe.test.ts":
-    "#220: subject ingest.ts md5 arm",
-  "src/getdat/commands/ingest-selfmatch.test.ts":
-    "#220: subject ingest.ts selfmatch arm",
-  "src/getdat/commands/ingest-upgrade-row.test.ts":
-    "#220: subject ingest.ts upgrade-row arm",
-  "src/getdat/commands/intake-folders.e2e.test.ts":
-    "#220: subject ingest.ts intake-folders flow",
+  "src/getdat/commands/ingest-fingerprint.test.ts": "#220: subject ingest.ts fingerprint arm",
+  "src/getdat/commands/ingest-md5-dedupe.test.ts": "#220: subject ingest.ts md5 arm",
+  "src/getdat/commands/ingest-selfmatch.test.ts": "#220: subject ingest.ts selfmatch arm",
+  "src/getdat/commands/ingest-upgrade-row.test.ts": "#220: subject ingest.ts upgrade-row arm",
+  "src/getdat/commands/intake-folders.e2e.test.ts": "#220: subject ingest.ts intake-folders flow",
   // ---- cratedeck #214 slices: domain-dir contract tests that span several
   // subjects (no single same-stem owner) — co-located to the DOMAIN, and
   // the domain dir IS the subject class:
-  "src/deck/hygiene/api.test.ts":
-    "#214: reader+routes wire contract pair (domain-dir test)",
+  "src/deck/hygiene/api.test.ts": "#214: reader+routes wire contract pair (domain-dir test)",
   "src/deck/verify/phases.test.ts":
     "#214: verifyPhase progress contract (subject lives in jobs/job-runtime)",
   "src/deck/fleet/fleet.test.ts":
     "#214: coverage+coverage-fleet+fleet-db engine round-trip (domain test)",
-  "src/deck/mcp/mcp.test.ts":
-    "#214: mcp stdio protocol over spawned server (domain-dir test)",
+  "src/deck/mcp/mcp.test.ts": "#214: mcp stdio protocol over spawned server (domain-dir test)",
   // ---- #315 deck-archive fold: tests moved beside their subjects, but
   // multi-subject/domain tests keep the domain-dir pattern above:
   "src/deck/api/api-parity-census.test.ts":
@@ -147,24 +134,15 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
 /** Tests whose same-stem subject exists beside them (the rule's happy path). */
 function hasStemSubject(testPath: string): boolean {
   const stem = testPath.replace(/\.test\.tsx?$/u, "");
-  return (
-    existsSync(join(ROOT, `${stem}.ts`)) ||
-    existsSync(join(ROOT, `${stem}.tsx`))
-  );
+  return existsSync(join(ROOT, `${stem}.ts`)) || existsSync(join(ROOT, `${stem}.tsx`));
 }
 
 function trackedTests(): string[] {
   const { execFileSync } = require("node:child_process") as {
-    execFileSync: (
-      cmd: string,
-      args: string[],
-      opts?: { cwd?: string },
-    ) => Buffer;
+    execFileSync: (cmd: string, args: string[], opts?: { cwd?: string }) => Buffer;
   };
   try {
-    return execFileSync("git", ["ls-files", "*.test.ts", "*.test.tsx"], {
-      cwd: ROOT,
-    })
+    return execFileSync("git", ["ls-files", "*.test.ts", "*.test.tsx"], { cwd: ROOT })
       .toString()
       .split("\n")
       .map((l: string) => l.trim())
@@ -193,15 +171,13 @@ test("#246: every co-located test has its subject; strays are allowlisted", () =
     seen.add(t);
     if (hasStemSubject(t)) continue;
     const dir = dirname(t);
-    if (CENSUS_DIR.test(t) || SANCTIONED.test(`/${dir}/`) || dir === "src")
-      continue;
+    if (CENSUS_DIR.test(t) || SANCTIONED.test(`/${dir}/`) || dir === "src") continue;
     if (!(t in ALLOWLIST)) offenders.push(t);
   }
   for (const row of Object.keys(ALLOWLIST)) {
     if (!seen.has(row)) stale.push(row);
     const dir = dirname(row);
-    if (CENSUS_DIR.test(row) || SANCTIONED.test(`/${dir}/`) || dir === "src")
-      stale.push(row);
+    if (CENSUS_DIR.test(row) || SANCTIONED.test(`/${dir}/`) || dir === "src") stale.push(row);
   }
   expect(
     offenders,

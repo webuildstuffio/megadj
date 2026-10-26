@@ -16,9 +16,7 @@ export function repoHygiene(cwd = process.cwd()): RepoHygieneResult {
   });
   if (proc.exitCode !== 0) {
     const detail = proc.stderr.toString().trim();
-    throw new Error(
-      `repo hygiene: git inventory failed${detail ? `: ${detail}` : ""}`,
-    );
+    throw new Error(`repo hygiene: git inventory failed${detail ? `: ${detail}` : ""}`);
   }
   const trackedIgnored = proc.stdout
     .toString()

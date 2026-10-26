@@ -11,18 +11,7 @@ import { TS_EXTS, walkFiles } from "../test-support/census-walk";
 // quote ≤2; ingest-art's ARTWORK_EXTS derives from the SSOT, no literal.)
 const ROOT = join(import.meta.dir, "..", "..");
 const SELF = join(ROOT, "src/census/audio-ext-drift-census.test.ts");
-const SSOT = [
-  ".m4a",
-  ".mp3",
-  ".wav",
-  ".flac",
-  ".aiff",
-  ".aif",
-  ".ogg",
-  ".opus",
-  ".aac",
-  ".alac",
-];
+const SSOT = [".m4a", ".mp3", ".wav", ".flac", ".aiff", ".aif", ".ogg", ".opus", ".aac", ".alac"];
 
 /** Max SSOT exts in any one `new Set([…])` literal (no nested brackets). */
 function maxSsotExtsPerSetLiteral(text: string): number {
@@ -53,24 +42,18 @@ test("census: no hand-rolled audio-extension Set outside the SSOT", () => {
 
 test("census: the three former twins read the SSOT", () => {
   const pinned: [string, RegExp][] = [
-    [
-      "src/rekordbox/rb-import.ts",
-      /import \{ AUDIO_EXTS \} from "\.\.\/shared\/audio-exts"/,
-    ],
-    [
-      "src/deck/hygiene/audio.ts",
-      /import \{ AUDIO_EXTS \} from "\.\.\/\.\.\/shared\/audio-exts"/,
-    ],
+    ["src/rekordbox/rb-import.ts", /import \{ AUDIO_EXTS \} from "\.\.\/shared\/audio-exts"/],
+    ["src/deck/hygiene/audio.ts", /import \{ AUDIO_EXTS \} from "\.\.\/\.\.\/shared\/audio-exts"/],
     [
       "src/deck/tools/scan.ts",
       /export \{ AUDIO_EXTS as AUDIO_EXT \} from "\.\.\/\.\.\/shared\/audio-exts"/,
     ],
   ];
   for (const [rel, re] of pinned) {
-    expect({
+    expect({ file: rel, readsSsot: re.test(readFileSync(join(ROOT, rel), "utf8")) }).toEqual({
       file: rel,
-      readsSsot: re.test(readFileSync(join(ROOT, rel), "utf8")),
-    }).toEqual({ file: rel, readsSsot: true });
+      readsSsot: true,
+    });
   }
 });
 
@@ -80,7 +63,5 @@ test("detector fires on rb-import's old twin, passes a 2-ext mime set", () => {
       'const A = new Set([".aiff", ".aif", ".mp3", ".wav", ".flac", ".m4a", ".aac"]);',
     ),
   ).toBe(7);
-  expect(maxSsotExtsPerSetLiteral('const M = new Set([".mp3", ".wav"]);')).toBe(
-    2,
-  );
+  expect(maxSsotExtsPerSetLiteral('const M = new Set([".mp3", ".wav"]);')).toBe(2);
 });

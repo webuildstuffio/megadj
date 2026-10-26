@@ -18,10 +18,8 @@ const SANCTIONED: Record<string, string> = {
   "src/core/ledgers.ts": "detail-prefix ': msg' + '' degrade",
   "src/deck/deckctl.ts": "crash print keeps the stack",
   "src/ops/deck-install.ts": "installer top-level catch prints the stack",
-  "src/deck/web/products/getdat/surfaced-card.tsx":
-    "web toast catch narrows to .message",
-  "src/deck/web/products/getdat/getdat-tabs.tsx":
-    "web toast catch narrows to .message",
+  "src/deck/web/products/getdat/surfaced-card.tsx": "web toast catch narrows to .message",
+  "src/deck/web/products/getdat/getdat-tabs.tsx": "web toast catch narrows to .message",
 };
 
 test("census: every `instanceof Error` site is the SSOT or sanctioned", () => {
@@ -35,8 +33,7 @@ test("census: every `instanceof Error` site is the SSOT or sanctioned", () => {
       const rel = p.slice(ROOT.length + 1);
       if (rel === SELF) continue;
       const text = readFileSync(p, "utf8");
-      if (text.includes("instanceof Error") && !(rel in SANCTIONED))
-        offenders.push(rel);
+      if (text.includes("instanceof Error") && !(rel in SANCTIONED)) offenders.push(rel);
     }
   }
   expect(offenders).toEqual([]);
@@ -51,8 +48,7 @@ test("census: no private re-roll of the helper body", () => {
       const rel = p.slice(ROOT.length + 1);
       if (rel === SELF) continue;
       if (rel === "src/shared/leaf/fmt.ts") continue; // the SSOT itself
-      if (/\bfunction (errorText|errMessage)\b/.test(readFileSync(p, "utf8")))
-        offenders.push(rel);
+      if (/\bfunction (errorText|errMessage)\b/.test(readFileSync(p, "utf8"))) offenders.push(rel);
     }
   }
   expect(offenders).toEqual([]);

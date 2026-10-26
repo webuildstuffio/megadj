@@ -34,10 +34,7 @@ import {
 
 const NUMBER_PREDICATES = new Set(["isFinite", "isInteger", "isSafeInteger"]);
 
-export function numberPredicate(
-  node: Node,
-  identifier?: string,
-): CallExpression | null {
+export function numberPredicate(node: Node, identifier?: string): CallExpression | null {
   if (
     !isCallExpression(node) ||
     node.arguments.length !== 1 ||
@@ -49,41 +46,27 @@ export function numberPredicate(
     return null;
   const [argument] = node.arguments;
   return identifier === undefined ||
-    (argument !== undefined &&
-      isIdentifier(argument) &&
-      argument.text === identifier)
+    (argument !== undefined && isIdentifier(argument) && argument.text === identifier)
     ? node
     : null;
 }
 
 function enclosingScope(node: Node): Node {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  )
+  for (let parent: Node | undefined = node.parent; parent; parent = parent.parent)
     if (isFunctionBoundary(parent) || isSourceFile(parent)) return parent;
   return node.getSourceFile();
 }
 
 function assignedIdentifier(node: CallExpression): string | null {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  ) {
-    if (isVariableDeclaration(parent))
-      return isIdentifier(parent.name) ? parent.name.text : null;
+  for (let parent: Node | undefined = node.parent; parent; parent = parent.parent) {
+    if (isVariableDeclaration(parent)) return isIdentifier(parent.name) ? parent.name.text : null;
     if (isStatement(parent) || isFunctionBoundary(parent)) return null;
   }
   return null;
 }
 
 function contains(container: Node, candidate: Node): boolean {
-  return (
-    container.getStart() <= candidate.getStart() &&
-    container.getEnd() >= candidate.getEnd()
-  );
+  return container.getStart() <= candidate.getStart() && container.getEnd() >= candidate.getEnd();
 }
 
 function ignoredIdentifier(node: Identifier): boolean {
@@ -107,8 +90,7 @@ function walkScope(scope: Node, visit: (node: Node) => void): void {
 function statementAlwaysExits(statement: Statement | undefined): boolean {
   if (statement === undefined) return false;
   if (isReturnStatement(statement) || isThrowStatement(statement)) return true;
-  if (isBlock(statement))
-    return statementAlwaysExits((statement as Block).statements.at(-1));
+  if (isBlock(statement)) return statementAlwaysExits((statement as Block).statements.at(-1));
   return (
     isIfStatement(statement) &&
     statementAlwaysExits(statement.thenStatement) &&
@@ -130,17 +112,11 @@ function isWrite(node: Identifier): boolean {
 }
 
 function isAssignmentKind(kind: SyntaxKind): boolean {
-  return (
-    kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment
-  );
+  return kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
 }
 
 function enclosingPredicate(node: Node): CallExpression | null {
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  ) {
+  for (let parent: Node | undefined = node.parent; parent; parent = parent.parent) {
     const predicate = numberPredicate(parent);
     if (predicate) return predicate;
     if (isStatement(parent) || isFunctionBoundary(parent)) break;
@@ -151,34 +127,18 @@ function enclosingPredicate(node: Node): CallExpression | null {
 function isNegatedBetween(node: Node, ancestor: Node): boolean {
   if (node === ancestor) return false;
   let negated = false;
-  for (
-    let parent: Node | undefined = node.parent;
-    parent;
-    parent = parent.parent
-  ) {
-    if (
-      isPrefixUnaryExpression(parent) &&
-      parent.operator === SyntaxKind.ExclamationToken
-    )
+  for (let parent: Node | undefined = node.parent; parent; parent = parent.parent) {
+    if (isPrefixUnaryExpression(parent) && parent.operator === SyntaxKind.ExclamationToken)
       negated = !negated;
     if (parent === ancestor) break;
   }
   return negated;
 }
 
-function booleanPathValid(
-  guard: Node,
-  condition: Expression,
-  safeWhenTrue: boolean,
-): boolean {
-  const operator = safeWhenTrue
-    ? SyntaxKind.AmpersandAmpersandToken
-    : SyntaxKind.BarBarToken;
+function booleanPathValid(guard: Node, condition: Expression, safeWhenTrue: boolean): boolean {
+  const operator = safeWhenTrue ? SyntaxKind.AmpersandAmpersandToken : SyntaxKind.BarBarToken;
   for (let child: Node = guard; child !== condition; child = child.parent)
-    if (
-      isBinaryExpression(child.parent) &&
-      child.parent.operatorToken.kind !== operator
-    )
+    if (isBinaryExpression(child.parent) && child.parent.operatorToken.kind !== operator)
       return false;
   return true;
 }
@@ -189,9 +149,7 @@ function conditionUseIsProtected(
   condition: Expression,
   safeWhenTrue: boolean,
 ): boolean {
-  const operator = safeWhenTrue
-    ? SyntaxKind.AmpersandAmpersandToken
-    : SyntaxKind.BarBarToken;
+  const operator = safeWhenTrue ? SyntaxKind.AmpersandAmpersandToken : SyntaxKind.BarBarToken;
   for (let child: Node = use; child !== condition; child = child.parent) {
     const parent: Node | undefined = child.parent;
     if (
@@ -210,11 +168,7 @@ type GuardContext =
   | { kind: "ternary"; node: ConditionalExpression };
 
 function guardContext(guard: CallExpression, scope: Node): GuardContext | null {
-  for (
-    let parent: Node | undefined = guard.parent;
-    parent !== scope;
-    parent = parent.parent
-  ) {
+  for (let parent: Node | undefined = guard.parent; parent !== scope; parent = parent.parent) {
     if (isIfStatement(parent) && contains(parent.expression, guard))
       return { kind: "if", node: parent };
     if (isConditionalExpression(parent) && contains(parent.condition, guard))
@@ -232,8 +186,7 @@ function guardProtectsUses(
 ): boolean {
   const context = guardContext(guard, scope);
   if (context === null) return false;
-  const condition =
-    context.kind === "if" ? context.node.expression : context.node.condition;
+  const condition = context.kind === "if" ? context.node.expression : context.node.condition;
   const safeWhenTrue = !isNegatedBetween(guard, condition);
   if (!booleanPathValid(guard, condition, safeWhenTrue)) return false;
 
@@ -247,9 +200,7 @@ function guardProtectsUses(
         : context.node.whenFalse;
   const unsafeExits =
     context.kind === "if" &&
-    statementAlwaysExits(
-      safeWhenTrue ? context.node.elseStatement : context.node.thenStatement,
-    );
+    statementAlwaysExits(safeWhenTrue ? context.node.elseStatement : context.node.thenStatement);
   let protectedUses = true;
 
   walkScope(scope, (node) => {
@@ -273,17 +224,9 @@ function guardProtectsUses(
       return;
     }
     if (safeBranch && contains(safeBranch, node)) return;
-    if (
-      contains(condition, node) &&
-      conditionUseIsProtected(node, guard, condition, safeWhenTrue)
-    )
+    if (contains(condition, node) && conditionUseIsProtected(node, guard, condition, safeWhenTrue))
       return;
-    if (
-      context.kind === "if" &&
-      unsafeExits &&
-      node.getStart() > context.node.getEnd()
-    )
-      return;
+    if (context.kind === "if" && unsafeExits && node.getStart() > context.node.getEnd()) return;
     protectedUses = false;
   });
   return protectedUses;

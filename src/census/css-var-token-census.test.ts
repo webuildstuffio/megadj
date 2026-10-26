@@ -12,14 +12,7 @@ import { join } from "node:path";
  * outright so the class cannot quietly regrow. */
 
 const stylesDir = join(import.meta.dir, "..", "deck", "web", "styles");
-const dataTableTsx = join(
-  import.meta.dir,
-  "..",
-  "deck",
-  "web",
-  "ui",
-  "data-table.tsx",
-);
+const dataTableTsx = join(import.meta.dir, "..", "deck", "web", "ui", "data-table.tsx");
 
 interface VarUse {
   name: string;
@@ -38,9 +31,8 @@ interface VarUse {
  * terminator and eat the span after it. Newlines are preserved so reported
  * line numbers stay true. */
 function stripCssNoise(css: string): string {
-  return css.replace(
-    /\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g,
-    (m) => m.replace(/[^\n]/g, " "),
+  return css.replace(/\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, (m) =>
+    m.replace(/[^\n]/g, " "),
   );
 }
 
@@ -72,12 +64,7 @@ function varUses(css: string, file: string): VarUse[] {
     if (name !== undefined) {
       const rest = inner.slice(name.length + 2).trim();
       const fallback = rest.startsWith(",") ? rest.slice(1).trim() : undefined;
-      uses.push({
-        name,
-        fallback,
-        file,
-        line: css.slice(0, i).split("\n").length,
-      });
+      uses.push({ name, fallback, file, line: css.slice(0, i).split("\n").length });
     }
     start = j;
   }
@@ -87,9 +74,7 @@ function varUses(css: string, file: string): VarUse[] {
 function resolves(use: VarUse, tokens: Set<string>): boolean {
   if (tokens.has(use.name)) return true;
   if (use.fallback === undefined) return false;
-  return varUses(use.fallback, use.file).every((nested) =>
-    resolves(nested, tokens),
-  );
+  return varUses(use.fallback, use.file).every((nested) => resolves(nested, tokens));
 }
 
 const files = readdirSync(stylesDir)

@@ -17,8 +17,7 @@ const args = process.argv.slice(2);
 // misread as the count).
 const tail = args[args.length - 1] ?? "";
 const tailN = Number(tail);
-const topN =
-  /^\d+$/.test(tail) && Number.isFinite(tailN) && tailN > 0 ? tailN : 10;
+const topN = /^\d+$/.test(tail) && Number.isFinite(tailN) && tailN > 0 ? tailN : 10;
 if (topN > 0 && /^\d+$/.test(tail)) args.pop();
 // list-file mode: --list FILE.txt (one path per line — argv length limits
 // make 400+ files unpassable inline)
@@ -57,6 +56,4 @@ for (const file of files) {
 rows
   .toSorted((a, b) => b.ccn - a.ccn)
   .slice(0, topN)
-  .forEach((r) =>
-    console.log(`${String(r.ccn).padStart(4)}  ${r.name}  ${r.file}`),
-  );
+  .forEach((r) => console.log(`${String(r.ccn).padStart(4)}  ${r.name}  ${r.file}`));

@@ -16,15 +16,11 @@ export type FixReason =
 
 export type BoothFixGate = "booth-text" | "player-compat";
 
-export type BoothFixAction =
-  "sanitize-tags" | "repair-tags" | "rename" | "relocate" | "none";
+export type BoothFixAction = "sanitize-tags" | "repair-tags" | "rename" | "relocate" | "none";
 
 /** What the fix step would do. `none` = proposal only (no safe autofix):
  *  intentional scripts, hi-res audio — a human re-sources or converts. */
-export type FixAction = Extract<
-  BoothFixAction,
-  "rename" | "sanitize-tags" | "none"
->;
+export type FixAction = Extract<BoothFixAction, "rename" | "sanitize-tags" | "none">;
 
 /** One fixable (or merely flagged) file from `megadj booth-fix --json`.
  *  `plan` is the CLI's human plan line (e.g. "rename → x.wav"); `to` is

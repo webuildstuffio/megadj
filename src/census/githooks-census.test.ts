@@ -33,9 +33,7 @@ describe("githooks census: core.hooksPath chains every required hook", () => {
     // git config (not .git/config reads): linked worktrees keep .git as a
     // pointer FILE — config must resolve through the common dir to stay
     // worktree-safe.
-    const proc = Bun.spawnSync(["git", "config", "core.hooksPath"], {
-      cwd: ROOT,
-    });
+    const proc = Bun.spawnSync(["git", "config", "core.hooksPath"], { cwd: ROOT });
     expect(proc.exitCode).toBe(0);
     expect(proc.stdout.toString().trim()).toBe(".githooks");
   });

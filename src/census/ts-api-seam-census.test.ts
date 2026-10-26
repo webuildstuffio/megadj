@@ -23,8 +23,7 @@ const NAMESPACE_IMPORT = /import\s+\*\s+as\s+\w+\s+from\s+["']typescript["']/u;
 /** Named value imports (`import { createSourceFile } from "typescript"`),
  *  but NOT type-only imports — type imports vanish at runtime and
  *  `export … from "typescript"` in the seam itself is exempt. */
-const NAMED_VALUE_IMPORT =
-  /import\s+\{[^}]*[A-Za-z_][^}]*\}\s+from\s+["']typescript["']/u;
+const NAMED_VALUE_IMPORT = /import\s+\{[^}]*[A-Za-z_][^}]*\}\s+from\s+["']typescript["']/u;
 
 const SEAM = "src/test-support/ts-ast.ts";
 
@@ -32,21 +31,14 @@ describe("TypeScript compiler-API seam census (#274)", () => {
   test(`"typescript" is imported only through ${SEAM}`, () => {
     const offenders: string[] = [];
     for (const root of ROOTS) {
-      for (const path of walkFiles(join(REPO, root), TS_ALL_EXTS, {
-        skipTests: true,
-      })) {
+      for (const path of walkFiles(join(REPO, root), TS_ALL_EXTS, { skipTests: true })) {
         const rel = path.slice(REPO.length + 1);
         if (rel === SEAM) continue;
         const text = readFileSync(path, "utf8");
         // Ignore import()-of-typespec comments and plain `import type`
         // (type-only imports are erased at runtime and harmless).
-        const stripped = text
-          .replace(/^\s*\/\/.*$/gmu, "")
-          .replace(/\/\*[\s\S]*?\*\//gu, "");
-        if (
-          NAMESPACE_IMPORT.test(stripped) ||
-          NAMED_VALUE_IMPORT.test(stripped)
-        )
+        const stripped = text.replace(/^\s*\/\/.*$/gmu, "").replace(/\/\*[\s\S]*?\*\//gu, "");
+        if (NAMESPACE_IMPORT.test(stripped) || NAMED_VALUE_IMPORT.test(stripped))
           offenders.push(rel);
       }
     }

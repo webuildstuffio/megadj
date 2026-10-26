@@ -7,13 +7,7 @@ import { readdirSync, type Dirent } from "node:fs";
 import { extname, join } from "node:path";
 
 const INFRA_DIRS = new Set(["node_modules", "dist", ".git"]);
-const TEST_DIRS = new Set([
-  "test",
-  "tests",
-  "__tests__",
-  "fixtures",
-  "test-support",
-]);
+const TEST_DIRS = new Set(["test", "tests", "__tests__", "fixtures", "test-support"]);
 
 export interface WalkOpts {
   /** Skip test directories (test/, tests/, __tests__, fixtures, test-support). */

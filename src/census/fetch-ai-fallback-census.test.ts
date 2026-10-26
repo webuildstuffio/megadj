@@ -26,10 +26,7 @@ test("fetch AI fallback: every console.log is gated on !jsonOut", () => {
     if (line.includes("!jsonOut") || prev.includes("!jsonOut")) continue;
     ungated.push(`${i + 1}: ${line.trim()}`);
   }
-  expect(
-    found,
-    "no console.log lines found — did the legs move?",
-  ).toBeGreaterThan(0);
+  expect(found, "no console.log lines found — did the legs move?").toBeGreaterThan(0);
   expect(
     ungated,
     `ungated console.log in fetch-ai-fallback.ts (would leak human lines into --json stdout):\n${ungated.join("\n")}`,

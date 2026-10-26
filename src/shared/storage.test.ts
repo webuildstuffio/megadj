@@ -36,15 +36,10 @@ describe("storage block (#251)", () => {
 
     // Write a dated backup the way rb-import/shelf tooling does, then
     // re-probe: count AND bytes move (call-time derivation, no cache).
-    writeFileSync(
-      join(dir, "archive.db.bak-20260919-095900"),
-      "x".repeat(1024),
-    );
+    writeFileSync(join(dir, "archive.db.bak-20260919-095900"), "x".repeat(1024));
     const after = storageReport(state);
     expect(after.storage.backupCount).toBe(1);
-    expect(after.storage.stateDirBytes).toBeGreaterThan(
-      before.storage.stateDirBytes,
-    );
+    expect(after.storage.stateDirBytes).toBeGreaterThan(before.storage.stateDirBytes);
     expect(after.storage.oldestBackupAgeDays).toBe(0);
   });
 
@@ -56,15 +51,13 @@ describe("storage block (#251)", () => {
     const { db } = state as unknown as {
       db: { query: (q: string) => { run: (...p: unknown[]) => unknown } };
     };
-    db.query(
-      `UPDATE tracks SET last_attempt_at = ? WHERE video_id = 'v-now'`,
-    ).run(new Date().toISOString());
+    db.query(`UPDATE tracks SET last_attempt_at = ? WHERE video_id = 'v-now'`).run(
+      new Date().toISOString(),
+    );
 
     state.upsertTrackFromPlaylist("v-old", 2, "Frozen", "LL");
     const old = new Date(Date.now() - 27 * 24 * 60 * 60 * 1000).toISOString();
-    db.query(
-      `UPDATE tracks SET last_attempt_at = ? WHERE video_id = 'v-old'`,
-    ).run(old);
+    db.query(`UPDATE tracks SET last_attempt_at = ? WHERE video_id = 'v-old'`).run(old);
 
     const r = storageReport(state);
     const fresh = r.ledgerFreshness.find((f) => f.source === "liked");

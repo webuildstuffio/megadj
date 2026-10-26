@@ -39,9 +39,7 @@ describe("shared/hash — the in-process md5 seam (#70)", () => {
   });
 
   test("unreadable file → null (bytes NOT verified), missing file → null", async () => {
-    expect(md5FileChunked(join(tmpdir(), "megadj-hash-does-not-exist"))).toBe(
-      null,
-    );
+    expect(md5FileChunked(join(tmpdir(), "megadj-hash-does-not-exist"))).toBe(null);
     const dir = t.dir();
     const p = join(dir, "unreadable");
     writeFileSync(p, "x");

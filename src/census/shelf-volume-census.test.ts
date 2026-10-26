@@ -38,9 +38,7 @@ const TS_ROOTS = ["src", "tools"];
 function productionTsFiles(): string[] {
   const out: string[] = [];
   for (const root of TS_ROOTS) {
-    for (const p of walkFiles(join(ROOT, root), TS_EXTS, {
-      skipTests: true,
-    })) {
+    for (const p of walkFiles(join(ROOT, root), TS_EXTS, { skipTests: true })) {
       if (!p.endsWith(".test.ts") && !p.endsWith(".test.tsx")) out.push(p);
     }
   }
@@ -49,9 +47,7 @@ function productionTsFiles(): string[] {
 
 /** Strip docstrings/comments from Python source (census-parsing aid). */
 function stripDocstrings(src: string): string {
-  return src
-    .replace(/"""[\s\S]*?"""/gu, '""')
-    .replace(/'''[\s\S]*?'''/gu, "''");
+  return src.replace(/"""[\s\S]*?"""/gu, '""').replace(/'''[\s\S]*?'''/gu, "''");
 }
 
 /** String/template literals matching /Volumes/SHELF1 per file, via the TS
@@ -82,8 +78,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
   test("zero /Volumes/SHELF1 string literals in production TS", () => {
     const hits: { file: string; line: number; text: string }[] = [];
     for (const p of productionTsFiles()) {
-      for (const hit of shelfLiterals(p))
-        hits.push({ file: p.slice(ROOT.length + 1), ...hit });
+      for (const hit of shelfLiterals(p)) hits.push({ file: p.slice(ROOT.length + 1), ...hit });
     }
     expect(
       hits,
@@ -119,8 +114,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
     const pyFiles: string[] = [];
     const visit = (dir: string): void => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        if (entry.name === "__pycache__" || entry.name === "node_modules")
-          continue;
+        if (entry.name === "__pycache__" || entry.name === "node_modules") continue;
         const p = join(dir, entry.name);
         if (statSync(p).isDirectory()) visit(p);
         else if (p.endsWith(".py")) pyFiles.push(p);
@@ -173,16 +167,8 @@ describe("shelf volume census (issue #55 regression gate)", () => {
 
     // env beats config when no explicit arg is passed
     const proc2 = Bun.spawnSync({
-      cmd: [
-        "bun",
-        "-e",
-        script.replace("delete process.env.MEGADJ_SHELF_VOLUME;", ""),
-      ],
-      env: {
-        ...process.env,
-        MEGADJ_SHELF_VOLUME: "ENVDRIVE",
-        FAKE_ROOT: join(ROOT, "src/deck"),
-      },
+      cmd: ["bun", "-e", script.replace("delete process.env.MEGADJ_SHELF_VOLUME;", "")],
+      env: { ...process.env, MEGADJ_SHELF_VOLUME: "ENVDRIVE", FAKE_ROOT: join(ROOT, "src/deck") },
       stdout: "pipe",
       stderr: "pipe",
     });

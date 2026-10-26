@@ -8,10 +8,7 @@ import {
 } from "../test-support/boundary-census";
 
 const repo = join(import.meta.dir, "..", "..");
-const reviewed = (
-  reason: string,
-  keys: readonly string[],
-): Readonly<Record<string, string>> =>
+const reviewed = (reason: string, keys: readonly string[]): Readonly<Record<string, string>> =>
   Object.fromEntries(keys.map((key) => [key, reason]));
 const HYGIENE_ROW_REASON =
   "hydrateHygieneFinding intentionally throws; both ledger readers catch per row, log the row id, and skip only corruption.";
@@ -24,8 +21,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // malformed event line returns null and the feed simply skips it (the
   // run's stdout summary is the authoritative payload; the feed is
   // advisory). Never a throw into the job leg.
-  "src/deck/jobs/job-legs-fetch-protocol.ts::safeJsonParse::JSON.parse(line)":
-    EXPLICIT_NULL_REASON,
+  "src/deck/jobs/job-legs-fetch-protocol.ts::safeJsonParse::JSON.parse(line)": EXPLICIT_NULL_REASON,
   ...reviewed(HYGIENE_ROW_REASON, [
     "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)",
     "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.bytes)",
@@ -67,13 +63,10 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
       "src/fulltags/bench/store.ts::loadBenchRun::JSON.parse(row.ci)",
     ],
   ),
-  ...reviewed(
-    "Bench store listBenchRuns reads same self-written JSON columns.",
-    [
-      "src/fulltags/bench/store.ts::listBenchRuns::JSON.parse(r.metrics)",
-      "src/fulltags/bench/store.ts::listBenchRuns::JSON.parse(r.ci)",
-    ],
-  ),
+  ...reviewed("Bench store listBenchRuns reads same self-written JSON columns.", [
+    "src/fulltags/bench/store.ts::listBenchRuns::JSON.parse(r.metrics)",
+    "src/fulltags/bench/store.ts::listBenchRuns::JSON.parse(r.ci)",
+  ]),
   ...reviewed(EXPLICIT_NULL_REASON, [
     "src/fulltags/bench/stages/genre-l2.ts::electedFamily::JSON.parse(row.genre_votes)",
     "src/fulltags/bench/stages/grid.ts::parseBeats::JSON.parse(json)",
@@ -259,11 +252,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
 });
 
 test("persisted JSON sanctions carry an audit reason", () => {
-  expect(
-    Object.values(PERSISTED_JSON_SANCTIONS).every(
-      (reason) => reason.length > 20,
-    ),
-  ).toBe(true);
+  expect(Object.values(PERSISTED_JSON_SANCTIONS).every((reason) => reason.length > 20)).toBe(true);
 });
 
 test("JSON scanner reports locations, follows aliases, and ignores prose", () => {
@@ -306,39 +295,29 @@ function catchViolations(body: string): number {
   const source = `let failures=0;
 declare const report:(message:string)=>void;
 function parse(){try{JSON.parse(row.result_json);}catch{${body}}}`;
-  return persistedJsonCensusForSources({ "fixture.ts": source }, {}).violations
-    .length;
+  return persistedJsonCensusForSources({ "fixture.ts": source }, {}).violations.length;
 }
 
-const CATCH_CASES: readonly [name: string, body: string, violations: number][] =
-  [
-    ["comment is silent", "/* corrupt data */", 1],
-    [
-      "uncalled nested logger is silent",
-      "const later=()=>console.error('bad'); void later;",
-      1,
-    ],
-    [
-      "dead error-shaped local is silent",
-      "const ignored={error:'bad'}; void ignored;",
-      1,
-    ],
-    ["local counter is silent", "let bad=0; bad++;", 1],
-    ["local logger is silent", "const log=()=>{}; log('bad');", 1],
-    ["unrelated call is silent", "noop();", 1],
-    ["unrelated outer state is silent", "status='idle';", 1],
-    ["null fallback is silent", "return null;", 1],
-    ["array fallback is silent", "return [];", 1],
-    ["object fallback is silent", "return {};", 1],
-    ["false fallback is silent", "return false;", 1],
-    ["reporter substring in catalog is silent", "catalog();", 1],
-    ["reporter substring in invalidator is silent", "invalidateCache();", 1],
-    ["later warn-like catalog method is silent", "catalogWarns();", 1],
-    ["failure object is visible", "return {ok:false,error:'bad'};", 0],
-    ["outer reporter is visible", "report('corrupt payload');", 0],
-    ["outer failure counter is visible", "failures++;", 0],
-    ["console error is visible", "console.error('corrupt payload');", 0],
-  ];
+const CATCH_CASES: readonly [name: string, body: string, violations: number][] = [
+  ["comment is silent", "/* corrupt data */", 1],
+  ["uncalled nested logger is silent", "const later=()=>console.error('bad'); void later;", 1],
+  ["dead error-shaped local is silent", "const ignored={error:'bad'}; void ignored;", 1],
+  ["local counter is silent", "let bad=0; bad++;", 1],
+  ["local logger is silent", "const log=()=>{}; log('bad');", 1],
+  ["unrelated call is silent", "noop();", 1],
+  ["unrelated outer state is silent", "status='idle';", 1],
+  ["null fallback is silent", "return null;", 1],
+  ["array fallback is silent", "return [];", 1],
+  ["object fallback is silent", "return {};", 1],
+  ["false fallback is silent", "return false;", 1],
+  ["reporter substring in catalog is silent", "catalog();", 1],
+  ["reporter substring in invalidator is silent", "invalidateCache();", 1],
+  ["later warn-like catalog method is silent", "catalogWarns();", 1],
+  ["failure object is visible", "return {ok:false,error:'bad'};", 0],
+  ["outer reporter is visible", "report('corrupt payload');", 0],
+  ["outer failure counter is visible", "failures++;", 0],
+  ["console error is visible", "console.error('corrupt payload');", 0],
+];
 
 for (const [name, body, violations] of CATCH_CASES)
   test(name, () => expect(catchViolations(body), body).toBe(violations));

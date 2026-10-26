@@ -39,15 +39,11 @@ export interface RbCandidate {
  * stable path. Contract-compatible with the original pickKeeper. */
 const inContents = (p: string): boolean => /\/Contents(?:\/|$)/u.test(p);
 
-export function pickRbKeeper(
-  first: RbCandidate,
-  second: RbCandidate,
-): "a" | "b" {
+export function pickRbKeeper(first: RbCandidate, second: RbCandidate): "a" | "b" {
   const aIn = inContents(first.path);
   const bIn = inContents(second.path);
   if (aIn !== bIn) return aIn ? "a" : "b";
-  if (first.bitrate !== second.bitrate)
-    return first.bitrate > second.bitrate ? "a" : "b";
+  if (first.bitrate !== second.bitrate) return first.bitrate > second.bitrate ? "a" : "b";
   if (first.size !== second.size) return first.size > second.size ? "a" : "b";
   return first.path <= second.path ? "a" : "b";
 }
@@ -65,10 +61,7 @@ export function pickScoredKeeper<A>(
   const fScore = scoreOf(first);
   const sScore = scoreOf(second);
   if (sScore > fScore) return "b";
-  if (
-    sScore === fScore &&
-    basename(pathOf(second)).length < basename(pathOf(first)).length
-  )
+  if (sScore === fScore && basename(pathOf(second)).length < basename(pathOf(first)).length)
     return "b";
   return "a";
 }

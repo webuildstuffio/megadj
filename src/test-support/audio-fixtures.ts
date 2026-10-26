@@ -52,14 +52,7 @@ export function ffmpegTone(
     title?: string;
   } = {},
 ): string {
-  const {
-    freq = 440,
-    seconds = 65,
-    codec = "pcm_s16le",
-    bitrate,
-    from,
-    title,
-  } = opts;
+  const { freq = 440, seconds = 65, codec = "pcm_s16le", bitrate, from, title } = opts;
   mkdirSync(dirname(path), { recursive: true });
   const args = [
     "ffmpeg",
@@ -67,9 +60,7 @@ export function ffmpegTone(
     "-hide_banner",
     "-loglevel",
     "error",
-    ...(from
-      ? ["-i", from]
-      : ["-f", "lavfi", "-i", `sine=frequency=${freq}:duration=${seconds}`]),
+    ...(from ? ["-i", from] : ["-f", "lavfi", "-i", `sine=frequency=${freq}:duration=${seconds}`]),
     "-c:a",
     codec,
     ...(bitrate ? ["-b:a", bitrate] : []),

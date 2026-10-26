@@ -85,10 +85,9 @@ describe("fixture-seam census (#248 ratchet)", () => {
       if (!exists || !text.includes("mkdtempSync"))
         unused.push(`  ${rel} — migrate done; DELETE this entry`);
     }
-    expect(
-      unused,
-      `allowlist entries whose migration completed:\n${unused.join("\n")}`,
-    ).toEqual([]);
+    expect(unused, `allowlist entries whose migration completed:\n${unused.join("\n")}`).toEqual(
+      [],
+    );
   });
 
   test("the seam module itself is the only non-test mkdtemp in src/", () => {
@@ -97,10 +96,7 @@ describe("fixture-seam census (#248 ratchet)", () => {
       if (p.endsWith(".test.ts")) continue;
       const rel = relative(ROOT, p);
       if (rel === SEAM) continue;
-      if (
-        statSync(p).isFile() &&
-        readFileSync(p, "utf8").includes("mkdtempSync")
-      )
+      if (statSync(p).isFile() && readFileSync(p, "utf8").includes("mkdtempSync"))
         offenders.push(`  ${rel}`);
     }
     expect(

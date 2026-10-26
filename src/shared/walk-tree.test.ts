@@ -26,9 +26,7 @@ describe("walkTree — the one directory walker (#69)", () => {
       "Artist/.hidden/hid.flac": "x", // dotdir
       "Artist/notes.txt": "x",
     });
-    const found = walkTree(dir, {
-      exts: new Set([".mp3", ".opus"]),
-    })
+    const found = walkTree(dir, { exts: new Set([".mp3", ".opus"]) })
       .entries.map((e) => e.rel)
       .toSorted();
     expect(found).toEqual(["Artist/live.opus", "Artist/song.mp3"]);
@@ -44,10 +42,7 @@ describe("walkTree — the one directory walker (#69)", () => {
 
   test("relRoot: rel computed against the landing root, not the walk root", () => {
     // shelf-archive's PIONEER REC landing: walk PIONEER REC/, rel → volume
-    const vol = makeTree({
-      "PIONEER REC/rec1.wav": "x",
-      "PIONEER REC/sub/rec2.wav": "x",
-    });
+    const vol = makeTree({ "PIONEER REC/rec1.wav": "x", "PIONEER REC/sub/rec2.wav": "x" });
     const { entries } = walkTree(join(vol, "PIONEER REC"), {
       exts: new Set([".wav"]),
       relRoot: vol,
@@ -59,12 +54,8 @@ describe("walkTree — the one directory walker (#69)", () => {
   });
 
   test("flat: rel is the bare basename (trash flat-landing)", () => {
-    const vol = makeTree({
-      ".Trashes/deleted from folders/a.mp3": "x",
-    });
-    const { entries } = walkTree(join(vol, ".Trashes"), {
-      flat: true,
-    });
+    const vol = makeTree({ ".Trashes/deleted from folders/a.mp3": "x" });
+    const { entries } = walkTree(join(vol, ".Trashes"), { flat: true });
     expect(entries.map((e) => e.rel)).toEqual(["a.mp3"]);
   });
 
@@ -76,10 +67,7 @@ describe("walkTree — the one directory walker (#69)", () => {
     try {
       if (process.getuid?.() === 0) return; // root reads anything
       const surfaced: string[] = [];
-      const res = walkTree(dir, {
-        exts: new Set([".mp3"]),
-        onUnreadable: (d) => surfaced.push(d),
-      });
+      const res = walkTree(dir, { exts: new Set([".mp3"]), onUnreadable: (d) => surfaced.push(d) });
       expect(res.unreadable).toEqual([join(dir, "locked")]);
       expect(surfaced).toEqual([join(dir, "locked")]);
       expect(res.entries.map((e) => e.rel)).toEqual(["keep/a.mp3"]);
@@ -95,19 +83,12 @@ describe("walkTree — the one directory walker (#69)", () => {
   });
 
   test("skipPaths: a dir whose path is prefixed never collects (#99 skips)", () => {
-    const dir = makeTree({
-      "batch/a.mp3": "x",
-      "batch/.quarantine/b.mp3": "q",
-      "sub/c.mp3": "x",
-    });
+    const dir = makeTree({ "batch/a.mp3": "x", "batch/.quarantine/b.mp3": "q", "sub/c.mp3": "x" });
     const { entries } = walkTree(dir, {
       exts: new Set([".mp3"]),
       skipPaths: [join(dir, "batch", ".quarantine")],
     });
-    expect(entries.map((e) => e.rel).toSorted()).toEqual([
-      "batch/a.mp3",
-      "sub/c.mp3",
-    ]);
+    expect(entries.map((e) => e.rel).toSorted()).toEqual(["batch/a.mp3", "sub/c.mp3"]);
   });
 
   test("skip callback distinguishes files from dirs", () => {
@@ -119,8 +100,7 @@ describe("walkTree — the one directory walker (#69)", () => {
     });
     const { entries } = walkTree(dir, {
       exts: new Set([".mp3"]),
-      skip: (name, isDir) =>
-        isDir && (name === "USBANLZ" || name === "ARTWORK"),
+      skip: (name, isDir) => isDir && (name === "USBANLZ" || name === "ARTWORK"),
     });
     expect(entries.map((e) => e.rel)).toEqual(["Artist/z.mp3"]);
   });

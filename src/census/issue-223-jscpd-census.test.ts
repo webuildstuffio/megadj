@@ -86,10 +86,7 @@ test(
 );
 
 function readReport(): string {
-  return readFileSync(
-    join("/tmp/megadj-jscpd-223", "jscpd-report.json"),
-    "utf8",
-  );
+  return readFileSync(join("/tmp/megadj-jscpd-223", "jscpd-report.json"), "utf8");
 }
 
 function short(p: string): string {

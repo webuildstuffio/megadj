@@ -42,18 +42,14 @@ function listSourceFiles(dir: string): string[] {
     const full = join(dir, entry);
     const st = statSync(full);
     if (st.isDirectory()) out.push(...listSourceFiles(full));
-    else if (entry.endsWith(".ts") && !entry.endsWith(".test.ts"))
-      out.push(full);
+    else if (entry.endsWith(".ts") && !entry.endsWith(".test.ts")) out.push(full);
   }
   return out;
 }
 
 describe("apply-confirmation census (#79)", () => {
   test("the SSOT exists in the command kit", () => {
-    const kit = readFileSync(
-      join(ROOT, "src/rekordbox/rb-command-kit.ts"),
-      "utf8",
-    );
+    const kit = readFileSync(join(ROOT, "src/rekordbox/rb-command-kit.ts"), "utf8");
     expect(kit).toContain("export function applyConfirmationRefusal");
   });
 
@@ -87,11 +83,11 @@ describe("apply-confirmation census (#79)", () => {
     for (const file of files) {
       const src = readFileSync(file, "utf8");
       for (const wording of deadWordings) {
-        expect({
+        expect({ file: relative(ROOT, file), wording, found: src.includes(wording) }).toEqual({
           file: relative(ROOT, file),
           wording,
-          found: src.includes(wording),
-        }).toEqual({ file: relative(ROOT, file), wording, found: false });
+          found: false,
+        });
       }
     }
   });

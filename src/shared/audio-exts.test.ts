@@ -15,14 +15,7 @@ describe("AUDIO_EXTS SSOT (issue #69)", () => {
   });
 
   test("core formats stay recognized", () => {
-    for (const name of [
-      "a.mp3",
-      "b.wav",
-      "c.aif",
-      "d.aiff",
-      "e.m4a",
-      "f.flac",
-    ]) {
+    for (const name of ["a.mp3", "b.wav", "c.aif", "d.aiff", "e.m4a", "f.flac"]) {
       expect(isAudioFile(name)).toBe(true);
     }
   });

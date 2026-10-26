@@ -45,11 +45,9 @@ const ALLOWED_CROSSINGS: Readonly<Record<string, string>> = {
   // types.ts as the declared import leaf; hygiene/ledger-freshness are the
   // same class) — #225A folds or re-homes these
   "src/deck/shared/types": "#225A shared-only fold (declared leaf)",
-  "src/deck/shared/megaset":
-    "#283 megaset wire shapes (SetSearchOverride guard) — fold with #225A",
+  "src/deck/shared/megaset": "#283 megaset wire shapes (SetSearchOverride guard) — fold with #225A",
   "src/deck/shared/hygiene": "#225A shared-only fold",
-  "src/deck/shared/dump":
-    "#225A shared-only fold (dump contract, used by src/core/dump-ledger)",
+  "src/deck/shared/dump": "#225A shared-only fold (dump contract, used by src/core/dump-ledger)",
   "src/deck/shared/ledger-freshness": "#225A shared-only fold",
   // ---- former cratedeck → src seams: fulltags readers/fleet/grid/vote/
   // name-key/audio-exts + test-support; #225A or #214 folds these trees
@@ -83,10 +81,7 @@ test("#222: every allowlist row carries a retirement plan (owning issue)", () =>
   const bad = Object.entries(ALLOWED_CROSSINGS)
     .filter(([, plan]) => !/#\d+/u.test(plan))
     .map(([k]) => k);
-  expect(
-    bad,
-    `allowlist rows without an owning issue: ${bad.join(", ")}`,
-  ).toEqual([]);
+  expect(bad, `allowlist rows without an owning issue: ${bad.join(", ")}`).toEqual([]);
 });
 
 test("#222: the fold held — no cratedeck/ tree remains in tracked sources", () => {

@@ -27,14 +27,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  lstatSync,
-  readdirSync,
-  readlinkSync,
-  realpathSync,
-  statSync,
-} from "node:fs";
+import { existsSync, lstatSync, readdirSync, readlinkSync, realpathSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..");
@@ -47,10 +40,7 @@ const EXPECTED_MIRROR: readonly (readonly [string, string])[] = [
     "plugin/skills/cratedeck-deckctl/SKILL.md",
     "../../../.claude/skills/cratedeck-deckctl/SKILL.md",
   ],
-  [
-    "plugin/skills/new-music-intake/SKILL.md",
-    "../../../.claude/skills/new-music-intake/SKILL.md",
-  ],
+  ["plugin/skills/new-music-intake/SKILL.md", "../../../.claude/skills/new-music-intake/SKILL.md"],
   [
     "plugin/skills/rekordbox-usb-sync/SKILL.md",
     "../../../.claude/skills/rekordbox-usb-sync/SKILL.md",
@@ -146,18 +136,14 @@ describe("plugin skills mirror census (#533)", () => {
         broken.push(`${relPath}: target is not a regular file`);
       }
     }
-    expect(
-      broken,
-      `mirror links must resolve into ${CANON_ROOT}:\n${broken.join("\n")}`,
-    ).toEqual([]);
+    expect(broken, `mirror links must resolve into ${CANON_ROOT}:\n${broken.join("\n")}`).toEqual(
+      [],
+    );
   });
 
   test("the mirrored set and link targets match the pin exactly", () => {
     const actual = new Map(
-      tracked.map((entry) => [
-        entry.path,
-        readlinkSync(join(ROOT, entry.path)),
-      ]),
+      tracked.map((entry) => [entry.path, readlinkSync(join(ROOT, entry.path))]),
     );
     const expected = new Map(EXPECTED_MIRROR);
     const missing = [...expected.keys()].filter((p) => !actual.has(p));
@@ -177,16 +163,11 @@ describe("plugin skills mirror census (#533)", () => {
   });
 
   test("the working tree holds no non-symlink or unlisted entries", () => {
-    const rels = walkFiles(join(ROOT, MIRROR_ROOT)).map((f) =>
-      relative(ROOT, f),
-    );
-    const unlisted = rels.filter(
-      (rel) => !EXPECTED_MIRROR.some(([p]) => p === rel),
-    );
+    const rels = walkFiles(join(ROOT, MIRROR_ROOT)).map((f) => relative(ROOT, f));
+    const unlisted = rels.filter((rel) => !EXPECTED_MIRROR.some(([p]) => p === rel));
     const copies = rels.filter(
       (rel) =>
-        EXPECTED_MIRROR.some(([p]) => p === rel) &&
-        !lstatSync(join(ROOT, rel)).isSymbolicLink(),
+        EXPECTED_MIRROR.some(([p]) => p === rel) && !lstatSync(join(ROOT, rel)).isSymbolicLink(),
     );
     expect(
       unlisted,

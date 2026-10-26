@@ -40,12 +40,9 @@ if (!fieldFilter || fieldFilter === "album")
 if (!fieldFilter || fieldFilter === "year")
   conditions.push("(year IS NULL OR year = '' OR year = '0')");
 if (!fieldFilter || fieldFilter === "artist")
-  conditions.push(
-    "(artist IS NULL OR artist = '' OR artist = 'UnknownArtist')",
-  );
+  conditions.push("(artist IS NULL OR artist = '' OR artist = 'UnknownArtist')");
 
-const whereClause =
-  conditions.length > 0 ? `AND (${conditions.join(" OR ")})` : "";
+const whereClause = conditions.length > 0 ? `AND (${conditions.join(" OR ")})` : "";
 
 const rows = db
   .query(
@@ -59,9 +56,7 @@ const rows = db
   )
   .all() as TrackRow[];
 
-log(
-  `metadata-backfill: ${rows.length} tracks need enrichment${dryRun ? " [DRY RUN]" : ""}`,
-);
+log(`metadata-backfill: ${rows.length} tracks need enrichment${dryRun ? " [DRY RUN]" : ""}`);
 
 let albumFilled = 0;
 let yearFilled = 0;
@@ -98,7 +93,8 @@ for (let i = 0; i < rows.length; i++) {
          LIMIT 1`,
       )
       .get(row.artist, `${row.title}%`) as
-      { album: string | null; year: string | null } | undefined;
+      | { album: string | null; year: string | null }
+      | undefined;
     if (orig && !dryRun) {
       const updates: string[] = [];
       const vals: (string | null)[] = [];
@@ -114,17 +110,14 @@ for (let i = 0; i < rows.length; i++) {
       }
       if (updates.length > 0) {
         vals.push(row.video_id);
-        db.query(
-          `UPDATE tracks SET ${updates.join(", ")} WHERE video_id = ?`,
-        ).run(...vals);
+        db.query(`UPDATE tracks SET ${updates.join(", ")} WHERE video_id = ?`).run(...vals);
       }
     }
     continue;
   }
   seen.add(key);
 
-  const needAlbum =
-    !row.album || row.album === "" || row.album === "UnknownAlbum";
+  const needAlbum = !row.album || row.album === "" || row.album === "UnknownAlbum";
   const needYear = !row.year || row.year === "" || row.year === "0";
 
   if (!needAlbum && !needYear) continue;
@@ -155,11 +148,7 @@ for (let i = 0; i < rows.length; i++) {
   // ---- Beatport lookup (fills year from release date) ----
   if (!foundYear && needYear) {
     try {
-      const bp = await beatportLookup({
-        artist,
-        title,
-        durationS: undefined,
-      });
+      const bp = await beatportLookup({ artist, title, durationS: undefined });
       if (bp?.year) {
         foundYear = String(bp.year);
         source = source ? `${source}+bp` : "bp";
@@ -179,9 +168,7 @@ for (let i = 0; i < rows.length; i++) {
   const parts: string[] = [];
   if (foundAlbum) parts.push(`album:${foundAlbum.slice(0, 30)}`);
   if (foundYear) parts.push(`year:${foundYear}`);
-  log(
-    `  ${label} ✓ ${parts.join(", ")} (${source}) — ${artist} - ${title.slice(0, 35)}`,
-  );
+  log(`  ${label} ✓ ${parts.join(", ")} (${source}) — ${artist} - ${title.slice(0, 35)}`);
 
   if (!dryRun) {
     const updates: string[] = [];
@@ -198,9 +185,7 @@ for (let i = 0; i < rows.length; i++) {
     }
     if (updates.length > 0) {
       vals.push(row.video_id);
-      db.query(
-        `UPDATE tracks SET ${updates.join(", ")} WHERE video_id = ?`,
-      ).run(...vals);
+      db.query(`UPDATE tracks SET ${updates.join(", ")} WHERE video_id = ?`).run(...vals);
     }
   }
 

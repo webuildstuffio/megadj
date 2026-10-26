@@ -21,9 +21,7 @@ describe("nameKey (NFC + casefold)", () => {
   });
 
   test("combined: NFD + odd case still one key", () => {
-    expect(nameKey("Cafe\u0301 DEL MAR.MP3")).toBe(
-      nameKey("caf\u00e9 del mar.mp3"),
-    );
+    expect(nameKey("Cafe\u0301 DEL MAR.MP3")).toBe(nameKey("caf\u00e9 del mar.mp3"));
   });
 
   test("different names stay different", () => {
