@@ -37,18 +37,10 @@ describe("adopt (vanished-file resilience)", () => {
     unlinkSync(join(dir, "Vanish Track.m4a"));
 
     const logs: string[] = [];
-    await adopt({
-      state,
-      musicDir: dir,
-      onProgress: (m) => logs.push(m),
-    });
+    await adopt({ state, musicDir: dir, onProgress: (m) => logs.push(m) });
 
-    expect(state.allTracks().find((t) => t.video_id === "v1")?.status).toBe(
-      "downloaded",
-    );
-    expect(state.allTracks().find((t) => t.video_id === "v2")?.status).toBe(
-      "pending",
-    );
+    expect(state.allTracks().find((t) => t.video_id === "v1")?.status).toBe("downloaded");
+    expect(state.allTracks().find((t) => t.video_id === "v2")?.status).toBe("pending");
     expect(logs.some((m) => m.includes("adopted 1 file(s)"))).toBe(true);
   });
 
@@ -103,9 +95,7 @@ describe("adoptFromShelf (--shelf repoint)", () => {
       dryRun: true,
       onProgress: (m) => logs.push(m),
     });
-    expect(s.allTracks().find((t) => t.video_id === "m1")?.file_path).toBe(
-      stalePath,
-    ); // dry-run: unchanged
+    expect(s.allTracks().find((t) => t.video_id === "m1")?.file_path).toBe(stalePath); // dry-run: unchanged
 
     await adoptFromShelf({
       state: s,
@@ -197,13 +187,9 @@ describe("adoptFromShelf (--shelf repoint)", () => {
       dryRun: false,
       onProgress: (m) => logs.push(m),
     });
-    expect(s.allTracks().find((t) => t.video_id === "h1")?.file_path).toBe(
-      localPath,
-    ); // untouched
+    expect(s.allTracks().find((t) => t.video_id === "h1")?.file_path).toBe(localPath); // untouched
     expect(logs.some((m) => m.includes("1 row(s) repointed"))).toBe(false);
-    expect(logs.some((m) => m.includes("no shelf copy: Ghost Track.m4a"))).toBe(
-      true,
-    );
+    expect(logs.some((m) => m.includes("no shelf copy: Ghost Track.m4a"))).toBe(true);
     ts.done({ dir: d, state: s });
   });
 });

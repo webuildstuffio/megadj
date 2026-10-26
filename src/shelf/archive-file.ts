@@ -3,23 +3,11 @@
 // copy) and land the copies. Split from archive.ts so the command
 // reads as orchestration (opts → sweeps ledger → JSON/human verdict) and
 // the classification rules live here as named steps.
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  statSync,
-  unlinkSync,
-  utimesSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync, utimesSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { md5FileChunked } from "../shared/hash";
 import { walkTree } from "../shared/walk-tree";
-import {
-  landingPath,
-  isJunkDir,
-  isSkippedName,
-  type ShelfIndex,
-} from "./index-files";
+import { landingPath, isJunkDir, isSkippedName, type ShelfIndex } from "./index-files";
 import { nameKey as key } from "../shared/name-key";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 
@@ -68,8 +56,7 @@ function copyVerified(src: string, dest: string): void {
   const st = statSync(src);
   if (statSync(dest).size !== st.size)
     throw new Error(`size mismatch after copy (${st.size} expected)`);
-  if (md5File(src) !== md5File(dest))
-    throw new Error("hash mismatch after copy");
+  if (md5File(src) !== md5File(dest)) throw new Error("hash mismatch after copy");
   utimesSync(dest, st.atime, st.mtime);
 }
 
@@ -117,12 +104,7 @@ export type Verdict =
 export function classifyFile(
   shelf: ShelfIndex,
   f: DriveFile,
-  o: {
-    contents: string;
-    into?: string | undefined;
-    suffix: string;
-    deep: boolean;
-  },
+  o: { contents: string; into?: string | undefined; suffix: string; deep: boolean },
 ): Verdict {
   const d = o.into ? "" : dirname(f.rel);
   const n = basename(f.rel);
@@ -133,9 +115,7 @@ export function classifyFile(
   // 1. Same path + same size = covered (byte-trusted unless --deep).
   if (sameSize.length > 0) {
     if (!o.deep) return { kind: "covered" };
-    const diverged = sameSize.every(
-      (e) => md5File(f.abs) !== md5File(join(o.contents, e.rel)),
-    );
+    const diverged = sameSize.every((e) => md5File(f.abs) !== md5File(join(o.contents, e.rel)));
     if (!diverged) return { kind: "covered" };
   }
 
@@ -145,8 +125,7 @@ export function classifyFile(
   const dot = n.lastIndexOf(".");
   const stem = dot > 0 ? n.slice(0, dot) : n;
   const ext = dot > 0 ? n.slice(dot) : "";
-  if (shelf.hasVariant(dKey, key(stem), key(ext), f.bytes))
-    return { kind: "preserved" };
+  if (shelf.hasVariant(dKey, key(stem), key(ext), f.bytes)) return { kind: "preserved" };
 
   // 3. Copy — shadowed files land as `<stem> [<suffix>]<ext>` twins.
   const shadowed = sameSize.length > 0 || exactHits.length > 0;
@@ -221,15 +200,10 @@ export async function sweepVolume(
         const dot = n.lastIndexOf(".");
         const stem = dot > 0 ? n.slice(0, dot) : n;
         const ext = dot > 0 ? n.slice(dot) : "";
-        shelf.addVariant(
-          key(opts.into ? "" : dirname(f.rel)),
-          key(stem),
-          key(ext),
-          {
-            rel: relative(contents, v.dest),
-            bytes: f.bytes,
-          },
-        );
+        shelf.addVariant(key(opts.into ? "" : dirname(f.rel)), key(stem), key(ext), {
+          rel: relative(contents, v.dest),
+          bytes: f.bytes,
+        });
       }
     } catch (e) {
       res.copied--;

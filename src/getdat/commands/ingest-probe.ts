@@ -25,31 +25,18 @@ export async function moveQuarantineFile(
   try {
     await move(source, dest);
   } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      (error as NodeJS.ErrnoException).code !== "EXDEV"
-    )
-      throw error;
+    if (!(error instanceof Error) || (error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
     await copy(source, dest);
-    const [sourceStat, destStat] = await Promise.all([
-      stat(source),
-      stat(dest),
-    ]);
+    const [sourceStat, destStat] = await Promise.all([stat(source), stat(dest)]);
     const valid =
-      sourceStat.size === destStat.size &&
-      (await md5File(source)) === (await md5File(dest));
+      sourceStat.size === destStat.size && (await md5File(source)) === (await md5File(dest));
     if (!valid) {
       try {
         await remove(dest);
       } catch (cleanupError) {
-        console.error(
-          `quarantine cleanup failed: ${dest}`,
-          errorText(cleanupError),
-        );
+        console.error(`quarantine cleanup failed: ${dest}`, errorText(cleanupError));
       }
-      throw new Error(`quarantine copy verification failed: ${source}`, {
-        cause: error,
-      });
+      throw new Error(`quarantine copy verification failed: ${source}`, { cause: error });
     }
     // Only remove the source after the fallback copy is byte-verified. This
     // keeps the move idempotent without ever treating an unverified copy as

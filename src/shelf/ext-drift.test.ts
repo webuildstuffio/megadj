@@ -38,11 +38,7 @@ describe("ext drift #69: scanners see what sync copies", () => {
     const found = walkAudioDir(dir)
       .map((p) => p.slice(dir.length))
       .toSorted();
-    expect(found).toEqual([
-      "/Artist/live.opus",
-      "/Artist/set.ogg",
-      "/Artist/song.mp3",
-    ]);
+    expect(found).toEqual(["/Artist/live.opus", "/Artist/set.ogg", "/Artist/song.mp3"]);
   });
 
   test("hygiene walkShelf finds ogg/opus under Contents/", () => {
@@ -54,10 +50,7 @@ describe("ext drift #69: scanners see what sync copies", () => {
     const names = walkShelf(vol)
       .files.map((f) => f.path.slice(vol.length))
       .toSorted();
-    expect(names).toEqual([
-      "/Contents/Artist/live.opus",
-      "/Contents/Artist/set.ogg",
-    ]);
+    expect(names).toEqual(["/Contents/Artist/live.opus", "/Contents/Artist/set.ogg"]);
   });
 
   test("sync's copy regex and the scanner set agree exactly", () => {
@@ -98,12 +91,7 @@ describe("ext drift #69: scanners see what sync copies", () => {
       .map((p) => p.slice(dir.length))
       .toSorted();
     expect(found).toEqual(
-      [
-        "/Artist/song.mp3",
-        "/Artist/set.aac",
-        "/Artist/x.alac",
-        "/Artist/live.opus",
-      ].toSorted(),
+      ["/Artist/song.mp3", "/Artist/set.aac", "/Artist/x.alac", "/Artist/live.opus"].toSorted(),
     );
   });
 });

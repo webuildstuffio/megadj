@@ -72,10 +72,7 @@ export async function adoptFromShelf(opts: AdoptOptions): Promise<void> {
   const stale = opts.state
     .allTracks()
     .filter(
-      (t) =>
-        t.status === "downloaded" &&
-        typeof t.file_path === "string" &&
-        t.file_path.length > 0,
+      (t) => t.status === "downloaded" && typeof t.file_path === "string" && t.file_path.length > 0,
     );
   let repointed = 0;
   let stillLocal = 0;
@@ -134,11 +131,7 @@ export async function adoptFromShelf(opts: AdoptOptions): Promise<void> {
       if (opts.state.keyRecord(t.video_id, path) !== null) continue;
       try {
         const key = groundTruth(path).key;
-        opts.state.setKeyRecord({
-          videoId: t.video_id,
-          key: key ?? "",
-          sourcePath: path,
-        });
+        opts.state.setKeyRecord({ videoId: t.video_id, key: key ?? "", sourcePath: path });
         keysCached++;
       } catch {
         // unreadable/unsupported file — leave uncached, it is retried on

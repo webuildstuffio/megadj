@@ -28,34 +28,22 @@ import {
 
 describe("SC URL forms (#255)", () => {
   test("isSoundCloudUrl accepts the real hosts", () => {
+    expect(isSoundCloudUrl("https://soundcloud.com/meduza/sets/listening-house")).toBe(true);
     expect(
-      isSoundCloudUrl("https://soundcloud.com/meduza/sets/listening-house"),
+      isSoundCloudUrl("https://soundcloud.com/porter-robinson/porter-robinson-madeon-shelter-5"),
     ).toBe(true);
-    expect(
-      isSoundCloudUrl(
-        "https://soundcloud.com/porter-robinson/porter-robinson-madeon-shelter-5",
-      ),
-    ).toBe(true);
-    expect(isSoundCloudUrl("https://www.soundcloud.com/someone/track")).toBe(
-      true,
-    );
-    expect(isSoundCloudUrl("https://api.soundcloud.com/tracks/277870779")).toBe(
-      true,
-    );
+    expect(isSoundCloudUrl("https://www.soundcloud.com/someone/track")).toBe(true);
+    expect(isSoundCloudUrl("https://api.soundcloud.com/tracks/277870779")).toBe(true);
   });
 
   test("isSoundCloudUrl rejects look-alikes and YT", () => {
-    expect(isSoundCloudUrl("https://soundcloud.com.evil.example/track")).toBe(
-      false,
-    );
+    expect(isSoundCloudUrl("https://soundcloud.com.evil.example/track")).toBe(false);
     expect(isSoundCloudUrl("https://music.youtube.com/watch?v=x")).toBe(false);
     expect(isSoundCloudUrl("not a url")).toBe(false);
   });
 
   test("scTrackUrl round-trips the numeric api permalink", () => {
-    expect(scTrackUrl("277870779")).toBe(
-      "https://api.soundcloud.com/tracks/277870779",
-    );
+    expect(scTrackUrl("277870779")).toBe("https://api.soundcloud.com/tracks/277870779");
     expect(scTrackIdFromUrl(scTrackUrl("42"))).toBe("42");
     expect(scTrackIdFromUrl("https://soundcloud.com/artist/slug")).toBeNull();
   });
@@ -64,32 +52,22 @@ describe("SC URL forms (#255)", () => {
     // The Sep 21 bug: `sync --sc-url` × 4 playlists synced only the LAST
     // one, as a single TRACK. The kind drives set fan-out + provenance.
     expect(
-      scSourceKindFor(
-        "https://soundcloud.com/parvati-rajesh/sets/mmw-2026?ref=sms&utm_source=sms",
-      ),
+      scSourceKindFor("https://soundcloud.com/parvati-rajesh/sets/mmw-2026?ref=sms&utm_source=sms"),
     ).toBe("sc-set");
-    expect(scSourceKindFor("https://soundcloud.com/artist/track-name")).toBe(
-      "sc-track",
-    );
-    expect(
-      scSourceKindFor("https://on.soundcloud.com/1RZJQeTMpW9ODmIlGb"),
-    ).toBe("sc-track");
+    expect(scSourceKindFor("https://soundcloud.com/artist/track-name")).toBe("sc-track");
+    expect(scSourceKindFor("https://on.soundcloud.com/1RZJQeTMpW9ODmIlGb")).toBe("sc-track");
   });
 });
 
 describe("SC set expansion (Sep 19 — api-v2, not yt-dlp -J)", () => {
   test("a /sets/ URL is detected; non-set URLs are rejected without network", async () => {
-    const nonSet = await scSetTrackIds(
-      "https://soundcloud.com/expertsonly/dansyn-jord-the-future",
-    );
+    const nonSet = await scSetTrackIds("https://soundcloud.com/expertsonly/dansyn-jord-the-future");
     expect(nonSet.ok).toBe(false);
     expect(nonSet.trackIds).toStrictEqual([]);
   });
 
   test("the live summer-2025 set expands to 96 ids (id-dump contract)", async () => {
-    const r = await scSetTrackIds(
-      "https://soundcloud.com/parvati-rajesh/sets/summer-2025",
-    );
+    const r = await scSetTrackIds("https://soundcloud.com/parvati-rajesh/sets/summer-2025");
     expect(r.ok).toBe(true);
     expect(r.trackIds.length).toBeGreaterThanOrEqual(90);
     expect(r.trackIds.every((id) => /^\d+$/.test(id))).toBe(true);
@@ -107,19 +85,13 @@ describe("SC failure classes (#255 — dead slugs must not retry forever)", () =
 
   test("DRM/protected streams classify permanent (never retried)", () => {
     expect(
-      classifyScFailure(
-        "ERROR: [soundcloud] a/b: This track is not available (PROTECTED-CCS)",
-      ),
+      classifyScFailure("ERROR: [soundcloud] a/b: This track is not available (PROTECTED-CCS)"),
     ).toBe("permanent");
-    expect(
-      classifyScFailure("ERROR: [soundcloud] a/b: DRM protected stream"),
-    ).toBe("permanent");
+    expect(classifyScFailure("ERROR: [soundcloud] a/b: DRM protected stream")).toBe("permanent");
   });
 
   test("throttle/network stays retryable (backoff owns it)", () => {
-    expect(classifyScFailure("HTTP Error 429: Too Many Requests")).toBe(
-      "retryable",
-    );
+    expect(classifyScFailure("HTTP Error 429: Too Many Requests")).toBe("retryable");
     expect(classifyScFailure("connection reset by peer")).toBe("retryable");
     expect(classifyScFailure("")).toBe("retryable");
   });
@@ -168,10 +140,7 @@ describe("link-first extraction (#256)", () => {
       description:
         "Buy: https://bandcamp.com/track/x. Stream: https://fanlink.to/shelter — video: https://youtu.be/fzQ6gRAEoy0, social: https://twitter.com/someone",
     });
-    expect(links.map((l) => l.kind)).toStrictEqual([
-      "description_store_link",
-      "smart_link",
-    ]);
+    expect(links.map((l) => l.kind)).toStrictEqual(["description_store_link", "smart_link"]);
     // The YouTube and social URLs never surface.
     expect(links.some((l) => l.url.includes("youtu"))).toBe(false);
     expect(links.some((l) => l.url.includes("twitter"))).toBe(false);
@@ -179,8 +148,7 @@ describe("link-first extraction (#256)", () => {
 
   test("trailing punctuation is stripped, dedupe keeps first", () => {
     const links = extractAcquisitionLinks({
-      description:
-        "get it at https://lnk.to/track. or https://lnk.to/track, thanks",
+      description: "get it at https://lnk.to/track. or https://lnk.to/track, thanks",
     });
     expect(links.length).toBe(1);
     expect(links[0]?.url).toBe("https://lnk.to/track");
@@ -193,10 +161,7 @@ describe("link-first extraction (#256)", () => {
       description:
         "Spotify: http://smarturl.it/ShelterSpotify \niTunes: http://smarturl.it/ShelterDownload",
     });
-    expect(links.map((l) => l.kind)).toStrictEqual([
-      "smart_link",
-      "smart_link",
-    ]);
+    expect(links.map((l) => l.kind)).toStrictEqual(["smart_link", "smart_link"]);
     expect(links[0]?.url).toBe("http://smarturl.it/ShelterSpotify");
   });
 
@@ -229,35 +194,23 @@ describe("link-first extraction (#256)", () => {
   });
 
   test("no links at all → empty (the rip case)", () => {
-    expect(
-      extractAcquisitionLinks({ description: "just vibes https://x.com/a" }),
-    ).toStrictEqual([]);
+    expect(extractAcquisitionLinks({ description: "just vibes https://x.com/a" })).toStrictEqual(
+      [],
+    );
     expect(extractAcquisitionLinks({})).toStrictEqual([]);
   });
 });
 
 describe("rip decision (#256 — surface beats rip unless forced)", () => {
-  const link: ScAcquisitionLink = {
-    kind: "purchase_url",
-    url: "https://fanlink.to/x",
-  };
+  const link: ScAcquisitionLink = { kind: "purchase_url", url: "https://fanlink.to/x" };
 
   test("a link surfaces; no link rips", () => {
-    expect(ripDecision([link], false)).toStrictEqual({
-      action: "surface",
-      link,
-    });
-    expect(ripDecision([], false)).toStrictEqual({
-      action: "rip",
-      link: null,
-    });
+    expect(ripDecision([link], false)).toStrictEqual({ action: "surface", link });
+    expect(ripDecision([], false)).toStrictEqual({ action: "rip", link: null });
   });
 
   test("force-rip rips even with a link present", () => {
-    expect(ripDecision([link], true)).toStrictEqual({
-      action: "rip",
-      link: null,
-    });
+    expect(ripDecision([link], true)).toStrictEqual({ action: "rip", link: null });
   });
 });
 
@@ -292,9 +245,7 @@ describe("likes/user cookie gate (#258 — private 404s name the remedy)", () =>
       ),
     ).toBe(true);
     // A plain track 404 is NOT the private-user shape.
-    expect(
-      isPrivateUser404("ERROR: [soundcloud] a/b: HTTP Error 404: Not Found"),
-    ).toBe(false);
+    expect(isPrivateUser404("ERROR: [soundcloud] a/b: HTTP Error 404: Not Found")).toBe(false);
     expect(isPrivateUser404("connection reset")).toBe(false);
   });
 });
@@ -316,9 +267,7 @@ describe("purchase_url enrichment (#256-followup, Sep 19)", () => {
         description: "raw api desc",
       },
     );
-    expect(merged.purchase_url).toBe(
-      "https://www.beatport.com/release/dope/4933098",
-    );
+    expect(merged.purchase_url).toBe("https://www.beatport.com/release/dope/4933098");
     expect(merged.description).toBe("yt-dlp desc");
   });
 
@@ -331,10 +280,7 @@ describe("purchase_url enrichment (#256-followup, Sep 19)", () => {
     // Set/user fan-out rows enter the ledger with title:null — a row that
     // goes straight to gone/link_surfaced must still learn its identity
     // from the raw object (title, user.username).
-    const merged = mergeScRawLinks(
-      { id: "2334007955" },
-      { title: "P!NK", user: "SLAMM" },
-    );
+    const merged = mergeScRawLinks({ id: "2334007955" }, { title: "P!NK", user: "SLAMM" });
     expect(merged.title).toBe("P!NK");
     expect(merged.user).toBe("SLAMM");
   });

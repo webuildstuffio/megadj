@@ -16,8 +16,7 @@ function ctx(
     fpForRow?: (row: DbContentRow) => string | null;
   } = {},
 ): CheckCtx {
-  const fpFor =
-    opts.fpFor ?? ((p: string) => `fp:${p.normalize("NFC").toLowerCase()}`);
+  const fpFor = opts.fpFor ?? ((p: string) => `fp:${p.normalize("NFC").toLowerCase()}`);
   const fpForRow = opts.fpForRow ?? ((r: DbContentRow) => `fp:${r.title}`);
   return {
     volume: "/Volumes/SHELF1",
@@ -42,15 +41,10 @@ const row = (title: string, folderPath: string): DbContentRow => ({
 
 describe("#37 slice 4: stale-pointer", () => {
   test("dead row + fp match elsewhere → finding with both paths", () => {
-    const rows = [
-      row("Eat Me Better", "/Volumes/SHELF1/OLD/Eat Me Better.wav"),
-    ];
+    const rows = [row("Eat Me Better", "/Volumes/SHELF1/OLD/Eat Me Better.wav")];
     const files = [file("/Volumes/SHELF1/NEW/Eat Me Better.wav")];
     // default fp hooks: file fp = fp:<pathkey> — collide them via opts
-    const c = ctx(rows, {
-      fpFor: () => "fp:same",
-      fpForRow: () => "fp:same",
-    });
+    const c = ctx(rows, { fpFor: () => "fp:same", fpForRow: () => "fp:same" });
     const out = stalePointer.detect(files, c);
     expect(out.length).toBe(1);
     expect(out[0]!.kind).toBe("stale-pointer");
@@ -64,19 +58,14 @@ describe("#37 slice 4: stale-pointer", () => {
 
   test("row path alive → silent (that's not stale)", () => {
     const p = "/Volumes/SHELF1/M/Eat Me Better.wav";
-    const c = ctx([row("Eat Me Better", p)], {
-      fpFor: () => "fp:x",
-      fpForRow: () => "fp:y",
-    });
+    const c = ctx([row("Eat Me Better", p)], { fpFor: () => "fp:x", fpForRow: () => "fp:y" });
     expect(stalePointer.detect([file(p)], c)).toEqual([]);
   });
 
   test("row fp matches nothing on disk → silent (re-download's beat)", () => {
     const rows = [row("Eat Me Better", "/Volumes/SHELF1/OLD/Eat.wav")];
     const c = ctx(rows, { fpFor: () => "fp:disk", fpForRow: () => "fp:row" });
-    expect(
-      stalePointer.detect([file("/Volumes/SHELF1/M/Other.wav")], c),
-    ).toEqual([]);
+    expect(stalePointer.detect([file("/Volumes/SHELF1/M/Other.wav")], c)).toEqual([]);
   });
 
   test("no dbRows / no fpOfRow seam → honest zero", () => {
@@ -85,10 +74,7 @@ describe("#37 slice 4: stale-pointer", () => {
   });
 
   test("one proposal per matched file even with two dead rows same fp", () => {
-    const rows = [
-      row("A", "/Volumes/SHELF1/O1/A.wav"),
-      row("B", "/Volumes/SHELF1/O2/B.wav"),
-    ];
+    const rows = [row("A", "/Volumes/SHELF1/O1/A.wav"), row("B", "/Volumes/SHELF1/O2/B.wav")];
     const c = ctx(rows, { fpFor: () => "fp:same", fpForRow: () => "fp:same" });
     const out = stalePointer.detect([file("/Volumes/SHELF1/M/A.wav")], c);
     expect(out.length).toBe(1);

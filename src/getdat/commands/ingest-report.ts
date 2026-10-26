@@ -34,32 +34,14 @@ export async function emitIngestReport(
     [`${counters.tagged} retagged`, true],
     [`${counters.artAdded} artwork embedded`, true],
     [`${counters.wavConverted} wav→aiff`, counters.wavConverted > 0],
-    [
-      `${counters.compatRejected} PLAYER-INCOMPATIBLE (left in place)`,
-      counters.compatRejected > 0,
-    ],
-    [
-      `${counters.compatHires} hires-only (no XDJ-XZ/CDJ-2000)`,
-      counters.compatHires > 0,
-    ],
-    [
-      `${counters.artQueued} artwork QUEUED for image-maker`,
-      counters.artQueued > 0,
-    ],
-    [
-      `${counters.artSkippedWav} wav skipped for art`,
-      counters.artSkippedWav > 0,
-    ],
-    [
-      `${counters.shortSkipped} skipped (<${run.minDuration}s)`,
-      counters.shortSkipped > 0,
-    ],
+    [`${counters.compatRejected} PLAYER-INCOMPATIBLE (left in place)`, counters.compatRejected > 0],
+    [`${counters.compatHires} hires-only (no XDJ-XZ/CDJ-2000)`, counters.compatHires > 0],
+    [`${counters.artQueued} artwork QUEUED for image-maker`, counters.artQueued > 0],
+    [`${counters.artSkippedWav} wav skipped for art`, counters.artSkippedWav > 0],
+    [`${counters.shortSkipped} skipped (<${run.minDuration}s)`, counters.shortSkipped > 0],
     [`${counters.unchanged} already clean`, true],
     [`${run.folderDupes} in-folder dupes`, true],
-    [
-      `${run.archiveDupes} archive dupes (${run.upgrades} quality upgrades)`,
-      true,
-    ],
+    [`${run.archiveDupes} archive dupes (${run.upgrades} quality upgrades)`, true],
     [`${run.broken.length} BROKEN (left in place)`, run.broken.length > 0],
     [
       `${counters.writeFailed} TAG-WRITE FAILED (left in place, see ✗ lines)`,

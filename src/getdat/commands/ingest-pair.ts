@@ -14,11 +14,6 @@ export async function dedupeWithinFolderForTest(
 ): Promise<{ survivors: Record_[]; dupes: number }> {
   const files = await walkAudio(folder, [], [quarantineDir]);
   const { records } = await probeAllFiles(files, log);
-  const { survivors, folderDupes } = await dedupeWithinFolder(
-    records,
-    quarantineDir,
-    dryRun,
-    log,
-  );
+  const { survivors, folderDupes } = await dedupeWithinFolder(records, quarantineDir, dryRun, log);
   return { survivors, dupes: folderDupes };
 }

@@ -31,9 +31,7 @@ export class DupFpCache {
   }
   get(path: string, size: number): string | null | undefined {
     const row = this.db
-      .query(
-        `SELECT fingerprint FROM ${this.table} WHERE path = ? AND size = ?`,
-      )
+      .query(`SELECT fingerprint FROM ${this.table} WHERE path = ? AND size = ?`)
       .get(path, size) as { fingerprint: string | null } | null;
     return row ? row.fingerprint : undefined; // undefined = not cached
   }
@@ -42,9 +40,11 @@ export class DupFpCache {
    *  cannot serve that, so expose the rows and let the caller index by
    *  its own identity rule (#238 pathKey). */
   allRows(): { path: string; size: number; fingerprint: string | null }[] {
-    return this.db
-      .query(`SELECT path, size, fingerprint FROM ${this.table}`)
-      .all() as { path: string; size: number; fingerprint: string | null }[];
+    return this.db.query(`SELECT path, size, fingerprint FROM ${this.table}`).all() as {
+      path: string;
+      size: number;
+      fingerprint: string | null;
+    }[];
   }
   put(path: string, size: number, fp: string | null): void {
     this.db

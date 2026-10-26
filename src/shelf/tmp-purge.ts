@@ -18,13 +18,7 @@
 //   - per-family counts + bytes in the report; `--json` contract
 //
 // Read-only by default: pass --apply to delete.
-import {
-  existsSync,
-  readdirSync,
-  realpathSync,
-  rmSync,
-  statSync,
-} from "node:fs";
+import { existsSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -172,9 +166,7 @@ export function orphanRunPurge(opts: TmpPurgeOptions): TmpPurgeResult {
   try {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const orphans = db
-      .query(
-        "SELECT id FROM runs WHERE finished_at IS NULL AND attempted = 0 AND started_at < ?",
-      )
+      .query("SELECT id FROM runs WHERE finished_at IS NULL AND attempted = 0 AND started_at < ?")
       .all(cutoff) as { id: number }[];
     if (opts.apply && orphans.length > 0) {
       const now = new Date().toISOString();
@@ -223,10 +215,7 @@ function heldPathsFrom(out: string): Set<string> {
 
 function openPathsUnder(dir: string): Set<string> | null {
   try {
-    const out = execFileSync("/usr/sbin/lsof", ["+D", dir], {
-      encoding: "utf8",
-      timeout: 10_000,
-    });
+    const out = execFileSync("/usr/sbin/lsof", ["+D", dir], { encoding: "utf8", timeout: 10_000 });
     return heldPathsFrom(out);
   } catch (e) {
     // macOS lsof exits 1 in TWO distinct cases: no files matched at all
@@ -235,20 +224,12 @@ function openPathsUnder(dir: string): Set<string> | null {
     // archive.db open hits this). Empty = known-empty set; rows = parse
     // them — treating a populated scan as "unknown" would fail closed on
     // every sweep of a busy state dir (#270 follow-up).
-    const failure = e as {
-      status?: unknown;
-      stdout?: unknown;
-      stderr?: unknown;
-    };
+    const failure = e as { status?: unknown; stdout?: unknown; stderr?: unknown };
     const out = commandOutput(failure.stdout);
     if (failure.status === 1 && out.trim() !== "") {
       return heldPathsFrom(out);
     }
-    if (
-      failure.status === 1 &&
-      out.trim() === "" &&
-      commandOutput(failure.stderr).trim() === ""
-    ) {
+    if (failure.status === 1 && out.trim() === "" && commandOutput(failure.stderr).trim() === "") {
       return new Set();
     }
     return null;
@@ -266,22 +247,13 @@ function openPathsUnder(dir: string): Set<string> | null {
  * The newest member per stem is ALWAYS kept; the live `archive.db`
  * itself matches no class and is unreachable.
  */
-export function statePurge(
-  opts: TmpPurgeOptions,
-  deps: StatePurgeDeps = {},
-): TmpPurgeResult {
+export function statePurge(opts: TmpPurgeOptions, deps: StatePurgeDeps = {}): TmpPurgeResult {
   const root = deps.root ?? join(homedir(), ".local", "state", "megadj");
-  const remove =
-    deps.remove ?? ((path: string) => rmSync(path, { force: true }));
+  const remove = deps.remove ?? ((path: string) => rmSync(path, { force: true }));
   const byFamily = new Map<string, TmpPurgeFamily>();
   const kept: string[] = [];
   let removeFailed = false;
-  const add = (
-    prefix: string,
-    name: string,
-    bytes: number,
-    del: boolean,
-  ): boolean => {
+  const add = (prefix: string, name: string, bytes: number, del: boolean): boolean => {
     const fam = byFamily.get(prefix) ?? { prefix, dirs: 0, bytes: 0 };
     fam.dirs++;
     fam.bytes += bytes;
@@ -322,9 +294,7 @@ export function statePurge(
   const held = (deps.openPaths ?? openPathsUnder)(root);
   if (held === null) {
     if (opts.apply) {
-      opts.log(
-        "tmp-purge --state: open-file check unavailable; refusing --apply",
-      );
+      opts.log("tmp-purge --state: open-file check unavailable; refusing --apply");
       return {
         ok: false,
         root,
@@ -386,21 +356,9 @@ export function statePurge(
     if (backupStem !== null) {
       const prev = newestByStem.get(backupStem) ?? 0;
       if (mtime > prev) newestByStem.set(backupStem, mtime);
-      cands.push({
-        name,
-        stem: backupStem,
-        stamp: mtime,
-        bytes,
-        kind: "backup",
-      });
+      cands.push({ name, stem: backupStem, stamp: mtime, bytes, kind: "backup" });
     } else if (sidecarOf !== null) {
-      cands.push({
-        name,
-        stem: sidecarOf,
-        stamp: mtime,
-        bytes,
-        kind: "sidecar",
-      });
+      cands.push({ name, stem: sidecarOf, stamp: mtime, bytes, kind: "sidecar" });
     }
   }
 
@@ -487,9 +445,7 @@ function scanOneTmpRoot(
   apply: boolean,
   log: (message: string) => void,
   byFamily: Map<string, TmpPurgeFamily>,
-  deps: {
-    remove?: (path: string) => void;
-  },
+  deps: { remove?: (path: string) => void },
 ): RootTally {
   const tally: RootTally = {
     scanned: 0,
@@ -528,10 +484,7 @@ function scanOneTmpRoot(
     byFamily.set(prefix, fam);
     if (apply) {
       try {
-        (
-          deps.remove ??
-          ((p: string) => rmSync(p, { recursive: true, force: true }))
-        )(full);
+        (deps.remove ?? ((p: string) => rmSync(p, { recursive: true, force: true })))(full);
         tally.applied++;
         tally.freedBytes += bytes;
       } catch (e) {
@@ -551,9 +504,7 @@ function scanOneTmpRoot(
  *  the --state tier's #265 tests use. */
 export function tmpPurgeSweep(
   opts: TmpPurgeOptions,
-  deps: {
-    remove?: (path: string) => void;
-  } = {},
+  deps: { remove?: (path: string) => void } = {},
 ): TmpPurgeResult {
   // #254: macOS moved the default tmpdir to ~/.tmp while real suites
   // still leak into /tmp proper — the two roots exist and leak
@@ -586,9 +537,7 @@ export function tmpPurgeSweep(
     };
   }
 
-  const cutoffMs = opts.all
-    ? Number.POSITIVE_INFINITY
-    : Date.now() - 24 * 60 * 60 * 1000;
+  const cutoffMs = opts.all ? Number.POSITIVE_INFINITY : Date.now() - 24 * 60 * 60 * 1000;
   const byFamily = new Map<string, TmpPurgeFamily>();
 
   let scanned = 0;
@@ -598,14 +547,7 @@ export function tmpPurgeSweep(
   let removeFailed = false;
 
   for (const root of roots) {
-    const t = scanOneTmpRoot(
-      root,
-      cutoffMs,
-      opts.apply,
-      opts.log,
-      byFamily,
-      deps,
-    );
+    const t = scanOneTmpRoot(root, cutoffMs, opts.apply, opts.log, byFamily, deps);
     scanned += t.scanned;
     eligible += t.eligible;
     applied += t.applied;
@@ -629,10 +571,7 @@ export function tmpPurgeSweep(
   };
 }
 
-export function printTmpPurgeReport(
-  r: TmpPurgeResult,
-  log: (message: string) => void,
-): void {
+export function printTmpPurgeReport(r: TmpPurgeResult, log: (message: string) => void): void {
   // #254: every scanned root is listed (tmp sweep scans both tmpdir()
   // and /tmp when they differ; the state tier has exactly one).
   log(`megadj tmp-purge — root: ${r.root}${r.kept ? " (state tier)" : ""}`);
@@ -660,9 +599,7 @@ export function printTmpPurgeReport(
     );
   }
   if (r.appliedMode) {
-    log(
-      `removed ${r.applied} item(s), freed ${(r.freedBytes / 1e6).toFixed(1)} MB`,
-    );
+    log(`removed ${r.applied} item(s), freed ${(r.freedBytes / 1e6).toFixed(1)} MB`);
   }
   if (!r.ok) {
     log(

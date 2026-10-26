@@ -25,8 +25,7 @@ function ctx(): CheckCtx {
   return {
     volume: "",
     walkToken: "tok",
-    md5: (p) =>
-      new Bun.CryptoHasher("md5").update(readFileSync(p)).digest("hex"),
+    md5: (p) => new Bun.CryptoHasher("md5").update(readFileSync(p)).digest("hex"),
     fp: () => null,
     now: () => "now",
   };
@@ -100,11 +99,7 @@ describe("validateFinding", () => {
     const q = seed(v, "../.hygiene-quarantine/B · l.mp3", "abc");
     const receipt = validateFinding(f, 10, 9, c, q);
     expect(receipt.ok).toBe(true);
-    expect(receipt.shelfDelta).toEqual({
-      before: 10,
-      after: 9,
-      quarantined: 1,
-    });
+    expect(receipt.shelfDelta).toEqual({ before: 10, after: 9, quarantined: 1 });
   });
 
   test("amber receipt when the shelf delta is wrong", () => {
@@ -128,10 +123,7 @@ describe("validateFinding", () => {
     const f = confirmedFinding(keeper, loser);
     f.kind = "acoustic-twin";
     const q = seed(v, "../.hygiene-quarantine/B · l.mp3", "different");
-    const live: CheckCtx = {
-      ...ctx(),
-      fp: (p) => `fp:${readFileSync(p).toString()}`,
-    };
+    const live: CheckCtx = { ...ctx(), fp: (p) => `fp:${readFileSync(p).toString()}` };
     const receipt = validateFinding(f, 10, 9, live, q);
     expect(receipt.ok).toBe(false);
     expect(receipt.fpMismatches).toContain(q);
@@ -144,10 +136,7 @@ describe("validateFinding", () => {
     const f = confirmedFinding(keeper, loser);
     f.kind = "acoustic-twin";
     const q = seed(v, "../.hygiene-quarantine/B · l.mp3", "abc");
-    const live: CheckCtx = {
-      ...ctx(),
-      fp: (p) => `fp:${readFileSync(p).toString()}`,
-    };
+    const live: CheckCtx = { ...ctx(), fp: (p) => `fp:${readFileSync(p).toString()}` };
     const receipt = validateFinding(f, 10, 9, live, q);
     expect(receipt.ok).toBe(true);
   });

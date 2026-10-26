@@ -62,31 +62,17 @@ describe("ingest self-match guard (re-run of an in-archive batch)", () => {
 
     const { state } = ts.next();
     // run 1 — the intake that registers the rows (folder inside archive)
-    await ingest({
-      state,
-      musicDir: ARCHIVE,
-      folder: BATCH,
-      minDuration: 10,
-    });
+    await ingest({ state, musicDir: ARCHIVE, folder: BATCH, minDuration: 10 });
 
     const quarantine = join(ARCHIVE, ".ingest-duplicates");
     expect(existsSync(quarantine)).toBe(false);
-    const afterFirst = readdirSync(BATCH).filter((f) =>
-      f.endsWith(".aiff"),
-    ).length;
+    const afterFirst = readdirSync(BATCH).filter((f) => f.endsWith(".aiff")).length;
     expect(afterFirst).toBe(2);
 
     // run 2 — re-Process the same folder from the UI
-    await ingest({
-      state,
-      musicDir: ARCHIVE,
-      folder: BATCH,
-      minDuration: 10,
-    });
+    await ingest({ state, musicDir: ARCHIVE, folder: BATCH, minDuration: 10 });
     // the rows must still resolve: every registered path exists on disk
-    const rows = state
-      .allTracks()
-      .filter((row) => row.file_path?.startsWith(`${BATCH}/`));
+    const rows = state.allTracks().filter((row) => row.file_path?.startsWith(`${BATCH}/`));
     expect(rows.length).toBe(2);
     for (const r of rows) expect(existsSync(r.file_path as string)).toBe(true);
     state.close();
@@ -95,8 +81,6 @@ describe("ingest self-match guard (re-run of an in-archive batch)", () => {
     // at their registered paths (the Sep 10 incident broke 14 rows here).
     expect(existsSync(quarantine)).toBe(false);
     const onDisk = readdirSync(BATCH).filter((f) => f.endsWith(".aiff"));
-    expect(onDisk.toSorted()).toEqual(
-      ["Self Match One.aiff", "Self Match Two.aiff"].toSorted(),
-    );
+    expect(onDisk.toSorted()).toEqual(["Self Match One.aiff", "Self Match Two.aiff"].toSorted());
   }, 240000); // ffmpeg encode ×2 + two full ingest passes
 });

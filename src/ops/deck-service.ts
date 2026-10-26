@@ -24,12 +24,7 @@ export const DECK_SERVICE_LABEL = "com.nick.megadj-deck";
 /** ~/Library/LaunchAgents plist path for the label (homedir supplied —
  *  pure module, testable without a real home). */
 export function plistPath(homedir: string): string {
-  return join(
-    homedir,
-    "Library",
-    "LaunchAgents",
-    `${DECK_SERVICE_LABEL}.plist`,
-  );
+  return join(homedir, "Library", "LaunchAgents", `${DECK_SERVICE_LABEL}.plist`);
 }
 
 /** The plist template. ${REPO_ROOT} / ${BUN_PATH} / ${PORT_ENV} render at
@@ -80,22 +75,12 @@ export function renderPlist(opts: {
       : "";
   const runAtLoadKey = "    <key>RunAtLoad</key>";
   // Substitute once: paths may contain XML characters, $&, or template tokens.
-  return PLIST_TEMPLATE.replace(
-    runAtLoadKey,
-    `${portEnv}${runAtLoadKey}`,
-  ).replace(
+  return PLIST_TEMPLATE.replace(runAtLoadKey, `${portEnv}${runAtLoadKey}`).replace(
     /\$\{(REPO_ROOT|BUN_PATH|STATE_DIR)\}/g,
     (_token: string, key: string) => {
       const path =
-        key === "REPO_ROOT"
-          ? opts.repoRoot
-          : key === "BUN_PATH"
-            ? opts.bunPath
-            : opts.stateDir;
-      return path
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
+        key === "REPO_ROOT" ? opts.repoRoot : key === "BUN_PATH" ? opts.bunPath : opts.stateDir;
+      return path.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
     },
   );
 }
@@ -104,8 +89,7 @@ export function renderPlist(opts: {
  *  per state. `probeOk` = a live HTTP probe of /api/interlock succeeded;
  *  `serviceLoaded` = launchctl knows the label; `pid` = the service's
  *  pid when launchd reports one. */
-export type DeckServiceState =
-  "service-running" | "service-stopped" | "orphan-process" | "absent";
+export type DeckServiceState = "service-running" | "service-stopped" | "orphan-process" | "absent";
 
 export interface DeckServiceVerdict {
   state: DeckServiceState;
@@ -139,8 +123,7 @@ export function classifyDeckService(input: {
     return {
       state: "service-stopped",
       ok: false,
-      detail:
-        "service registered but not answering — likely mid-restart or crashed in a loop",
+      detail: "service registered but not answering — likely mid-restart or crashed in a loop",
       fix: `launchctl kickstart -k gui/$(id -u)/${DECK_SERVICE_LABEL}, then check ${"~/.local/state/megadj/deck.log"}`,
     };
   }

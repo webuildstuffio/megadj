@@ -10,12 +10,7 @@ import { $ } from "bun";
 import { mkdirSync } from "node:fs";
 import type { ArchiveState } from "../../core/state";
 import { type RateLimiter, TrackGoneError, withRetry } from "../ratelimit";
-import {
-  Downloader,
-  ScPermanentError,
-  ytdlpCookieArgs,
-  type DownloadResult,
-} from "../downloader";
+import { Downloader, ScPermanentError, ytdlpCookieArgs, type DownloadResult } from "../downloader";
 import {
   SC_SOURCE,
   classifyScFailure,
@@ -101,12 +96,7 @@ export function parsePlaylistOutput(stdout: string): PlaylistEntry[] {
     if (entry === null || typeof entry !== "object") return [];
     const row = entry as { id?: unknown; title?: unknown };
     return typeof row.id === "string" && row.id.length > 0
-      ? [
-          {
-            id: row.id,
-            title: typeof row.title === "string" ? row.title : null,
-          },
-        ]
+      ? [{ id: row.id, title: typeof row.title === "string" ? row.title : null }]
       : [];
   });
 }
@@ -122,9 +112,7 @@ async function fetchPlaylist(
   // browser extraction here (the old inline twin) made `megadj sync` 403
   // every auth-required liked list while the downloader worked.
   const cookieArgs = ytdlpCookieArgs(cookiesFile, cookiesFromBrowser);
-  const proc = await $`yt-dlp ${[...cookieArgs, "--flat-playlist", "-J", url]}`
-    .quiet()
-    .nothrow();
+  const proc = await $`yt-dlp ${[...cookieArgs, "--flat-playlist", "-J", url]}`.quiet().nothrow();
   if (proc.exitCode !== 0) {
     throw new Error(
       `playlist fetch failed (${playlistId}): ${new TextDecoder().decode(proc.stderr).slice(0, 300)}`,
@@ -158,10 +146,7 @@ async function repairScIdentity(
       (t) =>
         t.source.startsWith(SC_SOURCE) &&
         (t.status === "gone" || t.status === "link_surfaced") &&
-        (!t.title ||
-          t.title.trim() === "" ||
-          !t.artist ||
-          t.artist.trim() === ""),
+        (!t.title || t.title.trim() === "" || !t.artist || t.artist.trim() === ""),
     );
   log(`${thin.length} thin terminal row(s) to repair`);
   let repaired = 0;
@@ -259,9 +244,7 @@ async function scSourceQueue(
       const row = entry as { id?: unknown; url?: unknown };
       if (typeof row.id !== "string" || row.id.length === 0) return [];
       const label =
-        source.kind === "sc-set"
-          ? `${SC_SOURCE}:${scSlug(scUrlOf(source))}`
-          : SC_SOURCE;
+        source.kind === "sc-set" ? `${SC_SOURCE}:${scSlug(scUrlOf(source))}` : SC_SOURCE;
       return [{ id: row.id, title: null, label }];
     });
   }
@@ -273,11 +256,7 @@ async function scSourceQueue(
   if (!trackId) return [];
   const meta = parsed as { title?: unknown };
   return [
-    {
-      id: trackId,
-      title: typeof meta.title === "string" ? meta.title : null,
-      label: SC_SOURCE,
-    },
+    { id: trackId, title: typeof meta.title === "string" ? meta.title : null, label: SC_SOURCE },
   ];
 }
 
@@ -299,15 +278,7 @@ function scUrlOf(source: SyncSource): string {
 
 /** Fresh zeroed counters for one sync run. */
 export function newTotals(): SyncTotals {
-  return {
-    attempted: 0,
-    downloaded: 0,
-    gone: 0,
-    failed: 0,
-    notMusic: 0,
-    bytes: 0,
-    surfaced: 0,
-  };
+  return { attempted: 0, downloaded: 0, gone: 0, failed: 0, notMusic: 0, bytes: 0, surfaced: 0 };
 }
 
 interface PreparedSources {
@@ -356,12 +327,7 @@ async function prepareQueue(
       log(`  ${entries.length} tracks`);
       if (!isDry) {
         entries.forEach((entry, index) => {
-          opts.state.upsertTrackFromPlaylist(
-            entry.id,
-            index,
-            entry.title,
-            source.label,
-          );
+          opts.state.upsertTrackFromPlaylist(entry.id, index, entry.title, source.label);
         });
       } else {
         // Dry-run on a fresh DB would otherwise report 0 tracks (the pending
@@ -509,11 +475,7 @@ export async function settleDownload(
     if (isSc) {
       const fullDuration = dl.info.duration ?? 0;
       const landedProbe = (await probeFile(dl.filePath)).durationS;
-      if (
-        fullDuration > 90 &&
-        landedProbe !== null &&
-        landedProbe < fullDuration * 0.5
-      ) {
+      if (fullDuration > 90 && landedProbe !== null && landedProbe < fullDuration * 0.5) {
         totals.gone++;
         state.markGone(
           track.video_id,
@@ -529,10 +491,7 @@ export async function settleDownload(
     const fileSize = await statSizeSafe(dl.filePath, log);
     if (fileSize === null) {
       totals.failed++;
-      state.markFailed(
-        track.video_id,
-        "downloaded file disappeared before verification",
-      );
+      state.markFailed(track.video_id, "downloaded file disappeared before verification");
       log(`  ↳ failed: landed file disappeared before verification`);
       bar.update();
       return;
@@ -559,10 +518,7 @@ export async function settleDownload(
     // odd filename): count the track and burn the attempt — silence
     // here shrank every run summary while consuming retry budget.
     totals.failed++;
-    state.markFailed(
-      track.video_id,
-      "download reported success but no file path was parsed",
-    );
+    state.markFailed(track.video_id, "download reported success but no file path was parsed");
     log(`  ↳ failed: no file path parsed from downloader output`);
     bar.update();
   }
@@ -581,18 +537,13 @@ async function processQueue(
   for (const track of queue) {
     // Explicit !== undefined (not truthiness): --target-total 0 must mean
     // "stop immediately" — truthiness used to silently ignore it.
-    if (
-      opts.targetTotal !== undefined &&
-      opts.state.downloadedCount() >= opts.targetTotal
-    ) {
+    if (opts.targetTotal !== undefined && opts.state.downloadedCount() >= opts.targetTotal) {
       log(`target of ${opts.targetTotal} downloaded reached — stopping`);
       break;
     }
     totals.attempted++;
     if (isTty && !opts.json) process.stdout.write("\r\u001b[K");
-    log(
-      `[${totals.attempted}/${queue.length}] ${track.title ?? track.video_id}`,
-    );
+    log(`[${totals.attempted}/${queue.length}] ${track.title ?? track.video_id}`);
 
     if (isDry) {
       log(`  ↳ would download (dry-run)`);
@@ -605,9 +556,7 @@ async function processQueue(
     // `soundcloud:<slug>` provenance and MUST take the SC arm (probe
     // enrichment, link-first, music-gate exemption). The exact-equality
     // gate silently skipped all of that for every set row.
-    const isSc =
-      row?.source === SC_SOURCE ||
-      (row?.source.startsWith(`${SC_SOURCE}:`) ?? false);
+    const isSc = row?.source === SC_SOURCE || (row?.source.startsWith(`${SC_SOURCE}:`) ?? false);
 
     opts.state.markAttempt(track.video_id, null);
 
@@ -735,8 +684,7 @@ export async function sync(opts: SyncOptions): Promise<void> {
   // SC-only. The per-track reads below re-derive the target from the ROW,
   // so mixed runs stay correct even with one downloader instance.
   const onlySc =
-    (opts.sources ?? []).length > 0 &&
-    (opts.sources ?? []).every((s) => s.kind !== "ytm-playlist");
+    (opts.sources ?? []).length > 0 && (opts.sources ?? []).every((s) => s.kind !== "ytm-playlist");
   // Batch-folder destination (Sep 19 policy): this run's downloads land
   // in `<date> <label> downloads/` — never loose, never genre folders.
   // The label names the run's dominant source so batches stay readable;
@@ -818,12 +766,7 @@ async function syncInner(
   // files overall). Same moves-only, no-clobber engine, scoped to THIS
   // run's landed files by the moved counter; dry runs never move.
   if (totals.downloaded > 0 && !isDry) {
-    await organize({
-      state: opts.state,
-      musicDir: opts.musicDir,
-      dryRun: false,
-      json: false,
-    });
+    await organize({ state: opts.state, musicDir: opts.musicDir, dryRun: false, json: false });
   }
   await finishRun(opts, log, runId, totals);
 }

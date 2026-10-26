@@ -63,7 +63,5 @@ export function closeEvalSummary(
 
 /** Count descending, then alphabetical, so tied votes are reproducible. */
 export function tallySorted(tally: Map<string, number>): [string, number][] {
-  return [...tally.entries()].toSorted(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-  );
+  return [...tally.entries()].toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }

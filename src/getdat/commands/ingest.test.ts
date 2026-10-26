@@ -26,9 +26,7 @@ describe("parseFilename", () => {
   });
 
   test("dashes inside title are preserved", () => {
-    const r = parseFilename(
-      "MKLA - Progressive House / Tech House - Dance Mix.m4a",
-    );
+    const r = parseFilename("MKLA - Progressive House / Tech House - Dance Mix.m4a");
     expect(r.artist).toBe("MKLA");
     expect(r.title).toBe("Progressive House / Tech House - Dance Mix");
   });
@@ -40,9 +38,7 @@ describe("normalize", () => {
     expect(normalize("pop dat thang (kvolx flip) final v3 (1) (1)")).toBe(
       "pop dat thang kvolx flip",
     );
-    expect(normalize("RL GRIME - UCLA (SPOONE FLIP)FINAL")).toBe(
-      "rl grime ucla spoone flip",
-    );
+    expect(normalize("RL GRIME - UCLA (SPOONE FLIP)FINAL")).toBe("rl grime ucla spoone flip");
   });
 
   test("identity matching collapses dupes across names", () => {
@@ -108,9 +104,7 @@ describe("detectRemix", () => {
     expect(r!.remixName).toBe("FLOZONE FLIP");
   });
   test("multi-remixer credit takes the last name", () => {
-    const r = detectRemix(
-      "Caesars Palace - Jerk It Out (Kelland x BROSA x Juush Ext Remix)",
-    );
+    const r = detectRemix("Caesars Palace - Jerk It Out (Kelland x BROSA x Juush Ext Remix)");
     expect(r!.originalArtist).toBe("Caesars Palace");
     expect(r!.remixer).toBe("Juush Ext");
   });
@@ -124,8 +118,6 @@ describe("detectRemix", () => {
   });
 
   test("bootleg keyword detection", () => {
-    expect(
-      detectRemix("Daft Punk - Around The World (WESTEND BOOTLEG)"),
-    ).not.toBeNull();
+    expect(detectRemix("Daft Punk - Around The World (WESTEND BOOTLEG)")).not.toBeNull();
   });
 });

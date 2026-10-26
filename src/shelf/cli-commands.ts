@@ -63,9 +63,7 @@ export async function runShelfArchive(rest: string[]): Promise<void> {
   // are named (the "did both sticks fully land?" check)
   const master = nonEmptyEnv("USB_SYNC_MASTER") ?? "DJMASTER";
   const mirror = nonEmptyEnv("USB_SYNC_MIRROR") ?? "DJMIRROR";
-  const positionals = rest.filter(
-    (a) => !a.startsWith("--") && a !== "archive",
-  );
+  const positionals = rest.filter((a) => !a.startsWith("--") && a !== "archive");
   const volumes = positionals.length ? positionals : [master, mirror];
   const { shelfArchive } = await import("./archive");
   await shelfArchive({
@@ -101,8 +99,7 @@ export async function runShelfSweeps(rest: string[]): Promise<void> {
             `${r.files_seen} files · ${r.covered_exact} covered · ${r.preserved} preserved · ${r.copied} copied (${gb} GB)${r.failed ? ` · FAILED ${r.failed}` : ""}${r.deep ? " · deep" : ""}`,
         );
       }
-      if (rows.length === 0)
-        console.log("  (no sweeps recorded yet — run megadj archive)");
+      if (rows.length === 0) console.log("  (no sweeps recorded yet — run megadj archive)");
     }
   } finally {
     state.close();
@@ -149,11 +146,7 @@ const shelfSweeps: CliCommandHandler = async (rest) => {
 };
 
 const convert: CliCommandHandler = async (rest, { state, musicDir }) => {
-  const flags = parseFlags(
-    rest,
-    ["convert"],
-    ["dry-run", "no-artwork", "json"],
-  );
+  const flags = parseFlags(rest, ["convert"], ["dry-run", "no-artwork", "json"]);
   const { convertArchive } = await import("../fulltags/write/convert");
   const report = await convertArchive({
     state,
@@ -174,8 +167,7 @@ const convert: CliCommandHandler = async (rest, { state, musicDir }) => {
       report.failed.length ? `, ${report.failed.length} FAILED (wavs kept)` : ""
     }`,
   );
-  for (const failure of report.failed)
-    console.log(`  ✗ ${failure.reason}: ${failure.file}`);
+  for (const failure of report.failed) console.log(`  ✗ ${failure.reason}: ${failure.file}`);
   for (const warning of report.hiresWarnings) console.log(`  ⚠ ${warning}`);
   // #160 ring 3: setExit is the one mutation point.
   if (report.failed.length) setExit(1);
@@ -258,10 +250,7 @@ const intakeStatusCmd: CliCommandHandler = async (rest) => {
       log: progressLog(json),
     });
     await emitResult(json, r, printIntakeStatus);
-    const drift =
-      r.rowsMissingOnDisk > 0 ||
-      r.filesWithoutDbRow > 0 ||
-      r.caseCollisions.length > 0;
+    const drift = r.rowsMissingOnDisk > 0 || r.filesWithoutDbRow > 0 || r.caseCollisions.length > 0;
     if (drift) setExit(1);
   } finally {
     state.close();
@@ -272,11 +261,7 @@ const shelfHygieneCmd: CliCommandHandler = async (rest) => {
   // Detect → ledger → review → apply → validate (the shelf-hygiene
   // feature, CLI half; the web queue lives in CrateDeck). Findings
   // live in the archive DB — the SSOT every surface reads.
-  const flags = parseFlags(
-    rest,
-    ["kind", "shelf", "bucket"],
-    ["json", "apply", "yes"],
-  );
+  const flags = parseFlags(rest, ["kind", "shelf", "bucket"], ["json", "apply", "yes"]);
   const { shelfHygiene } = await import("./hygiene");
   await shelfHygiene({
     ...jsonOpts(jsonFlag(flags)),
@@ -299,11 +284,7 @@ const tmpPurgeCmd: CliCommandHandler = async (rest) => {
   // --state retargets the sweep at ~/.local/state/megadj: superseded
   // archive.db backups (newest lineage per stem kept), orphan SQLite
   // sidecars of DBs not open, age-gated spike/ artifacts.
-  const flags = parseFlags(
-    rest,
-    [],
-    ["apply", "all", "json", "state", "orphan-runs"],
-  );
+  const flags = parseFlags(rest, [], ["apply", "all", "json", "state", "orphan-runs"]);
   const json = jsonFlag(flags);
   const { tmpPurge, printTmpPurgeReport } = await import("./tmp-purge");
   const r = tmpPurge({
@@ -337,9 +318,7 @@ const shelfRestoreAllCmd: CliCommandHandler = async (rest) => {
   });
   if (json) await writeJson(r);
   else {
-    console.log(
-      `shelf-restore-all: restored ${r.restored}, failed ${r.failed.length}`,
-    );
+    console.log(`shelf-restore-all: restored ${r.restored}, failed ${r.failed.length}`);
     for (const f of r.failed) console.log(`  ✗ ${f.findingId}: ${f.error}`);
   }
   if (!r.ok) setExit(1);

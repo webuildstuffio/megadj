@@ -22,8 +22,7 @@
  * the real decisions.
  */
 
-export type AcousticSubcategory =
-  "metadata-diff" | "re-encode" | "quality-diff" | "oddball";
+export type AcousticSubcategory = "metadata-diff" | "re-encode" | "quality-diff" | "oddball";
 
 export interface AcousticSub {
   subcategory: AcousticSubcategory;
@@ -40,16 +39,9 @@ export const ACOUSTIC_SUB_LABELS: Record<AcousticSubcategory, string> = {
   oddball: "same size, different bytes — ear-check",
 };
 
-export function classifyAcousticSub(
-  bytesA: number,
-  bytesB: number,
-): AcousticSub {
+export function classifyAcousticSub(bytesA: number, bytesB: number): AcousticSub {
   if (bytesA === bytesB) {
-    return {
-      subcategory: "oddball",
-      sizeDeltaRatio: 0,
-      why: ACOUSTIC_SUB_LABELS.oddball,
-    };
+    return { subcategory: "oddball", sizeDeltaRatio: 0, why: ACOUSTIC_SUB_LABELS.oddball };
   }
   const ratio = Math.abs(bytesA - bytesB) / Math.max(bytesA, bytesB);
   if (ratio < 0.005) {
@@ -85,15 +77,14 @@ export type AcousticBucket =
   | "ear-check"
   | "safe-batch";
 
-export const BUCKET_MEMBERSHIP: Record<AcousticBucket, AcousticSubcategory[]> =
-  {
-    "metadata-diff": ["metadata-diff"],
-    "re-encode": ["re-encode"],
-    "quality-diff": ["quality-diff"],
-    oddball: ["oddball"],
-    "ear-check": ["quality-diff", "oddball"],
-    "safe-batch": ["metadata-diff", "re-encode"],
-  };
+export const BUCKET_MEMBERSHIP: Record<AcousticBucket, AcousticSubcategory[]> = {
+  "metadata-diff": ["metadata-diff"],
+  "re-encode": ["re-encode"],
+  "quality-diff": ["quality-diff"],
+  oddball: ["oddball"],
+  "ear-check": ["quality-diff", "oddball"],
+  "safe-batch": ["metadata-diff", "re-encode"],
+};
 
 export function inBucket(sub: string, bucket: string): boolean {
   const members = BUCKET_MEMBERSHIP[bucket as AcousticBucket];

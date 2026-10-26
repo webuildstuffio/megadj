@@ -75,9 +75,7 @@ export function gatePlayerCompat(ctx: IngestGateCtx): void {
   const compat = playerCompat(rec.probe);
   if (!compat.ok && !isHiresOnly(compat)) {
     counters.compatRejected++;
-    ctx.log(
-      `  ⛔ player-incompatible (${compat.detail}): ${basename(rec.file)} — left in place`,
-    );
+    ctx.log(`  ⛔ player-incompatible (${compat.detail}): ${basename(rec.file)} — left in place`);
     // No DB row on purpose: same treatment as broken files. A `failed`
     // row would be resurrected by `megadj retry` into the download
     // queue; the refusal lives in this log + counter and, if the file

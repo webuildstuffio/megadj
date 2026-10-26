@@ -63,9 +63,7 @@ export function scSourceKindFor(url: string): "sc-set" | "sc-track" {
  *  endpoint (OUR client-id seam, not yt-dlp's -J dump: the dump full-
  *  resolves every entry and one MONETIZE entry's 403 kills the whole
  *  expansion — measured live Sep 19, summer-2025). */
-export async function scSetTrackIds(
-  setUrl: string,
-): Promise<{ ok: boolean; trackIds: string[] }> {
+export async function scSetTrackIds(setUrl: string): Promise<{ ok: boolean; trackIds: string[] }> {
   if (cannedSetIds !== undefined) return cannedSetIds;
   if (!/soundcloud\.com\/[^/]+\/sets\//.test(setUrl)) {
     return { ok: false, trackIds: [] };
@@ -88,8 +86,7 @@ export async function scSetTrackIds(
 /** An SC acquisition link parsed out of a track (#256). `kind` carries
  *  the provenance so the summary can say WHY a link was surfaced. */
 export interface ScAcquisitionLink {
-  kind:
-    "purchase_url" | "free_download" | "description_store_link" | "smart_link";
+  kind: "purchase_url" | "free_download" | "description_store_link" | "smart_link";
   url: string;
 }
 
@@ -136,10 +133,7 @@ export function extractAcquisitionLinks(info: {
   description?: unknown;
 }): ScAcquisitionLink[] {
   const links: ScAcquisitionLink[] = [];
-  if (
-    typeof info.purchase_url === "string" &&
-    /^https?:\/\//.test(info.purchase_url)
-  ) {
+  if (typeof info.purchase_url === "string" && /^https?:\/\//.test(info.purchase_url)) {
     links.push({ kind: "purchase_url", url: info.purchase_url });
   }
   if (
@@ -149,15 +143,11 @@ export function extractAcquisitionLinks(info: {
   ) {
     links.push({ kind: "free_download", url: info.download_url });
   }
-  const description =
-    typeof info.description === "string" ? info.description : "";
+  const description = typeof info.description === "string" ? info.description : "";
   for (const m of description.matchAll(URL_RE)) {
     const url = m[0].replace(/[.,;:!?…]+$/, "");
     const host = (url.match(/^https?:\/\/([^/]+)/)?.[1] ?? "").toLowerCase();
-    const kind: ScAcquisitionLink["kind"] | null = hostMatches(
-      host,
-      SMART_LINK_HOSTS,
-    )
+    const kind: ScAcquisitionLink["kind"] | null = hostMatches(host, SMART_LINK_HOSTS)
       ? "smart_link"
       : hostMatches(host, STORE_HOSTS)
         ? "description_store_link"
@@ -166,9 +156,7 @@ export function extractAcquisitionLinks(info: {
   }
   // Dedupe by URL, keep the first (highest-priority) occurrence.
   const seen = new Set<string>();
-  return links.filter((l) =>
-    seen.has(l.url) ? false : (seen.add(l.url), true),
-  );
+  return links.filter((l) => (seen.has(l.url) ? false : (seen.add(l.url), true)));
 }
 
 /** The rip decision for one track (#256). Link-first: any acquisition
@@ -206,9 +194,7 @@ export function scExtractionArgs(formatId: string | null): string[] {
 
 /** SC format-id → kbps (the formatBitrateKbps twin for SC ids).
  *  Unknown ids → null (the row keeps ffprobe-able facts only). */
-export function scFormatKbps(
-  formatId: string | null | undefined,
-): number | null {
+export function scFormatKbps(formatId: string | null | undefined): number | null {
   switch (formatId) {
     case "hls_aac_256k":
     case "hls_aac_1_0":
@@ -319,10 +305,7 @@ const TimeoutSignal = {
   },
 };
 
-async function fetchText(
-  url: string,
-  init?: RequestInit,
-): Promise<string | null> {
+async function fetchText(url: string, init?: RequestInit): Promise<string | null> {
   try {
     const res = await fetch(url, {
       ...init,
@@ -349,9 +332,9 @@ export async function scWebClientId(): Promise<string | null> {
   // The main bundles are a-v2.sndcdn.com/assets/*.js; the client_id sits
   // in one of them as client_id:"<22-40 alnum>". Try the LAST match (the
   // main app bundle) first — measured live Sep 19.
-  const assets = [
-    ...page.matchAll(/https:\/\/a-v2\.sndcdn\.com\/assets\/[^"']+\.js/g),
-  ].map((m) => m[0]);
+  const assets = [...page.matchAll(/https:\/\/a-v2\.sndcdn\.com\/assets\/[^"']+\.js/g)].map(
+    (m) => m[0],
+  );
   for (const asset of assets.toReversed().slice(0, 5)) {
     const js = await fetchText(asset);
     if (js === null) continue;
@@ -368,9 +351,7 @@ export async function scWebClientId(): Promise<string | null> {
 /** Fetch the RAW SC track object and return just the link-bearing fields
  *  yt-dlp drops. Null on any failure (offline / throttled / bad shape).
  *  This is BEST-EFFORT enrichment: null must never fail the run. */
-export async function scRawTrackLinks(
-  trackId: string,
-): Promise<ScRawTrackInfo | null> {
+export async function scRawTrackLinks(trackId: string): Promise<ScRawTrackInfo | null> {
   const clientId = await scWebClientId();
   if (clientId === null) return null;
   const body = await fetchText(

@@ -5,21 +5,13 @@ import { RecordLedger } from "./record-ledger";
  * enough: every downstream cosine operation requires a non-empty vector of
  * finite numbers. The caller supplies row context so corruption is
  * actionable instead of disappearing behind a cast. */
-export function parseEmbeddingVector(
-  vecJson: string,
-  context: string,
-): number[] {
+export function parseEmbeddingVector(vecJson: string, context: string): number[] {
   let value: unknown;
   try {
     value = JSON.parse(vecJson) as unknown;
   } catch (error) {
     const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(
-      `${context} has invalid vec_json: malformed JSON${detail}`,
-      {
-        cause: error,
-      },
-    );
+    throw new Error(`${context} has invalid vec_json: malformed JSON${detail}`, { cause: error });
   }
   if (!isFiniteNumberArray(value) || value.length === 0) {
     throw new Error(
@@ -44,19 +36,15 @@ export class EmbeddingsLedger extends RecordLedger {
       "embeddings",
       rec.videoId,
       ["dim", "vec_json", "source_path", "analyzed_at", "model"],
-      [
-        rec.vec.length,
-        JSON.stringify(rec.vec),
-        rec.sourcePath,
-        this.now(),
-        rec.model,
-      ],
+      [rec.vec.length, JSON.stringify(rec.vec), rec.sourcePath, this.now(), rec.model],
     );
   }
 
   /** One embedding (by video id), null when never analyzed. Corrupt JSON
    * reads as absent — a corrupt row can never poison a similarity query. */
-  embeddingRecord(videoId: string): {
+  embeddingRecord(
+    videoId: string,
+  ): {
     videoId: string;
     vec: number[];
     sourcePath: string;
@@ -77,10 +65,7 @@ export class EmbeddingsLedger extends RecordLedger {
     } | null;
     if (!row) return null;
     try {
-      const vec = parseEmbeddingVector(
-        row.vec_json,
-        `embedding ${row.video_id}`,
-      );
+      const vec = parseEmbeddingVector(row.vec_json, `embedding ${row.video_id}`);
       return {
         videoId: row.video_id,
         vec,
@@ -90,11 +75,7 @@ export class EmbeddingsLedger extends RecordLedger {
       };
     } catch (error) {
       // THE poison-row guard (#74): one home for the whole ledger family.
-      return this.absorbParseFailure(
-        error,
-        `embedding ${row.video_id}`,
-        console.error,
-      );
+      return this.absorbParseFailure(error, `embedding ${row.video_id}`, console.error);
     }
   }
 
@@ -102,7 +83,9 @@ export class EmbeddingsLedger extends RecordLedger {
    * query-side corpus for cosine kNN. Corrupt rows are skipped.
    * M1 (#325): when `modelFilter` is provided, only rows with that model
    * are returned — cross-model blending is an honest gap. */
-  embeddingCorpus(modelFilter?: string): {
+  embeddingCorpus(
+    modelFilter?: string,
+  ): {
     videoId: string;
     title: string | null;
     artist: string | null;
@@ -130,21 +113,9 @@ export class EmbeddingsLedger extends RecordLedger {
     return rows.flatMap((r) => {
       try {
         const vec = parseEmbeddingVector(r.vec_json, `embedding ${r.video_id}`);
-        return [
-          {
-            videoId: r.video_id,
-            title: r.title,
-            artist: r.artist,
-            vec,
-            model: r.model,
-          },
-        ];
+        return [{ videoId: r.video_id, title: r.title, artist: r.artist, vec, model: r.model }];
       } catch (error) {
-        this.absorbParseFailure(
-          error,
-          `embedding ${r.video_id}`,
-          console.error,
-        );
+        this.absorbParseFailure(error, `embedding ${r.video_id}`, console.error);
         return [];
       }
     });
@@ -190,11 +161,7 @@ export class EmbeddingsLedger extends RecordLedger {
   sectionEmbeddingRecord(
     videoId: string,
     model: string,
-  ): {
-    vec: number[];
-    sectionStart: number | null;
-    sectionEnd: number | null;
-  } | null {
+  ): { vec: number[]; sectionStart: number | null; sectionEnd: number | null } | null {
     const row = this.db
       .query(
         `SELECT vec_json, section_start, section_end
@@ -275,11 +242,7 @@ export class EmbeddingsLedger extends RecordLedger {
  */
 export class KeysLedger extends RecordLedger {
   /** Upsert one key. Idempotent by video_id: a re-read replaces the row. */
-  setKeyRecord(rec: {
-    videoId: string;
-    key: string;
-    sourcePath: string;
-  }): void {
+  setKeyRecord(rec: { videoId: string; key: string; sourcePath: string }): void {
     this.upsert(
       "track_keys",
       rec.videoId,
@@ -291,19 +254,13 @@ export class KeysLedger extends RecordLedger {
   /** Cached key (by video id), null when never cached. A cache hit is
    * only valid when the file path still matches — a moved/re-ripped file
    * invalidates its own row lazily, no sweep needed. */
-  keyRecord(
-    videoId: string,
-    sourcePath: string,
-  ): { key: string; analyzedAt: string } | null {
+  keyRecord(videoId: string, sourcePath: string): { key: string; analyzedAt: string } | null {
     const row = this.db
       .query(
         `SELECT key, analyzed_at FROM track_keys
          WHERE video_id = ? AND source_path = ?`,
       )
-      .get(videoId, sourcePath) as {
-      key: string;
-      analyzed_at: string;
-    } | null;
+      .get(videoId, sourcePath) as { key: string; analyzed_at: string } | null;
     return row ? { key: row.key, analyzedAt: row.analyzed_at } : null;
   }
 }

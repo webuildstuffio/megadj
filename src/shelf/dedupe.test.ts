@@ -28,10 +28,7 @@ function makeShelf(
   const artistDir = join(shelf, "Contents", "Artist");
   mkdirSync(artistDir, { recursive: true });
   writeFileSync(join(artistDir, `${withPair.stem}.mp3`), withPair.origContent);
-  writeFileSync(
-    join(artistDir, `${withPair.stem} [TESTDRIVE].mp3`),
-    withPair.twinContent,
-  );
+  writeFileSync(join(artistDir, `${withPair.stem} [TESTDRIVE].mp3`), withPair.twinContent);
   for (const [name, content] of Object.entries(also)) {
     writeFileSync(join(artistDir, name), content);
   }
@@ -65,55 +62,29 @@ describe("findTwinPairs", () => {
 
 describe("shelfDedupe", () => {
   test("byte-identical twin => keep-original (pure dupe)", async () => {
-    const shelf = makeShelf({
-      stem: "same",
-      origContent: "IDENTICAL",
-      twinContent: "IDENTICAL",
-    });
-    const res = await shelfDedupe({
-      shelfVolume: shelf,
-      skipFingerprint: true,
-      log: () => {},
-    });
+    const shelf = makeShelf({ stem: "same", origContent: "IDENTICAL", twinContent: "IDENTICAL" });
+    const res = await shelfDedupe({ shelfVolume: shelf, skipFingerprint: true, log: () => {} });
     expect(res.byteDupes).toBe(1);
     expect(res.pairs[0]!.verdict).toBe("keep-original");
     expect(res.pairs[0]!.loser).toBe(res.pairs[0]!.twin);
   });
 
   test("differing bytes without fingerprint => keep-both (conservative)", async () => {
-    const shelf = makeShelf({
-      stem: "diff",
-      origContent: "AAA",
-      twinContent: "BBB",
-    });
-    const res = await shelfDedupe({
-      shelfVolume: shelf,
-      skipFingerprint: true,
-      log: () => {},
-    });
+    const shelf = makeShelf({ stem: "diff", origContent: "AAA", twinContent: "BBB" });
+    const res = await shelfDedupe({ shelfVolume: shelf, skipFingerprint: true, log: () => {} });
     expect(res.keepBoth).toBe(1);
     expect(res.pairs[0]!.loser).toBeNull();
   });
 
   test("report mode never touches files", async () => {
     const shelf = makeShelf({ stem: "x", origContent: "1", twinContent: "1" });
-    await shelfDedupe({
-      shelfVolume: shelf,
-      skipFingerprint: true,
-      log: () => {},
-    });
-    expect(
-      existsSync(join(shelf, "Contents", "Artist", "x [TESTDRIVE].mp3")),
-    ).toBe(true);
+    await shelfDedupe({ shelfVolume: shelf, skipFingerprint: true, log: () => {} });
+    expect(existsSync(join(shelf, "Contents", "Artist", "x [TESTDRIVE].mp3"))).toBe(true);
     expect(existsSync(join(shelf, ".dedupe-quarantine"))).toBe(false);
   });
 
   test("apply moves the loser to quarantine on the shelf", async () => {
-    const shelf = makeShelf({
-      stem: "dupe",
-      origContent: "SAME",
-      twinContent: "SAME",
-    });
+    const shelf = makeShelf({ stem: "dupe", origContent: "SAME", twinContent: "SAME" });
     const res = await shelfDedupe({
       shelfVolume: shelf,
       apply: true,
@@ -122,22 +93,14 @@ describe("shelfDedupe", () => {
       log: () => {},
     });
     expect(res.moved).toBe(1);
-    expect(
-      existsSync(join(shelf, "Contents", "Artist", "dupe [TESTDRIVE].mp3")),
-    ).toBe(false);
+    expect(existsSync(join(shelf, "Contents", "Artist", "dupe [TESTDRIVE].mp3"))).toBe(false);
     const q = join(shelf, "Contents", ".dedupe-quarantine");
     expect(readdirSync(q)).toContain("dupe [TESTDRIVE].mp3");
-    expect(existsSync(join(shelf, "Contents", "Artist", "dupe.mp3"))).toBe(
-      true,
-    );
+    expect(existsSync(join(shelf, "Contents", "Artist", "dupe.mp3"))).toBe(true);
   });
 
   test("upgrade restores the original when the twin replacement rename fails", () => {
-    const shelf = makeShelf({
-      stem: "upgrade-rollback",
-      origContent: "LOW",
-      twinContent: "HIGH",
-    });
+    const shelf = makeShelf({ stem: "upgrade-rollback", origContent: "LOW", twinContent: "HIGH" });
     const pair = upgradePair(shelf, "upgrade-rollback");
     const quarantine = join(shelf, "Contents", ".dedupe-quarantine");
     const errors: string[] = [];
@@ -154,11 +117,9 @@ describe("shelfDedupe", () => {
     expect(errors.join("\n")).toContain("injected replacement failure");
     expect(readFileSync(pair.original, "utf8")).toBe("LOW");
     expect(readFileSync(pair.twin, "utf8")).toBe("HIGH");
-    expect(
-      existsSync(
-        join(quarantine, `.superseded-${pair.original.split("/").pop()}`),
-      ),
-    ).toBe(false);
+    expect(existsSync(join(quarantine, `.superseded-${pair.original.split("/").pop()}`))).toBe(
+      false,
+    );
   });
 
   test("upgrade reports both replacement and rollback failures", () => {
@@ -191,20 +152,11 @@ describe("shelfDedupe", () => {
     let out = "";
     console.log = (s: string) => (out += `${s}\n`);
     try {
-      await shelfDedupe({
-        shelfVolume: shelf,
-        json: true,
-        skipFingerprint: true,
-        log: () => {},
-      });
+      await shelfDedupe({ shelfVolume: shelf, json: true, skipFingerprint: true, log: () => {} });
     } finally {
       console.log = orig;
     }
-    const parsed = JSON.parse(out.trim()) as {
-      command: string;
-      ok: boolean;
-      scanned: number;
-    };
+    const parsed = JSON.parse(out.trim()) as { command: string; ok: boolean; scanned: number };
     expect(parsed.command).toBe("dedupe");
     expect(parsed.ok).toBe(true);
     expect(parsed.scanned).toBe(1);

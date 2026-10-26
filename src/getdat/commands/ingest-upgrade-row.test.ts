@@ -59,9 +59,7 @@ describe("ingest quality-upgrade row replacement", () => {
     // run 1 — register the original 440 Hz file
     makeTrack("Upgrade Target", "440", BATCH);
     await ingest({ state, musicDir: ARCHIVE, folder: BATCH, minDuration: 10 });
-    const first = state
-      .allTracks()
-      .filter((row) => row.file_path?.includes("Upgrade Target"));
+    const first = state.allTracks().filter((row) => row.file_path?.includes("Upgrade Target"));
     expect(first.length).toBe(1);
     const originalId = first[0]!.video_id;
 
@@ -72,9 +70,7 @@ describe("ingest quality-upgrade row replacement", () => {
 
     // The old implementation left TWO rows (the shadow carried the new
     // path-keyed ext- id); the fix keeps exactly one.
-    const rows = state
-      .allTracks()
-      .filter((row) => row.file_path?.includes("Upgrade Target"));
+    const rows = state.allTracks().filter((row) => row.file_path?.includes("Upgrade Target"));
     expect(rows.length).toBe(1);
     // The SURVIVING row is the original — ledger-bearing identity kept.
     expect(rows[0]!.video_id).toBe(originalId);
@@ -94,9 +90,7 @@ describe("ingest ledgerSource (#258-superfix — drop's SC provenance)", () => {
       minDuration: 10,
       ledgerSource: "soundcloud",
     });
-    const rows = state
-      .allTracks()
-      .filter((row) => row.file_path?.includes("SC Provenance Track"));
+    const rows = state.allTracks().filter((row) => row.file_path?.includes("SC Provenance Track"));
     expect(rows.length).toBe(1);
     // The whole point: the source-aware LOWQ floor (SC 160k) and
     // sync's URL seam read this column — a default "ingest" here made
@@ -108,15 +102,8 @@ describe("ingest ledgerSource (#258-superfix — drop's SC provenance)", () => {
   test("default stays 'ingest' when the option is absent", async () => {
     const { state } = ts.next();
     makeTrack("Plain Ingest Track", "770", BATCH);
-    await ingest({
-      state,
-      musicDir: ARCHIVE,
-      folder: BATCH,
-      minDuration: 10,
-    });
-    const rows = state
-      .allTracks()
-      .filter((row) => row.file_path?.includes("Plain Ingest Track"));
+    await ingest({ state, musicDir: ARCHIVE, folder: BATCH, minDuration: 10 });
+    const rows = state.allTracks().filter((row) => row.file_path?.includes("Plain Ingest Track"));
     expect(rows.length).toBe(1);
     expect(rows[0]!.source).toBe("ingest");
     state.close();

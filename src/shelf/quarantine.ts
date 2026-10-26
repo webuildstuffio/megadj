@@ -38,12 +38,7 @@ export interface QuarantineEmptyResult {
 
 /** The same collision-tolerant lookup restore.ts uses: exact flattened
  *  name first, then the pre-extension stem against suffixed copies. */
-function quarantineCopyPath(
-  f: {
-    paths: string[];
-  },
-  qDir: string,
-): string | null {
+function quarantineCopyPath(f: { paths: string[] }, qDir: string): string | null {
   const loser = f.paths[1];
   if (!loser) return null;
   const raw = loser.split("/Contents/")[1] ?? basename(loser);
@@ -85,13 +80,7 @@ export async function shelfQuarantineCensus(opts: {
   const { store, qDir, close } = openStore(opts.dbPath, opts.shelfVolume);
   try {
     if (!existsSync(qDir))
-      return {
-        command: "shelf-quarantine",
-        ok: true,
-        files: 0,
-        bytes: 0,
-        stale: 0,
-      };
+      return { command: "shelf-quarantine", ok: true, files: 0, bytes: 0, stale: 0 };
     const applied = store.list({ status: "applied" });
     let files = 0;
     let bytes = 0;
@@ -136,13 +125,7 @@ export async function shelfQuarantineEmpty(opts: {
         error: "hygiene apply/restore already in flight",
       };
     if (!existsSync(qDir))
-      return {
-        command: "shelf-quarantine-empty",
-        ok: true,
-        deleted: 0,
-        bytes: 0,
-        failed: [],
-      };
+      return { command: "shelf-quarantine-empty", ok: true, deleted: 0, bytes: 0, failed: [] };
     const applied = store.list({ status: "applied" });
     let deleted = 0;
     let bytes = 0;
@@ -164,13 +147,7 @@ export async function shelfQuarantineEmpty(opts: {
         failed.push(`${f.id}: ${errorText(e)}`);
       }
     }
-    return {
-      command: "shelf-quarantine-empty",
-      ok: failed.length === 0,
-      deleted,
-      bytes,
-      failed,
-    };
+    return { command: "shelf-quarantine-empty", ok: failed.length === 0, deleted, bytes, failed };
   } finally {
     store.releaseOperation(owner);
     close();

@@ -2,12 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { tempDir, stateIn } from "../test-support/testutil";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  findCaseCollisions,
-  intakeStatus,
-  pathKey,
-  walkAudioFiles,
-} from "./intake-status";
+import { findCaseCollisions, intakeStatus, pathKey, walkAudioFiles } from "./intake-status";
 
 const t = tempDir("megadj-intake-status-").rippable();
 afterAll(() => t.rippleAll());
@@ -67,12 +62,7 @@ describe("intakeStatus", () => {
       fileSizeBytes: 3,
       durationS: null,
     });
-    const r = intakeStatus({
-      state,
-      musicDir: dir,
-      json: true,
-      log: () => {},
-    });
+    const r = intakeStatus({ state, musicDir: dir, json: true, log: () => {} });
     expect(r.rowsMissingOnDisk).toBe(0);
     expect(r.filesWithoutDbRow).toBe(0);
     expect(r.caseCollisions).toEqual([]);
@@ -107,12 +97,7 @@ describe("intakeStatus", () => {
       fileSizeBytes: 3,
       durationS: null,
     });
-    const r = intakeStatus({
-      state,
-      musicDir: dir,
-      json: false,
-      log: () => {},
-    });
+    const r = intakeStatus({ state, musicDir: dir, json: false, log: () => {} });
     expect(r.rowsMissingOnDisk).toBe(1);
     expect(r.mismatches[0]!.videoId).toBe("v1");
     expect(r.filesWithoutDbRow).toBe(0);
@@ -138,12 +123,7 @@ describe("intakeStatus", () => {
       fileSizeBytes: 3,
       durationS: null,
     });
-    const r = intakeStatus({
-      state,
-      musicDir: dir,
-      json: true,
-      log: () => {},
-    });
+    const r = intakeStatus({ state, musicDir: dir, json: true, log: () => {} });
     expect(r.rowsMissingOnDisk).toBe(0);
     expect(r.filesWithoutDbRow).toBe(0);
     state.close();
@@ -181,12 +161,7 @@ describe("intakeStatus", () => {
       fileSizeBytes: 1,
       durationS: null,
     });
-    const r = intakeStatus({
-      state,
-      musicDir: dir,
-      json: true,
-      log: () => {},
-    });
+    const r = intakeStatus({ state, musicDir: dir, json: true, log: () => {} });
     expect(r.caseCollisions).toHaveLength(1);
     expect(r.caseCollisions[0]!.paths).toHaveLength(2);
     state.close();

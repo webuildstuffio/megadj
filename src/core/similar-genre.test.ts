@@ -21,9 +21,7 @@ const seed = (id: string, genre: string, v: number[]): GenreSeed => ({
 describe("normalizeGenre", () => {
   test("lowercases, takes the first comma token, strips parentheticals", () => {
     expect(normalizeGenre("Deep House")).toBe("deep house");
-    expect(normalizeGenre("Progressive House, EDM, Big Room")).toBe(
-      "progressive house",
-    );
+    expect(normalizeGenre("Progressive House, EDM, Big Room")).toBe("progressive house");
     expect(normalizeGenre("Melodic Techno (Peak Time)")).toBe("melodic techno");
   });
   test("junk labels are unusable (null), never vote", () => {
@@ -62,9 +60,7 @@ describe("genreFamily", () => {
     expect(genreFamily("Jersey Club")).toBe("bass");
     expect(genreFamily("Donk")).toBe("bass");
     expect(genreFamily("hardtekk")).toBe("techno");
-    expect(genreFamily("minimal / deep tech".replace(" / ", " x "))).toBe(
-      "techno",
-    ); // "minimal x deep tech" → techno; raw slash form needs refold split
+    expect(genreFamily("minimal / deep tech".replace(" / ", " x "))).toBe("techno"); // "minimal x deep tech" → techno; raw slash form needs refold split
     expect(genreFamily("Minimal")).toBe("techno");
     expect(genreFamily("eurodance")).toBe("edm");
     expect(genreFamily("Nightcore")).toBe("edm");
@@ -133,10 +129,7 @@ describe("genreFamily", () => {
       const fam = genreFamily(label);
       expect(fam).not.toBeNull();
       for (const [re, other] of [
-        [
-          /drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke/,
-          "bass",
-        ],
+        [/drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke/, "bass"],
         [/(?<!bass |afro )house|disco|garage|boogie/, "house"],
         [/techno|melodic/, "techno"],
         [/trance|psy/, "trance"],
@@ -147,10 +140,7 @@ describe("genreFamily", () => {
           /r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae/,
           "groove",
         ],
-        [
-          /jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack/,
-          "mood",
-        ],
+        [/jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack/, "mood"],
       ] as [RegExp, string][]) {
         if (other === fam) continue;
         expect(re.test(label)).toBe(false);
@@ -241,12 +231,7 @@ describe("inferGenre (pure kNN vote)", () => {
 
 /** Two coherent genre clusters (house + techno, 9 rows each) — the
  *  shared population both LOO harnesses evaluate (jscpd, issue #223). */
-const cluster = (
-  prefix: string,
-  genre: string,
-  center: number[],
-  n: number,
-): GenreSeed[] =>
+const cluster = (prefix: string, genre: string, center: number[], n: number): GenreSeed[] =>
   Array.from({ length: n }, (_, i) =>
     seed(
       `${prefix}${i}`,
@@ -283,11 +268,7 @@ describe("evalLeaveOneOut (the genre --eval harness)", () => {
 
   test("the duration guard drops rows outside the measured 90–480 s band", () => {
     // a DJ mix (long) and a snippet (short) leave the eval population…
-    const withDur = [
-      ...pop,
-      seed("mix", "house", [1, 0, 0]),
-      seed("snip", "techno", [0, 1, 0]),
-    ];
+    const withDur = [...pop, seed("mix", "house", [1, 0, 0]), seed("snip", "techno", [0, 1, 0])];
     const durations = [
       ...pop.map((s) => ({ videoId: s.videoId, durationS: 300 })),
       { videoId: "mix", durationS: 3600 }, // 60-minute mix: out
@@ -313,13 +294,11 @@ describe("evalLeaveOneOut (the genre --eval harness)", () => {
     expect(r.rows.length).toBe(r.evaluated);
     expect(r.rows.filter((x) => x.predicted === null).length).toBe(r.refused);
     expect(r.rows.filter((x) => x.predicted === x.family).length).toBe(r.agree);
-    expect(
-      r.rows.filter((x) => x.predicted !== null && x.predicted !== x.family)
-        .length,
-    ).toBe(r.disagree);
+    expect(r.rows.filter((x) => x.predicted !== null && x.predicted !== x.family).length).toBe(
+      r.disagree,
+    );
     // top-2 always contains the vote's winner when the gate decided
-    for (const row of r.rows)
-      if (row.predicted !== null) expect(row.top2).toContain(row.predicted);
+    for (const row of r.rows) if (row.predicted !== null) expect(row.top2).toContain(row.predicted);
   });
 
   test("every LOO vote is deterministic — same input, same summary", () => {
@@ -357,9 +336,7 @@ describe("evalLeaveOneOutArtistDisjoint (the leakage control)", () => {
 
   test("deterministic and honest on an empty population", () => {
     const artists = new Map<string, string>();
-    expect(evalLeaveOneOutArtistDisjoint([], artists, 5, 0.6).evaluated).toBe(
-      0,
-    );
+    expect(evalLeaveOneOutArtistDisjoint([], artists, 5, 0.6).evaluated).toBe(0);
     const popArtists = new Map(pop.map((s) => [s.videoId, s.videoId]));
     expect(evalLeaveOneOutArtistDisjoint(pop, popArtists, 5, 0.6)).toEqual(
       evalLeaveOneOutArtistDisjoint(pop, popArtists, 5, 0.6),

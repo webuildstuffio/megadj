@@ -58,11 +58,7 @@ interface CopyPlan {
 function walkArchive(root: string): CopyPlan[] {
   return walkTree(root, { exts: AUDIO_EXTS })
     .entries.filter((e) => !SYNC_ARTIFACT_RE.test(basename(e.abs)))
-    .map((e) => ({
-      src: e.abs,
-      rel: e.rel,
-      bytes: e.bytes,
-    }));
+    .map((e) => ({ src: e.abs, rel: e.rel, bytes: e.bytes }));
 }
 
 interface VolumeResult {
@@ -79,9 +75,7 @@ interface VolumeResult {
  *  so Contents/ never fills with loose files. */
 function artistFolder(rel: string): string {
   const parts = rel.split("/");
-  return (parts[0] ?? "") !== "" && parts.length > 1
-    ? (parts[0] as string)
-    : "[unknown]";
+  return (parts[0] ?? "") !== "" && parts.length > 1 ? (parts[0] as string) : "[unknown]";
 }
 
 /** Shelf-sync's audio match — the repo-wide SSOT set
@@ -173,8 +167,7 @@ function syncToVolume(
         // copyFileSync (not Bun.write — its sync variant is fd-based) then a
         // size-check: a silent partial write must not read as done.
         copyFileSync(p.src, dest);
-        if (!sameBytes(p.src, dest))
-          throw new Error("byte mismatch after copy");
+        if (!sameBytes(p.src, dest)) throw new Error("byte mismatch after copy");
       } catch (e) {
         res.failed++;
         opts.log?.(`failed: ${p.rel} (${errorText(e)})`);

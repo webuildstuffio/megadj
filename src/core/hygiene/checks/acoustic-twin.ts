@@ -9,13 +9,7 @@
  * is not re-reported here (claimed-set short-circuit at the call site).
  */
 import { basename } from "node:path";
-import {
-  baseFinding,
-  type CheckCtx,
-  type CheckDef,
-  type Finding,
-  type ShelfFile,
-} from "../types";
+import { baseFinding, type CheckCtx, type CheckDef, type Finding, type ShelfFile } from "../types";
 import { nameSimilarity } from "./similarity";
 import { classifyAcousticSub } from "../subcategory";
 
@@ -52,12 +46,7 @@ export const acousticTwin: CheckDef = {
         const sim = nameSimilarity(basename(keeper.path), basename(loser.path));
         const bigDelta = durationDelta(keeper, loser) > 0.15;
         out.push({
-          ...baseFinding(
-            ctx,
-            "acoustic-twin",
-            bigDelta ? "review" : "likely",
-            false,
-          ),
+          ...baseFinding(ctx, "acoustic-twin", bigDelta ? "review" : "likely", false),
           paths: [keeper.path, loser.path],
           bytes: [keeper.bytes, loser.bytes],
           md5s: [null, null], // different bytes by definition of this class
@@ -68,11 +57,8 @@ export const acousticTwin: CheckDef = {
             // size-delta subcategory (docs §4.2 second slice): separates
             // same-rip metadata noise from real quality differences so
             // the queue can batch the boring ones
-            subcategory: classifyAcousticSub(keeper.bytes, loser.bytes)
-              .subcategory,
-            ...(bigDelta
-              ? { note: "size delta >15% — possible fp collision" }
-              : {}),
+            subcategory: classifyAcousticSub(keeper.bytes, loser.bytes).subcategory,
+            ...(bigDelta ? { note: "size delta >15% — possible fp collision" } : {}),
           },
           proposedAction: { type: "quarantine-loser" },
           keeperPath: keeper.path,

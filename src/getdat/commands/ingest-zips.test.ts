@@ -34,8 +34,7 @@ describe("zip ingest safety", () => {
       async (dir) => {
         const out: string[] = [];
         const proc = await $`find ${dir} -type f -name '*.mp3'`.quiet();
-        for (const line of proc.stdout.toString().trim().split("\n"))
-          if (line) out.push(line);
+        for (const line of proc.stdout.toString().trim().split("\n")) if (line) out.push(line);
         return out;
       },
       () => {},
@@ -43,10 +42,8 @@ describe("zip ingest safety", () => {
 
     const staged = [...pendingZipDeletes.values()][0] ?? [];
     expect(staged).toHaveLength(2);
-    expect(
-      readFileSync(join(root, staged[0]!)).equals(
-        readFileSync(join(root, staged[1]!)),
-      ),
-    ).toBe(false);
+    expect(readFileSync(join(root, staged[0]!)).equals(readFileSync(join(root, staged[1]!)))).toBe(
+      false,
+    );
   });
 });

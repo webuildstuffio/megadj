@@ -57,10 +57,8 @@ export function applyFinding(
   const keeper = f.paths[0];
   const loser = f.paths[1];
   if (!keeper || !loser) return { moved: false, error: "malformed paths" };
-  if (!existsSync(keeper))
-    return { moved: false, error: `keeper gone: ${keeper}` };
-  if (!existsSync(loser))
-    return { moved: false, error: `loser gone: ${loser}` };
+  if (!existsSync(keeper)) return { moved: false, error: `keeper gone: ${keeper}` };
+  if (!existsSync(loser)) return { moved: false, error: `loser gone: ${loser}` };
   // evidence re-verification at apply time — the ledger's word is not
   // enough when the disk may have changed since detection (§4.4)
   if (f.kind === "byte-twin") {
@@ -68,10 +66,7 @@ export function applyFinding(
     const lm = ctx.md5(loser);
     if (!km || !lm) return { moved: false, error: "md5 unavailable at apply" };
     if (km !== lm)
-      return {
-        moved: false,
-        error: `md5 mismatch at apply — keeper ${keeper} vs loser ${loser}`,
-      };
+      return { moved: false, error: `md5 mismatch at apply — keeper ${keeper} vs loser ${loser}` };
   }
   const qDir = join(volume, QUARANTINE_DIR);
   try {
@@ -80,10 +75,7 @@ export function applyFinding(
     renameSync(loser, dest);
     return { moved: true, loser, dest };
   } catch (e) {
-    return {
-      moved: false,
-      error: errorText(e),
-    };
+    return { moved: false, error: errorText(e) };
   }
 }
 
@@ -105,8 +97,7 @@ function keeperProofs(f: Finding): string[] {
   try {
     const recorded = f.bytes[0];
     const actual = statSync(keeper).size;
-    if (recorded !== undefined && recorded !== actual)
-      missing.push(`${keeper} (size changed)`);
+    if (recorded !== undefined && recorded !== actual) missing.push(`${keeper} (size changed)`);
   } catch {
     missing.push(keeper);
   }
@@ -167,10 +158,7 @@ export function validateFinding(
     after: shelfAfter,
     quarantined: Math.max(0, shelfBefore - shelfAfter),
   };
-  const ok =
-    keepersMissing.length === 0 &&
-    fpMismatches.length === 0 &&
-    delta.quarantined === 1;
+  const ok = keepersMissing.length === 0 && fpMismatches.length === 0 && delta.quarantined === 1;
   return {
     ranAt: new Date().toISOString(),
     keepersPresent: 1 - keepersMissing.length,

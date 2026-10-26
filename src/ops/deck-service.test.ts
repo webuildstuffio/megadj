@@ -7,12 +7,7 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
-import {
-  DECK_SERVICE_LABEL,
-  classifyDeckService,
-  plistPath,
-  renderPlist,
-} from "./deck-service";
+import { DECK_SERVICE_LABEL, classifyDeckService, plistPath, renderPlist } from "./deck-service";
 
 describe("deck service SSOT (#247)", () => {
   test("label is the AGENTS.md + issue-pinned name", () => {
@@ -26,26 +21,17 @@ describe("deck service SSOT (#247)", () => {
     // crash-looped on `error: Module not found "src/deck/index.ts"`.
     // The installer is an entry point (knip), so its internal const cannot
     // be imported — pin the depth rule against the file text instead.
-    const source = readFileSync(
-      join(import.meta.dir, "deck-install.ts"),
-      "utf8",
+    const source = readFileSync(join(import.meta.dir, "deck-install.ts"), "utf8");
+    const match = /const REPO_ROOT = join\(import\.meta\.dir,\s*(?:"\.\."(?:,\s*)?)+\)/.exec(
+      source,
     );
-    const match =
-      /const REPO_ROOT = join\(import\.meta\.dir,\s*(?:"\.\."(?:,\s*)?)+\)/.exec(
-        source,
-      );
-    expect(
-      match,
-      "REPO_ROOT must be derived from import.meta.dir via join(..)",
-    ).not.toBeNull();
+    expect(match, "REPO_ROOT must be derived from import.meta.dir via join(..)").not.toBeNull();
     const ups = (match?.[0]?.match(/\.\./g) ?? []).length;
     expect(ups, "src/ops/ is TWO levels below the repo root").toBe(2);
   });
 
   test("plist path sits in ~/Library/LaunchAgents", () => {
-    expect(plistPath("/Users/x")).toBe(
-      "/Users/x/Library/LaunchAgents/com.nick.megadj-deck.plist",
-    );
+    expect(plistPath("/Users/x")).toBe("/Users/x/Library/LaunchAgents/com.nick.megadj-deck.plist");
   });
 
   test("rendered plist: RunAtLoad + KeepAlive + program args + no leftover placeholders", () => {
@@ -91,33 +77,27 @@ describe("deck service SSOT (#247)", () => {
     expect(defaultPort).not.toContain("CRATEDECK_PORT");
   });
 
-  test.each([7742, 59997])(
-    "plist parser preserves special path characters on port %i",
-    (port) => {
-      const opts = {
-        repoRoot: `/repo & <mixes>/${String.fromCharCode(36)}{BUN_PATH}`,
-        bunPath: "/bun $&/bin/bun",
-        stateDir: "/state",
-        port,
-        defaultPort: 7742,
-      };
-      for (const [key, value] of [
-        ["WorkingDirectory", opts.repoRoot],
-        ["ProgramArguments.0", opts.bunPath],
-        ["StandardOutPath", `${opts.stateDir}/deck.log`],
-        ["StandardErrorPath", `${opts.stateDir}/deck.log`],
-      ] as const) {
-        const parsed = Bun.spawnSync(
-          ["plutil", "-extract", key, "raw", "-o", "-", "--", "-"],
-          {
-            stdin: Buffer.from(renderPlist(opts)),
-          },
-        );
-        expect(parsed.exitCode).toBe(0);
-        expect(new TextDecoder().decode(parsed.stdout).trimEnd()).toBe(value);
-      }
-    },
-  );
+  test.each([7742, 59997])("plist parser preserves special path characters on port %i", (port) => {
+    const opts = {
+      repoRoot: `/repo & <mixes>/${String.fromCharCode(36)}{BUN_PATH}`,
+      bunPath: "/bun $&/bin/bun",
+      stateDir: "/state",
+      port,
+      defaultPort: 7742,
+    };
+    for (const [key, value] of [
+      ["WorkingDirectory", opts.repoRoot],
+      ["ProgramArguments.0", opts.bunPath],
+      ["StandardOutPath", `${opts.stateDir}/deck.log`],
+      ["StandardErrorPath", `${opts.stateDir}/deck.log`],
+    ] as const) {
+      const parsed = Bun.spawnSync(["plutil", "-extract", key, "raw", "-o", "-", "--", "-"], {
+        stdin: Buffer.from(renderPlist(opts)),
+      });
+      expect(parsed.exitCode).toBe(0);
+      expect(new TextDecoder().decode(parsed.stdout).trimEnd()).toBe(value);
+    }
+  });
 
   test("classifier: the four states with honest fix hints", () => {
     const healthy = classifyDeckService({

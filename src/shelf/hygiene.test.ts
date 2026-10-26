@@ -83,16 +83,10 @@ describe("hygiene command", () => {
 
   test("apply without --yes is refused with zero work (two-step safety)", async () => {
     const { vol, db } = shelf();
-    const { parsed, code } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      apply: true,
-    });
+    const { parsed, code } = await run({ shelfVolume: vol, dbPath: db, apply: true });
     expect(code).toBe(1);
     expect(parsed.error).toContain("--yes");
-    expect(existsSync(join(vol, "Contents", "Artist A", "song copy.mp3"))).toBe(
-      true,
-    );
+    expect(existsSync(join(vol, "Contents", "Artist A", "song copy.mp3"))).toBe(true);
   });
 
   test("apply moves only CONFIRMED findings; receipts land on the row", async () => {
@@ -101,24 +95,15 @@ describe("hygiene command", () => {
     const store = new HygieneStore(new Database(db));
     const { id } = store.list({ status: "open" })[0]!;
     expect(store.decide(id, true)).toBe(true);
-    const { parsed } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      apply: true,
-      yes: true,
-    });
+    const { parsed } = await run({ shelfVolume: vol, dbPath: db, apply: true, yes: true });
     expect(parsed.applied).toBe(1);
     const got = store.get(id)!;
     expect(got.status).toBe("applied");
     expect(got.validation?.ok).toBe(true);
     // loser quarantined, keeper intact — never deleted
-    expect(existsSync(join(vol, "Contents", "Artist A", "song copy.mp3"))).toBe(
-      false,
-    );
+    expect(existsSync(join(vol, "Contents", "Artist A", "song copy.mp3"))).toBe(false);
     expect(existsSync(join(vol, ".hygiene-quarantine"))).toBe(true);
-    expect(existsSync(join(vol, "Contents", "Artist A", "song.mp3"))).toBe(
-      true,
-    );
+    expect(existsSync(join(vol, "Contents", "Artist A", "song.mp3"))).toBe(true);
   });
 
   test("MULTI-apply: every receipt is green with delta 1 (no cumulative drift)", async () => {
@@ -141,12 +126,7 @@ describe("hygiene command", () => {
     const opens = store.list({ status: "open" });
     expect(opens.length).toBe(2);
     for (const f of opens) expect(store.decide(f.id, true)).toBe(true);
-    const { parsed } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      apply: true,
-      yes: true,
-    });
+    const { parsed } = await run({ shelfVolume: vol, dbPath: db, apply: true, yes: true });
     expect(parsed.applied).toBe(2);
     expect(parsed.failed).toBe(0);
     expect(parsed.applyErrors).toEqual([]);
@@ -167,35 +147,21 @@ describe("hygiene command", () => {
       .toSorted((a, b) => a.before - b.before);
     expect(deltas[0]).toEqual({ before: 4, after: 3, quarantined: 1 });
     expect(deltas[1]).toEqual({ before: 5, after: 4, quarantined: 1 });
-    expect(existsSync(join(vol, "Contents", "Artist A", "one copy.mp3"))).toBe(
-      false,
-    );
-    expect(existsSync(join(vol, "Contents", "Artist B", "two copy.mp3"))).toBe(
-      false,
-    );
+    expect(existsSync(join(vol, "Contents", "Artist A", "one copy.mp3"))).toBe(false);
+    expect(existsSync(join(vol, "Contents", "Artist B", "two copy.mp3"))).toBe(false);
   });
 
   test("unconfirmed findings never move on --apply --yes", async () => {
     const { vol, db } = shelf();
     await run({ shelfVolume: vol, dbPath: db }); // detect, no confirm
-    const { parsed } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      apply: true,
-      yes: true,
-    });
+    const { parsed } = await run({ shelfVolume: vol, dbPath: db, apply: true, yes: true });
     expect(parsed.applied).toBe(0);
-    expect(existsSync(join(vol, "Contents", "Artist A", "song copy.mp3"))).toBe(
-      true,
-    );
+    expect(existsSync(join(vol, "Contents", "Artist A", "song copy.mp3"))).toBe(true);
   });
 
   test("unmounted shelf is a clean error, exit 1", async () => {
     const { db } = shelf();
-    const { parsed, code } = await run({
-      shelfVolume: "/Volumes/definitely-not-here",
-      dbPath: db,
-    });
+    const { parsed, code } = await run({ shelfVolume: "/Volumes/definitely-not-here", dbPath: db });
     expect(code).toBe(1);
     expect(parsed.error).toContain("not mounted");
   });
@@ -205,26 +171,16 @@ describe("hygiene command", () => {
 
   test("--kind restricts detection to that kind only", async () => {
     const { vol, db } = shelf();
-    const { parsed } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      kind: "byte-twin",
-    });
+    const { parsed } = await run({ shelfVolume: vol, dbPath: db, kind: "byte-twin" });
     expect(parsed.detected).toBe(1);
-    expect(Object.keys(parsed.byKind as Record<string, number>)).toEqual([
-      "byte-twin",
-    ]);
+    expect(Object.keys(parsed.byKind as Record<string, number>)).toEqual(["byte-twin"]);
     const store = new HygieneStore(new Database(db));
     expect(store.list().length).toBe(1);
   });
 
   test("--kind with no matches detects nothing but succeeds", async () => {
     const { vol, db } = shelf();
-    const { parsed, code } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      kind: "folder-variant",
-    });
+    const { parsed, code } = await run({ shelfVolume: vol, dbPath: db, kind: "folder-variant" });
     expect(code).toBe(0);
     expect(parsed.detected).toBe(0);
     expect(parsed.kind).toBe("folder-variant");
@@ -232,11 +188,7 @@ describe("hygiene command", () => {
 
   test("unknown --kind is a usage error: exit 2, zero work", async () => {
     const { vol, db } = shelf();
-    const { parsed, code } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      kind: "not-a-kind",
-    });
+    const { parsed, code } = await run({ shelfVolume: vol, dbPath: db, kind: "not-a-kind" });
     expect(code).toBe(2);
     expect(parsed.error).toContain("unknown --kind");
     expect(parsed.error).toContain("byte-twin"); // lists the real vocab
@@ -263,11 +215,7 @@ describe("hygiene command", () => {
     mk("metadata-diff", "m.mp3");
     mk("quality-diff", "q.mp3");
 
-    const { parsed } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      bucket: "metadata-diff",
-    });
+    const { parsed } = await run({ shelfVolume: vol, dbPath: db, bucket: "metadata-diff" });
     expect(parsed.bucketMatched).toBe(1);
     const subs = store
       .list({ status: "confirmed" })
@@ -293,29 +241,19 @@ describe("hygiene command", () => {
     mk("re-encode", "b.mp3");
     mk("quality-diff", "c.mp3");
 
-    const { parsed } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      bucket: "safe-batch",
-    });
+    const { parsed } = await run({ shelfVolume: vol, dbPath: db, bucket: "safe-batch" });
     // safe-batch = metadata-diff + re-encode; quality-diff waits
     expect(parsed.bucketMatched).toBe(2);
     const confirmed = store.list({ status: "confirmed" });
     expect(confirmed.length).toBe(2);
-    const subs = confirmed.map(
-      (f) => (f.evidence as Record<string, unknown>).subcategory,
-    );
+    const subs = confirmed.map((f) => (f.evidence as Record<string, unknown>).subcategory);
     expect(subs).not.toContain("quality-diff");
   });
 
   test("bucket confirm: unknown bucket name fails with zero work", async () => {
     const { vol, db } = shelf();
     await run({ shelfVolume: vol, dbPath: db });
-    const { parsed, code } = await run({
-      shelfVolume: vol,
-      dbPath: db,
-      bucket: "not-a-bucket",
-    });
+    const { parsed, code } = await run({ shelfVolume: vol, dbPath: db, bucket: "not-a-bucket" });
     expect(code).toBe(1);
     expect(parsed.error).toContain("unknown bucket");
     const store = new HygieneStore(new Database(db));
@@ -341,11 +279,7 @@ describe("hygiene command", () => {
       ]);
     }
     for (const bucket of ["quality-diff", "oddball", "ear-check"]) {
-      const { parsed, code } = await run({
-        shelfVolume: vol,
-        dbPath: db,
-        bucket,
-      });
+      const { parsed, code } = await run({ shelfVolume: vol, dbPath: db, bucket });
       expect(code).toBe(1);
       expect(parsed.error).toContain("listen-first");
       // zero work — the ledger is byte-for-byte unchanged (the fixture's

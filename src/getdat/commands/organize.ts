@@ -100,9 +100,7 @@ async function organizeOne(
     : "";
   if (/^\d{4}-\d{2}-\d{2} /.test(firstSegment)) {
     counters.skipped++;
-    log(
-      `  = in batch folder (kept): ${filePath.slice(opts.musicDir.length + 1)}`,
-    );
+    log(`  = in batch folder (kept): ${filePath.slice(opts.musicDir.length + 1)}`);
     return;
   }
   // A loose ROOT file: into the dated downloads batch (same-day re-runs
@@ -142,9 +140,7 @@ async function organizeOne(
   if (await Bun.file(targetPath).exists()) {
     if (await filesIdentical(filePath, targetPath)) {
       if (opts.dryRun) {
-        log(
-          `  would merge (identical bytes): ${fileName} → ${basename(targetDir)}/`,
-        );
+        log(`  would merge (identical bytes): ${fileName} → ${basename(targetDir)}/`);
         return;
       }
       const rm = await $`rm ${filePath}`.quiet().nothrow();
@@ -161,9 +157,7 @@ async function organizeOne(
     const ext = fileName.match(/(\.[^.]+)$/)?.[1] ?? "";
     const stem = ext ? fileName.slice(0, -ext.length) : fileName;
     dest = `${targetDir}/${stem} [${track.video_id}]${ext}`;
-    log(
-      `  ⚠ destination exists (different bytes) — moving as ${stem} [${track.video_id}]${ext}`,
-    );
+    log(`  ⚠ destination exists (different bytes) — moving as ${stem} [${track.video_id}]${ext}`);
   }
   // Only record the move when it actually happened. The old quiet+nothrow
   // `mv` updated file_path unconditionally, so a failed move (EXDEV, disk

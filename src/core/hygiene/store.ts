@@ -11,13 +11,7 @@
  */
 import type { Database, SQLQueryBindings } from "bun:sqlite";
 import { errMessage as errorText } from "../../shared/leaf/fmt";
-import type {
-  Finding,
-  FindingKind,
-  FindingStatus,
-  Severity,
-  ValidationReceipt,
-} from "./types";
+import type { Finding, FindingKind, FindingStatus, Severity, ValidationReceipt } from "./types";
 import {
   hydrateHygieneFinding,
   hygieneWhere,
@@ -111,9 +105,7 @@ export class HygieneStore {
     // index admitted concurrent singleton findings. Keep one active row per
     // key, favoring the most final decision; archive the remaining evidence.
     const idx = db
-      .query(
-        "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_hygiene_natural'",
-      )
+      .query("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_hygiene_natural'")
       .get() as { sql: string | null } | null;
     if (!idx?.sql?.includes(NATURAL_INDEX_MARKER)) {
       db.exec("DROP INDEX IF EXISTS idx_hygiene_natural");
@@ -140,10 +132,7 @@ export class HygieneStore {
     try {
       return hydrateHygieneFinding(r);
     } catch (e) {
-      console.error(
-        `hygiene finding ${r.id} has corrupt JSON — skipping`,
-        errorText(e),
-      );
+      console.error(`hygiene finding ${r.id} has corrupt JSON — skipping`, errorText(e));
       return null;
     }
   }
@@ -172,9 +161,7 @@ export class HygieneStore {
 
   /** The INSERT parameter tuple in column order — derived from rowFor so
    *  the 17 placeholders can never drift from the fields. */
-  private static insertParams(
-    r: Omit<Row, "id"> & { id: string },
-  ): SQLQueryBindings[] {
+  private static insertParams(r: Omit<Row, "id"> & { id: string }): SQLQueryBindings[] {
     return [
       r.id,
       r.kind,
@@ -198,9 +185,7 @@ export class HygieneStore {
 
   /** The UPDATE parameter tuple (evidence half only; status resets to
    *  open, id/created_at stay the row's own). */
-  private static updateParams(
-    r: Omit<Row, "id"> & { id: string },
-  ): SQLQueryBindings[] {
+  private static updateParams(r: Omit<Row, "id"> & { id: string }): SQLQueryBindings[] {
     return [
       r.severity,
       r.paths,
@@ -278,11 +263,7 @@ export class HygieneStore {
     );
     for (const f of findings) {
       const r = this.rowFor(f);
-      const prev = selectFull.get(
-        f.kind,
-        f.paths[0] ?? null,
-        f.paths[1] ?? null,
-      ) as Row | null;
+      const prev = selectFull.get(f.kind, f.paths[0] ?? null, f.paths[1] ?? null) as Row | null;
       if (!prev) {
         insert.run(...HygieneStore.insertParams(r));
         written++;
@@ -302,11 +283,7 @@ export class HygieneStore {
     return { written, reopened };
   }
 
-  list(filter?: {
-    status?: FindingStatus;
-    kind?: FindingKind;
-    severity?: Severity;
-  }): Finding[] {
+  list(filter?: { status?: FindingStatus; kind?: FindingKind; severity?: Severity }): Finding[] {
     // WHERE/ORDER fragments come from src/deck/shared/hygiene — the
     // wire contract module owns them so this query can't drift from
     // CrateDeck's HygieneReader.list (jscpd flagged the twin).
@@ -325,9 +302,7 @@ export class HygieneStore {
   }
 
   get(id: string): Finding | null {
-    const r = this.db
-      .query("SELECT * FROM hygiene_findings WHERE id = ?")
-      .get(id) as Row | null;
+    const r = this.db.query("SELECT * FROM hygiene_findings WHERE id = ?").get(id) as Row | null;
     return r ? this.tryHydrate(r) : null;
   }
 
@@ -339,9 +314,7 @@ export class HygieneStore {
     if (cur.status !== "open") return false;
     const status: FindingStatus = confirm ? "confirmed" : "dismissed";
     this.db
-      .query(
-        `UPDATE hygiene_findings SET status = ?, decided_at = ? WHERE id = ?`,
-      )
+      .query(`UPDATE hygiene_findings SET status = ?, decided_at = ? WHERE id = ?`)
       .run(status, new Date().toISOString(), id);
     return true;
   }
@@ -376,9 +349,7 @@ export class HygieneStore {
       )
       .run(owner, process.pid, new Date().toISOString());
     const row = this.db
-      .query(
-        "SELECT owner, pid, started_at FROM hygiene_operation_lock WHERE id = 1",
-      )
+      .query("SELECT owner, pid, started_at FROM hygiene_operation_lock WHERE id = 1")
       .get() as { owner: string; pid: number; started_at: string } | null;
     if (row?.owner === owner) return true;
     if (row && this.leaseAbandoned(row.pid, row.started_at)) {
@@ -386,9 +357,7 @@ export class HygieneStore {
         `hygiene: lease takeover — holder pid ${row.pid} (${row.owner}, ` +
           `started ${row.started_at}) is dead or past the ${LEASE_TAKEOVER_MS / 3_600_000}h cap`,
       );
-      this.db
-        .query("DELETE FROM hygiene_operation_lock WHERE id = 1 AND owner = ?")
-        .run(row.owner);
+      this.db.query("DELETE FROM hygiene_operation_lock WHERE id = 1 AND owner = ?").run(row.owner);
       // re-arm through the same atomic insert: if another taker won the
       // race, its row stands and the read-back answers it as holder.
       return this.acquireOperation(owner);
@@ -421,9 +390,7 @@ export class HygieneStore {
   }
 
   releaseOperation(owner: string): void {
-    this.db
-      .query("DELETE FROM hygiene_operation_lock WHERE id = 1 AND owner = ?")
-      .run(owner);
+    this.db.query("DELETE FROM hygiene_operation_lock WHERE id = 1 AND owner = ?").run(owner);
   }
 
   /** applied → archived (#36): the terminal state. The row keeps its
@@ -433,9 +400,7 @@ export class HygieneStore {
     const cur = this.get(id);
     if (!cur) return false;
     if (cur.status !== "applied") return false;
-    this.db
-      .query("UPDATE hygiene_findings SET status = 'archived' WHERE id = ?")
-      .run(id);
+    this.db.query("UPDATE hygiene_findings SET status = 'archived' WHERE id = ?").run(id);
     return true;
   }
 }

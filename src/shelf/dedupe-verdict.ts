@@ -35,11 +35,7 @@ const DEFAULT_APPLY_OPS: DedupeApplyOps = { rename: renameSync };
  *  fingerprint; fingerprint-identical pairs upgrade to the higher-quality
  *  side, different fingerprints are genuinely different audio (keep both).
  *  `skipFingerprint` (test seam) stops after the byte stage. */
-export function judgePair(
-  p: TwinPair,
-  skipFingerprint: boolean,
-  tally: VerdictTally,
-): DedupePair {
+export function judgePair(p: TwinPair, skipFingerprint: boolean, tally: VerdictTally): DedupePair {
   let verdict: DedupePair["verdict"];
   let method: string;
   let reason: string;
@@ -81,11 +77,7 @@ export function judgePair(
   }
 
   const loser: string | null =
-    verdict === "keep-original"
-      ? p.twin
-      : verdict === "keep-twin"
-        ? p.original
-        : null;
+    verdict === "keep-original" ? p.twin : verdict === "keep-twin" ? p.original : null;
   return {
     original: p.original,
     twin: p.twin,

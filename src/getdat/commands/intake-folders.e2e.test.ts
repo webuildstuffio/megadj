@@ -25,9 +25,7 @@ function archiveTopLevel(): { dirs: string[]; loose: string[] } {
   const entries = readdirSync(ARCHIVE, { withFileTypes: true });
   return {
     dirs: entries.filter((e) => e.isDirectory()).map((e) => e.name),
-    loose: entries
-      .filter((e) => e.isFile() && !e.name.startsWith("."))
-      .map((e) => e.name),
+    loose: entries.filter((e) => e.isFile() && !e.name.startsWith(".")).map((e) => e.name),
   };
 }
 
@@ -63,9 +61,7 @@ describe("ingest lands each dump in its own dated subfolder", () => {
     expect(dirs).toContain("2026-09-09 new dump");
     // The generic dump gets its own name too.
     expect(dirs.some((d) => d.endsWith("record pool haul"))).toBe(true);
-    expect(readdirSync(join(ARCHIVE, "2026-09-09 new dump"))).toContain(
-      "Track One.aiff",
-    );
+    expect(readdirSync(join(ARCHIVE, "2026-09-09 new dump"))).toContain("Track One.aiff");
     // No loose files at the archive root — that's the whole point.
     expect(loose).toEqual([]);
   }, 240000);
@@ -78,9 +74,7 @@ describe("ingest lands each dump in its own dated subfolder", () => {
     await runIngest(dump);
     // Both files in ONE folder (no "… - 2" sibling for the same dump), and
     // the first dump's folder was untouched by the second run.
-    const dated = archiveTopLevel().dirs.filter((d) =>
-      /^\d{4}-\d{2}-\d{2} same day dump$/.test(d),
-    );
+    const dated = archiveTopLevel().dirs.filter((d) => /^\d{4}-\d{2}-\d{2} same day dump$/.test(d));
     expect(dated.length).toBe(1);
     expect(readdirSync(join(ARCHIVE, dated[0]!)).toSorted()).toEqual([
       "First Drop.aiff",

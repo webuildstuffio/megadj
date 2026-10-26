@@ -130,13 +130,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
       volume,
       shelf,
       contents,
-      {
-        into: into === undefined ? undefined : into,
-        trashes,
-        deep,
-        dryRun,
-        suffix,
-      },
+      { into: into === undefined ? undefined : into, trashes, deep, dryRun, suffix },
       log,
     );
     results.push(res);
@@ -156,9 +150,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
         sweeps.finish(
           sweepId,
           counts,
-          res.ok
-            ? undefined
-            : res.stillMissing.slice(0, 5).join("; ").slice(0, 500),
+          res.ok ? undefined : res.stillMissing.slice(0, 5).join("; ").slice(0, 500),
         );
     }
   }

@@ -1,8 +1,4 @@
-import {
-  isFiniteNumber,
-  isRecord,
-  isUnknownArray,
-} from "../shared/leaf/guards";
+import { isFiniteNumber, isRecord, isUnknownArray } from "../shared/leaf/guards";
 import { round3n } from "../shared/leaf/fmt";
 import { RecordLedger } from "./record-ledger";
 
@@ -47,19 +43,13 @@ function isCue(value: unknown): value is CueRecordInput["cues"][number] {
   );
 }
 
-function parseCueArray(
-  cuesJson: string,
-  context: string,
-): CueRecordInput["cues"] {
+function parseCueArray(cuesJson: string, context: string): CueRecordInput["cues"] {
   let value: unknown;
   try {
     value = JSON.parse(cuesJson) as unknown;
   } catch (error) {
     const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(
-      `${context} has invalid cues_json: malformed JSON${detail}`,
-      { cause: error },
-    );
+    throw new Error(`${context} has invalid cues_json: malformed JSON${detail}`, { cause: error });
   }
   if (!isUnknownArray(value) || !value.every(isCue)) {
     throw new Error(
@@ -148,13 +138,7 @@ export class Ledgers extends RecordLedger {
   moodSummary(): {
     available: boolean;
     analyzed: number;
-    avg: {
-      dance: number;
-      valence: number;
-      arousal: number;
-      party: number;
-      electronic: number;
-    };
+    avg: { dance: number; valence: number; arousal: number; party: number; electronic: number };
   } {
     const row = this.db
       .query(
@@ -213,19 +197,10 @@ export class Ledgers extends RecordLedger {
     if (!row) return null;
     try {
       const cues = parseCueArray(row.cues_json, `cue record ${row.video_id}`);
-      return {
-        videoId: row.video_id,
-        cues,
-        source: row.model,
-        derivedAt: row.derived_at,
-      };
+      return { videoId: row.video_id, cues, source: row.model, derivedAt: row.derived_at };
     } catch (error) {
       // THE poison-row guard (#74): one home for the whole ledger family.
-      return this.absorbParseFailure(
-        error,
-        `cue record ${row.video_id}`,
-        console.warn,
-      );
+      return this.absorbParseFailure(error, `cue record ${row.video_id}`, console.warn);
     }
   }
 
@@ -242,12 +217,7 @@ export class Ledgers extends RecordLedger {
          FROM cues c JOIN tracks t ON t.video_id = c.video_id
          WHERE t.status = 'downloaded'`,
       )
-      .all() as {
-      video_id: string;
-      title: string | null;
-      cues_json: string;
-      model: string;
-    }[];
+      .all() as { video_id: string; title: string | null; cues_json: string; model: string }[];
     return rows.flatMap((r) => {
       try {
         return [
@@ -259,11 +229,7 @@ export class Ledgers extends RecordLedger {
           },
         ];
       } catch (error) {
-        this.absorbParseFailure(
-          error,
-          `cue record ${r.video_id}`,
-          console.warn,
-        );
+        this.absorbParseFailure(error, `cue record ${r.video_id}`, console.warn);
         return [];
       }
     });

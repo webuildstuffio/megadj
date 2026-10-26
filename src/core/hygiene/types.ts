@@ -13,12 +13,7 @@ export type {
   Finding,
 } from "../../deck/shared/hygiene";
 
-import type {
-  Finding,
-  FindingKind,
-  FindingStatus,
-  Severity,
-} from "../../deck/shared/hygiene";
+import type { Finding, FindingKind, FindingStatus, Severity } from "../../deck/shared/hygiene";
 
 /** One walked shelf file — the check functions' input unit. */
 export interface ShelfFile {
@@ -38,9 +33,7 @@ export function walkTokenFor(files: ShelfFile[]): string {
     if (f.mtimeMs > maxMtime) maxMtime = f.mtimeMs;
   }
   return Bun.SHA256.hash(
-    new TextEncoder().encode(
-      JSON.stringify({ fileCount, totalBytes, maxMtime }),
-    ),
+    new TextEncoder().encode(JSON.stringify({ fileCount, totalBytes, maxMtime })),
     "hex",
   ).slice(0, 24);
 }

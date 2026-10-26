@@ -17,20 +17,12 @@ import { basename } from "node:path";
 import { HygieneStore } from "../core/hygiene/store";
 import { walkShelf } from "../core/hygiene/walk";
 import { REGISTERED_KINDS, runChecks } from "../core/hygiene/checks";
-import {
-  BUCKET_MEMBERSHIP,
-  inBucket,
-  isListenFirst,
-} from "../core/hygiene/subcategory";
+import { BUCKET_MEMBERSHIP, inBucket, isListenFirst } from "../core/hygiene/subcategory";
 import { applyFinding, validateFinding } from "../core/hygiene/apply";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { setExit, writeJson } from "../shared/cli-output";
 import { isUnknownArray, nonEmptyEnv } from "../shared/leaf/guards";
-import type {
-  CheckCtx,
-  DbContentRow,
-  FindingKind,
-} from "../core/hygiene/types";
+import type { CheckCtx, DbContentRow, FindingKind } from "../core/hygiene/types";
 import {
   applyConfirmationRefusal,
   lastJsonLine,
@@ -58,10 +50,7 @@ import { DB_PATH } from "../cli-env";
  *  The fp cache is size-keyed, so a stale size would silently miss — the
  *  exact-size read is what makes the join honest. Null = no mirror row
  *  (the fpOfRow contract: null → the row is honestly unmatched). */
-function rowFileSize(
-  db: ReturnType<typeof openLedger>,
-  row: DbContentRow,
-): number | null {
+function rowFileSize(db: ReturnType<typeof openLedger>, row: DbContentRow): number | null {
   const rows = db
     .query("SELECT file_size_bytes FROM tracks WHERE file_path = ? LIMIT 1")
     .all(row.folderPath) as { file_size_bytes: number | null }[];
@@ -108,25 +97,17 @@ function masterDbRowsReader(
           typeof row[2] === "string",
       )
     ) {
-      log(
-        "hygiene: master DB read returned invalid rows — DB-seam checks detect nothing this run",
-      );
+      log("hygiene: master DB read returned invalid rows — DB-seam checks detect nothing this run");
       return [];
     }
-    return value.map(([id, title, folderPath]) => ({
-      id,
-      title,
-      folderPath,
-    }));
+    return value.map(([id, title, folderPath]) => ({ id, title, folderPath }));
   };
 }
 
 export interface ShelfHygieneOptions {
   shelfVolume?: string | undefined;
-  dbPath?:
-    | string
-    | undefined; /** confirm findings by id (CLI-side confirm; the web queue is the
-   *  primary confirm surface). Multiple ids = one call. */
+  dbPath?: string | undefined /** confirm findings by id (CLI-side confirm; the web queue is the
+   *  primary confirm surface). Multiple ids = one call. */;
   confirm?: string[] | undefined;
   /** dismiss findings by id */
   dismiss?: string[] | undefined;
@@ -213,16 +194,9 @@ async function decisionMode(
     }
   }
   if (json)
-    await emitJson({
-      command: "hygiene",
-      decided,
-      bucket: bucket ?? null,
-      bucketMatched,
-      failed,
-    });
+    await emitJson({ command: "hygiene", decided, bucket: bucket ?? null, bucketMatched, failed });
   else {
-    if (bucket)
-      console.error(`hygiene: bucket ${bucket}: ${bucketMatched} confirmed`);
+    if (bucket) console.error(`hygiene: bucket ${bucket}: ${bucketMatched} confirmed`);
     for (const f of failed) console.error(`hygiene: ${f.id}: ${f.why}`);
   }
   if (failed.length) setExitCode(1);
@@ -273,9 +247,7 @@ async function applyConfirmed(
       if (f.proposedAction.type !== "quarantine-loser") {
         // never "executed" then lied about — the row keeps its status
         // and the skip is visible (its human step hasn't been built)
-        applyErrors.push(
-          `${f.id}: ${f.proposedAction.type} has no executor yet — left confirmed`,
-        );
+        applyErrors.push(`${f.id}: ${f.proposedAction.type} has no executor yet — left confirmed`);
         continue;
       }
       const r = applyFinding(f, shelfVolume, ctx);
@@ -300,9 +272,7 @@ async function applyConfirmed(
       if (receipt.ok) appliedCount++;
       else {
         failed++;
-        applyErrors.push(
-          `${f.id}: validation failed — ${JSON.stringify(receipt.shelfDelta)}`,
-        );
+        applyErrors.push(`${f.id}: validation failed — ${JSON.stringify(receipt.shelfDelta)}`);
       }
       log(`  applied ${f.kind}: ${basename(r.loser ?? "")}`);
     }
@@ -312,9 +282,7 @@ async function applyConfirmed(
   return { applied: appliedCount, failed, applyErrors };
 }
 
-export async function shelfHygiene(
-  opts: ShelfHygieneOptions = {},
-): Promise<void> {
+export async function shelfHygiene(opts: ShelfHygieneOptions = {}): Promise<void> {
   const {
     shelfVolume = resolveShelfVolume(),
     dbPath = nonEmptyEnv("MEGADJ_DB") ?? DB_PATH,
@@ -353,31 +321,18 @@ export async function shelfHygiene(
     const store = new HygieneStore(db);
 
     // ---- decision mode: confirm/dismiss by id(s) + bucket batch ------
-    if (
-      await decisionMode(store, {
-        confirm,
-        dismiss,
-        bucket,
-        json,
-        emitJson,
-        setExitCode,
-        fail,
-      })
-    )
+    if (await decisionMode(store, { confirm, dismiss, bucket, json, emitJson, setExitCode, fail }))
       return;
 
     // ---- detection pass ---------------------------------------------
     const { files, walkToken, unreadable } = walkShelf(shelfVolume);
     log(`hygiene: ${files.length} files on ${shelfVolume}`);
-    for (const dir of unreadable)
-      log(`  WARNING: unreadable dir skipped — ${dir}`);
+    for (const dir of unreadable) log(`  WARNING: unreadable dir skipped — ${dir}`);
     // --kind validation BEFORE any work: an unknown kind is a usage
     // error (exit 2, zero work), never a silent full scan (the nonNegOpt
     // rule; the flag used to be parsed then silently dropped).
     if (kind !== undefined && !REGISTERED_KINDS.includes(kind as FindingKind)) {
-      await fail(
-        `unknown --kind "${kind}" — registered kinds: ${REGISTERED_KINDS.join(", ")}`,
-      );
+      await fail(`unknown --kind "${kind}" — registered kinds: ${REGISTERED_KINDS.join(", ")}`);
       setExitCode(2);
       return;
     }
@@ -445,9 +400,7 @@ export async function shelfHygiene(
               return (row: DbContentRow): string | null => {
                 const size = rowFileSize(db, row);
                 if (size === null) return null;
-                const hit = ensureIndex()
-                  .get(nameKey(row.folderPath))
-                  ?.get(size);
+                const hit = ensureIndex().get(nameKey(row.folderPath))?.get(size);
                 return hit ?? null;
               };
             })(),
@@ -457,23 +410,14 @@ export async function shelfHygiene(
     const results = runChecks(files, ctx, only);
     const all = results.flatMap((r) => r.findings);
     const { written, reopened } = store.upsert(all);
-    log(
-      `findings: ${all.length} detected · ${written} written · ${reopened} reopened`,
-    );
+    log(`findings: ${all.length} detected · ${written} written · ${reopened} reopened`);
 
     // ---- apply pass (only --apply --yes) -----------------------------
     let applied = 0;
     let failed = 0;
     const applyErrors: string[] = [];
     if (apply && yes) {
-      const r = await applyConfirmed(
-        store,
-        ctx,
-        shelfVolume,
-        walkToken,
-        log,
-        fail,
-      );
+      const r = await applyConfirmed(store, ctx, shelfVolume, walkToken, log, fail);
       if (r.applied < 0) return; // failed to start; failure already emitted
       applied = r.applied;
       failed = r.failed;

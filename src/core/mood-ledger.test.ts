@@ -172,9 +172,7 @@ describe("phrase cues (cues slice)", () => {
     console.warn = (...args: unknown[]) => diagnostics.push(args.join(" "));
     try {
       expect(state.cueRecord("bad-cues")).toBeNull();
-      expect(
-        state.cueAnalyzedTracks().some((row) => row.videoId === "bad-cues"),
-      ).toBe(false);
+      expect(state.cueAnalyzedTracks().some((row) => row.videoId === "bad-cues")).toBe(false);
     } finally {
       console.warn = previous;
     }

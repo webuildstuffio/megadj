@@ -1,11 +1,4 @@
-import {
-  describe,
-  expect,
-  test,
-  beforeEach,
-  afterEach,
-  beforeAll,
-} from "bun:test";
+import { describe, expect, test, beforeEach, afterEach, beforeAll } from "bun:test";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import type { ArchiveState } from "../../core/state";
@@ -31,8 +24,7 @@ import type { YtdlpInfo } from "../../fulltags/write/metadata-build";
  *  block below; ffmpeg is a repo dev dependency via media-probe). */
 const PREVIEW_FIXTURE = "/tmp/megadj-preview-guard-test.m4a";
 
-const testYtdlpInfo = (over: Partial<YtdlpInfo> = {}): YtdlpInfo =>
-  ({ ...over }) as YtdlpInfo;
+const testYtdlpInfo = (over: Partial<YtdlpInfo> = {}): YtdlpInfo => ({ ...over }) as YtdlpInfo;
 
 /**
  * GetDat regression tests for the sync pipeline — run with an injected
@@ -51,10 +43,7 @@ const ts = tempState("megadj-sync-test-");
 /** Injected fetcher signature matches sync's fetchPlaylistFn. */
 const fakeFetch = async () => [{ id: "v1", title: "Track One" }];
 
-function baseOpts(
-  st: ArchiveState,
-  over: Partial<SyncOptions> = {},
-): SyncOptions {
+function baseOpts(st: ArchiveState, over: Partial<SyncOptions> = {}): SyncOptions {
   return {
     state: st,
     limiter: new RateLimiter({ minIntervalMs: 0, baseBackoffMs: 0 }),
@@ -106,34 +95,23 @@ afterEach(() => {
 describe("sync (GetDat pipeline)", () => {
   test("missing landed file is not reported as a zero-byte success", async () => {
     const logs: string[] = [];
-    const size = await statSizeSafe(
-      `${dir}/landed-file-that-does-not-exist.m4a`,
-      (message) => logs.push(message),
+    const size = await statSizeSafe(`${dir}/landed-file-that-does-not-exist.m4a`, (message) =>
+      logs.push(message),
     );
     expect(size).toBeNull();
     expect(logs[0]).toContain("not statable");
   });
 
   test("malformed playlist output is reported as a playlist parse failure", () => {
-    expect(() => parsePlaylistOutput("{not-json")).toThrow(
-      "playlist output was not valid JSON",
-    );
-    expect(() => parsePlaylistOutput("[]")).toThrow(
-      "playlist output was not valid JSON",
-    );
+    expect(() => parsePlaylistOutput("{not-json")).toThrow("playlist output was not valid JSON");
+    expect(() => parsePlaylistOutput("[]")).toThrow("playlist output was not valid JSON");
   });
 
   // Probe failures go through withRetry (3 attempts × ~1.5s spawn resolution
   // of the intentionally-nonexistent binary) — give the tests room.
   test("dry-run writes nothing to the state DB", async () => {
     const logs: string[] = [];
-    await sync(
-      baseOpts(state, {
-        dryRun: true,
-        json: true,
-        onProgress: (m) => logs.push(m),
-      }),
-    );
+    await sync(baseOpts(state, { dryRun: true, json: true, onProgress: (m) => logs.push(m) }));
     // Injected onProgress is an explicit log sink — it still receives the
     // human logs even in json mode (suppression only applies to stdout).
     expect(logs.some((m) => m.includes("would download"))).toBe(true);
@@ -178,10 +156,7 @@ describe("sync (GetDat pipeline)", () => {
   }, 60_000);
 
   test("probe failure marks the track failed, not gone", async () => {
-    const d = new Downloader({
-      musicDir: "/tmp/x",
-      ytdlpBin: "megadj-no-such-bin",
-    });
+    const d = new Downloader({ musicDir: "/tmp/x", ytdlpBin: "megadj-no-such-bin" });
     try {
       await d.probe("abc123");
       expect.unreachable();
@@ -255,11 +230,7 @@ describe("sync (GetDat pipeline)", () => {
       ].join("\n"),
     );
     chmodSync(fake, 0o755);
-    const d2 = new Downloader({
-      musicDir: tmp,
-      ytdlpBin: fake,
-      batchDir: tmp,
-    });
+    const d2 = new Downloader({ musicDir: tmp, ytdlpBin: fake, batchDir: tmp });
     const r = await d2.download("abc123", {}, null);
     expect(r.status).toBe("downloaded");
     expect(r.filePath).toBe(landed);
@@ -300,11 +271,7 @@ describe("sync (GetDat pipeline)", () => {
       ].join("\n"),
     );
     chmodSync(fake, 0o755);
-    const d = new Downloader({
-      musicDir: tmp,
-      ytdlpBin: fake,
-      batchDir: tmp,
-    });
+    const d = new Downloader({ musicDir: tmp, ytdlpBin: fake, batchDir: tmp });
     const r = await d.download("abc123", {}, null);
     // The hollow file must NOT become a download; and the debris is swept.
     expect(r.status).toBe("failed");
@@ -316,12 +283,7 @@ describe("sync (GetDat pipeline)", () => {
   // download (15 paro-set rows). The guard compares the landed file's
   // real duration against the probe payload's FULL duration.
   test("settleDownload marks a preview-length SC clip gone, never downloaded", async () => {
-    state.upsertTrackFromPlaylist(
-      "sc-preview-1",
-      0,
-      "Preview Victim",
-      SC_SOURCE,
-    );
+    state.upsertTrackFromPlaylist("sc-preview-1", 0, "Preview Victim", SC_SOURCE);
     const logs: string[] = [];
     const bar = new ProgressBar(1, "test");
     const totals = newTotals();
@@ -345,9 +307,7 @@ describe("sync (GetDat pipeline)", () => {
     expect(totals.gone).toBe(1);
     expect(totals.downloaded).toBe(0);
     expect(state.trackById("sc-preview-1")?.status).toBe("gone");
-    expect(state.trackById("sc-preview-1")?.last_error).toContain(
-      "preview-only",
-    );
+    expect(state.trackById("sc-preview-1")?.last_error).toContain("preview-only");
   });
 
   test("settleDownload still marks a full-length SC file downloaded", async () => {
@@ -398,20 +358,11 @@ describe("sync --sc-url validation (#255)", () => {
         MEGADJ_COOKIES: "none",
       },
     });
-    return {
-      status: proc.status,
-      stdout: proc.stdout ?? "",
-      stderr: proc.stderr ?? "",
-    };
+    return { status: proc.status, stdout: proc.stdout ?? "", stderr: proc.stderr ?? "" };
   };
 
   test("a non-SC URL is a usage error (exit 2, zero work)", () => {
-    const r = runCli([
-      "sync",
-      "--sc-url",
-      "https://example.invalid/x",
-      "--json",
-    ]);
+    const r = runCli(["sync", "--sc-url", "https://example.invalid/x", "--json"]);
     expect(r.status).toBe(2);
     const last = r.stdout.trim().split("\n").at(-1) ?? "";
     const parsed = JSON.parse(last) as { command: string; error: string };
@@ -439,18 +390,8 @@ describe("sync --sc-url validation (#255)", () => {
     // ledger-source labels.
     state.upsertTrackFromPlaylist("ytPending1", 0, null, "liked");
     state.upsertTrackFromPlaylist("ytPending2", 1, null, "liked-videos");
-    state.upsertTrackFromPlaylist(
-      "2278172975",
-      0,
-      null,
-      "soundcloud:summer-2026",
-    );
-    state.upsertTrackFromPlaylist(
-      "2291593025",
-      1,
-      null,
-      "soundcloud:summer-2026",
-    );
+    state.upsertTrackFromPlaylist("2278172975", 0, null, "soundcloud:summer-2026");
+    state.upsertTrackFromPlaylist("2291593025", 1, null, "soundcloud:summer-2026");
     const restore = setScSourceQueueImpl(async () => [
       { id: "2278172975", title: null, label: `soundcloud:summer-2026` },
       { id: "2291593025", title: null, label: `soundcloud:summer-2026` },
@@ -490,12 +431,7 @@ describe("sync --sc-url validation (#255)", () => {
     // observable contract here: an SC row with a non-music YT-shaped
     // category payload is NOT music-gated (SC rows never run the gate),
     // and the probe never receives a YT URL (classified SC on failure).
-    state.upsertTrackFromPlaylist(
-      "2278172975",
-      0,
-      null,
-      `soundcloud:summer-2026`,
-    );
+    state.upsertTrackFromPlaylist("2278172975", 0, null, `soundcloud:summer-2026`);
     const restore = setScSourceQueueImpl(async () => [
       { id: "2278172975", title: null, label: `soundcloud:summer-2026` },
     ]);
@@ -610,53 +546,33 @@ describe("classifyMusic gate — AI/sloppy-metadata uploads are music (#250)", (
       "Track Title (Lyrics)",
       "Artist - Song (feat. Someone)",
     ]) {
-      expect(
-        classifyMusic(
-          testYtdlpInfo({ title, categories: ["People & Blogs"] }),
-          opts,
-        ),
-      ).toBe(true);
+      expect(classifyMusic(testYtdlpInfo({ title, categories: ["People & Blogs"] }), opts)).toBe(
+        true,
+      );
     }
   });
 
   test("the original signals still pass", () => {
-    expect(classifyMusic(testYtdlpInfo({ categories: ["Music"] }), opts)).toBe(
+    expect(classifyMusic(testYtdlpInfo({ categories: ["Music"] }), opts)).toBe(true);
+    expect(classifyMusic(testYtdlpInfo({ categories: [], uploader: "Artist - Topic" }), opts)).toBe(
       true,
     );
-    expect(
-      classifyMusic(
-        testYtdlpInfo({ categories: [], uploader: "Artist - Topic" }),
-        opts,
-      ),
-    ).toBe(true);
-    expect(
-      classifyMusic(testYtdlpInfo({ categories: [], artist: "X" }), opts),
-    ).toBe(true);
+    expect(classifyMusic(testYtdlpInfo({ categories: [], artist: "X" }), opts)).toBe(true);
   });
 
   test("genuinely non-music uploads still gate out", () => {
     for (const [title, cats] of [
-      [
-        "Virtual Characters Learn To Work Out…and Undergo Surgery",
-        ["People & Blogs"],
-      ],
-      [
-        "Eminem biggest ever freestyle in the world! Westwood",
-        ["Entertainment"],
-      ],
+      ["Virtual Characters Learn To Work Out…and Undergo Surgery", ["People & Blogs"]],
+      ["Eminem biggest ever freestyle in the world! Westwood", ["Entertainment"]],
       ["My podcast episode 42", ["Comedy"]],
     ] as const) {
-      expect(
-        classifyMusic(testYtdlpInfo({ title, categories: [...cats] }), opts),
-      ).toBe(false);
+      expect(classifyMusic(testYtdlpInfo({ title, categories: [...cats] }), opts)).toBe(false);
     }
   });
 
   test("gate off = everything passes (unchanged)", () => {
     expect(
-      classifyMusic(testYtdlpInfo({ categories: ["Comedy"] }), {
-        musicOnly: false,
-      } as SyncOptions),
+      classifyMusic(testYtdlpInfo({ categories: ["Comedy"] }), { musicOnly: false } as SyncOptions),
     ).toBe(true);
   });
 });

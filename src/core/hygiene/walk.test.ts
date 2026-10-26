@@ -13,10 +13,7 @@ function shelf(files: Record<string, string | number>): string {
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(vol, "Contents", rel);
     mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
-    writeFileSync(
-      abs,
-      typeof content === "number" ? Buffer.alloc(content) : content,
-    );
+    writeFileSync(abs, typeof content === "number" ? Buffer.alloc(content) : content);
   }
   return vol;
 }
@@ -57,9 +54,7 @@ describe("walkShelf", () => {
     expect(walkTokenFor([{ ...a, bytes: 3 }, b])).not.toBe(t1); // size changed
     // PIONEER REC/ is walked (recordings), PIONEER/ is not — the walk
     // rule with the one-letter trap
-    const vol = shelf({
-      "PIONEER REC/live.aiff": "x",
-    });
+    const vol = shelf({ "PIONEER REC/live.aiff": "x" });
     expect(walkShelf(vol).files.length).toBe(1);
   });
 });

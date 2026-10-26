@@ -28,20 +28,14 @@ export async function expandZips(
   try {
     zips = (await readdir(folder, { withFileTypes: true }))
       .filter(
-        (e) =>
-          e.isFile() &&
-          !e.name.startsWith(".") &&
-          extname(e.name).toLowerCase() === ".zip",
+        (e) => e.isFile() && !e.name.startsWith(".") && extname(e.name).toLowerCase() === ".zip",
       )
       .map((e) => join(folder, e.name));
   } catch {
     return;
   }
   for (const zip of zips) {
-    const stage = join(
-      folder,
-      `.megadj-zip-${basename(zip, ".zip")}-${Date.now()}`,
-    );
+    const stage = join(folder, `.megadj-zip-${basename(zip, ".zip")}-${Date.now()}`);
     log(`zip: ${basename(zip)}`);
     if (dryRun) {
       log(`  [zip] would extract + ingest (delete zip on success)`);
@@ -70,10 +64,7 @@ export async function expandZips(
         if (existsSync(dest)) {
           const a = await stat(f);
           const b = await stat(dest);
-          if (
-            a.size === b.size &&
-            (await md5File(f)) === (await md5File(dest))
-          ) {
+          if (a.size === b.size && (await md5File(f)) === (await md5File(dest))) {
             log(`  ~ identical dupe, dropped: ${basename(f)}`);
             continue; // identical dupe — drop
           }

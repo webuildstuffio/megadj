@@ -88,11 +88,7 @@ describe("withRetry", () => {
   });
 
   test("GONE fails fast without retry", async () => {
-    const rl = new RateLimiter({
-      minIntervalMs: 0,
-      baseBackoffMs: 1,
-      sleepFn: noSleep,
-    });
+    const rl = new RateLimiter({ minIntervalMs: 0, baseBackoffMs: 1, sleepFn: noSleep });
     let calls = 0;
     let sawGone = false;
     try {

@@ -26,12 +26,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  backupClass,
-  sidecarClass,
-  statePurge,
-  tmpPurgeSweep,
-} from "./tmp-purge";
+import { backupClass, sidecarClass, statePurge, tmpPurgeSweep } from "./tmp-purge";
 import { tempDir } from "../test-support/testutil";
 
 const stateFixtures = tempDir("megadj-tmp-purge-state-").rippable();
@@ -83,17 +78,11 @@ function tmpFixture(root: string, name: string): string {
 describe("state tier: backup classification", () => {
   test("recognizes every dated backup class, never the live db", () => {
     expect(backupClass("archive.db.bak-20260911-174552")).toBe("archive.db");
-    expect(backupClass("archive.db.pre-restore-20260911-021250.bak")).toBe(
-      "archive.db",
-    );
-    expect(backupClass("archive_bak_2026-09-12T05-56-07-511Z.db")).toBe(
-      "archive.db",
-    );
+    expect(backupClass("archive.db.pre-restore-20260911-021250.bak")).toBe("archive.db");
+    expect(backupClass("archive_bak_2026-09-12T05-56-07-511Z.db")).toBe("archive.db");
     // Live DB and the lineage snapshot name class are pinned above.
     expect(backupClass("archive.db")).toBeNull();
-    expect(
-      backupClass("archive-db-before-sc-genre-ids-drop-2026-09-15.db"),
-    ).toBe("archive.db");
+    expect(backupClass("archive-db-before-sc-genre-ids-drop-2026-09-15.db")).toBe("archive.db");
     expect(backupClass("cratedeck.db")).toBeNull();
     expect(backupClass("archive-queue.jsonl")).toBeNull();
   });
@@ -113,13 +102,7 @@ describe("state tier: dry-run contract on the real state dir", () => {
   test("reports, keeps newest lineage, deletes nothing", () => {
     const stateDir = join(process.env.HOME ?? "", ".local", "state", "megadj");
     const liveDbExists = existsSync(join(stateDir, "archive.db"));
-    const r = statePurge({
-      apply: false,
-      all: false,
-      json: true,
-      log: () => {},
-      state: true,
-    });
+    const r = statePurge({ apply: false, all: false, json: true, log: () => {}, state: true });
     expect(r.ok).toBe(true);
     expect(r.applied).toBe(0); // dry-run: never deletes
     expect(r.appliedMode).toBe(false);
@@ -142,13 +125,7 @@ describe("state tier: dry-run contract on the real state dir", () => {
   });
 
   test("--all stays read-only without making spike artifacts sweepable", () => {
-    const r = statePurge({
-      apply: false,
-      all: true,
-      json: true,
-      log: () => {},
-      state: true,
-    });
+    const r = statePurge({ apply: false, all: true, json: true, log: () => {}, state: true });
     expect(r.ok).toBe(true);
     expect(r.applied).toBe(0);
   });
@@ -174,9 +151,7 @@ describe("state tier: destructive safety (#265)", () => {
         remove: () => undefined,
       });
       expect(result.ok).toBe(true);
-      expect(result.families.some((family) => family.prefix === "spike")).toBe(
-        false,
-      );
+      expect(result.families.some((family) => family.prefix === "spike")).toBe(false);
       expect(existsSync(join(root, "spike", "baseline.json"))).toBe(true);
       expect(existsSync(join(root, "spike-ledger.json"))).toBe(true);
     });
@@ -200,10 +175,7 @@ describe("state tier: destructive safety (#265)", () => {
 
   test("closed sidecars are removed while an open database retains its sidecars", () => {
     const closed = fixtureStateRoot();
-    const closedResult = statePurge(stateOpts(true), {
-      root: closed,
-      openPaths: () => new Set(),
-    });
+    const closedResult = statePurge(stateOpts(true), { root: closed, openPaths: () => new Set() });
     expect(closedResult.ok).toBe(true);
     expect(existsSync(join(closed, "archive.db-wal"))).toBe(false);
     expect(existsSync(join(closed, "archive.db-shm"))).toBe(false);
@@ -225,17 +197,10 @@ describe("tmpdir tier: fail-closed exit contract (#270)", () => {
     const win = tmpFixture(root, "270-win");
     const blocked = tmpFixture(root, "270-blocked");
     const r = tmpPurgeSweep(
-      {
-        apply: true,
-        all: false,
-        json: true,
-        log: () => {},
-        roots: [root],
-      },
+      { apply: true, all: false, json: true, log: () => {}, roots: [root] },
       {
         remove: (path: string) => {
-          if (path.includes("270-blocked"))
-            throw new Error("EPERM: simulated denial");
+          if (path.includes("270-blocked")) throw new Error("EPERM: simulated denial");
         },
       },
     );
@@ -276,9 +241,7 @@ describe("tmpdir tier: fail-closed exit contract (#270)", () => {
     expect(backupClass("archive.db.bak-20260910-010101-shm")).toBeNull();
     // the real classes still classify
     expect(backupClass("archive.db.bak-20260910-010101")).toBe("archive.db");
-    expect(backupClass("archive_bak_2026-09-12T05-56-07-511Z.db")).toBe(
-      "archive.db",
-    );
+    expect(backupClass("archive_bak_2026-09-12T05-56-07-511Z.db")).toBe("archive.db");
   });
 
   test("read-only --state counts held sidecars as ineligible (honest eligibility)", () => {
@@ -294,10 +257,7 @@ describe("tmpdir tier: fail-closed exit contract (#270)", () => {
     expect(r.applied).toBe(0);
     // closed sidecars ARE eligible in dry-run — honest in both directions
     const openRoot = fixtureStateRoot();
-    const r2 = statePurge(stateOpts(false), {
-      root: openRoot,
-      openPaths: () => new Set(),
-    });
+    const r2 = statePurge(stateOpts(false), { root: openRoot, openPaths: () => new Set() });
     expect(r2.eligible).toBe(3); // 2 orphan sidecars + superseded backup
   });
 });
@@ -311,12 +271,7 @@ describe("tmp sweep: multi-root scan (#254)", () => {
     // possible — the contract IS the host roots), so under the 16-way
     // parallel suite it legitimately exceeds the 5s default (~6s observed
     // Sep 23, 2026) without being wedged.
-    const r = tmpPurgeSweep({
-      apply: false,
-      all: false,
-      json: true,
-      log: () => {},
-    });
+    const r = tmpPurgeSweep({ apply: false, all: false, json: true, log: () => {} });
     expect(r.ok).toBe(true);
     expect(r.roots).toBeDefined();
     expect(r.roots!.length).toBeGreaterThanOrEqual(1);
@@ -349,9 +304,7 @@ describe("tmp sweep: multi-root scan (#254)", () => {
     const freshAtFallback = mk(fallbackRoot, "254-fresh-fallback", 0);
     created.push(freshAtFallback);
     try {
-      expect(statSync(oldAtPlatform).mtimeMs).toBeLessThanOrEqual(
-        Date.now() - 24 * 60 * 60 * 1000,
-      );
+      expect(statSync(oldAtPlatform).mtimeMs).toBeLessThanOrEqual(Date.now() - 24 * 60 * 60 * 1000);
       const before = tmpPurgeSweep({
         apply: false,
         all: false,

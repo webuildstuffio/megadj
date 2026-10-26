@@ -84,32 +84,16 @@ export function runChecks(
   const reDL = reDownload.detect(walkable, ctx);
 
   return [
-    ...(wanted(appledoubleJunk.kind)
-      ? [{ kind: appledoubleJunk.kind, findings: junk }]
-      : []),
-    ...(wanted(byteTwin.kind)
-      ? [{ kind: byteTwin.kind, findings: bytes }]
-      : []),
-    ...(wanted(acousticTwin.kind)
-      ? [{ kind: acousticTwin.kind, findings: acoustic }]
-      : []),
-    ...(wanted(folderVariant.kind)
-      ? [{ kind: folderVariant.kind, findings: folders }]
-      : []),
-    ...(wanted(truncatedName.kind)
-      ? [{ kind: truncatedName.kind, findings: truncated }]
-      : []),
+    ...(wanted(appledoubleJunk.kind) ? [{ kind: appledoubleJunk.kind, findings: junk }] : []),
+    ...(wanted(byteTwin.kind) ? [{ kind: byteTwin.kind, findings: bytes }] : []),
+    ...(wanted(acousticTwin.kind) ? [{ kind: acousticTwin.kind, findings: acoustic }] : []),
+    ...(wanted(folderVariant.kind) ? [{ kind: folderVariant.kind, findings: folders }] : []),
+    ...(wanted(truncatedName.kind) ? [{ kind: truncatedName.kind, findings: truncated }] : []),
     ...(wanted(zeroByte.kind)
       ? [{ kind: zeroByte.kind, findings: zeroByte.detect(unclaimed, ctx) }]
       : []),
-    ...(wanted(stalePointer.kind)
-      ? [{ kind: stalePointer.kind, findings: stale }]
-      : []),
-    ...(wanted(orphanAudio.kind)
-      ? [{ kind: orphanAudio.kind, findings: orphan }]
-      : []),
-    ...(wanted(reDownload.kind)
-      ? [{ kind: reDownload.kind, findings: reDL }]
-      : []),
+    ...(wanted(stalePointer.kind) ? [{ kind: stalePointer.kind, findings: stale }] : []),
+    ...(wanted(orphanAudio.kind) ? [{ kind: orphanAudio.kind, findings: orphan }] : []),
+    ...(wanted(reDownload.kind) ? [{ kind: reDownload.kind, findings: reDL }] : []),
   ];
 }

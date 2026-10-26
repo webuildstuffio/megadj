@@ -58,10 +58,7 @@ function voteNeighbours(
     .filter((s) => s.family !== null);
   return usable
     .filter((s) => s.vec.length === queryVec.length)
-    .map((s) => ({
-      label: s.family!,
-      score: cosineSimilarity(queryVec, s.vec),
-    }))
+    .map((s) => ({ label: s.family!, score: cosineSimilarity(queryVec, s.vec) }))
     .toSorted((a, b) => b.score - a.score || a.label.localeCompare(b.label))
     .slice(0, Math.min(Math.max(k, 1), usable.length));
 }
@@ -85,13 +82,10 @@ export function inferGenre(
   // zero-dim query, or one legacy-dimension/corrupt embedding row after a
   // model change): abstain — unusable rows read as ABSENT, never crash the
   // run (#266; the artist-disjoint twin already guarded this).
-  if (queryVec.length === 0 || nn.length === 0)
-    return { genre: "", inferred: null, agreement: 0 };
+  if (queryVec.length === 0 || nn.length === 0) return { genre: "", inferred: null, agreement: 0 };
   const tally = new Map<string, number>();
   for (const n of nn) tally.set(n.label, (tally.get(n.label) ?? 0) + 1);
-  const best = [...tally.entries()].toSorted(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-  )[0];
+  const best = [...tally.entries()].toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
   const agreement = best![1] / nn.length;
   return {
     genre: best![0],
@@ -118,9 +112,7 @@ export function evalLeaveOneOut(
   familyOf: (genre: string) => string | null = genreFamily,
 ): EvalSummary {
   const inBand = evalDurationBand(durationGuard);
-  const pop = seeds.filter(
-    (s) => familyOf(s.genre) !== null && inBand(s.videoId),
-  );
+  const pop = seeds.filter((s) => familyOf(s.genre) !== null && inBand(s.videoId));
   const summary: EvalSummary = newEvalSummary(pop.length);
   let ungatedAgree = 0;
   for (let i = 0; i < pop.length; i++) {
@@ -139,8 +131,7 @@ export function evalLeaveOneOut(
     // null-family seeds present it covered more neighbours than voted.
     const nn = voteNeighbours(rest, held.vec, k, familyOf);
     const tally = new Map<string, number>();
-    for (const n of nn)
-      if (n.label) tally.set(n.label, (tally.get(n.label) ?? 0) + 1);
+    for (const n of nn) if (n.label) tally.set(n.label, (tally.get(n.label) ?? 0) + 1);
     const top2 = tallySorted(tally)
       .slice(0, 2)
       .map(([label]) => label);
@@ -173,9 +164,7 @@ function scoreDisjointVote(
       family: genreFamily(seed.genre),
       score: cosineSimilarity(queryVec, seed.vec),
     }))
-    .filter(
-      (seed): seed is { family: string; score: number } => seed.family !== null,
-    )
+    .filter((seed): seed is { family: string; score: number } => seed.family !== null)
     .toSorted((a, b) => b.score - a.score || a.family.localeCompare(b.family))
     .slice(0, Math.min(Math.max(k, 1), seeds.length));
   const tally = new Map<string, number>();
@@ -205,9 +194,7 @@ export function evalLeaveOneOutArtistDisjoint(
   durationGuard: { videoId: string; durationS: number | null }[] = [],
 ): EvalSummary {
   const inBand = evalDurationBand(durationGuard);
-  const pop = seeds.filter(
-    (s) => genreFamily(s.genre) !== null && inBand(s.videoId),
-  );
+  const pop = seeds.filter((s) => genreFamily(s.genre) !== null && inBand(s.videoId));
   const artistOf = (id: string): string => artists.get(id) ?? "";
   const summary: EvalSummary = newEvalSummary(pop.length);
   let ungatedAgree = 0;
@@ -217,10 +204,7 @@ export function evalLeaveOneOutArtistDisjoint(
     const heldArtist = artistOf(held.videoId);
     // the one difference from evalLeaveOneOut: same-artist seeds cannot vote
     const rest = pop.filter(
-      (s, j) =>
-        j !== i &&
-        s.vec.length === held.vec.length &&
-        artistOf(s.videoId) !== heldArtist,
+      (s, j) => j !== i && s.vec.length === held.vec.length && artistOf(s.videoId) !== heldArtist,
     );
     const vote = scoreDisjointVote(rest, held.vec, k, minAgreement);
     if (vote.predicted === null) summary.refused++;

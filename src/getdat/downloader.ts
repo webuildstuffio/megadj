@@ -63,17 +63,9 @@ export function targetFor(trackId: string, source: string): DownloadTarget {
   // mis-probed. Set provenance stays in the source column; the SC gate
   // must read the FAMILY, not the exact string.
   if (source === SC_SOURCE || source.startsWith(`${SC_SOURCE}:`)) {
-    return {
-      id: trackId,
-      url: `https://api.soundcloud.com/tracks/${trackId}`,
-      soundcloud: true,
-    };
+    return { id: trackId, url: `https://api.soundcloud.com/tracks/${trackId}`, soundcloud: true };
   }
-  return {
-    id: trackId,
-    url: `https://music.youtube.com/watch?v=${trackId}`,
-    soundcloud: false,
-  };
+  return { id: trackId, url: `https://music.youtube.com/watch?v=${trackId}`, soundcloud: false };
 }
 
 export interface DownloaderOptions {
@@ -109,18 +101,12 @@ export class ScPermanentError extends Error {
 export function parseYtdlpInfo(stdout: string): YtdlpInfo {
   try {
     const parsed: unknown = JSON.parse(stdout);
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error("metadata root is not an object");
     }
     return parsed as YtdlpInfo;
   } catch (error) {
-    throw new Error("yt-dlp metadata output was not valid JSON", {
-      cause: error,
-    });
+    throw new Error("yt-dlp metadata output was not valid JSON", { cause: error });
   }
 }
 
@@ -152,10 +138,7 @@ const THROTTLE_PATTERNS = [
 ];
 
 export class Downloader {
-  private readonly opts: DownloaderOptions & {
-    musicDir: string;
-    ytdlpBin: string;
-  };
+  private readonly opts: DownloaderOptions & { musicDir: string; ytdlpBin: string };
 
   constructor(opts: DownloaderOptions) {
     this.opts = {
@@ -193,12 +176,7 @@ export class Downloader {
    *  by its own `tracks.source`, never by the run's dominant family. */
   async probe(videoId: string, source?: string): Promise<YtdlpInfo> {
     const target = targetFor(videoId, source ?? this.opts.source ?? "liked");
-    const proc = await this.spawn([
-      "-J",
-      "--no-playlist",
-      ...this.cookieArgs(),
-      target.url,
-    ]);
+    const proc = await this.spawn(["-J", "--no-playlist", ...this.cookieArgs(), target.url]);
     if (proc.exitCode !== 0) {
       const errText = new TextDecoder().decode(proc.stderr);
       if (target.soundcloud) {
@@ -248,28 +226,18 @@ export class Downloader {
   static parseDownloadOutput(
     stdout: string,
     opts: { soundcloud?: boolean } = {},
-  ): {
-    filePath?: string | undefined;
-    formatId?: string | undefined;
-  } {
+  ): { filePath?: string | undefined; formatId?: string | undefined } {
     // The after_move prints (path, then format id) are the LAST two
     // non-progress lines — grabbing them positionally is immune to a
     // filename that starts with "[" (Artist - [EP] Title.m4a), which the
     // old filter-then-scan dropped entirely for SC titles.
     const lines = stdout.trim().split("\n");
     const printed = lines.filter(
-      (l) =>
-        !/^\[(download|ExtractAudio|Metadata|EmbedThumbnail|Merger|move)/.test(
-          l,
-        ),
+      (l) => !/^\[(download|ExtractAudio|Metadata|EmbedThumbnail|Merger|move)/.test(l),
     );
     const filePath = printed.filter((l) => l !== "").at(-2);
     const formatId = printed.at(-1);
-    if (
-      filePath === undefined ||
-      formatId === undefined ||
-      !filePath.includes("/")
-    ) {
+    if (filePath === undefined || formatId === undefined || !filePath.includes("/")) {
       // Fallback: the legacy scan (non-bracket lines ending in the ext).
       const legacy = stdout
         .trim()
@@ -310,9 +278,7 @@ export class Downloader {
       // SC picks its own ladder: 256k Premium with a paid session,
       // falling through to the anonymous 160k (#255, Sep 19 Plus bump).
       "-f",
-      target.soundcloud
-        ? SC_FORMAT
-        : "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
+      target.soundcloud ? SC_FORMAT : "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
       // One walled SC entry (MONETIZE 403s even on metadata) must not
       // kill a set download — skip and continue; the run summary carries
       // the misses.
@@ -355,10 +321,9 @@ export class Downloader {
       // stream-less file downloaded poisons the ledger (audit then reads
       // it unplayable). ffprobe must report an audio codec + duration.
       if (/unable to embed/i.test(stderr)) {
-        const salvaged = Downloader.parseDownloadOutput(
-          new TextDecoder().decode(proc.stdout),
-          { soundcloud: target.soundcloud === true },
-        );
+        const salvaged = Downloader.parseDownloadOutput(new TextDecoder().decode(proc.stdout), {
+          soundcloud: target.soundcloud === true,
+        });
         if (salvaged.filePath && existsSync(salvaged.filePath)) {
           const probe = await probeFile(salvaged.filePath);
           if (probe.ok && probe.codec !== null && (probe.durationS ?? 0) >= 1) {
@@ -375,8 +340,7 @@ export class Downloader {
       }
       if (target.soundcloud) {
         const sc = classifyScFailure(stderr);
-        if (sc === "gone")
-          return { status: "gone", error: "track unavailable" };
+        if (sc === "gone") return { status: "gone", error: "track unavailable" };
         if (sc === "permanent")
           return {
             status: "failed",
@@ -384,12 +348,8 @@ export class Downloader {
           };
       }
       const kind = this.classifyError(stderr);
-      if (kind === "gone")
-        return { status: "gone", error: "video unavailable" };
-      return {
-        status: "failed",
-        error: stderr.split("\n").slice(-2).join(" ").slice(0, 300),
-      };
+      if (kind === "gone") return { status: "gone", error: "video unavailable" };
+      return { status: "failed", error: stderr.split("\n").slice(-2).join(" ").slice(0, 300) };
     }
 
     // Filter out any [download]/[ExtractAudio] progress lines first so a
@@ -402,11 +362,6 @@ export class Downloader {
       return { status: "failed", error: "no output path from yt-dlp" };
     }
 
-    return {
-      status: "downloaded",
-      filePath,
-      formatId,
-      info,
-    };
+    return { status: "downloaded", filePath, formatId, info };
   }
 }

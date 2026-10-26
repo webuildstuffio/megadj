@@ -116,9 +116,7 @@ export class DumpLedger {
     // keep insertion order (the in-memory test case; also two dumps
     // ingested within the same second on a real run)
     const rows = this.db
-      .query(
-        "SELECT * FROM intake_dumps ORDER BY updated_at DESC, rowid DESC LIMIT ?",
-      )
+      .query("SELECT * FROM intake_dumps ORDER BY updated_at DESC, rowid DESC LIMIT ?")
       .all(...([limit] as SQLQueryBindings[])) as DumpRow[];
     return rows.map(hydrateDumpRow);
   }
@@ -133,12 +131,7 @@ export class DumpLedger {
 
   census(limit = 50): DumpCensus {
     const dumps = this.list(limit);
-    const counts = {
-      total: dumps.length,
-      partial: 0,
-      done: 0,
-      pending: 0,
-    };
+    const counts = { total: dumps.length, partial: 0, done: 0, pending: 0 };
     for (const d of dumps) {
       if (d.status === "partial") counts.partial++;
       else counts.done++;

@@ -4,8 +4,4 @@ export { cosineSimilarity } from "../shared/leaf/vector-space";
 export type { EvalSummary, LoORowOutcome } from "./similar-evaluation";
 export * from "./similar-genre";
 export * from "./similar-search";
-export {
-  EmbeddingsLedger,
-  KeysLedger,
-  parseEmbeddingVector,
-} from "./similar-storage";
+export { EmbeddingsLedger, KeysLedger, parseEmbeddingVector } from "./similar-storage";

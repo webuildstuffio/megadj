@@ -3,9 +3,7 @@ import { normalizeGenre } from "../fulltags/genre/genre-vocab";
 import { genreFamily, inferGenre } from "./similar";
 describe("archive similarity genre voting", () => {
   test("normalizes and buckets common genre labels", () => {
-    expect(normalizeGenre("Deep House (Club Mix), Electronic")).toBe(
-      "deep house",
-    );
+    expect(normalizeGenre("Deep House (Club Mix), Electronic")).toBe("deep house");
     expect(genreFamily("Deep House (Club Mix)")).toBe("house");
     expect(genreFamily("Music")).toBeNull();
   });

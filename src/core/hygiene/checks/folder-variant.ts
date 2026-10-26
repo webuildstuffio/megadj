@@ -10,13 +10,7 @@
  * merged (a wrong merge renames real albums).
  */
 import { dirname, basename } from "node:path";
-import {
-  baseFinding,
-  type CheckCtx,
-  type CheckDef,
-  type Finding,
-  type ShelfFile,
-} from "../types";
+import { baseFinding, type CheckCtx, type CheckDef, type Finding, type ShelfFile } from "../types";
 import { nameSimilarityTokens } from "./similarity";
 
 /** Artist folder = the path segment directly under Contents/Artist/…
@@ -75,11 +69,7 @@ export const folderVariant: CheckDef = {
           similarity: nameSimilarityTokens(keeper, names[1] ?? keeper),
           fileCounts: Object.fromEntries(artists),
         },
-        proposedAction: {
-          type: "merge-folders",
-          into: joinVolume(ctx.volume, keeper),
-          renames,
-        },
+        proposedAction: { type: "merge-folders", into: joinVolume(ctx.volume, keeper), renames },
         keeperPath: joinVolume(ctx.volume, keeper),
       });
     }

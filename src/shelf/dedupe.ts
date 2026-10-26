@@ -23,10 +23,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DedupeResult } from "./dedupe-types";
-import {
-  applyConfirmed,
-  applyConfirmationRefusal,
-} from "../rekordbox/rb-command-kit.js";
+import { applyConfirmed, applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { judgePair, applyPairs } from "./dedupe-verdict";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
@@ -47,20 +44,12 @@ export interface ShelfDedupeOptions {
 }
 
 /** Walk the shelf Contents/, return every twin + its deduced original. */
-export function findTwinPairs(shelfVolume: string): {
-  original: string;
-  twin: string;
-  bytesOriginal: number;
-  bytesTwin: number;
-}[] {
+export function findTwinPairs(
+  shelfVolume: string,
+): { original: string; twin: string; bytesOriginal: number; bytesTwin: number }[] {
   const contents = join(shelfVolume, "Contents");
   if (!existsSync(contents)) return [];
-  const pairs: {
-    original: string;
-    twin: string;
-    bytesOriginal: number;
-    bytesTwin: number;
-  }[] = [];
+  const pairs: { original: string; twin: string; bytesOriginal: number; bytesTwin: number }[] = [];
   const twinRe = /^(.*) \[([^\]]+)\](\.[A-Za-z0-9]+)$/;
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -82,8 +71,7 @@ export function findTwinPairs(shelfVolume: string): {
         (n) =>
           n !== entry.name &&
           !n.startsWith("._") &&
-          (n === `${stem}${ext}` ||
-            (n.startsWith(`${stem} [`) === false && n === `${stem}${ext}`)),
+          (n === `${stem}${ext}` || (n.startsWith(`${stem} [`) === false && n === `${stem}${ext}`)),
       );
       const orig = sibling ? join(dir, sibling) : join(dir, `${stem}${ext}`);
       if (!existsSync(orig)) continue;
@@ -99,9 +87,7 @@ export function findTwinPairs(shelfVolume: string): {
   return pairs;
 }
 
-export async function shelfDedupe(
-  opts: ShelfDedupeOptions = {},
-): Promise<DedupeResult> {
+export async function shelfDedupe(opts: ShelfDedupeOptions = {}): Promise<DedupeResult> {
   const {
     shelfVolume = resolveShelfVolume(),
     apply = false,
@@ -180,10 +166,7 @@ export async function shelfDedupe(
     `  byte-identical: ${byteDupes} · same recording (fingerprint): ${fingerprintDupes} · different audio: ${keepBoth}`,
   );
   for (const p of pairs) {
-    const tag =
-      p.verdict === "keep-both"
-        ? "KEEP BOTH"
-        : `DELETE ${basename(p.loser ?? "")}`;
+    const tag = p.verdict === "keep-both" ? "KEEP BOTH" : `DELETE ${basename(p.loser ?? "")}`;
     log(`  [${p.method}] ${tag} — ${p.reason}`);
     log(`      ${p.original}`);
     if (p.verdict !== "keep-both") log(`      vs ${p.twin}`);

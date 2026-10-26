@@ -22,13 +22,7 @@
  *      reader knows the proof is weaker.
  */
 import { basename } from "node:path";
-import {
-  baseFinding,
-  type CheckCtx,
-  type CheckDef,
-  type Finding,
-  type ShelfFile,
-} from "../types";
+import { baseFinding, type CheckCtx, type CheckDef, type Finding, type ShelfFile } from "../types";
 import { nameKey } from "../../../shared/name-key";
 
 export const orphanAudio: CheckDef = {
@@ -43,9 +37,7 @@ export const orphanAudio: CheckDef = {
       rows.filter((r) => r.folderPath).map((r) => nameKey(r.folderPath)),
     );
     const rowFps = new Set<string>(
-      rows
-        .map((r) => ctx.fpOfRow?.(r) ?? null)
-        .filter((fp): fp is string => fp !== null),
+      rows.map((r) => ctx.fpOfRow?.(r) ?? null).filter((fp): fp is string => fp !== null),
     );
 
     const out: Finding[] = [];
@@ -59,12 +51,7 @@ export const orphanAudio: CheckDef = {
   },
 };
 
-function buildFinding(
-  ctx: CheckCtx,
-  f: ShelfFile,
-  fp: string | null,
-  pathOnly: boolean,
-): Finding {
+function buildFinding(ctx: CheckCtx, f: ShelfFile, fp: string | null, pathOnly: boolean): Finding {
   return {
     ...baseFinding(ctx, "orphan-audio", "info", false),
     paths: [f.path],

@@ -56,11 +56,7 @@ describe("restore command", () => {
     const finding = store.get(store.list({ status: "applied" })[0]!.id)!;
     db.close();
     const target = t3.dir();
-    const source = join(
-      f.shelf,
-      ".hygiene-quarantine",
-      "Artist · track copy.mp3",
-    );
+    const source = join(f.shelf, ".hygiene-quarantine", "Artist · track copy.mp3");
     const result = await shelfRestore({
       input: source,
       shelfVolume: f.shelf,
@@ -70,9 +66,7 @@ describe("restore command", () => {
     });
     expect(result.findingId).toBe(finding.id);
     expect(result.ok).toBe(true);
-    expect(result.destination).toBe(
-      join(target, "Contents", "Artist", "track copy.mp3"),
-    );
+    expect(result.destination).toBe(join(target, "Contents", "Artist", "track copy.mp3"));
     expect(existsSync(result.destination!)).toBe(true);
     expect(existsSync(source)).toBe(true);
   });

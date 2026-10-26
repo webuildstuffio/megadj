@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  downloadBatchDir,
-  intakeFolderName,
-  dumpDateFromName,
-} from "./intake-folder";
+import { downloadBatchDir, intakeFolderName, dumpDateFromName } from "./intake-folder";
 
 // Deterministic "now" for tests.
 const NOW = new Date("2026-09-10T12:00:00");
@@ -16,11 +12,7 @@ describe("intakeFolderName", () => {
       "2026-09-09 new dump",
     ],
     ["full month names work too", "/x/dump september 9", "2026-09-09 dump"],
-    [
-      "generic folders fall back to today's date + 'intake'",
-      "/x/Downloads",
-      "2026-09-10 intake",
-    ],
+    ["generic folders fall back to today's date + 'intake'", "/x/Downloads", "2026-09-10 intake"],
     ["generic fallback (Desktop)", "/x/Desktop", "2026-09-10 intake"],
     ["generic fallback (intake)", "/x/intake", "2026-09-10 intake"],
     [
@@ -36,9 +28,7 @@ describe("intakeFolderName", () => {
   });
   test("named-date year inference uses the supplied reference clock", () => {
     const historicalNow = new Date("2024-09-10T12:00:00");
-    expect(intakeFolderName("/x/dump dec 20", historicalNow)).toBe(
-      "2024-12-20 dump",
-    );
+    expect(intakeFolderName("/x/dump dec 20", historicalNow)).toBe("2024-12-20 dump");
   });
 });
 
@@ -49,9 +39,7 @@ describe("dumpDateFromName", () => {
     expect(dumpDateFromName("aug 31 dump")).toBe("2026-08-31");
   });
   test("uses a supplied reference clock for year inference", () => {
-    expect(
-      dumpDateFromName("dump dec 20", new Date("2024-09-10T12:00:00")),
-    ).toBe("2024-12-20");
+    expect(dumpDateFromName("dump dec 20", new Date("2024-09-10T12:00:00"))).toBe("2024-12-20");
   });
   test("no month → null", () => {
     expect(dumpDateFromName(" assorted ")).toBeNull();
@@ -74,8 +62,6 @@ describe("downloadBatchDir (#281 relative-archive guard)", () => {
     );
   });
   test("relative archive dir throws the same way", () => {
-    expect(() => downloadBatchDir("some/relative/dir", "liked", NOW)).toThrow(
-      /absolute path/,
-    );
+    expect(() => downloadBatchDir("some/relative/dir", "liked", NOW)).toThrow(/absolute path/);
   });
 });

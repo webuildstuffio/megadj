@@ -22,12 +22,7 @@ import { basename, join } from "node:path";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 export { parseFpcalcOutput } from "../fulltags/analysis/fingerprint";
 import { DupFpCache, type DupGroup } from "./dupescan-shared";
-import {
-  applyGroupsSafety,
-  cutDupGroups,
-  fingerprintFiles,
-  sameSizeSafe,
-} from "./dupescan-engine";
+import { applyGroupsSafety, cutDupGroups, fingerprintFiles, sameSizeSafe } from "./dupescan-engine";
 import { nameSimilarity } from "../core/hygiene/checks/similarity";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
@@ -122,8 +117,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   log(`fingerprints cached: ${cached} · to compute: ${computed}`);
   const cut = cutDupGroups(files, cache, {
     keeperSort: (a, b) => b.bytes - a.bytes,
-    reason: (group) =>
-      `largest of ${group.length} identical-fingerprint copies`,
+    reason: (group) => `largest of ${group.length} identical-fingerprint copies`,
   });
   const dupes = cut.groups;
   const redundantBytes = cut.redundantBytes;
@@ -137,20 +131,10 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     g.files.some((f) => f.path.startsWith(`${contents}/`));
   const applyable = dupes.filter(contentsInGroup);
   const qDir = join(shelfVolume, "Contents", ".dupescan-quarantine");
-  if (
-    applyConfirmationRefusal({
-      apply: quarantine,
-      yes,
-      flag: "--quarantine",
-    }) !== null
-  ) {
+  if (applyConfirmationRefusal({ apply: quarantine, yes, flag: "--quarantine" }) !== null) {
     // two-step gate via the SSOT — surface the refusal, degrade to report
     log(
-      applyConfirmationRefusal({
-        apply: quarantine,
-        yes,
-        flag: "--quarantine",
-      }) ?? "unreachable",
+      applyConfirmationRefusal({ apply: quarantine, yes, flag: "--quarantine" }) ?? "unreachable",
     );
   }
   const applied = quarantine && yes;
@@ -172,10 +156,8 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
           ? sameSizeSafe(loser, ctx, { onError: (m) => errors.push(m) })
           : !onlyIdentical && ctx.nameRatio >= 0.5,
       (keeper, losers) =>
-        losers.reduce(
-          (s, f) => s + nameSimilarity(basename(keeper.path), basename(f.path)),
-          0,
-        ) / losers.length,
+        losers.reduce((s, f) => s + nameSimilarity(basename(keeper.path), basename(f.path)), 0) /
+        losers.length,
       { onError: (m) => errors.push(m) },
     );
     quarantined = tally.quarantined;
@@ -208,16 +190,11 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
       `duplicate groups: ${dupes.length} (redundant copies: ${dupes.reduce((s, g) => s + g.files.length - 1, 0)}, ${(redundantBytes / 1e9).toFixed(2)} GB)`,
     );
     for (const g of dupes.slice(0, 40)) {
-      log(
-        `\n  group of ${g.files.length} — keep: ${g.keep.replace(contents, "")}`,
-      );
+      log(`\n  group of ${g.files.length} — keep: ${g.keep.replace(contents, "")}`);
       for (const f of g.files.slice(1))
-        log(
-          `    dupe: ${f.path.replace(contents, "")} (${(f.bytes / 1e6).toFixed(1)} MB)`,
-        );
+        log(`    dupe: ${f.path.replace(contents, "")} (${(f.bytes / 1e6).toFixed(1)} MB)`);
     }
-    if (dupes.length > 40)
-      log(`\n  …and ${dupes.length - 40} more groups (--json for full list)`);
+    if (dupes.length > 40) log(`\n  …and ${dupes.length - 40} more groups (--json for full list)`);
   }
   db.close();
 }

@@ -44,11 +44,7 @@ describe("HygieneStore", () => {
   test("roundtrips a finding losslessly", () => {
     const s = store();
     const f = finding({
-      proposedAction: {
-        type: "merge-folders",
-        into: "/x",
-        renames: { a: "b" },
-      },
+      proposedAction: { type: "merge-folders", into: "/x", renames: { a: "b" } },
       fps: ["fp1", "fp1"],
       evidence: { custom: { nested: true } },
     });
@@ -80,12 +76,7 @@ describe("HygieneStore", () => {
     expect(s.get(f.id)?.status).toBe("dismissed");
     // same group (same natural key: keeper + first loser), different
     // evidence — the loser's md5 changed on disk
-    const changed = finding({
-      ...f,
-      id: newFindingId(),
-      md5s: ["aa", "bb"],
-      bytes: [100, 100],
-    });
+    const changed = finding({ ...f, id: newFindingId(), md5s: ["aa", "bb"], bytes: [100, 100] });
     const { written, reopened } = s.upsert([changed]);
     expect(written).toBe(1);
     expect(reopened).toBe(1);
@@ -247,9 +238,10 @@ describe("HygieneStore", () => {
     expect(migrated.list({ kind: "zero-byte" })).toHaveLength(1);
     // default read excludes the archived loser (#269)
     expect(migrated.list().map((f) => f.id)).toEqual(["decided"]);
-    const rows = raw
-      .query("SELECT id, status FROM hygiene_findings ORDER BY id")
-      .all() as { id: string; status: string }[];
+    const rows = raw.query("SELECT id, status FROM hygiene_findings ORDER BY id").all() as {
+      id: string;
+      status: string;
+    }[];
     expect(rows).toEqual([
       { id: "decided", status: "confirmed" },
       { id: "duplicate", status: "archived" },
@@ -347,9 +339,10 @@ describe("hygiene_operation_lock (single-writer lease)", () => {
       console.error = orig;
     }
     expect(errors.some((m) => m.includes("lease takeover"))).toBe(true);
-    const row = raw
-      .query("SELECT owner, pid FROM hygiene_operation_lock WHERE id = 1")
-      .get() as { owner: string; pid: number };
+    const row = raw.query("SELECT owner, pid FROM hygiene_operation_lock WHERE id = 1").get() as {
+      owner: string;
+      pid: number;
+    };
     expect(row.owner).toBe("new-owner");
     expect(row.pid).toBe(process.pid);
   });

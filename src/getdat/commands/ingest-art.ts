@@ -18,10 +18,7 @@ import {
 // hand-listed — a new SSOT extension never silently misses art again
 // (issue #200 class). .wav is excluded on purpose: RB ignores WAV art.
 import { AUDIO_EXTS } from "../../shared/audio-exts";
-export {
-  flushArtworkQueue,
-  type QueueEntry,
-} from "../../fulltags/write/artwork";
+export { flushArtworkQueue, type QueueEntry } from "../../fulltags/write/artwork";
 
 /** Containers that reliably hold embedded artwork: every audio ext the
  *  scanners know, minus the formats that can't carry art. */
@@ -57,12 +54,7 @@ export async function fetchAndEmbedArtwork(
     dryRun?: boolean | undefined;
   },
 ): Promise<ArtworkOutcome> {
-  const out: ArtworkOutcome = {
-    source: null,
-    failedUrl: null,
-    queued: false,
-    skipped: false,
-  };
+  const out: ArtworkOutcome = { source: null, failedUrl: null, queued: false, skipped: false };
   if (opts.hasArt || opts.noArtwork || !opts.artist) return out;
   const ext = extname(file).toLowerCase();
   if (!ARTWORK_EXTS.has(ext)) {

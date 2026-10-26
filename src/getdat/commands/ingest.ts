@@ -26,17 +26,9 @@ import type { ArchiveState } from "../../core/state";
 import { commandLog } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
 import { detectRemix } from "../../fulltags/sources/remix";
-import {
-  energyFromLufs,
-  firstTag,
-  measureRms,
-} from "../../fulltags/utils/media-probe";
+import { energyFromLufs, firstTag, measureRms } from "../../fulltags/utils/media-probe";
 import { walkAudio, type Record_ } from "./ingest-probe";
-import {
-  expandZips,
-  deleteFullyIngestedZips,
-  pendingZipDeletes,
-} from "./ingest-zips";
+import { expandZips, deleteFullyIngestedZips, pendingZipDeletes } from "./ingest-zips";
 import {
   gateDuration,
   gateWavConversion,
@@ -166,13 +158,10 @@ async function ingestOne(
   const bootleg = ctx.bootleg;
   const changes: string[] = [];
   if (firstTag(probe.tags, ["title"]) !== title) changes.push("title");
-  if (artist && firstTag(probe.tags, ["artist"]) !== artist)
-    changes.push("artist");
+  if (artist && firstTag(probe.tags, ["artist"]) !== artist) changes.push("artist");
   if (album && firstTag(probe.tags, ["album"]) !== album) changes.push("album");
-  if (date && firstTag(probe.tags, ["date", "year"]) !== date)
-    changes.push("date");
-  if (genre && firstTag(probe.tags, ["genre"]) !== genre)
-    changes.push(`genre=${genre}`);
+  if (date && firstTag(probe.tags, ["date", "year"]) !== date) changes.push("date");
+  if (genre && firstTag(probe.tags, ["genre"]) !== genre) changes.push(`genre=${genre}`);
 
   // Bootleg-aware tagging: for remixes/edits/flips, ID3v2.3/MP4 have a
   // dedicated remix field ("version" → shows as "remixer" in rekordbox
@@ -184,8 +173,7 @@ async function ingestOne(
     extraMeta.version = remixOf.remixName;
     extraMeta.originalArtist = remixOf.originalArtist;
     extraMeta.remixer = remixOf.remixer;
-    if (!album)
-      album = `${remixOf.originalArtist} — ${remixOf.track} (Remixes)`;
+    if (!album) album = `${remixOf.originalArtist} — ${remixOf.track} (Remixes)`;
   }
   if (bootleg && !album) {
     album = `${artist ?? "Unknown"} — Bootlegs & Edits`;
@@ -198,10 +186,7 @@ async function ingestOne(
   // string (rekordbox reads grouping; Serato/MusicBee read both).
   if (genre && genre !== "Music") extraMeta.grouping = genre;
 
-  if (
-    !opts.dryRun &&
-    (changes.length > 0 || Object.keys(extraMeta).length > 0)
-  ) {
+  if (!opts.dryRun && (changes.length > 0 || Object.keys(extraMeta).length > 0)) {
     await applyTags(file, {
       title,
       artist,
@@ -227,12 +212,7 @@ async function ingestOne(
   // Artwork: embedded → SoundCloud (URL in tags) → iTunes → AI queue.
   // AIFF/MP3/M4A/FLAC embed natively; WAV rarely reaches here because
   // ingest converts to AIFF first (art rides along via mutagen).
-  let art: ArtworkOutcome = {
-    source: null,
-    failedUrl: null,
-    queued: false,
-    skipped: false,
-  };
+  let art: ArtworkOutcome = { source: null, failedUrl: null, queued: false, skipped: false };
   if (!probe.hasArt && !opts.noArtwork && artist) {
     art = await fetchAndEmbedArtwork(file, {
       tags: probe.tags,
@@ -288,24 +268,18 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   // `ingest-duplicates/` INSIDE the batch folder risks its rejects being
   // re-imported by a later folder drag). Dot-prefix → every walker (and
   // Finder) skips it; archive-root → never travels with a batch folder.
-  const quarantineDir =
-    opts.quarantineDir ?? join(opts.musicDir, ".ingest-duplicates");
+  const quarantineDir = opts.quarantineDir ?? join(opts.musicDir, ".ingest-duplicates");
   const minDuration = opts.minDuration ?? 60;
   const queuedIdentity = new Set<string>();
   // Per-batch destination folder: this run's imports land in
   // `<archive>/<batch>` (e.g. "2026-09-09 new dump"), computed ONCE so all
   // files of the run share it. Null when the source folder IS the archive
   // (files already home — nothing to group) or a dry run (no writes).
-  const isSelfIngest =
-    opts.folder === opts.musicDir ||
-    opts.folder.startsWith(`${opts.musicDir}/`);
+  const isSelfIngest = opts.folder === opts.musicDir || opts.folder.startsWith(`${opts.musicDir}/`);
   const batchDir =
     opts.dryRun || isSelfIngest
       ? null
-      : resolveIntakeDir(
-          opts.musicDir,
-          intakeFolderName(opts.folder, opts.now),
-        );
+      : resolveIntakeDir(opts.musicDir, intakeFolderName(opts.folder, opts.now));
   if (batchDir) log(`intake folder: ${basename(batchDir)}/`);
   const files0 = await walkAudio(
     opts.folder,
@@ -320,11 +294,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   // staged files miss this run and only get ingested on a second run.
   await expandZips(opts.folder, opts.dryRun, (d) => walkAudio(d), log);
 
-  const files = await walkAudio(
-    opts.folder,
-    [],
-    [quarantineDir, join(opts.musicDir, "rekordbox")],
-  );
+  const files = await walkAudio(opts.folder, [], [quarantineDir, join(opts.musicDir, "rekordbox")]);
 
   // ---- Phase A: probe ------------------------------------------------------
   const { records, broken } = await probeAllFiles(files, log);
@@ -367,9 +337,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
       // count it, keep going.
       counters.writeFailed++;
       const name = rec.file.split("/").pop() ?? rec.file;
-      log(
-        `  ✗ tag-write failed: ${name} — ${(e as Error).message?.slice(0, 90)}`,
-      );
+      log(`  ✗ tag-write failed: ${name} — ${(e as Error).message?.slice(0, 90)}`);
     }
   }
 
@@ -391,11 +359,6 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   // Zips: delete only when EVERY file staged from them has left the source
   // folder (i.e. was moved into the archive or quarantined as a dupe).
   if (!opts.dryRun && pendingZipDeletes.size > 0) {
-    await deleteFullyIngestedZips(
-      opts.folder,
-      opts.musicDir,
-      quarantineDir,
-      log,
-    );
+    await deleteFullyIngestedZips(opts.folder, opts.musicDir, quarantineDir, log);
   }
 }
