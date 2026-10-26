@@ -11,9 +11,7 @@ import { Card, ListHead, DataTable, type DataTableColumn } from "../../ui/data";
 
 /** delta % between the beat_this ledger BPM and rekordbox's BPM (1dp). */
 export function gridDeltaPct(ledgerBpm: number, rbBpm: number): number {
-  return rbBpm > 0
-    ? Math.round((Math.abs(ledgerBpm - rbBpm) / rbBpm) * 1000) / 10
-    : 0;
+  return rbBpm > 0 ? Math.round((Math.abs(ledgerBpm - rbBpm) / rbBpm) * 1000) / 10 : 0;
 }
 
 /** Producer row → the shared GridBreaker render row (flat: delta precomputed,
@@ -21,13 +19,7 @@ export function gridDeltaPct(ledgerBpm: number, rbBpm: number): number {
  *  drift; the wire type is archive-owned.
  *  Drift rows (positional) and octave rows are both severity-"bad". */
 export function mkBreaker(
-  t: {
-    video_id: string;
-    title: string | null;
-    ledgerBpm: number;
-    rbBpm: number;
-    driftMs: number;
-  },
+  t: { video_id: string; title: string | null; ledgerBpm: number; rbBpm: number; driftMs: number },
   cls: GridBreaker["cls"],
 ): GridBreaker {
   return {
@@ -90,8 +82,7 @@ export function beatSyncColumns(): DataTableColumn<GridBreaker>[] {
       min: 72,
       grow: 0,
       cell: (t: GridBreaker) => {
-        if (t.cls === "octave")
-          return <span class="arch-pill bad">octave</span>;
+        if (t.cls === "octave") return <span class="arch-pill bad">octave</span>;
         if (t.cls === "drift") return <span class="arch-pill bad">drift</span>;
         return <span class="arch-pill warn">off</span>;
       },
@@ -134,8 +125,7 @@ export function beatSyncColumns(): DataTableColumn<GridBreaker>[] {
           </em>
         </span>
       ),
-      sortValue: (t: GridBreaker) =>
-        t.cls === "drift" ? t.driftMs : t.deltaPct,
+      sortValue: (t: GridBreaker) => (t.cls === "drift" ? t.driftMs : t.deltaPct),
     },
   ];
 }

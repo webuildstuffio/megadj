@@ -204,9 +204,7 @@ export function Palette(props: {
 
   const cmds = useMemo(() => commands(props.drives), [props.drives]);
   const hits = useMemo(() => {
-    const rows = fuzzyFilter(cmds, q, ["label", "hint", "keywords"], {
-      limit: 12,
-    });
+    const rows = fuzzyFilter(cmds, q, ["label", "hint", "keywords"], { limit: 12 });
     return rows.length > 0 || q ? rows : cmds.slice(0, 12);
   }, [cmds, q]);
 
@@ -242,9 +240,7 @@ export function Palette(props: {
   }, [hits, sel, props.onClose]);
 
   useEffect(() => {
-    listRef.current
-      ?.querySelector(`[data-idx="${sel}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+    listRef.current?.querySelector(`[data-idx="${sel}"]`)?.scrollIntoView({ block: "nearest" });
   }, [sel]);
 
   return (
@@ -254,8 +250,7 @@ export function Palette(props: {
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        onClick={(e) => e.stopPropagation()}
-      >
+        onClick={(e) => e.stopPropagation()}>
         <div class="palette-input">
           <Icon name="search" size={15} />
           <input
@@ -283,8 +278,7 @@ export function Palette(props: {
               onClick={() => {
                 props.onClose();
                 c.run();
-              }}
-            >
+              }}>
               <Icon name={c.icon} size={14} />
               <span class="palette-label">{c.label}</span>
               <span class="palette-hint">{c.hint}</span>

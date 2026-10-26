@@ -7,19 +7,10 @@
 // showed ages nowhere. The band math lives in shared/ledger-freshness
 // (the #161 SSOT); this file is its renderer.
 import type { JSX } from "preact";
-import {
-  formatAge,
-  ledgerFreshness,
-  worstBand,
-} from "../../shared/ledger-freshness";
+import { formatAge, ledgerFreshness, worstBand } from "../../shared/ledger-freshness";
 
 /** SSOT band → css class (the megaset palette, now shared). */
-const bandClass = {
-  none: "ok",
-  green: "ok",
-  amber: "warn",
-  red: "stale",
-} as const;
+const bandClass = { none: "ok", green: "ok", amber: "warn", red: "stale" } as const;
 
 /** One labeled ledger age: name renders, at is the newest ISO stamp
  *  (null = empty ledger → explicit "never", never a fake age). */
@@ -50,9 +41,7 @@ export function FreshnessLine(props: {
       {computed.map((c, i) => (
         <span key={c.name}>
           {i > 0 && ", "}
-          {c.f.ageHours === null
-            ? `no ${c.name} analysis yet`
-            : `${c.name} ${formatAge(c.f)}`}
+          {c.f.ageHours === null ? `no ${c.name} analysis yet` : `${c.name} ${formatAge(c.f)}`}
         </span>
       ))}
       {props.note && worst !== "green" && worst !== "none" && (

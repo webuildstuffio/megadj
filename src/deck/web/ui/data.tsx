@@ -62,8 +62,7 @@ export function SearchBar(props: {
             class="plsearch-clear"
             aria-label="Clear search"
             title="Clear (Escape)"
-            onClick={() => props.onInput("")}
-          >
+            onClick={() => props.onInput("")}>
             <Icon name="x" size={12} />
           </button>
         )}
@@ -73,8 +72,7 @@ export function SearchBar(props: {
           type="button"
           class="btn"
           disabled={!canSearch}
-          onClick={() => props.onSearch?.(props.value.trim())}
-        >
+          onClick={() => props.onSearch?.(props.value.trim())}>
           <Icon name="search" size={14} /> {props.buttonLabel ?? "Search"}
         </button>
       )}
@@ -106,8 +104,7 @@ export function ListHead(props: {
             type="button"
             class="btn sm ghostbtn"
             title={`Copy these ${props.n} items — paste to an agent or notes to work the list`}
-            onClick={() => copyList(props.title, props.lines ?? [])}
-          >
+            onClick={() => copyList(props.title, props.lines ?? [])}>
             <Icon name="copy" size={12} /> Copy
           </button>
         )}

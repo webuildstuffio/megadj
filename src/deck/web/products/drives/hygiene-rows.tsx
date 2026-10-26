@@ -2,20 +2,12 @@
 // extraction): the work-queue row, the subcategory bucket strip, the
 // action bar, and the settled tail. All pure-over-props (state + handlers
 // are injected); the data fetch and decision wiring stay in HygieneTab.
-import type {
-  Finding,
-  HygienePayload,
-  QuarantineCensus,
-} from "../../../shared/hygiene";
+import type { Finding, HygienePayload, QuarantineCensus } from "../../../shared/hygiene";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
 import { ScanApplyActions } from "../shared";
 import { HELP_TERMS } from "../../../shared/help";
-import {
-  CompareCardPanel,
-  baseName,
-  type CompareState,
-} from "./hygiene-compare";
+import { CompareCardPanel, baseName, type CompareState } from "./hygiene-compare";
 
 export const SEV_ORDER: Record<string, number> = {
   review: 0, // human judgment needed — worst first
@@ -51,10 +43,7 @@ export const KIND_LABEL: Record<string, string> = {
  *  two safe-batch buckets share one boring action (keep the bigger file);
  *  ear-check buckets genuinely need listening — their button only
  *  pre-filters the queue, it does not batch-confirm. */
-export const SUB_BUCKET_META: Record<
-  string,
-  { label: string; hint: string; canBatch: boolean }
-> = {
+export const SUB_BUCKET_META: Record<string, { label: string; hint: string; canBatch: boolean }> = {
   "metadata-diff": {
     label: "metadata-only",
     hint: "Same rip — tiny (<0.5%) tag/art size diffs. Safe to batch: keep the bigger file.",
@@ -110,10 +99,7 @@ function actionLine(f: Finding): string {
 
 /** The one-line agent command for this finding's decision — the tooltip
  *  hands the exact fix to an agent (two-thirds UX law). */
-function fixCommand(
-  f: Finding,
-  decide: "confirm" | "dismiss" = "confirm",
-): string {
+function fixCommand(f: Finding, decide: "confirm" | "dismiss" = "confirm"): string {
   return `deckctl hygiene ${decide} ${f.id}`;
 }
 
@@ -152,9 +138,7 @@ export function FindingRow(props: {
   selected: boolean;
   toggleSelected: () => void;
   playing: string | null;
-  setPlaying: (
-    next: string | null | ((cur: string | null) => string | null),
-  ) => void;
+  setPlaying: (next: string | null | ((cur: string | null) => string | null)) => void;
   busy: boolean;
   onOpenCompare: () => void;
   onDecide: (confirm: boolean) => void;
@@ -170,8 +154,7 @@ export function FindingRow(props: {
         aria-label={`Select ${f.id}`}
       />
       <span
-        class={`pill ${f.status === "confirmed" ? "ok" : f.severity === "review" ? "warn" : ""}`}
-      >
+        class={`pill ${f.status === "confirmed" ? "ok" : f.severity === "review" ? "warn" : ""}`}>
         {f.status === "confirmed" ? "confirmed" : f.severity}
       </span>
       {f.kind === "acoustic-twin" && f.status !== "confirmed" && (
@@ -181,8 +164,7 @@ export function FindingRow(props: {
             (f.evidence as Record<string, unknown>).subcategory === undefined
               ? "No subcategory — re-run the scan"
               : (SUB_BUCKET_META[subOf(f)]?.hint ?? subOf(f))
-          }
-        >
+          }>
           {SUB_BUCKET_META[subOf(f)]?.label ?? subOf(f)}
         </span>
       )}
@@ -203,8 +185,7 @@ export function FindingRow(props: {
             class={`btn sm ${cmp ? "ghostbtn" : ""}`}
             disabled={busy}
             onClick={props.onOpenCompare}
-            title="Open the A/B compare: play both copies, see lengths + bitrates, keep either side"
-          >
+            title="Open the A/B compare: play both copies, see lengths + bitrates, keep either side">
             {cmp ? "Close" : "A/B compare"}
           </button>
         )}
@@ -213,16 +194,14 @@ export function FindingRow(props: {
           class="btn sm"
           disabled={busy}
           onClick={() => props.onDecide(true)}
-          title={`deckctl hygiene confirm ${f.id}`}
-        >
+          title={`deckctl hygiene confirm ${f.id}`}>
           Confirm
         </button>
         <button
           type="button"
           class="btn sm ghostbtn"
           disabled={busy}
-          onClick={() => props.onDecide(false)}
-        >
+          onClick={() => props.onDecide(false)}>
           Dismiss
         </button>
       </span>
@@ -255,24 +234,18 @@ export function BucketStrip(props: {
       {Object.entries(counts.bySub)
         .toSorted((a, b) => b[1] - a[1])
         .map(([sub, n]) => {
-          const meta = SUB_BUCKET_META[sub] ?? {
-            label: sub,
-            hint: sub,
-            canBatch: false,
-          };
+          const meta = SUB_BUCKET_META[sub] ?? { label: sub, hint: sub, canBatch: false };
           const active = subFilter === sub;
           return (
             <div
               class={`bucket${active ? " active" : ""}${meta.canBatch ? "" : " manual"}`}
-              key={sub}
-            >
+              key={sub}>
               <button
                 type="button"
                 class="bucket-filter"
                 disabled={busy}
                 onClick={() => props.onFilter(active ? null : sub)}
-                title={meta.hint}
-              >
+                title={meta.hint}>
                 <b>{n}</b> {meta.label}
               </button>
               {meta.canBatch && !active && (
@@ -281,8 +254,7 @@ export function BucketStrip(props: {
                   class="btn sm"
                   disabled={busy}
                   onClick={() => props.onBatchConfirm(sub)}
-                  title={`${meta.hint}\n\nConfirms all ${n} — then Apply executes them (quarantine, never delete).`}
-                >
+                  title={`${meta.hint}\n\nConfirms all ${n} — then Apply executes them (quarantine, never delete).`}>
                   Confirm all
                 </button>
               )}
@@ -290,11 +262,7 @@ export function BucketStrip(props: {
           );
         })}
       {subFilter !== null && (
-        <button
-          type="button"
-          class="btn sm ghostbtn"
-          onClick={() => props.onFilter(null)}
-        >
+        <button type="button" class="btn sm ghostbtn" onClick={() => props.onFilter(null)}>
           Show all
         </button>
       )}
@@ -338,16 +306,14 @@ export function ActionBar(props: {
             type="button"
             class="btn"
             disabled={busy !== null}
-            onClick={() => props.onDecideSelected(true)}
-          >
+            onClick={() => props.onDecideSelected(true)}>
             <Icon name="check" size={14} /> Confirm {selCount}
           </button>
           <button
             type="button"
             class="btn ghostbtn"
             disabled={busy !== null}
-            onClick={() => props.onDecideSelected(false)}
-          >
+            onClick={() => props.onDecideSelected(false)}>
             Dismiss {selCount}
           </button>
         </>
@@ -375,9 +341,7 @@ function DoneRow(props: { f: Finding; onRestore?: (id: string) => void }) {
   const failed = f.status === "failed";
   return (
     <div class="check muted">
-      <span class={`pill ${f.status === "applied" ? "ok" : ""}`}>
-        {f.status}
-      </span>
+      <span class={`pill ${f.status === "applied" ? "ok" : ""}`}>{f.status}</span>
       <span class="check-body">
         <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
         <span class="check-detail">
@@ -387,16 +351,13 @@ function DoneRow(props: { f: Finding; onRestore?: (id: string) => void }) {
             : ""}
         </span>
       </span>
-      {f.validation && !f.validation.ok && (
-        <span class="pill warn">receipt</span>
-      )}
+      {f.validation && !f.validation.ok && <span class="pill warn">receipt</span>}
       {failed && onRestore && (
         <button
           type="button"
           class="btn sm"
           onClick={() => onRestore(f.id)}
-          title="Move the quarantined copy back to its original path (MD5-verified)"
-        >
+          title="Move the quarantined copy back to its original path (MD5-verified)">
           Revert
         </button>
       )}
@@ -406,10 +367,7 @@ function DoneRow(props: { f: Finding; onRestore?: (id: string) => void }) {
 
 /** The settled tail: recently applied & dismissed findings (capped).
  *  Failed rows surface the one-click revert (#35 §5 Phase 4). */
-export function SettledSection(props: {
-  rows: Finding[];
-  onRestoreFailed?: (id: string) => void;
-}) {
+export function SettledSection(props: { rows: Finding[]; onRestoreFailed?: (id: string) => void }) {
   return (
     <>
       <h3 class="sect">
@@ -420,9 +378,7 @@ export function SettledSection(props: {
           <DoneRow
             key={f.id}
             f={f}
-            {...(props.onRestoreFailed
-              ? { onRestore: props.onRestoreFailed }
-              : {})}
+            {...(props.onRestoreFailed ? { onRestore: props.onRestoreFailed } : {})}
           />
         ))}
       </div>
@@ -444,9 +400,7 @@ export function QuarantinePanel(props: {
   if (census.error)
     return (
       <div class="bucketstrip">
-        <span class="check-detail">
-          quarantine census unavailable: {census.error}
-        </span>
+        <span class="check-detail">quarantine census unavailable: {census.error}</span>
       </div>
     );
   if (census.files === 0 && census.stale === 0) return null;
@@ -462,8 +416,7 @@ export function QuarantinePanel(props: {
         class="btn sm"
         disabled={busy}
         onClick={props.onRestoreAll}
-        title="Restore every applied finding's copy to its original path (MD5-verified, per-row)"
-      >
+        title="Restore every applied finding's copy to its original path (MD5-verified, per-row)">
         Restore all
       </button>
       <button
@@ -471,8 +424,7 @@ export function QuarantinePanel(props: {
         class="btn sm ghostbtn"
         disabled={busy}
         onClick={props.onEmpty}
-        title="Delete every recoverable copy — typed confirmation required (the undo window closes)"
-      >
+        title="Delete every recoverable copy — typed confirmation required (the undo window closes)">
         Empty quarantine ({(census.bytes / 1e9).toFixed(2)} GB)
       </button>
     </div>

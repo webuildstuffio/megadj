@@ -3,24 +3,11 @@
 // Sync/grid sections, and the library-character cards (mood profile +
 // recently added). ArchiveTab keeps the fetch + verdict wiring and
 // assembles these in fix-first order.
-import type {
-  GridPayload,
-  IngestPayload,
-  MoodPayload,
-} from "./ArchiveTabVerdict";
+import type { GridPayload, IngestPayload, MoodPayload } from "./ArchiveTabVerdict";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
 import { GridHealthCard } from "./GridHealthCard";
-import {
-  ListHead,
-  KVRows,
-  KVRow,
-  KVKey,
-  KVVal,
-  StatCard,
-  Card,
-  Truncated,
-} from "../../ui/data";
+import { ListHead, KVRows, KVRow, KVKey, KVVal, StatCard, Card, Truncated } from "../../ui/data";
 import {
   ShareBar,
   TrackTitle,
@@ -55,25 +42,18 @@ function PipelineBars(props: { ingest: IngestPayload }) {
       label: "broken",
       title: "failed or gone from source — the re-download backlog",
     },
-    {
-      n: waiting,
-      cls: "waiting",
-      label: "waiting",
-      title: "still in the download queue",
-    },
+    { n: waiting, cls: "waiting", label: "waiting", title: "still in the download queue" },
     {
       n: movedOn,
       cls: "moved",
       label: "moved on",
-      title:
-        "removed locally or skipped as not-music — bookkeeping, not backlog",
+      title: "removed locally or skipped as not-music — bookkeeping, not backlog",
     },
   ];
   return (
     <div
       role="img"
-      aria-label={`${have} in the archive, ${broken} broken, ${waiting} waiting, ${movedOn} moved on, of ${props.ingest.total} total`}
-    >
+      aria-label={`${have} in the archive, ${broken} broken, ${waiting} waiting, ${movedOn} moved on, of ${props.ingest.total} total`}>
       <ShareBar segs={segs} total={total} />
     </div>
   );
@@ -99,11 +79,10 @@ export function PipelineExplainer(props: { ingest: IngestPayload }) {
         {ingest.available ? (
           <>
             <b>{(ingest.counts["downloaded"] ?? 0).toLocaleString()}</b> of{" "}
-            {ingest.total.toLocaleString()} tracked downloads are playable
-            music. The rest is <span class="arch-pill warn">retry backlog</span>{" "}
-            / <span class="arch-pill muted">queue</span> /{" "}
-            <span class="arch-pill muted">bookkeeping</span> — machinery, not
-            music.
+            {ingest.total.toLocaleString()} tracked downloads are playable music. The rest is{" "}
+            <span class="arch-pill warn">retry backlog</span> /{" "}
+            <span class="arch-pill muted">queue</span> /{" "}
+            <span class="arch-pill muted">bookkeeping</span> — machinery, not music.
           </>
         ) : (
           <>archive DB absent — megadj hasn't run here.</>
@@ -113,19 +92,16 @@ export function PipelineExplainer(props: { ingest: IngestPayload }) {
       {ingest.available && (
         <div class="arch-legend">
           <span>
-            <i class="have" /> in the archive{" "}
-            <em>{cEntry("downloaded").toLocaleString()}</em>
+            <i class="have" /> in the archive <em>{cEntry("downloaded").toLocaleString()}</em>
           </span>
           {cEntry("failed") > 0 && (
             <span>
-              <i class="broken" /> failed — retryable{" "}
-              <em>{cEntry("failed").toLocaleString()}</em>
+              <i class="broken" /> failed — retryable <em>{cEntry("failed").toLocaleString()}</em>
             </span>
           )}
           {cEntry("gone") > 0 && (
             <span>
-              <i class="broken" /> gone from source{" "}
-              <em>{cEntry("gone").toLocaleString()}</em>
+              <i class="broken" /> gone from source <em>{cEntry("gone").toLocaleString()}</em>
             </span>
           )}
           {cEntry("pending") > 0 && (
@@ -136,8 +112,7 @@ export function PipelineExplainer(props: { ingest: IngestPayload }) {
           )}
           {cEntry("deleted") > 0 && (
             <span>
-              <i class="moved" /> removed locally{" "}
-              <em>{cEntry("deleted").toLocaleString()}</em>
+              <i class="moved" /> removed locally <em>{cEntry("deleted").toLocaleString()}</em>
             </span>
           )}
           {cEntry("skipped_not_music") > 0 && (
@@ -167,8 +142,8 @@ export function SyncBreakers(props: {
       hint="These tracks' independent beatgrid analysis disagrees with rekordbox — off by >2% tempo, locked an octave (half/double) out, or drifting positionally across the track (>15 ms). They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the worst (Sync lands on the wrong pulse entirely); drift rows slide out of phase as the track plays. Click a numeric header to sort."
       fixNote={
         <>
-          <code>megadj beats --force</code> re-analyzes — the write-gate on BPM
-          tags is documented in the FullTags roadmap
+          <code>megadj beats --force</code> re-analyzes — the write-gate on BPM tags is documented
+          in the FullTags roadmap
         </>
       }
     />
@@ -182,10 +157,7 @@ export function GridHealthSection() {
 }
 
 /** Card 3 — retry backlog: failed + gone in one actionable count. */
-export function RetryBacklogSection(props: {
-  ingest: IngestPayload;
-  retryBacklog: number;
-}) {
+export function RetryBacklogSection(props: { ingest: IngestPayload; retryBacklog: number }) {
   const { ingest, retryBacklog } = props;
   const c = ingest.available ? ingest.counts : {};
   const cEntry = (k: string) => c[k] ?? 0;
@@ -197,14 +169,11 @@ export function RetryBacklogSection(props: {
         title="Download backlog"
         n={retryBacklog}
         hint="Failed downloads are retryable (megadj retry resets their counters). 'Gone from source' means the video vanished from YouTube Music — re-source the track or drop it."
-        lines={[
-          `failed: ${cEntry("failed")}`,
-          `gone from source: ${cEntry("gone")}`,
-        ]}
+        lines={[`failed: ${cEntry("failed")}`, `gone from source: ${cEntry("gone")}`]}
       />
       <div class="arch-fix">
-        fix: <code>megadj retry</code> then <code>megadj sync</code> — "gone"
-        tracks need a new source
+        fix: <code>megadj retry</code> then <code>megadj sync</code> — "gone" tracks need a new
+        source
       </div>
     </div>
   );
@@ -214,12 +183,7 @@ export function RetryBacklogSection(props: {
 export function LowqSection(props: {
   lowq: {
     available: boolean;
-    tracks: {
-      video_id: string;
-      title: string | null;
-      artist: string | null;
-      reason: string;
-    }[];
+    tracks: { video_id: string; title: string | null; artist: string | null; reason: string }[];
   } | null;
   qualityDebt: number;
 }) {
@@ -238,11 +202,7 @@ export function LowqSection(props: {
         {lowq.tracks.slice(0, 25).map((t) => (
           <KVRow key={t.video_id}>
             <KVKey>
-              <TrackTitle
-                title={t.title ?? t.video_id}
-                videoId={t.video_id}
-                artist={t.artist}
-              />
+              <TrackTitle title={t.title ?? t.video_id} videoId={t.video_id} artist={t.artist} />
             </KVKey>
             <KVVal>
               <span class="arch-pill muted">{t.reason}</span>
@@ -259,10 +219,7 @@ export function LowqSection(props: {
 }
 
 /** Library character: mood profile card (averages + extremes). */
-export function MoodProfileSection(props: {
-  mood: MoodPayload | null;
-  analyzed: number;
-}) {
+export function MoodProfileSection(props: { mood: MoodPayload | null; analyzed: number }) {
   const { mood, analyzed } = props;
   if (!mood?.available) return null;
   return (
@@ -310,9 +267,7 @@ export function RecentlyAddedSection(props: { ingest: IngestPayload }) {
   const newest = ingest.recent_tracks.slice(0, 8);
   // runs that actually did something — all-zero runs are pipeline noise,
   // not history (the first render showed a wall of "+0 · 0 · 0" rows)
-  const activeRuns = ingest.recent_runs.filter(
-    (r) => r.downloaded + r.failed + r.gone > 0,
-  );
+  const activeRuns = ingest.recent_runs.filter((r) => r.downloaded + r.failed + r.gone > 0);
   return (
     <div class="card">
       <ListHead
@@ -332,15 +287,9 @@ export function RecentlyAddedSection(props: { ingest: IngestPayload }) {
           {newest.map((t) => (
             <KVRow key={t.video_id}>
               <KVKey>
-                <TrackTitle
-                  title={t.title ?? t.video_id}
-                  videoId={t.video_id}
-                  artist={t.artist}
-                />
+                <TrackTitle title={t.title ?? t.video_id} videoId={t.video_id} artist={t.artist} />
               </KVKey>
-              <KVVal title={t.status}>
-                {STATUS_LANG[t.status] ?? t.status}
-              </KVVal>
+              <KVVal title={t.status}>{STATUS_LANG[t.status] ?? t.status}</KVVal>
             </KVRow>
           ))}
         </KVRows>
@@ -353,9 +302,7 @@ export function RecentlyAddedSection(props: { ingest: IngestPayload }) {
             day: "numeric",
           })}
           : +{activeRuns[0]!.downloaded}
-          {activeRuns[0]!.failed > 0
-            ? ` · ${activeRuns[0]!.failed} failed`
-            : ""}
+          {activeRuns[0]!.failed > 0 ? ` · ${activeRuns[0]!.failed} failed` : ""}
           {activeRuns[0]!.gone > 0 ? ` · ${activeRuns[0]!.gone} gone` : ""}
         </div>
       )}

@@ -5,9 +5,7 @@
 import { tinykeys } from "tinykeys";
 
 /** Global app shortcuts, bound once from App. Returns the unbind function. */
-export function bindGlobalKeys(handlers: {
-  openPalette: () => void;
-}): () => void {
+export function bindGlobalKeys(handlers: { openPalette: () => void }): () => void {
   return tinykeys(window, {
     "$mod+k": (e: KeyboardEvent) => {
       e.preventDefault();

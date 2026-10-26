@@ -45,9 +45,7 @@ export function archiveMetrics(
   lowq: LowqPayload | null,
   grid: GridPayload | null,
 ): ArchiveMetrics {
-  const syncRisk = grid?.available
-    ? grid.off.length + grid.octave.length + grid.drift.length
-    : 0;
+  const syncRisk = grid?.available ? grid.off.length + grid.octave.length + grid.drift.length : 0;
   const qualityDebt = lowq?.available ? lowq.tracks.length : 0;
   const retryBacklog = ingest.available
     ? (ingest.counts["failed"] ?? 0) + (ingest.counts["gone"] ?? 0)
@@ -55,16 +53,8 @@ export function archiveMetrics(
   const analyzed = mood?.available ? mood.analyzed : 0;
   const inArchive = ingest.available ? (ingest.counts["downloaded"] ?? 0) : 0;
   // unmetered = in the archive but no mood stamp — the analysis backlog
-  const unanalyzed =
-    inArchive > 0 && mood?.available ? Math.max(0, inArchive - analyzed) : 0;
-  return {
-    syncRisk,
-    qualityDebt,
-    retryBacklog,
-    unanalyzed,
-    analyzed,
-    inArchive,
-  };
+  const unanalyzed = inArchive > 0 && mood?.available ? Math.max(0, inArchive - analyzed) : 0;
+  return { syncRisk, qualityDebt, retryBacklog, unanalyzed, analyzed, inArchive };
 }
 
 /** One issue pill per non-zero metric (table of label fns, #199). */
@@ -82,10 +72,7 @@ function metricIssues(m: ArchiveMetrics): { n: number; text: string }[] {
       n: m.retryBacklog,
       text: `${m.retryBacklog} failed/gone downloads to retry or drop`,
     },
-    m.unanalyzed > 0 && {
-      n: m.unanalyzed,
-      text: `${m.unanalyzed} not yet mood-analyzed`,
-    },
+    m.unanalyzed > 0 && { n: m.unanalyzed, text: `${m.unanalyzed} not yet mood-analyzed` },
   ].filter((x): x is { n: number; text: string } => Boolean(x));
 }
 
@@ -109,10 +96,7 @@ export function VerdictBanner(props: {
   const { issues } = props.verdict;
   const verdict =
     issues.length === 0
-      ? {
-          cls: "ok",
-          text: "Archive is healthy — everything analyzed, nothing flagged.",
-        }
+      ? { cls: "ok", text: "Archive is healthy — everything analyzed, nothing flagged." }
       : {
           cls: "warn",
           text: `${issues[0]!.text}${issues.length > 1 ? ` · +${issues.length - 1} more below` : ""}`,
@@ -125,9 +109,7 @@ export function VerdictBanner(props: {
         meta={
           <>
             {props.inArchive.toLocaleString()} in the archive
-            {props.moodAvailable && props.analyzed > 0 && (
-              <> · {props.analyzed} analyzed</>
-            )}
+            {props.moodAvailable && props.analyzed > 0 && <> · {props.analyzed} analyzed</>}
           </>
         }
       />

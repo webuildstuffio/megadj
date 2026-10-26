@@ -33,11 +33,7 @@ interface Verdict {
 function usbLinkVerdict(linkBps: number | null | undefined): Verdict | null {
   if (linkBps === null || linkBps === undefined) return null;
   if (linkBps >= 10_000_000_000)
-    return {
-      cls: "ok",
-      label: "USB3 10G",
-      text: "10+ Gbps link — no bottleneck.",
-    };
+    return { cls: "ok", label: "USB3 10G", text: "10+ Gbps link — no bottleneck." };
   if (linkBps >= 5_000_000_000)
     return { cls: "ok", label: "USB 3.0", text: "5 Gbps link — gig-safe." };
   return {
@@ -178,9 +174,7 @@ export function HealthTab(props: {
       {speed && (
         <VerdictBanner v={speed} icon="check">
           {speed.text}
-          {drop > 0 && (
-            <b> {drop}% drop since the last run — dying-stick signature.</b>
-          )}
+          {drop > 0 && <b> {drop}% drop since the last run — dying-stick signature.</b>}
         </VerdictBanner>
       )}
       {link && (
@@ -207,8 +201,7 @@ export function HealthTab(props: {
       )}
       {bench.length === 1 && (
         <div class="note">
-          One benchmark so far — run Benchmark again after a few sessions to
-          draw the trend.
+          One benchmark so far — run Benchmark again after a few sessions to draw the trend.
         </div>
       )}
 
@@ -242,13 +235,7 @@ function fmtHours(ms: number): string {
   return `${(h / 1000).toFixed(1)}k h`;
 }
 
-function BenchChart({
-  bench,
-  lines,
-}: {
-  bench: HealthTabBench[];
-  lines: string[];
-}) {
+function BenchChart({ bench, lines }: { bench: HealthTabBench[]; lines: string[] }) {
   return (
     <div>
       <ListHead

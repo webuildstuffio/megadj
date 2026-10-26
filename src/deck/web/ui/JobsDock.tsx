@@ -31,11 +31,9 @@ const STATUS_HELP: Record<string, string> = {
   running: "Active now. Progress, phase and ETA update live.",
   done: "Finished successfully.",
   failed: "Ran and failed — the error line says why. Safe to re-run.",
-  interrupted:
-    "The server was restarted (or the job's process died) mid-run. Re-run it.",
+  interrupted: "The server was restarted (or the job's process died) mid-run. Re-run it.",
   cancelled: "Cancelled by a user or agent before it finished.",
-  locked:
-    "Refused because rekordbox was running (the interlock). Quit rekordbox and re-run.",
+  locked: "Refused because rekordbox was running (the interlock). Quit rekordbox and re-run.",
 };
 
 /** Readable stage label for the machine phase string the engine stores
@@ -123,8 +121,7 @@ export function JobsDock(props: {
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && setCollapsed(!collapsed)}
-        title="Jobs run one-per-drive, read-only unless stated, and are refused while rekordbox is open. Click to collapse."
-      >
+        title="Jobs run one-per-drive, read-only unless stated, and are refused while rekordbox is open. Click to collapse.">
         {anyRunning ? (
           <span class="spin">
             <Icon name="refresh" size={14} />
@@ -154,8 +151,8 @@ export function JobsDock(props: {
             job={j}
             driveName={driveName(j.drive_id)}
             onCancel={() =>
-              apiPost(`/api/jobs/${j.id}/cancel`, undefined).catch(
-                (e: unknown) => toast(`cancel failed: ${errMessage(e)}`, "err"),
+              apiPost(`/api/jobs/${j.id}/cancel`, undefined).catch((e: unknown) =>
+                toast(`cancel failed: ${errMessage(e)}`, "err"),
               )
             }
             onFocus={() => props.focusDrive(j.drive_id)}
@@ -163,10 +160,7 @@ export function JobsDock(props: {
         ))}
         {history.map((j) => {
           let final: string | null = null;
-          let findings: {
-            label: string;
-            detail: string;
-          }[] = [];
+          let findings: { label: string; detail: string }[] = [];
           let checkCount = 0;
           let unreadable: string | null = null;
           try {
@@ -192,21 +186,14 @@ export function JobsDock(props: {
               key={j.id}
               style={{ cursor: "pointer" }}
               onClick={() => props.focusDrive(j.drive_id)}
-              title="Open this drive"
-            >
+              title="Open this drive">
               <div class="jobrow-top">
-                <span
-                  class={`jstat ${j.status}`}
-                  title={STATUS_HELP[j.status] ?? undefined}
-                >
+                <span class={`jstat ${j.status}`} title={STATUS_HELP[j.status] ?? undefined}>
                   {j.status}
                 </span>
                 <span
                   class="jkind"
-                  title={
-                    HELP_JOBS.find((x) => x.kind === j.kind)?.what ?? undefined
-                  }
-                >
+                  title={HELP_JOBS.find((x) => x.kind === j.kind)?.what ?? undefined}>
                   {j.kind}
                 </span>
                 <span class="jdrive">{driveName(j.drive_id)}</span>
@@ -225,14 +212,12 @@ export function JobsDock(props: {
                   <Icon name="warn" size={11} /> {unreadable}
                 </div>
               )}
-              {j.kind === "verify" &&
-                checkCount > 0 &&
-                findings.length === 0 && (
-                  <div class="jmsg pass">
-                    <Icon name="check" size={11} /> all {checkCount} checks
-                    passed — full breakdown in the Verify tab
-                  </div>
-                )}
+              {j.kind === "verify" && checkCount > 0 && findings.length === 0 && (
+                <div class="jmsg pass">
+                  <Icon name="check" size={11} /> all {checkCount} checks passed — full breakdown in
+                  the Verify tab
+                </div>
+              )}
               {findings.length > 0 && (
                 <div class="jfindings">
                   {findings.slice(0, 4).map((f) => (
@@ -274,8 +259,7 @@ function ActiveRow(props: {
   // + a fresh fetch = genuinely no movement on the server.
   const receivedAt = j._received ?? Date.now();
   const staleMs = lastChangeAge(j, receivedAt);
-  const staleLimit =
-    j.status === "running" ? RUNNING_STALE_MS : QUEUED_STALE_MS;
+  const staleLimit = j.status === "running" ? RUNNING_STALE_MS : QUEUED_STALE_MS;
   const stalled = j.status === "running" && staleMs > staleLimit;
   const parked = j.status === "queued" && staleMs > staleLimit;
   const phase = phaseLabel(j.phase);
@@ -301,8 +285,7 @@ function ActiveRow(props: {
             kindHelp
               ? `${kindHelp.what}\nTakes ${kindHelp.duration}. ${kindHelp.safety}`
               : "Open drive"
-          }
-        >
+          }>
           {j.kind}
         </span>
         <span class="jdrive">{props.driveName}</span>
@@ -312,8 +295,7 @@ function ActiveRow(props: {
             stalled
               ? `No visible progress for ${Math.round(staleMs / 60_000)} min — either a quiet stretch or the job is wedged. The server auto-cancels true stalls; a few more minutes settle it.`
               : (STATUS_HELP[j.status] ?? "Open drive")
-          }
-        >
+          }>
           {j.status}
         </span>
         <span class="spacer" />
@@ -326,8 +308,7 @@ function ActiveRow(props: {
                 ? `Remove this queued ${j.kind} from the line`
                 : `Cancel this ${j.kind} — safe: it's read-only, already-written changes stay`
             }
-            onClick={props.onCancel}
-          >
+            onClick={props.onCancel}>
             <Icon name="x" size={13} />
           </button>
         )}
@@ -356,8 +337,8 @@ function ActiveRow(props: {
       )}
       {parked && (
         <div class="jmsg warn">
-          <Icon name="clock" size={11} /> still queued after{" "}
-          {Math.round(staleMs / 60_000)} min — something ahead may be wedged
+          <Icon name="clock" size={11} /> still queued after {Math.round(staleMs / 60_000)} min —
+          something ahead may be wedged
         </div>
       )}
     </div>

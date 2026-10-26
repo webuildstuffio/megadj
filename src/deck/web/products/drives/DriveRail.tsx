@@ -6,11 +6,7 @@
 // have capacity), the score line ("7 of 9 checks passed · 2 to fix"), the
 // shelf-sweep line when one exists, the space bar, and up to 3 badges
 // ranked worst-first (attn → stale → unknown → …) with a "+N" overflow.
-import type {
-  DriveCardData,
-  OverallHealth,
-  ReportSummary,
-} from "../../../shared/types";
+import type { DriveCardData, OverallHealth, ReportSummary } from "../../../shared/types";
 import { rankBadges } from "../../../shared/badges";
 import { TIER_EXPLANATION } from "../../../shared/check-matrix";
 import { fmtBytes, timeAgo } from "../../../../shared/leaf/fmt";
@@ -45,16 +41,12 @@ const RING_HELP: Record<OverallHealth, string> = {
 
 /** The verdict badge that rides the photo corner when a report exists:
  *  the icon IS the verdict, the tooltip carries the words + score. */
-function VerdictChip(props: {
-  verdict: OverallHealth;
-  report?: ReportSummary | undefined;
-}) {
+function VerdictChip(props: { verdict: OverallHealth; report?: ReportSummary | undefined }) {
   return (
     <InfoTip
       side
       title={props.verdict}
-      body={`${RING_HELP[props.verdict]}${props.report ? ` Score: ${props.report.passed} of ${props.report.checks} checks passed.` : " (dashed circle = no report yet)"}`}
-    >
+      body={`${RING_HELP[props.verdict]}${props.report ? ` Score: ${props.report.passed} of ${props.report.checks} checks passed.` : " (dashed circle = no report yet)"}`}>
       <span
         class="dcard-verdict"
         style={{ color: VERDICT_COLOR[props.verdict] }}
@@ -62,8 +54,7 @@ function VerdictChip(props: {
           props.report
             ? `${props.verdict} — ${props.report.passed}/${props.report.checks} checks`
             : props.verdict
-        }
-      >
+        }>
         <Icon name={VERDICT_ICON[props.verdict]} size={17} />
       </span>
     </InfoTip>
@@ -99,8 +90,8 @@ export function DriveRail(props: {
       {props.drives.length === 0 && (
         <div class="note-card">
           <Icon name="usb" size={22} />
-          No drives known yet — plug one in and it will appear here, forever. It
-          stays browsable as a "ghost" after unmounting.
+          No drives known yet — plug one in and it will appear here, forever. It stays browsable as
+          a "ghost" after unmounting.
         </div>
       )}
       {mounted.map(railCard)}
@@ -110,8 +101,7 @@ export function DriveRail(props: {
             <h2>Ghosts</h2>
             <span
               class="count"
-              title="Known drives that aren't plugged in — their last snapshot stays browsable."
-            >
+              title="Known drives that aren't plugged in — their last snapshot stays browsable.">
               last-scan state
             </span>
           </div>
@@ -124,8 +114,7 @@ export function DriveRail(props: {
             <h2>Ports</h2>
             <span
               class="count"
-              title="Physical USB ports and which drive was last seen in each — handy for 'which port is the mirror' habits."
-            >
+              title="Physical USB ports and which drive was last seen in each — handy for 'which port is the mirror' habits.">
               physical slots
             </span>
           </div>
@@ -158,8 +147,7 @@ function usbLinkInfo(bps: number): { label: string; cls: string; tip: string } {
       cls: "",
       tip: "Negotiated USB link: 5 Gbps (USB 3.0). Good enough for playback and copies.",
     };
-  const mbps =
-    bps >= 480_000_000 ? "480 Mbps" : `${(bps / 1_000_000).toFixed(0)} Mbps`;
+  const mbps = bps >= 480_000_000 ? "480 Mbps" : `${(bps / 1_000_000).toFixed(0)} Mbps`;
   return {
     label: "USB 2.0 link — slow",
     cls: " slow",
@@ -203,16 +191,11 @@ function RailCard(props: {
     <button
       type="button"
       class={`dcard${d.mounted ? "" : " ghost"}${props.on ? " on" : ""}`}
-      onClick={props.onSelect}
-    >
+      onClick={props.onSelect}>
       <div class="dcard-top">
         <div class="photo">
           {d.photo_path ? (
-            <img
-              src={`/photos/${d.id}?v=${d.last_seen_at}`}
-              alt=""
-              loading="lazy"
-            />
+            <img src={`/photos/${d.id}?v=${d.last_seen_at}`} alt="" loading="lazy" />
           ) : (
             <Icon name="usb" size={20} />
           )}
@@ -222,8 +205,7 @@ function RailCard(props: {
           <div class="name">
             <span
               class="dcard-name"
-              title={`${name}${ROLE_HELP[d.role] ? ` — ${ROLE_HELP[d.role]}` : ""}`}
-            >
+              title={`${name}${ROLE_HELP[d.role] ? ` — ${ROLE_HELP[d.role]}` : ""}`}>
               {name}
             </span>
             {d.role !== "unknown" && (
@@ -244,28 +226,20 @@ function RailCard(props: {
             </div>
           )}
           {report && report.checks > 0 && (
-            <div
-              class={`sub scoreline${report.failed > 0 || report.warned > 0 ? " haswarn" : ""}`}
-            >
+            <div class={`sub scoreline${report.failed > 0 || report.warned > 0 ? " haswarn" : ""}`}>
               <b>
                 {report.passed} of {report.checks}
               </b>{" "}
               checks passed
-              {report.failed > 0 && (
-                <span class="score-fails"> · {report.failed} to fix</span>
-              )}
-              {report.warned > 0 && (
-                <span class="score-warns"> · {report.warned} warnings</span>
-              )}
+              {report.failed > 0 && <span class="score-fails"> · {report.failed} to fix</span>}
+              {report.warned > 0 && <span class="score-warns"> · {report.warned} warnings</span>}
             </div>
           )}
           {d.shelf_sweep && (
             <div
               class={`sub sweepline${(d.shelf_sweep.ageDays ?? 0) > 30 || d.shelf_sweep.verdict === "failed" ? " stale" : ""}`}
-              title={`Last drive→shelf sweep: ${d.shelf_sweep.verdict}, ${d.shelf_sweep.files_seen.toLocaleString()} files (${d.shelf_sweep.copied} copied, ${d.shelf_sweep.preserved} preserved as twins)`}
-            >
-              shelf: {d.shelf_sweep.verdict} ·{" "}
-              {d.shelf_sweep.files_seen.toLocaleString()} files
+              title={`Last drive→shelf sweep: ${d.shelf_sweep.verdict}, ${d.shelf_sweep.files_seen.toLocaleString()} files (${d.shelf_sweep.copied} copied, ${d.shelf_sweep.preserved} preserved as twins)`}>
+              shelf: {d.shelf_sweep.verdict} · {d.shelf_sweep.files_seen.toLocaleString()} files
               {d.shelf_sweep.finished_at
                 ? ` · ${Math.floor(d.shelf_sweep.ageDays ?? 0)}d ago`
                 : " · running"}
@@ -279,29 +253,22 @@ function RailCard(props: {
           {d.mounted && d.link_bps !== null && d.link_bps !== undefined && (
             <div
               class={`sub usblink${usbLinkInfo(d.link_bps).cls}`}
-              title={usbLinkInfo(d.link_bps).tip}
-            >
+              title={usbLinkInfo(d.link_bps).tip}>
               {usbLinkInfo(d.link_bps).label}
             </div>
           )}
         </div>
       </div>
-      {d.mounted &&
-        snap &&
-        free !== null &&
-        free !== undefined &&
-        totalBytes > 0 && (
-          <div class="spacestrip">
-            <div class="bar">
-              <i
-                class={1 - free / totalBytes > 0.85 ? "hot" : ""}
-                style={{
-                  width: `${Math.min(100, Math.max(0, (1 - free / totalBytes) * 100))}%`,
-                }}
-              />
-            </div>
+      {d.mounted && snap && free !== null && free !== undefined && totalBytes > 0 && (
+        <div class="spacestrip">
+          <div class="bar">
+            <i
+              class={1 - free / totalBytes > 0.85 ? "hot" : ""}
+              style={{ width: `${Math.min(100, Math.max(0, (1 - free / totalBytes) * 100))}%` }}
+            />
           </div>
-        )}
+        </div>
+      )}
       {(badges.top.length > 0 || badges.extra.length > 0) && (
         <div class="badges">
           {badges.top.map((b) => (
@@ -313,8 +280,7 @@ function RailCard(props: {
             <InfoTip
               side
               title={`+${badges.extra.length} more`}
-              body={badges.extra.map((b) => b.label).join(" · ")}
-            >
+              body={badges.extra.map((b) => b.label).join(" · ")}>
               <span class="badge muted">+{badges.extra.length}</span>
             </InfoTip>
           )}

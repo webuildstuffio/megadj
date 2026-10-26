@@ -6,12 +6,7 @@ import {
   MEGASET_GENRE_FAMILIES,
 } from "../../../shared/types";
 import { Icon } from "../../ui/icons";
-import {
-  AdvancedDrawer,
-  PresetOption,
-  SequencerRow,
-  StepTitle,
-} from "./MegasetForm";
+import { AdvancedDrawer, PresetOption, SequencerRow, StepTitle } from "./MegasetForm";
 import type { MegasetBuilder } from "./megaset-builder";
 
 const SET_DURATION_PRESETS = [30, 60, 90, 120] as const;
@@ -25,11 +20,7 @@ function PresetSettings(props: { model: MegasetBuilder }) {
         title="Energy journey"
         hint="how the room should feel from first track to last"
       />
-      <div
-        class="megaset-preset-grid"
-        role="radiogroup"
-        aria-labelledby="megaset-preset-label"
-      >
+      <div class="megaset-preset-grid" role="radiogroup" aria-labelledby="megaset-preset-label">
         {MEGASET_PRESET_DEFS.map((preset, index) => (
           <PresetOption
             key={preset.id}
@@ -54,27 +45,19 @@ function DurationSettings(props: { model: MegasetBuilder }) {
     <fieldset class="megaset-length" disabled={model.build.loading}>
       <StepTitle n={2} title="MegaSet length" />
       <div class="megaset-duration">
-        <div
-          class="megaset-duration-presets"
-          role="group"
-          aria-label="Common set lengths"
-        >
+        <div class="megaset-duration-presets" role="group" aria-label="Common set lengths">
           {SET_DURATION_PRESETS.map((duration) => (
             <button
               key={duration}
               type="button"
               class={`megaset-duration-option${model.minutes === duration ? " on" : ""}`}
               aria-pressed={model.minutes === duration}
-              onClick={() => model.setMinutesInput(String(duration))}
-            >
+              onClick={() => model.setMinutesInput(String(duration))}>
               {duration} min
             </button>
           ))}
         </div>
-        <label
-          class="megaset-minutes"
-          title="Enter a custom target between the supported limits"
-        >
+        <label class="megaset-minutes" title="Enter a custom target between the supported limits">
           <span>
             Custom
             <small>
@@ -87,9 +70,7 @@ function DurationSettings(props: { model: MegasetBuilder }) {
             max={MEGASET_MINUTES_MAX}
             value={model.minutesInput}
             aria-label={`Custom set length in minutes (${MEGASET_MINUTES_MIN}–${MEGASET_MINUTES_MAX})`}
-            onInput={(event) =>
-              model.setMinutesInput((event.target as HTMLInputElement).value)
-            }
+            onInput={(event) => model.setMinutesInput((event.target as HTMLInputElement).value)}
             onBlur={model.commitMinutes}
           />
         </label>
@@ -120,9 +101,7 @@ function GenreSettings(props: { model: MegasetBuilder }) {
         aria-label="Genre filter (substring match, blank = whole library)"
         list="megaset-genre-families"
         value={model.genreInput}
-        onInput={(event) =>
-          model.setGenreInput((event.target as HTMLInputElement).value)
-        }
+        onInput={(event) => model.setGenreInput((event.target as HTMLInputElement).value)}
       />
       <datalist id="megaset-genre-families">
         {familyKeys.map((family) => (
@@ -131,15 +110,14 @@ function GenreSettings(props: { model: MegasetBuilder }) {
       </datalist>
       {suggestion !== undefined && suggestion !== "" && (
         <p class="megaset-genre-count" role="status">
-          no tracks matched “{model.genreInput.trim()}” — did you mean{" "}
-          <strong>{suggestion}</strong>?
+          no tracks matched “{model.genreInput.trim()}” — did you mean <strong>{suggestion}</strong>
+          ?
         </p>
       )}
       {filtered > 0 && (
         <p class="megaset-genre-count" role="status">
-          pool narrowed to <strong>{filtered}</strong>{" "}
-          {filtered === 1 ? "track" : "tracks"} matching “
-          {model.genreInput.trim()}”
+          pool narrowed to <strong>{filtered}</strong> {filtered === 1 ? "track" : "tracks"}{" "}
+          matching “{model.genreInput.trim()}”
         </p>
       )}
     </fieldset>
@@ -159,8 +137,7 @@ function SequencerSettings(props: { model: MegasetBuilder }) {
       />
       <label
         class="megaset-genre"
-        title="Must-play track ids, comma- or space-separated — each is slotted into the chain at an arc-legal position"
-      >
+        title="Must-play track ids, comma- or space-separated — each is slotted into the chain at an arc-legal position">
         <span>
           Must-play tracks
           <small>track ids — pinned into the chain (#107 landmarks)</small>
@@ -171,16 +148,13 @@ function SequencerSettings(props: { model: MegasetBuilder }) {
           placeholder="e.g. dQw4w9WgXcQ, aBcD1234…"
           aria-label="Landmark must-play track ids (comma or space separated)"
           value={model.landmarksInput}
-          onInput={(event) =>
-            model.setLandmarksInput((event.target as HTMLInputElement).value)
-          }
+          onInput={(event) => model.setLandmarksInput((event.target as HTMLInputElement).value)}
         />
       </label>
       {missing.length > 0 && (
         <p class="megaset-genre-count" role="alert">
-          {missing.length === 1 ? "pin" : "pins"} not placed:{" "}
-          <strong>{missing.join(", ")}</strong> — no arc-legal position in this
-          set
+          {missing.length === 1 ? "pin" : "pins"} not placed: <strong>{missing.join(", ")}</strong>{" "}
+          — no arc-legal position in this set
         </p>
       )}
       <AdvancedDrawer
@@ -195,10 +169,7 @@ function SequencerSettings(props: { model: MegasetBuilder }) {
   );
 }
 
-function BuildControls(props: {
-  model: MegasetBuilder;
-  openerPicker: ComponentChildren;
-}) {
+function BuildControls(props: { model: MegasetBuilder; openerPicker: ComponentChildren }) {
   const { model, openerPicker } = props;
   return (
     <div class="megaset-controls">
@@ -207,8 +178,7 @@ function BuildControls(props: {
         type="submit"
         class="btn primary megaset-build"
         disabled={model.build.loading}
-        aria-busy={model.build.loading}
-      >
+        aria-busy={model.build.loading}>
         {model.build.loading ? (
           <span class="spin" aria-hidden="true" />
         ) : (
@@ -220,10 +190,7 @@ function BuildControls(props: {
   );
 }
 
-export function MegasetSettings(props: {
-  model: MegasetBuilder;
-  openerPicker: ComponentChildren;
-}) {
+export function MegasetSettings(props: { model: MegasetBuilder; openerPicker: ComponentChildren }) {
   return (
     <form
       class="megaset-form"
@@ -231,8 +198,7 @@ export function MegasetSettings(props: {
       onSubmit={(event) => {
         event.preventDefault();
         if (!props.model.build.loading) void props.model.run();
-      }}
-    >
+      }}>
       <PresetSettings model={props.model} />
       <DurationSettings model={props.model} />
       <GenreSettings model={props.model} />

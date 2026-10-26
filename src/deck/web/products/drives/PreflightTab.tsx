@@ -11,11 +11,7 @@ import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { errMessage } from "../../../../shared/leaf/fmt";
 import { useFetched } from "../../ui/useFetched";
-import type {
-  CheckStatus,
-  PlayersPayload,
-  PreflightReport,
-} from "../../../shared/types";
+import type { CheckStatus, PlayersPayload, PreflightReport } from "../../../shared/types";
 import { InfoTip } from "../../ui/InfoTip";
 // PlayersPayload = the wire shape of GET /api/drives/:id/players (N78),
 // imported from the shared SSOT instead of re-declared here — a local
@@ -118,23 +114,10 @@ export function PreflightTab() {
     setOpen(open === id ? null : id);
     if (!players[id]) {
       setPlayers((prev) => ({ ...prev, [id]: { status: "loading" } }));
-      api<PlayersPayload>(`/api/drives/${encodeURIComponent(id)}/players`, {
-        quiet: true,
-      })
-        .then((p) =>
-          setPlayers((prev) => ({
-            ...prev,
-            [id]: { status: "ok", payload: p },
-          })),
-        )
+      api<PlayersPayload>(`/api/drives/${encodeURIComponent(id)}/players`, { quiet: true })
+        .then((p) => setPlayers((prev) => ({ ...prev, [id]: { status: "ok", payload: p } })))
         .catch((e: unknown) =>
-          setPlayers((prev) => ({
-            ...prev,
-            [id]: {
-              status: "error",
-              message: errMessage(e),
-            },
-          })),
+          setPlayers((prev) => ({ ...prev, [id]: { status: "error", message: errMessage(e) } })),
         );
     }
   };
@@ -156,14 +139,10 @@ export function PreflightTab() {
     <div class="preflight">
       <div class={`note ${VERDICT_TONE[data.overall] ?? ""}`}>
         <Icon name={VERDICT_ICON[data.overall] ?? "dot"} size={16} />{" "}
-        <strong>{data.overall}</strong> — {data.summary} ({data.mountedCount}{" "}
-        mounted)
+        <strong>{data.overall}</strong> — {data.summary} ({data.mountedCount} mounted)
         <InfoTip
           title={`preflight verdict: ${data.overall}`}
-          body={
-            VERDICT_HELP[data.overall]?.body ??
-            "Worst status across mounted drives wins."
-          }
+          body={VERDICT_HELP[data.overall]?.body ?? "Worst status across mounted drives wins."}
           why={
             VERDICT_HELP[data.overall]?.why ??
             "deckctl preflight exits 1 unless the verdict is ready."
@@ -174,10 +153,8 @@ export function PreflightTab() {
       {data.firmware_advisories.length > 0 && (
         <div
           class="note"
-          title="Known vendor firmware problems (e.g. a pulled CDJ-3000 update that made playlists vanish). Informational — not a drive fault."
-        >
-          <Icon name="bell" size={14} /> Firmware advisories:{" "}
-          {data.firmware_advisories.join(" · ")}
+          title="Known vendor firmware problems (e.g. a pulled CDJ-3000 update that made playlists vanish). Informational — not a drive fault.">
+          <Icon name="bell" size={14} /> Firmware advisories: {data.firmware_advisories.join(" · ")}
         </div>
       )}
 
@@ -191,8 +168,7 @@ export function PreflightTab() {
               open === d.drive.id
                 ? "Collapse this drive's checks"
                 : "Expand checks, blockers and player compatibility"
-            }
-          >
+            }>
             <span class={`rolechip ${VERDICT_TONE[d.overall] ?? "unknown"}`}>
               <Icon name={VERDICT_ICON[d.overall] ?? "dot"} size={12} />
               {d.overall}
@@ -228,22 +204,12 @@ export function PreflightTab() {
                   <div
                     key={c.id}
                     class={`check ${c.status}`}
-                    title={pf ? `${pf.what} ${pf.why}` : undefined}
-                  >
+                    title={pf ? `${pf.what} ${pf.why}` : undefined}>
                     <Icon name={STATUS_ICON[c.status]} size={12} />
                     <strong>{c.label}</strong>
-                    {pf && (
-                      <InfoTip
-                        title={c.label}
-                        body={pf.what}
-                        why={pf.why}
-                        align="right"
-                      />
-                    )}
+                    {pf && <InfoTip title={c.label} body={pf.what} why={pf.why} align="right" />}
                     <span class="detail">{c.detail}</span>
-                    {c.status !== "pass" && c.fix && (
-                      <span class="fix">fix: {c.fix}</span>
-                    )}
+                    {c.status !== "pass" && c.fix && <span class="fix">fix: {c.fix}</span>}
                   </div>
                 );
               })}
@@ -255,8 +221,7 @@ export function PreflightTab() {
                       <Icon name="warn" size={12} />
                       <strong>Player compat</strong>
                       <span class="detail">
-                        unavailable: {ps.message} — close and reopen this card
-                        to retry
+                        unavailable: {ps.message} — close and reopen this card to retry
                       </span>
                     </div>
                   );
@@ -268,9 +233,7 @@ export function PreflightTab() {
                       <div key={b.player.name} class="check fail">
                         <Icon name="x" size={12} />
                         <strong>{b.player.name}</strong>
-                        <span class="detail">
-                          can't read this drive — {b.reason}
-                        </span>
+                        <span class="detail">can't read this drive — {b.reason}</span>
                       </div>
                     ))}
                     {p.ok.map((p2) => (

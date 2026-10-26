@@ -56,8 +56,7 @@ export function ArchiveTab() {
       ]),
     [],
   );
-  const [ingest, mood, lowq, grid] =
-    page.status === "ok" ? page.data : [null, null, null, null];
+  const [ingest, mood, lowq, grid] = page.status === "ok" ? page.data : [null, null, null, null];
 
   if (page.status !== "ok" || !ingest)
     return <FetchedGate page={page} loading="loading archive reads…" />;
@@ -114,8 +113,7 @@ export function ArchiveTab() {
 
       {issues.length === 0 && (
         <div class="note ok">
-          <Icon name="check" size={14} /> Nothing needs work — the queue is
-          empty.
+          <Icon name="check" size={14} /> Nothing needs work — the queue is empty.
         </div>
       )}
 

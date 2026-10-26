@@ -13,13 +13,7 @@
 // target the same property (the card once rendered stuck at its offscreen
 // measuring spot). left/top stay 0 here; transform carries the position.
 import { createPortal } from "preact/compat";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "preact/hooks";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { Icon } from "./icons";
 import { placeCard, type TipAlign, type TipRequest } from "./tipPlace";
@@ -45,12 +39,12 @@ export function Tip(props: {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{
-    left: number;
-    top: number;
-    place: string;
-    ready: boolean;
-  }>({ left: 0, top: 0, place: "top", ready: false });
+  const [pos, setPos] = useState<{ left: number; top: number; place: string; ready: boolean }>({
+    left: 0,
+    top: 0,
+    place: "top",
+    ready: false,
+  });
 
   const measure = useCallback(() => {
     const anchor = anchorRef.current;
@@ -67,12 +61,7 @@ export function Tip(props: {
       props.request ?? "top",
       props.align,
     );
-    setPos({
-      left: placed.left,
-      top: placed.top,
-      place: placed.place,
-      ready: true,
-    });
+    setPos({ left: placed.left, top: placed.top, place: placed.place, ready: true });
   }, [props.request, props.align]);
 
   useLayoutEffect(() => {
@@ -99,8 +88,7 @@ export function Tip(props: {
       data-place={pos.place}
       data-ready={pos.ready ? "" : undefined}
       role="tooltip"
-      style={{ transform: `translate3d(${pos.left}px, ${pos.top}px, 0)` }}
-    >
+      style={{ transform: `translate3d(${pos.left}px, ${pos.top}px, 0)` }}>
       <b>{props.title}</b>
       <span>{props.body}</span>
       {props.why && (
@@ -121,8 +109,7 @@ export function Tip(props: {
       onPointerEnter={() => setOpen(true)}
       onFocus={() => setOpen(true)}
       onBlur={close}
-      onPointerLeave={close}
-    >
+      onPointerLeave={close}>
       {props.children}
       {open && createPortal(card, document.body)}
     </span>

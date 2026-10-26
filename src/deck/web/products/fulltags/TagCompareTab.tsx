@@ -51,9 +51,7 @@ export function TagCompareTab() {
   const search = useFetched<ArchiveSearchHit[] | null>(
     () =>
       filter.trim().length >= 2
-        ? api<ArchiveSearchHit[]>(
-            `/api/archive/search?q=${encodeURIComponent(filter)}`,
-          )
+        ? api<ArchiveSearchHit[]>(`/api/archive/search?q=${encodeURIComponent(filter)}`)
         : Promise.resolve(null),
     [filter],
   );
@@ -67,8 +65,7 @@ export function TagCompareTab() {
     [picked],
   );
 
-  if (census.status !== "ok")
-    return <FetchedGate page={census} loading="comparing the mirrors…" />;
+  if (census.status !== "ok") return <FetchedGate page={census} loading="comparing the mirrors…" />;
   const c = census.data;
   if (!c.available) return <ArchiveAbsentGate />;
   if (!c.rekordboxMirror)
@@ -81,16 +78,15 @@ export function TagCompareTab() {
         />
         <div class="note-card">
           <Icon name="usb" size={20} />
-          No rekordbox mirror yet — <code>megadj rb-adopt</code> fills it (reads
-          master.db read-only, links Content IDs to archive tracks).
+          No rekordbox mirror yet — <code>megadj rb-adopt</code> fills it (reads master.db
+          read-only, links Content IDs to archive tracks).
         </div>
       </div>
     );
 
   const q = filter.trim().toLowerCase();
   const rows = c.rows.filter((r) => {
-    if (q && !`${r.title ?? ""} ${r.artist ?? ""}`.toLowerCase().includes(q))
-      return false;
+    if (q && !`${r.title ?? ""} ${r.artist ?? ""}`.toLowerCase().includes(q)) return false;
     if (censusFilter === "diff") return r.differs.length > 0;
     if (censusFilter === "genre") return r.differs.includes("genre");
     if (censusFilter === "flag") return r.genreFlag !== null;
@@ -115,9 +111,7 @@ export function TagCompareTab() {
           <>
             {c.matched.toLocaleString()} tracks in both mirrors ·{" "}
             <b>{c.differing.toLocaleString()}</b> disagree on ≥1 field
-            {c.unmatched > 0 && (
-              <> · {c.unmatched.toLocaleString()} not in rekordbox</>
-            )}
+            {c.unmatched > 0 && <> · {c.unmatched.toLocaleString()} not in rekordbox</>}
           </>
         }
         meta={c.fieldCounts.slice(0, 4).map((f) => (
@@ -135,8 +129,7 @@ export function TagCompareTab() {
         ]}
         note={
           <>
-            newer imports? run <code>megadj beats</code> +{" "}
-            <code>megadj mood</code>
+            newer imports? run <code>megadj beats</code> + <code>megadj mood</code>
           </>
         }
       />
@@ -175,8 +168,7 @@ export function TagCompareTab() {
               key={id}
               type="button"
               class={censusFilter === id ? "on" : ""}
-              onClick={() => setCensusFilter(id)}
-            >
+              onClick={() => setCensusFilter(id)}>
               {label}
             </button>
           ))}
@@ -194,12 +186,8 @@ export function TagCompareTab() {
                   type="button"
                   class="kvrow-btn"
                   style="all: unset; cursor: pointer; display: flex; gap: 4px; align-items: baseline;"
-                  onClick={() => pickRow(r)}
-                >
-                  <Icon
-                    name={openRow === r.videoId ? "chevD" : "chevronR"}
-                    size={12}
-                  />
+                  onClick={() => pickRow(r)}>
+                  <Icon name={openRow === r.videoId ? "chevD" : "chevronR"} size={12} />
                   <b>{r.title ?? r.videoId}</b>
                   {r.artist && <span class="dt-sub"> — {r.artist}</span>}
                 </button>
@@ -262,12 +250,7 @@ export function TagCompareTab() {
               key: "flag",
               head: "flag",
               min: 80,
-              cell: (r) =>
-                r.genreFlag ? (
-                  <span class="arch-pill warn">{r.genreFlag}</span>
-                ) : (
-                  ""
-                ),
+              cell: (r) => (r.genreFlag ? <span class="arch-pill warn">{r.genreFlag}</span> : ""),
               sortValue: (r) => r.genreFlag ?? "",
             },
           ]}

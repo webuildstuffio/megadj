@@ -30,10 +30,7 @@ export function Toaster() {
     push = (t) => {
       const id = seq++;
       setItems((cur) => [...cur.slice(-3), { ...t, id }]);
-      setTimeout(
-        () => setItems((cur) => cur.filter((x) => x.id !== id)),
-        AUTO_DISMISS_MS,
-      );
+      setTimeout(() => setItems((cur) => cur.filter((x) => x.id !== id)), AUTO_DISMISS_MS);
     };
     return () => {
       push = null;
@@ -43,11 +40,7 @@ export function Toaster() {
     <div class="toaster" role="status" aria-live="polite">
       {items.map((t) => (
         <div class={`toast ${t.tone}`} key={t.id}>
-          <Icon
-            name={
-              t.tone === "ok" ? "check" : t.tone === "err" ? "warn" : "info"
-            }
-          />
+          <Icon name={t.tone === "ok" ? "check" : t.tone === "err" ? "warn" : "info"} />
           <span>{t.text}</span>
         </div>
       ))}

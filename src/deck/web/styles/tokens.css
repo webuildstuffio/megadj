@@ -111,17 +111,8 @@ html {
 body {
   margin: 0;
   background:
-    radial-gradient(
-      1100px 460px at 24% -12%,
-      rgba(56, 224, 164, 0.05),
-      transparent
-    ),
-    radial-gradient(
-      1100px 500px at 78% -14%,
-      rgba(97, 168, 255, 0.06),
-      transparent
-    ),
-    var(--bg);
+    radial-gradient(1100px 460px at 24% -12%, rgba(56, 224, 164, 0.05), transparent),
+    radial-gradient(1100px 500px at 78% -14%, rgba(97, 168, 255, 0.06), transparent), var(--bg);
   color: var(--text);
   font:
     14px/1.5 -apple-system,
@@ -136,75 +127,30 @@ body {
 .app[data-prod="drives"] body,
 body:has(.app[data-prod="drives"]) {
   background:
-    radial-gradient(
-      1100px 460px at 24% -12%,
-      rgba(56, 224, 164, 0.05),
-      transparent
-    ),
-    radial-gradient(
-      1100px 500px at 78% -14%,
-      rgba(97, 168, 255, 0.06),
-      transparent
-    ),
-    var(--bg);
+    radial-gradient(1100px 460px at 24% -12%, rgba(56, 224, 164, 0.05), transparent),
+    radial-gradient(1100px 500px at 78% -14%, rgba(97, 168, 255, 0.06), transparent), var(--bg);
 }
 body:has(.app[data-prod="getdat"]) {
   background:
-    radial-gradient(
-      1100px 460px at 24% -12%,
-      rgba(97, 168, 255, 0.06),
-      transparent
-    ),
-    radial-gradient(
-      1100px 500px at 78% -14%,
-      rgba(56, 224, 164, 0.04),
-      transparent
-    ),
-    var(--bg);
+    radial-gradient(1100px 460px at 24% -12%, rgba(97, 168, 255, 0.06), transparent),
+    radial-gradient(1100px 500px at 78% -14%, rgba(56, 224, 164, 0.04), transparent), var(--bg);
 }
 body:has(.app[data-prod="fulltags"]) {
   background:
-    radial-gradient(
-      1100px 460px at 24% -12%,
-      rgba(177, 140, 255, 0.06),
-      transparent
-    ),
-    radial-gradient(
-      1100px 500px at 78% -14%,
-      rgba(97, 168, 255, 0.04),
-      transparent
-    ),
-    var(--bg);
+    radial-gradient(1100px 460px at 24% -12%, rgba(177, 140, 255, 0.06), transparent),
+    radial-gradient(1100px 500px at 78% -14%, rgba(97, 168, 255, 0.04), transparent), var(--bg);
 }
 body:has(.app[data-prod="fleet"]) {
   background:
-    radial-gradient(
-      1100px 460px at 24% -12%,
-      rgba(240, 182, 75, 0.05),
-      transparent
-    ),
-    radial-gradient(
-      1100px 500px at 78% -14%,
-      rgba(242, 85, 90, 0.035),
-      transparent
-    ),
-    var(--bg);
+    radial-gradient(1100px 460px at 24% -12%, rgba(240, 182, 75, 0.05), transparent),
+    radial-gradient(1100px 500px at 78% -14%, rgba(242, 85, 90, 0.035), transparent), var(--bg);
 }
 /* Set's own room lighting: warm booth amber wash — "the library gets
  * played" reads as a different time of day, not a different app. */
 body:has(.app[data-prod="megaset"]) {
   background:
-    radial-gradient(
-      1100px 460px at 24% -12%,
-      rgba(224, 169, 63, 0.055),
-      transparent
-    ),
-    radial-gradient(
-      1100px 500px at 78% -14%,
-      rgba(242, 85, 90, 0.035),
-      transparent
-    ),
-    var(--bg);
+    radial-gradient(1100px 460px at 24% -12%, rgba(224, 169, 63, 0.055), transparent),
+    radial-gradient(1100px 500px at 78% -14%, rgba(242, 85, 90, 0.035), transparent), var(--bg);
 }
 
 ::selection {

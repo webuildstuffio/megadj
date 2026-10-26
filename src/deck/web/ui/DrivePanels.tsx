@@ -43,8 +43,7 @@ export function ConfirmButton(props: {
           setArmed(true);
           setTimeout(() => setArmed(false), 3000);
         }
-      }}
-    >
+      }}>
       <Icon name="trash" size={13} />{" "}
       {armed ? (props.confirmLabel ?? "Sure? Click again") : props.label}
     </button>
@@ -103,27 +102,14 @@ export function CheckRow({ c }: { c: HealthCheck }) {
     <div class={`check ${c.status}`}>
       <span class="check-ico">
         <Icon
-          name={
-            c.status === "pass"
-              ? "check"
-              : c.status === "unknown"
-                ? "dot"
-                : "warn"
-          }
+          name={c.status === "pass" ? "check" : c.status === "unknown" ? "dot" : "warn"}
           size={12}
         />
       </span>
       <span class="check-body">
         <b>
           {c.label}
-          {why && (
-            <InfoTip
-              title={c.label}
-              body={why.what}
-              why={why.why}
-              align="right"
-            />
-          )}
+          {why && <InfoTip title={c.label} body={why.what} why={why.why} align="right" />}
         </b>
         <span class="check-detail">{c.detail}</span>
         {c.fix && c.status !== "pass" && (
@@ -159,13 +145,9 @@ export function SpaceBar({ snap }: { snap: SnapshotData }) {
   return (
     <div
       class="spacewrap"
-      title="Used vs free vs total. Keep ≥15% free — rekordbox needs headroom for its database journal and analysis files."
-    >
+      title="Used vs free vs total. Keep ≥15% free — rekordbox needs headroom for its database journal and analysis files.">
       <div class="bar">
-        <i
-          class={usedPct > 85 ? "hot" : ""}
-          style={{ width: `${Math.min(100, usedPct)}%` }}
-        />
+        <i class={usedPct > 85 ? "hot" : ""} style={{ width: `${Math.min(100, usedPct)}%` }} />
       </div>
       <div class="spacelegend">
         <span>
@@ -187,13 +169,15 @@ export function ExtBars({ snap }: { snap: SnapshotData }) {
   return (
     <div title="Bytes on disk by file extension — audio formats vs artwork, DB and system files. '._' entries are macOS resource forks (junk).">
       <BarList
-        rows={byExt.slice(0, 8).map((e) => ({
-          key: e.ext,
-          name: e.ext,
-          value: e.bytes,
-          display: `${fmtBytes(e.bytes)} · ${e.files}`,
-          title: `${e.ext}: ${fmtBytes(e.bytes)} across ${e.files} files · ${Math.round((e.bytes / totalBytes) * 100)}% of bytes`,
-        }))}
+        rows={byExt
+          .slice(0, 8)
+          .map((e) => ({
+            key: e.ext,
+            name: e.ext,
+            value: e.bytes,
+            display: `${fmtBytes(e.bytes)} · ${e.files}`,
+            title: `${e.ext}: ${fmtBytes(e.bytes)} across ${e.files} files · ${Math.round((e.bytes / totalBytes) * 100)}% of bytes`,
+          }))}
         tone="info"
       />
     </div>
@@ -205,8 +189,7 @@ export function AgeStrip({ snap }: { snap: SnapshotData }) {
   return (
     <div
       class="agestrip"
-      title="How old the audio is, by file modified date. A stick that's all 'ancient' may be overdue for new music; a mixed profile is normal."
-    >
+      title="How old the audio is, by file modified date. A stick that's all 'ancient' may be overdue for new music; a mixed profile is normal.">
       {(
         [
           ["fresh", "< 30d"],
@@ -242,11 +225,7 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
       </h3>
       <div class="statgrid">
         <StatCard
-          v={
-            dj.bpm_min
-              ? `${Math.round(dj.bpm_min)}–${Math.round(dj.bpm_max ?? 0)}`
-              : "—"
-          }
+          v={dj.bpm_min ? `${Math.round(dj.bpm_min)}–${Math.round(dj.bpm_max ?? 0)}` : "—"}
           l="BPM range"
           icon="pulse"
           title="Slowest to fastest track BPM in the library, from rekordbox analysis. Empty means tracks aren't analyzed yet."
@@ -258,21 +237,13 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
           title="The middle of the library's BPM distribution — the 'home tempo' this stick lives at."
         />
         <StatCard
-          v={
-            dj.duration && dj.duration.median_s
-              ? fmtDur(dj.duration.median_s)
-              : "—"
-          }
+          v={dj.duration && dj.duration.median_s ? fmtDur(dj.duration.median_s) : "—"}
           l="median track length"
           icon="clock"
           title="Half the library is shorter, half longer. Useful for planning set blocks."
         />
         <StatCard
-          v={
-            dj.duration && dj.duration.longest_s
-              ? fmtDur(dj.duration.longest_s)
-              : "—"
-          }
+          v={dj.duration && dj.duration.longest_s ? fmtDur(dj.duration.longest_s) : "—"}
           l="longest track"
           icon="clock"
           title="The marathon in the crate — longer tracks need reliable beatgrids to mix out of."
@@ -280,10 +251,7 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
       </div>
       {bpmHistogram.length > 0 && (
         <Histogram
-          buckets={bpmHistogram.map((b) => ({
-            label: `${b.bucket}`,
-            count: b.count,
-          }))}
+          buckets={bpmHistogram.map((b) => ({ label: `${b.bucket}`, count: b.count }))}
           labelEvery={5}
           unit="tracks"
         />
@@ -300,8 +268,7 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
       {dj.bitrate && (
         <div
           class="brstrip"
-          title="Audio quality mix: lossless (AIFF/WAV/FLAC/ALAC) vs high-bitrate lossy vs everything else. 'unknown' rows usually predate analysis."
-        >
+          title="Audio quality mix: lossless (AIFF/WAV/FLAC/ALAC) vs high-bitrate lossy vs everything else. 'unknown' rows usually predate analysis.">
           {(
             [
               ["lossless", dj.bitrate.lossless, "good"],
@@ -339,12 +306,14 @@ export function Bars({
         {tip && <InfoTip title={title} body={tip} align="right" />}
       </h3>
       <BarList
-        rows={rows.slice(0, 8).map((r) => ({
-          key: r.name,
-          name: r.name,
-          value: r.count,
-          display: `${Math.round((r.count / total) * 100)}%`,
-        }))}
+        rows={rows
+          .slice(0, 8)
+          .map((r) => ({
+            key: r.name,
+            name: r.name,
+            value: r.count,
+            display: `${Math.round((r.count / total) * 100)}%`,
+          }))}
       />
     </div>
   );

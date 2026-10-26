@@ -43,8 +43,7 @@ export const PRODUCTS: ProductMeta[] = [
     label: "CrateDeck",
     icon: "usb",
     sub: "the DJ USB sticks + their fleet — health, playlists, verify, parity",
-    title:
-      "CrateDeck — the DJ USB sticks and their fleet: health, playlists, verify, parity",
+    title: "CrateDeck — the DJ USB sticks and their fleet: health, playlists, verify, parity",
     phase: "the drives stay honest",
   },
   {
@@ -52,8 +51,7 @@ export const PRODUCTS: ProductMeta[] = [
     label: "GetDat",
     icon: "download",
     sub: "the download pipeline — archive what's playable, work the backlog",
-    title:
-      "GetDat — the download pipeline: archive status, backlog, sources, library",
+    title: "GetDat — the download pipeline: archive status, backlog, sources, library",
     phase: "the archive gets filled",
   },
   {
@@ -105,8 +103,7 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       id: "",
       label: "Drives",
       icon: "usb",
-      title:
-        "The crate shelf — every drive with its health ring, plug in and go",
+      title: "The crate shelf — every drive with its health ring, plug in and go",
     },
     {
       id: "fleet",
@@ -127,8 +124,7 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       id: "redundancy",
       label: "Redundancy",
       icon: "shield",
-      title:
-        "Per-playlist audit: is every track on enough drives to survive one dying?",
+      title: "Per-playlist audit: is every track on enough drives to survive one dying?",
     },
     {
       id: "radar",
@@ -152,8 +148,7 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       id: "booth",
       label: "Booth",
       icon: "sliders",
-      title:
-        "Which players your checks enforce — pick the fleet, see the proof",
+      title: "Which players your checks enforce — pick the fleet, see the proof",
     },
     {
       id: "archive",
@@ -230,8 +225,7 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       id: "genre-why",
       label: "Genre Why",
       icon: "info",
-      title:
-        "#215 genre explainability: the vote ladder's per-rung breakdown for one track",
+      title: "#215 genre explainability: the vote ladder's per-rung breakdown for one track",
     },
     {
       id: "cues",
@@ -243,8 +237,7 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       id: "tags",
       label: "Tags",
       icon: "tag",
-      title:
-        "The tag mirror: genres, years, artwork, energy — file ground truth",
+      title: "The tag mirror: genres, years, artwork, energy — file ground truth",
     },
   ],
   megaset: [
@@ -314,8 +307,7 @@ export const DRIVE_TABS = [
     id: "fixes",
     label: "Fixes",
     icon: "bolt",
-    title:
-      "Booth compatibility fixes — audit, rename, retag against your fleet",
+    title: "Booth compatibility fixes — audit, rename, retag against your fleet",
   },
 ] as const;
 

@@ -10,18 +10,9 @@ import render from "preact-render-to-string";
 import { SurfacedLinksCard } from "./surfaced-card";
 
 const tabsSrc = readFileSync(join(import.meta.dir, "getdat-tabs.tsx"), "utf8");
-const statsSrc = readFileSync(
-  join(import.meta.dir, "../../ui/stats.tsx"),
-  "utf8",
-);
-const sharedSrc = readFileSync(
-  join(import.meta.dir, "../shared/index.tsx"),
-  "utf8",
-);
-const fleetCss = readFileSync(
-  join(import.meta.dir, "../../styles/fleet-tabs.css"),
-  "utf8",
-);
+const statsSrc = readFileSync(join(import.meta.dir, "../../ui/stats.tsx"), "utf8");
+const sharedSrc = readFileSync(join(import.meta.dir, "../shared/index.tsx"), "utf8");
+const fleetCss = readFileSync(join(import.meta.dir, "../../styles/fleet-tabs.css"), "utf8");
 
 const surfacedRow = {
   video_id: "123",
@@ -36,9 +27,7 @@ const surfacedRow = {
 
 describe("surfaced-link cohort in the web UI (#256 parity)", () => {
   test("SurfacedLinksCard renders clickable URLs, checkbox and the CLI pointer", () => {
-    const html = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="ledger" />,
-    );
+    const html = render(<SurfacedLinksCard rows={[surfacedRow]} context="ledger" />);
     expect(html).toContain("Shelter");
     expect(html).toContain("Porter Robinson");
     // URL-first: the bare link, rendered as a real anchor
@@ -49,12 +38,8 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
   });
 
   test("the two contexts frame the same rows differently (one component)", () => {
-    const ledger = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="ledger" />,
-    );
-    const backlog = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="backlog" />,
-    );
+    const ledger = render(<SurfacedLinksCard rows={[surfacedRow]} context="ledger" />);
+    const backlog = render(<SurfacedLinksCard rows={[surfacedRow]} context="backlog" />);
     expect(ledger).toContain("go through them instead of ripping");
     expect(backlog).toContain("yours to click");
   });
@@ -69,9 +54,7 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
     expect(backlog).toContain("surfaced-batch");
     expect(backlog).toContain("Music/Downloads");
     // an UNDONE row renders without the batch row (nothing to finalize)
-    const open = render(
-      <SurfacedLinksCard rows={[surfacedRow]} context="backlog" />,
-    );
+    const open = render(<SurfacedLinksCard rows={[surfacedRow]} context="backlog" />);
     expect(open).not.toContain("surfaced-batch");
   });
 
@@ -113,14 +96,7 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
         rows={[surfacedRow]}
         context="backlog"
         sets={[
-          {
-            slug: "summer-2025",
-            total: 96,
-            downloaded: 7,
-            gone: 45,
-            surfaced: 36,
-            pending: 0,
-          },
+          { slug: "summer-2025", total: 96, downloaded: 7, gone: 45, surfaced: 36, pending: 0 },
         ]}
       />,
     );
@@ -129,9 +105,7 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
     expect(html).toContain("7</i> in archive");
     expect(html).toContain("36</i> links open");
     expect(html).toContain("open set");
-    expect(html).toContain(
-      "https://soundcloud.com/parvati-rajesh/sets/summer-2025",
-    );
+    expect(html).toContain("https://soundcloud.com/parvati-rajesh/sets/summer-2025");
   });
 
   test("stat cards + share-bar segs are clickable (jump affordance)", () => {
@@ -144,14 +118,8 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
 
 describe("canvas primary-button tokens (retired raw greens stay retired)", () => {
   test("canvas.css reads the token block", () => {
-    const canvasCss = readFileSync(
-      join(import.meta.dir, "../../styles/canvas.css"),
-      "utf8",
-    );
-    const tokensCss = readFileSync(
-      join(import.meta.dir, "../../styles/tokens.css"),
-      "utf8",
-    );
+    const canvasCss = readFileSync(join(import.meta.dir, "../../styles/canvas.css"), "utf8");
+    const tokensCss = readFileSync(join(import.meta.dir, "../../styles/tokens.css"), "utf8");
     expect(tokensCss).toContain("--accent-btn-bg");
     expect(canvasCss).toContain("var(--accent-btn-bg)");
     expect(canvasCss).not.toContain("#0f2b1e");

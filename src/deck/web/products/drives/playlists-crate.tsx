@@ -6,12 +6,7 @@
 // everything it renders.
 import { useMemo, useState } from "preact/hooks";
 import type { PlaylistInfo } from "../../../shared/types";
-import {
-  camelotOf,
-  keyRelation,
-  keySortToken,
-  type CamelotPos,
-} from "../../../shared/camelot";
+import { camelotOf, keyRelation, keySortToken, type CamelotPos } from "../../../shared/camelot";
 import { fmtDur } from "../../../../shared/leaf/fmt";
 import { Icon } from "../../ui/icons";
 import { copyList } from "../../ui/data";
@@ -27,8 +22,7 @@ export interface PlTrack {
 }
 
 /** stable row key (rekordbox allows the same playlist name in two folders) */
-export const plKey = (pl: PlaylistInfo): string =>
-  `${pl.parent ?? ""}/${pl.name}`;
+export const plKey = (pl: PlaylistInfo): string => `${pl.parent ?? ""}/${pl.name}`;
 
 /** index over the snapshot's raw rows: playlist name → ordered tracks with
  *  DJ metadata. Built once per snapshot; expansion is then O(1). Push, not
@@ -48,8 +42,7 @@ export function buildTrackIndex(
         }[]
       | null
       | undefined;
-    playlist_entries?:
-      { playlist_name: string; track_path: string }[] | null | undefined;
+    playlist_entries?: { playlist_name: string; track_path: string }[] | null | undefined;
   } | null,
 ): Map<string, PlTrack[]> {
   const m = new Map<string, PlTrack[]>();
@@ -147,11 +140,7 @@ function PlTracks({
     const idx = rows.map((t, i) => ({ t, i }));
     if (!sort) return idx;
     const val = (t: PlTrack): number | string | null =>
-      sort.k === "bpm"
-        ? t.bpm
-        : sort.k === "time"
-          ? t.duration_ms
-          : keySortToken(t.key);
+      sort.k === "bpm" ? t.bpm : sort.k === "time" ? t.duration_ms : keySortToken(t.key);
     const nonNull = idx.filter((w) => val(w.t) !== null);
     const nulls = idx.filter((w) => val(w.t) === null);
     nonNull.sort((x, y) => {
@@ -217,8 +206,7 @@ function PlTracks({
                   return meta.length ? `${head} [${meta.join(" · ")}]` : head;
                 }),
               )
-            }
-          >
+            }>
             <Icon name="copy" size={12} /> Copy tracks
           </button>
         </span>
@@ -228,13 +216,8 @@ function PlTracks({
           type="button"
           class={`plh-btn ${sort ? "" : "sorted"}`}
           onClick={() => setSort(null)}
-          title={
-            sort
-              ? "Reset to crate order"
-              : "Crate order (as saved in rekordbox)"
-          }
-          disabled={!sort}
-        >
+          title={sort ? "Reset to crate order" : "Crate order (as saved in rekordbox)"}
+          disabled={!sort}>
           #
         </button>
         <span>track</span>
@@ -242,34 +225,25 @@ function PlTracks({
           type="button"
           class={`plh-btn ${sort?.k === "bpm" ? "sorted" : ""}`}
           onClick={() => toggleSort("bpm")}
-          title="Sort by BPM — plan the energy arc"
-        >
+          title="Sort by BPM — plan the energy arc">
           bpm
-          {sort?.k === "bpm" && (
-            <Icon name={sort.dir === 1 ? "chevU" : "chevD"} size={10} />
-          )}
+          {sort?.k === "bpm" && <Icon name={sort.dir === 1 ? "chevU" : "chevD"} size={10} />}
         </button>
         <button
           type="button"
           class={`plh-btn ${sort?.k === "key" ? "sorted" : ""}`}
           onClick={() => toggleSort("key")}
-          title="Sort by key (Camelot). Hover any track — compatible keys glow: same number (relative major/minor) or ±1 same letter."
-        >
+          title="Sort by key (Camelot). Hover any track — compatible keys glow: same number (relative major/minor) or ±1 same letter.">
           key
-          {sort?.k === "key" && (
-            <Icon name={sort.dir === 1 ? "chevU" : "chevD"} size={10} />
-          )}
+          {sort?.k === "key" && <Icon name={sort.dir === 1 ? "chevU" : "chevD"} size={10} />}
         </button>
         <button
           type="button"
           class={`plh-btn ${sort?.k === "time" ? "sorted" : ""}`}
           onClick={() => toggleSort("time")}
-          title="Sort by runtime"
-        >
+          title="Sort by runtime">
           time
-          {sort?.k === "time" && (
-            <Icon name={sort.dir === 1 ? "chevU" : "chevD"} size={10} />
-          )}
+          {sort?.k === "time" && <Icon name={sort.dir === 1 ? "chevU" : "chevD"} size={10} />}
         </button>
       </div>
       <div class="pltrackrows" onMouseLeave={() => setHoverKey(null)}>
@@ -277,8 +251,7 @@ function PlTracks({
           <div
             class="pltrack"
             key={`${i}/${t.title}`}
-            onMouseEnter={() => setHoverKey(camelotOf(t.key))}
-          >
+            onMouseEnter={() => setHoverKey(camelotOf(t.key))}>
             <span class="pltrack-i">{i + 1}</span>
             <span class="pltrack-name">
               {t.artist && (
@@ -298,13 +271,10 @@ function PlTracks({
                       ? " k-compat"
                       : ""
                   : ""
-              }`}
-            >
+              }`}>
               {t.key ?? "—"}
             </span>
-            <span class="pltrack-n">
-              {t.duration_ms ? fmtDur(t.duration_ms / 1000) : "—"}
-            </span>
+            <span class="pltrack-n">{t.duration_ms ? fmtDur(t.duration_ms / 1000) : "—"}</span>
           </div>
         ))}
       </div>
@@ -353,8 +323,7 @@ export function PlList({
               class="plrow"
               onClick={() => onToggle(key)}
               title={deep ? "Click to open this crate" : undefined}
-              aria-expanded={isOpen}
-            >
+              aria-expanded={isOpen}>
               <span class="plchev">
                 <Icon name={isOpen ? "chevD" : "chevronR"} size={13} />
               </span>
@@ -368,19 +337,12 @@ export function PlList({
               </span>
               <span
                 class="plbar"
-                title={`${pl.entries} entries · ${Math.round((pl.entries / (total || 1)) * 100)}% of the library`}
-              >
-                <i
-                  style={{
-                    width: `${Math.max(3, (pl.entries / (max || 1)) * 100)}%`,
-                  }}
-                />
+                title={`${pl.entries} entries · ${Math.round((pl.entries / (total || 1)) * 100)}% of the library`}>
+                <i style={{ width: `${Math.max(3, (pl.entries / (max || 1)) * 100)}%` }} />
               </span>
               <span class="n">{pl.entries.toLocaleString()}</span>
             </button>
-            {isOpen && (
-              <PlTracks name={pl.name} rows={rows} runtime={runtime} q={q} />
-            )}
+            {isOpen && <PlTracks name={pl.name} rows={rows} runtime={runtime} q={q} />}
           </div>
         );
       })}

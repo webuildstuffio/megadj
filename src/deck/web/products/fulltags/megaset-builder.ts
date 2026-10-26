@@ -37,18 +37,13 @@ const initialBuild: MegasetBuildState = {
 };
 
 function defaultPreset(): MegasetPresetDef {
-  return (
-    MEGASET_PRESET_DEFS.find((preset) => preset.id === "peak") ??
-    MEGASET_PRESET_DEFS[0]!
-  );
+  return MEGASET_PRESET_DEFS.find((preset) => preset.id === "peak") ?? MEGASET_PRESET_DEFS[0]!;
 }
 
 /** #293: resolve a draft's preset ID to the shared registry def; an
  *  unknown id falls back to the default (same shape as defaultPreset). */
 function presetFrom(id: string): MegasetPresetDef {
-  return (
-    MEGASET_PRESET_DEFS.find((preset) => preset.id === id) ?? defaultPreset()
-  );
+  return MEGASET_PRESET_DEFS.find((preset) => preset.id === id) ?? defaultPreset();
 }
 
 function poolLimitFrom(input: string): number | null {
@@ -60,16 +55,12 @@ function poolLimitFrom(input: string): number | null {
 }
 
 function staleBuild(current: MegasetBuildState): MegasetBuildState {
-  return current.data && !current.loading && !current.stale
-    ? { ...current, stale: true }
-    : current;
+  return current.data && !current.loading && !current.stale ? { ...current, stale: true } : current;
 }
 
 function loadOpeners(query: string): Promise<ArchiveSearchHit[] | null> {
   return query.trim().length >= 2
-    ? api<ArchiveSearchHit[]>(
-        `/api/archive/search?q=${encodeURIComponent(query)}`,
-      )
+    ? api<ArchiveSearchHit[]>(`/api/archive/search?q=${encodeURIComponent(query)}`)
     : Promise.resolve(null);
 }
 
@@ -82,10 +73,7 @@ function requestQuery(
   genre: string,
   landmarkIds: readonly string[],
 ): URLSearchParams {
-  const q = new URLSearchParams({
-    preset: preset.id,
-    minutes: String(minutes),
-  });
+  const q = new URLSearchParams({ preset: preset.id, minutes: String(minutes) });
   if (searchChoice !== "auto") q.set("search", searchChoice);
   if (poolLimit !== null) q.set("limit", String(poolLimit));
   if (opener) q.set("opener", opener.video_id);
@@ -106,13 +94,7 @@ async function requestMegaset(
   landmarkIds: readonly string[],
   setBuild: SetBuild,
 ): Promise<void> {
-  setBuild({
-    data: null,
-    loading: true,
-    error: null,
-    stale: false,
-    startedAt: Date.now(),
-  });
+  setBuild({ data: null, loading: true, error: null, stale: false, startedAt: Date.now() });
   try {
     const query = requestQuery(
       preset,
@@ -124,9 +106,7 @@ async function requestMegaset(
       landmarkIds,
     );
     setBuild({
-      data: await api<MegasetPayload>(`/api/archive/megaset?${query}`, {
-        timeoutMs: 90_000,
-      }),
+      data: await api<MegasetPayload>(`/api/archive/megaset?${query}`, { timeoutMs: 90_000 }),
       loading: false,
       error: null,
       stale: false,
@@ -143,15 +123,9 @@ async function requestMegaset(
   }
 }
 
-function buildLabel(
-  build: MegasetBuildState,
-  minutes: number,
-  preset: MegasetPresetDef,
-): string {
+function buildLabel(build: MegasetBuildState, minutes: number, preset: MegasetPresetDef): string {
   const verb = build.stale ? "Update" : "Build";
-  return build.loading
-    ? "Building your set…"
-    : `${verb} ${minutes}-minute ${preset.label} set`;
+  return build.loading ? "Building your set…" : `${verb} ${minutes}-minute ${preset.label} set`;
 }
 
 function exportHref(
@@ -163,10 +137,7 @@ function exportHref(
   landmarkIds: readonly string[],
 ): string | null {
   if (!build.data) return null;
-  const q = new URLSearchParams({
-    preset: build.data.preset,
-    minutes: String(build.data.minutes),
-  });
+  const q = new URLSearchParams({ preset: build.data.preset, minutes: String(build.data.minutes) });
   q.set("format", "m3u8");
   if (opener) q.set("opener", opener.video_id);
   if (searchChoice !== "auto") q.set("search", searchChoice);
@@ -197,10 +168,7 @@ export function useMegasetBuilder() {
         .map((id) => id.trim()),
     ),
   ];
-  const openerSearch = useFetched(
-    () => loadOpeners(openerQuery),
-    [openerQuery],
-  );
+  const openerSearch = useFetched(() => loadOpeners(openerQuery), [openerQuery]);
   const steps = build.data?.steps ?? [];
   const invalidateProposal = () => setBuild(staleBuild);
 
@@ -221,14 +189,7 @@ export function useMegasetBuilder() {
     steps,
     keyGlide: keyGlideOf(steps),
     buildLabel: buildLabel(build, minutes, preset),
-    exportHref: exportHref(
-      build,
-      opener,
-      searchChoice,
-      poolLimit,
-      genreInput,
-      landmarkIds,
-    ),
+    exportHref: exportHref(build, opener, searchChoice, poolLimit, genreInput, landmarkIds),
     choosePreset: (next: MegasetPresetDef) => {
       setPreset(next);
       invalidateProposal();
@@ -281,9 +242,7 @@ export function useMegasetBuilder() {
       setPreset(presetFrom(knobs.preset));
       setMinutesInput(String(knobs.minutes));
       setSearchChoice(knobs.search);
-      setPoolLimitInput(
-        knobs.poolLimit === null ? "" : String(knobs.poolLimit),
-      );
+      setPoolLimitInput(knobs.poolLimit === null ? "" : String(knobs.poolLimit));
       setGenreInput(knobs.genre ?? "");
       setLandmarksInput(knobs.landmarkIds.join(", "));
       // the opener stays unresolved until the user re-picks it: the id

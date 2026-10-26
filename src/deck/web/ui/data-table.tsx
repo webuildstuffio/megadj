@@ -106,17 +106,7 @@ export function DataTable<T extends RowData>(props: {
   // core) — track sizes stay flat: `minmax(90px, minmax(0, 1fr))` is INVALID
   // grid syntax and silently discards the whole declaration.
   const allColumns: DataTableColumn<T>[] = rowActions
-    ? [
-        ...columns,
-        {
-          key: "__actions",
-          head: "",
-          align: "end",
-          min: 34,
-          grow: 0,
-          cell: () => null,
-        },
-      ]
+    ? [...columns, { key: "__actions", head: "", align: "end", min: 34, grow: 0, cell: () => null }]
     : columns;
   const template = allColumns
     .map((c) => {
@@ -129,37 +119,28 @@ export function DataTable<T extends RowData>(props: {
   // our column defs → tanstack ColumnDefs. sortValue becomes the accessor
   // (nulls → undefined + sortUndefined:"last" = the old nulls-last contract);
   // action/display columns stay display-only, so global filter skips them.
-  const tableColumns: ColumnDef<typeof dtFeatures, T, unknown>[] =
-    allColumns.map((c) =>
-      c.sortValue
-        ? {
-            id: c.key,
-            accessorFn: (row: T) => c.sortValue?.(row) ?? undefined,
-            sortUndefined: "last" as const,
-            cell: (info) => c.cell(info.row.original, info.row.index),
-          }
-        : {
-            id: c.key,
-            cell: (info) => c.cell(info.row.original, info.row.index),
-          },
-    );
+  const tableColumns: ColumnDef<typeof dtFeatures, T, unknown>[] = allColumns.map((c) =>
+    c.sortValue
+      ? {
+          id: c.key,
+          accessorFn: (row: T) => c.sortValue?.(row) ?? undefined,
+          sortUndefined: "last" as const,
+          cell: (info) => c.cell(info.row.original, info.row.index),
+        }
+      : { id: c.key, cell: (info) => c.cell(info.row.original, info.row.index) },
+  );
 
   const table = useTable({
     features: dtFeatures,
     columns: tableColumns,
     data: rows,
     globalFilterFn: "includesString",
-    getRowId: (row: T, idx: number) =>
-      columns[0]?.rowKey?.(row, idx) ?? String(idx),
+    getRowId: (row: T, idx: number) => columns[0]?.rowKey?.(row, idx) ?? String(idx),
     initialState: {
-      sorting: initialSort
-        ? [{ id: initialSort.key, desc: initialSort.dir === -1 }]
-        : [],
+      sorting: initialSort ? [{ id: initialSort.key, desc: initialSort.dir === -1 }] : [],
       pagination: {
         pageIndex: 0,
-        pageSize: props.paginate
-          ? (props.pageSize ?? 15)
-          : Number.MAX_SAFE_INTEGER,
+        pageSize: props.paginate ? (props.pageSize ?? 15) : Number.MAX_SAFE_INTEGER,
       },
     },
   });
@@ -175,9 +156,7 @@ export function DataTable<T extends RowData>(props: {
   // the any propagate; the state-hoisting refactor is tracked in the audit.
   const rawState: unknown = table.state;
   const rawFilter =
-    typeof rawState === "object" &&
-    rawState !== null &&
-    "globalFilter" in rawState
+    typeof rawState === "object" && rawState !== null && "globalFilter" in rawState
       ? (rawState as { globalFilter?: unknown }).globalFilter
       : undefined;
   const q = String(typeof rawFilter === "string" ? rawFilter : "").trim();
@@ -187,8 +166,7 @@ export function DataTable<T extends RowData>(props: {
       class="datatable"
       role="table"
       aria-label={ariaLabel ?? copyName}
-      style={{ "--dt-cols": template } as Record<string, string>}
-    >
+      style={{ "--dt-cols": template } as Record<string, string>}>
       {props.filterable && (
         <div class="pl-tools">
           <div class="plsearch">
@@ -198,17 +176,14 @@ export function DataTable<T extends RowData>(props: {
               aria-label={`Filter ${ariaLabel ?? copyName ?? "rows"}`}
               placeholder="Filter rows…"
               value={q}
-              onInput={(e) =>
-                table.setGlobalFilter((e.target as HTMLInputElement).value)
-              }
+              onInput={(e) => table.setGlobalFilter((e.target as HTMLInputElement).value)}
             />
             {q && (
               <button
                 type="button"
                 class="plsearch-clear"
                 title="Clear filter (Escape)"
-                onClick={() => table.setGlobalFilter("")}
-              >
+                onClick={() => table.setGlobalFilter("")}>
                 <Icon name="x" size={12} />
               </button>
             )}
@@ -240,15 +215,10 @@ export function DataTable<T extends RowData>(props: {
               }}
               tabIndex={canSort ? 0 : undefined}
               title={
-                canSort
-                  ? `Sort by ${typeof c.head === "string" ? c.head : c.key}`
-                  : undefined
-              }
-            >
+                canSort ? `Sort by ${typeof c.head === "string" ? c.head : c.key}` : undefined
+              }>
               {c.head}
-              {canSort && dir && (
-                <Icon name={dir === "asc" ? "chevU" : "chevD"} size={10} />
-              )}
+              {canSort && dir && <Icon name={dir === "asc" ? "chevU" : "chevD"} size={10} />}
             </span>
           );
         })}
@@ -256,27 +226,18 @@ export function DataTable<T extends RowData>(props: {
       {shown.map((r) => {
         const tone = rowTone?.(r.original) ?? "";
         return (
-          <div
-            class={`dt-row${tone ? ` row-tone-${tone}` : ""}`}
-            role="row"
-            key={r.id}
-          >
+          <div class={`dt-row${tone ? ` row-tone-${tone}` : ""}`} role="row" key={r.id}>
             {r.getAllCells().map((cell, ci) => {
               const c = allColumns[ci]!;
               return (
-                <span
-                  key={cell.id}
-                  role="cell"
-                  class={`dt-c ${c.align ? `ta-${c.align}` : ""}`}
-                >
+                <span key={cell.id} role="cell" class={`dt-c ${c.align ? `ta-${c.align}` : ""}`}>
                   {cell.column.id === "__actions"
                     ? rowActions?.map((a) => (
                         <button
                           type="button"
                           class="btn sm ghostbtn"
                           title={a.title ?? a.label}
-                          onClick={() => a.run(r.original)}
-                        >
+                          onClick={() => a.run(r.original)}>
                           {a.icon && <Icon name={a.icon} size={12} />}
                           {a.label}
                         </button>
@@ -293,30 +254,24 @@ export function DataTable<T extends RowData>(props: {
           no rows match “{q}” — clear the filter to see all {rows.length}
         </div>
       )}
-      {overCap &&
-        (props.footer ?? (
-          <Truncated shown={shown.length} total={page.length} />
-        ))}
+      {overCap && (props.footer ?? <Truncated shown={shown.length} total={page.length} />)}
       {props.paginate && table.getPageCount() > 1 && (
         <div class="dt-pages">
           <button
             type="button"
             class="btn sm ghostbtn"
             disabled={!table.getCanPreviousPage()}
-            onClick={table.previousPage}
-          >
+            onClick={table.previousPage}>
             <Icon name="chevronL" size={12} /> prev
           </button>
           <span class="fleet-note">
-            page {table.state.pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+            page {table.state.pagination.pageIndex + 1} of {table.getPageCount()}
           </span>
           <button
             type="button"
             class="btn sm ghostbtn"
             disabled={!table.getCanNextPage()}
-            onClick={table.nextPage}
-          >
+            onClick={table.nextPage}>
             next <Icon name="chevronR" size={12} />
           </button>
         </div>
@@ -327,13 +282,7 @@ export function DataTable<T extends RowData>(props: {
             type="button"
             class="btn sm ghostbtn"
             title={`Copy all ${view.length} rows — paste to an agent or notes${table.state.sorting.length ? " (current sort/filter)" : ""}`}
-            onClick={() =>
-              copyList(
-                copyName ?? "Table",
-                copyLines(view.map((r) => r.original)),
-              )
-            }
-          >
+            onClick={() => copyList(copyName ?? "Table", copyLines(view.map((r) => r.original)))}>
             <Icon name="copy" size={12} /> Copy
           </button>
         </div>

@@ -1,11 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import render from "preact-render-to-string";
 import type { Job } from "../../shared/types";
-import {
-  IntakeRun,
-  IntakeVerdict,
-  isIntakeResult,
-} from "../products/getdat/IntakeTab";
+import { IntakeRun, IntakeVerdict, isIntakeResult } from "../products/getdat/IntakeTab";
 
 const corruptDoneJob: Job = {
   id: "intake-corrupt",
@@ -32,9 +28,7 @@ describe("Intake corrupt result UX", () => {
   });
 
   test("pipeline shows unreadable instead of a false 100% completion", () => {
-    const html = render(
-      <IntakeRun job={corruptDoneJob} folder="" onDone={() => undefined} />,
-    );
+    const html = render(<IntakeRun job={corruptDoneJob} folder="" onDone={() => undefined} />);
     expect(html).toContain("Result unreadable");
     expect(html).not.toContain(">100%</span>");
     expect(html).toContain("intake-step failed");
@@ -62,11 +56,7 @@ describe("Intake corrupt result UX", () => {
     expect(isIntakeResult(valid)).toBe(true);
     expect(isIntakeResult({ ...valid, files: -1 })).toBe(false);
     expect(isIntakeResult({ ...valid, tagged: 0.5 })).toBe(false);
-    expect(
-      isIntakeResult({ ...valid, files: Number.MAX_SAFE_INTEGER + 1 }),
-    ).toBe(false);
-    expect(isIntakeResult({ ...valid, audit: { total: 1, complete: 2 } })).toBe(
-      false,
-    );
+    expect(isIntakeResult({ ...valid, files: Number.MAX_SAFE_INTEGER + 1 })).toBe(false);
+    expect(isIntakeResult({ ...valid, audit: { total: 1, complete: 2 } })).toBe(false);
   });
 });

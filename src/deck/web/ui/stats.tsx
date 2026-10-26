@@ -34,8 +34,7 @@ export function StatCard(props: {
               if (e.key === "Enter" || e.key === " ") props.onClick?.();
             }
           : undefined
-      }
-    >
+      }>
       <div class="v">
         {props.icon && <Icon name={props.icon} size={13} />} {props.v}
       </div>
@@ -60,13 +59,7 @@ export function CountStat(props: {
    *  matching list). */
   onClick?: (() => void) | undefined;
 }) {
-  const tone: StatTone = props.invert
-    ? props.n > 0
-      ? ""
-      : "bad"
-    : props.n > 0
-      ? "bad"
-      : "ok";
+  const tone: StatTone = props.invert ? (props.n > 0 ? "" : "bad") : props.n > 0 ? "bad" : "ok";
   return (
     <StatCard
       v={props.n.toLocaleString()}

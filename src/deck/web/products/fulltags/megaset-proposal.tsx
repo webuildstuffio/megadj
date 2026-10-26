@@ -4,20 +4,15 @@ import { MegasetActions } from "./megaset-actions";
 import { MegasetChain } from "./megaset-chain";
 import { MegasetMethod } from "./MegasetMethod";
 import { MegasetResult } from "./MegasetResult";
-import {
-  ExcludedBreakdown,
-  FreshnessLine,
-  MegasetLoading,
-  ReproLine,
-} from "./MegasetStatus";
+import { ExcludedBreakdown, FreshnessLine, MegasetLoading, ReproLine } from "./MegasetStatus";
 import type { MegasetBuilder } from "./megaset-builder";
 
 function StaleNotice(props: { stale: boolean }) {
   if (!props.stale) return null;
   return (
     <div class="megaset-stale" role="status">
-      <b>Proposal settings changed.</b> The chain below still shows the previous
-      build. Update it before using or copying the result.
+      <b>Proposal settings changed.</b> The chain below still shows the previous build. Update it
+      before using or copying the result.
     </div>
   );
 }
@@ -38,16 +33,14 @@ function LoadingNotice(props: { loading: boolean; startedAt: number | null }) {
 
 function PartialDraftNotice(props: { data: MegasetPayload }) {
   const { data } = props;
-  if (data.complete || data.pool <= 0 || isShelfOffline(data, data))
-    return null;
+  if (data.complete || data.pool <= 0 || isShelfOffline(data, data)) return null;
   return (
     <div class="megaset-shortfall" role="alert">
       <Icon name="warn" size={16} />
       <span>
-        <b>Partial draft — not a complete set.</b> FullTags found{" "}
-        {data.actualMinutes} of the requested {data.minutes} minutes, leaving{" "}
-        {data.shortfallMinutes} minutes short. Review the exclusions or choose a
-        shorter target before export.
+        <b>Partial draft — not a complete set.</b> FullTags found {data.actualMinutes} of the
+        requested {data.minutes} minutes, leaving {data.shortfallMinutes} minutes short. Review the
+        exclusions or choose a shorter target before export.
       </span>
     </div>
   );
@@ -77,8 +70,7 @@ export function StageTimings(props: { data: MegasetPayload }) {
   return (
     <details class="megaset-stages">
       <summary>
-        where the{" "}
-        {total < 1000 ? `${total} ms` : `${(total / 1000).toFixed(1)} s`} went
+        where the {total < 1000 ? `${total} ms` : `${(total / 1000).toFixed(1)} s`} went
       </summary>
       <ul>
         {rows.map(([label, ms]) => (
@@ -113,11 +105,7 @@ function ProposalBody(props: { model: MegasetBuilder; genre: string | null }) {
           landmarkIds: model.landmarkIds,
         }}
       />
-      <MegasetChain
-        steps={model.steps}
-        preset={model.preset}
-        keyGlide={model.keyGlide}
-      />
+      <MegasetChain steps={model.steps} preset={model.preset} keyGlide={model.keyGlide} />
       <ReproLine
         data={data}
         searchChoice={model.searchChoice}
@@ -141,9 +129,7 @@ export function MegasetProposal(props: { model: MegasetBuilder }) {
       <LoadingNotice loading={build.loading} startedAt={build.startedAt} />
       <ProposalBody
         model={props.model}
-        genre={
-          build.data?.genre_filtered ? props.model.genreInput.trim() : null
-        }
+        genre={build.data?.genre_filtered ? props.model.genreInput.trim() : null}
       />
     </>
   );

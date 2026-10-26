@@ -44,9 +44,7 @@ export function App() {
    *  status / message / eta). JobsDock's stall warning keys off this — a
    *  re-fetch returning an identical row must NOT reset the clock, or the
    *  warning could never fire. */
-  const jobShapeAt = useRef<Map<string, { sig: string; at: number }>>(
-    new Map(),
-  );
+  const jobShapeAt = useRef<Map<string, { sig: string; at: number }>>(new Map());
 
   const refresh = useCallback(async () => {
     const [d, p, rep] = await Promise.all([
@@ -82,10 +80,7 @@ export function App() {
           jobShapeAt.current.set(j.id, { sig, at });
           return { ...j, _received: at };
         })
-        .toSorted(
-          (a, b) =>
-            (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at),
-        ),
+        .toSorted((a, b) => (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at)),
     );
   }, []);
 
@@ -114,17 +109,12 @@ export function App() {
     // keyboard map lives in ui/keys.ts (tinykeys) — ⌘K opens the command
     // palette, the header search keeps its own Escape-to-blur below.
     const onKey = (event: KeyboardEvent) => {
-      if (
-        event.key === "Escape" &&
-        document.activeElement === searchRef.current
-      ) {
+      if (event.key === "Escape" && document.activeElement === searchRef.current) {
         (document.activeElement as HTMLElement).blur();
       }
     };
     window.addEventListener("keydown", onKey);
-    const unbindKeys = bindGlobalKeys({
-      openPalette: () => setPaletteOpen(true),
-    });
+    const unbindKeys = bindGlobalKeys({ openPalette: () => setPaletteOpen(true) });
     return () => {
       window.removeEventListener("keydown", onKey);
       unbindKeys();
@@ -139,10 +129,9 @@ export function App() {
     }
     const t = setTimeout(async () => {
       try {
-        const r = await api<SearchResult[]>(
-          `/api/search?q=${encodeURIComponent(query.trim())}`,
-          { quiet: true },
-        );
+        const r = await api<SearchResult[]>(`/api/search?q=${encodeURIComponent(query.trim())}`, {
+          quiet: true,
+        });
         setResults(r);
       } catch (e) {
         console.error("search failed", e);
@@ -154,9 +143,7 @@ export function App() {
 
   // refresh drive cards when the last job finishes so badges update live
   useEffect(() => {
-    const wasActive = jobs.some(
-      (j) => j.status === "running" || j.status === "queued",
-    );
+    const wasActive = jobs.some((j) => j.status === "running" || j.status === "queued");
     if (jobs.length && !wasActive)
       refresh().catch((error: unknown) => {
         // every other refresh() caller routes through useJobEvents'
@@ -169,12 +156,7 @@ export function App() {
 
   useEffect(() => {
     const h = () => {
-      if (
-        !document
-          .getElementById("global-search")
-          ?.contains(document.activeElement)
-      )
-        setQuery("");
+      if (!document.getElementById("global-search")?.contains(document.activeElement)) setQuery("");
     };
     window.addEventListener("click", h);
     return () => window.removeEventListener("click", h);
@@ -246,10 +228,7 @@ export function App() {
           onSelect={(id) => openDrive(id)}
           ports={ports}
         />
-        <main
-          class="canvas-wrap"
-          style={{ flex: 1, minWidth: 0, display: "flex" }}
-        >
+        <main class="canvas-wrap" style={{ flex: 1, minWidth: 0, display: "flex" }}>
           {route.product === "fleet" ? (
             <FleetPage key="fleet" tab={route.tab} interlock={interlock} />
           ) : route.product === "getdat" ? (
@@ -271,15 +250,9 @@ export function App() {
         </main>
       </div>
 
-      <JobsDock
-        jobs={jobs}
-        drives={drives}
-        focusDrive={(id) => openDrive(id)}
-      />
+      <JobsDock jobs={jobs} drives={drives} focusDrive={(id) => openDrive(id)} />
       <Toaster />
-      {paletteOpen && (
-        <Palette drives={drives} onClose={() => setPaletteOpen(false)} />
-      )}
+      {paletteOpen && <Palette drives={drives} onClose={() => setPaletteOpen(false)} />}
     </div>
   );
 }

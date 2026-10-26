@@ -387,8 +387,7 @@
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--tab-c, var(--accent));
-  border: 1px solid
-    color-mix(in srgb, var(--tab-c, var(--accent)) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tab-c, var(--accent)) 35%, transparent);
   border-radius: 999px;
   padding: 4px 11px;
   white-space: nowrap;
@@ -481,11 +480,7 @@
     transform 0.1s;
 }
 .wcard:hover {
-  border-color: color-mix(
-    in srgb,
-    var(--tab-c, var(--accent)) 45%,
-    transparent
-  );
+  border-color: color-mix(in srgb, var(--tab-c, var(--accent)) 45%, transparent);
   background: var(--surface3);
 }
 .wcard:active {

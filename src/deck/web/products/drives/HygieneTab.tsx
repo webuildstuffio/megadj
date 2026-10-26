@@ -10,11 +10,7 @@
 // action bar, settled tail) live in hygiene-rows.tsx. This file owns the
 // state, the decision wiring, and the layout.
 import { useState, useEffect } from "preact/hooks";
-import type {
-  Finding,
-  HygienePayload,
-  QuarantineCensus,
-} from "../../../shared/hygiene";
+import type { Finding, HygienePayload, QuarantineCensus } from "../../../shared/hygiene";
 import { apiPost, api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { Verdict, useScanApply, ScanApplyGate } from "../shared";
@@ -32,16 +28,15 @@ import {
 
 type Decided = Set<string>;
 export function HygieneTab(_props: { driveId: string; driveName: string }) {
-  const { payload, loadErr, busy, enqueue, runAction } =
-    useScanApply<HygienePayload | null>({
-      readPath: "/api/hygiene",
-      actionPath: "/api/hygiene",
-      label: {
-        thing: "hygiene",
-        scanDone: "Hygiene scan queued",
-        applyDone: "Apply queued — confirmed findings move to quarantine",
-      },
-    });
+  const { payload, loadErr, busy, enqueue, runAction } = useScanApply<HygienePayload | null>({
+    readPath: "/api/hygiene",
+    actionPath: "/api/hygiene",
+    label: {
+      thing: "hygiene",
+      scanDone: "Hygiene scan queued",
+      applyDone: "Apply queued — confirmed findings move to quarantine",
+    },
+  });
   const [selected, setSelected] = useState<Decided>(new Set());
   /** Toggle one finding's checkbox in the selection set. */
   const toggleSelected = (id: string) => {
@@ -62,10 +57,10 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
   const decide = async (ids: string[], confirm: boolean) => {
     if (ids.length === 0) return;
     await runAction(confirm ? "confirm" : "dismiss", async () => {
-      const r = await apiPost<{ ok: boolean; decided: number }>(
-        "/api/hygiene/decide",
-        { ids, confirm },
-      );
+      const r = await apiPost<{ ok: boolean; decided: number }>("/api/hygiene/decide", {
+        ids,
+        confirm,
+      });
       toast(
         `${r.decided} finding${r.decided === 1 ? "" : "s"} ${confirm ? "confirmed" : "dismissed"}`,
         "ok",
@@ -78,9 +73,7 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
    *  safe-batch buckets expose this in the UI. */
   const batchConfirm = async (bucket: string) => {
     await runAction(`batch:${bucket}`, async () => {
-      await apiPost<{ ok: boolean }>("/api/hygiene/bucket-confirm", {
-        bucket,
-      });
+      await apiPost<{ ok: boolean }>("/api/hygiene/bucket-confirm", { bucket });
       toast(`Bucket "${bucket}" confirmed — Apply to execute`, "ok");
       setSubFilter(null);
     });
@@ -94,9 +87,7 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
     }
     setCompares((m) => ({ ...m, [f.id]: { stats: {}, loaded: false } }));
     const stats = await fetchSideStats(f.paths.slice(0, 2));
-    setCompares((m) =>
-      m[f.id] ? { ...m, [f.id]: { stats, loaded: true } } : m,
-    );
+    setCompares((m) => (m[f.id] ? { ...m, [f.id]: { stats, loaded: true } } : m));
   };
 
   // ---- quarantine (#35/#36): census + restore/restore-all/empty -----
@@ -121,14 +112,9 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
    *  engine SSOT, then refresh census + findings. */
   const restoreOne = async (id: string) => {
     await runAction(`restore:${id}`, async () => {
-      const r = await apiPost<{ ok: boolean; error?: string }>(
-        "/api/hygiene/restore",
-        { id },
-      );
+      const r = await apiPost<{ ok: boolean; error?: string }>("/api/hygiene/restore", { id });
       toast(
-        r.ok
-          ? "Copy restored to its original path"
-          : `restore failed: ${r.error ?? "unknown"}`,
+        r.ok ? "Copy restored to its original path" : `restore failed: ${r.error ?? "unknown"}`,
         r.ok ? "ok" : "err",
       );
       refreshQuar();
@@ -153,10 +139,9 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
     const typed = window.prompt("Type DELETE to confirm");
     if (typed !== "DELETE") return;
     await runAction("empty", async () => {
-      const r = await apiPost<{ ok: boolean; error?: string }>(
-        "/api/hygiene/quarantine/empty",
-        { confirm: typed },
-      );
+      const r = await apiPost<{ ok: boolean; error?: string }>("/api/hygiene/quarantine/empty", {
+        confirm: typed,
+      });
       toast(
         r.ok
           ? "Quarantine emptied — receipts kept in the ledger"
@@ -170,32 +155,21 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
   const scanned = payload as HygienePayload | null | undefined;
   const { findings, counts } = scanned ?? {
     findings: [],
-    counts: {
-      open: 0,
-      confirmed: 0,
-      safe: 0,
-      review: 0,
-      byKind: {},
-      bySub: {},
-    },
+    counts: { open: 0, confirmed: 0, safe: 0, review: 0, byKind: {}, bySub: {} },
   };
   /** The open work queue: not-yet-settled findings, worst first,
    *  narrowed by the active subcategory filter. */
   const openRows = findings
     .filter(
       (f) =>
-        (f.status === "open" ||
-          f.status === "confirmed" ||
-          f.status === "failed") &&
+        (f.status === "open" || f.status === "confirmed" || f.status === "failed") &&
         (subFilter === null || subOf(f) === subFilter),
     )
     .toSorted((a, b) => rank(a) - rank(b));
   const doneRows = findings
     .filter((f) => f.status === "applied" || f.status === "dismissed")
     .toSorted((a, b) =>
-      (b.appliedAt ?? b.decidedAt ?? "").localeCompare(
-        a.appliedAt ?? a.decidedAt ?? "",
-      ),
+      (b.appliedAt ?? b.decidedAt ?? "").localeCompare(a.appliedAt ?? a.decidedAt ?? ""),
     );
   const selCount = selected.size;
 
@@ -206,8 +180,7 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
       loadErr={loadErr}
       payload={payload}
       unavailable={`Hygiene ledger unavailable: ${loadErr ?? ""} — the archive DB may not have been scanned yet.`}
-      loading="Loading the hygiene ledger…"
-    >
+      loading="Loading the hygiene ledger…">
       <Verdict cls={banner.cls} text={banner.text} />
 
       <QuarantinePanel
@@ -258,9 +231,7 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
         </>
       )}
 
-      {doneRows.length > 0 && (
-        <SettledSection rows={doneRows} onRestoreFailed={restoreOne} />
-      )}
+      {doneRows.length > 0 && <SettledSection rows={doneRows} onRestoreFailed={restoreOne} />}
     </ScanApplyGate>
   );
 }

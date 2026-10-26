@@ -7,10 +7,7 @@
 // from summing the displayed (capped) offender list; the ledger freshness
 // line keeps a stale run from reading as a current verdict.
 import { useState } from "preact/hooks";
-import type {
-  GridHealthPayload,
-  GridHealthRow,
-} from "../../../shared/grid-health";
+import type { GridHealthPayload, GridHealthRow } from "../../../shared/grid-health";
 import { api } from "../../ui/toast";
 import { useFetched, FetchedGate } from "../../ui/useFetched";
 import { Card, DataTable, ListHead, type DataTableColumn } from "../../ui/data";
@@ -48,9 +45,7 @@ const SEVERITY: Record<GridHealthRow["cls"], number> = {
 };
 
 export function gridWorkQueue(rows: GridHealthRow[]): GridHealthRow[] {
-  return rows.toSorted(
-    (a, b) => SEVERITY[a.cls] - SEVERITY[b.cls] || a.path.localeCompare(b.path),
-  );
+  return rows.toSorted((a, b) => SEVERITY[a.cls] - SEVERITY[b.cls] || a.path.localeCompare(b.path));
 }
 
 /** The verdict per the two-thirds UX law: one line, the worst thing
@@ -61,11 +56,7 @@ export function gridHealthVerdict(p: GridHealthPayload): {
   meta: string;
 } {
   const flagged =
-    p.buckets.SHIFT +
-    p.buckets.PHASE +
-    p.buckets.TEMPO +
-    p.buckets.DRIFT +
-    p.buckets.CHAOS;
+    p.buckets.SHIFT + p.buckets.PHASE + p.buckets.TEMPO + p.buckets.DRIFT + p.buckets.CHAOS;
   const sync = p.syncIssues ?? 0;
   if (p.audited === 0 && flagged === 0 && sync === 0)
     return {
@@ -80,8 +71,7 @@ export function gridHealthVerdict(p: GridHealthPayload): {
       meta: `${p.buckets["A-OK"]} A-OK of ${p.total}`,
     };
   const parts = [`${flagged} of ${p.audited} audited grids need work`];
-  if (sync > 0)
-    parts.push(`${sync} out-of-sync sidecars (re-export, don't re-analyze)`);
+  if (sync > 0) parts.push(`${sync} out-of-sync sidecars (re-export, don't re-analyze)`);
   if (p.noLedger > 0) parts.push(`${p.noLedger} not in the beats ledger`);
   if (p.noAnlz > 0) parts.push(`${p.noAnlz} without a collection sidecar`);
   return {
@@ -100,8 +90,7 @@ function gridColumns(): DataTableColumn<GridHealthRow>[] {
       grow: 0,
       cell: (r) => (
         <span
-          class={`arch-pill ${r.cls === "A-OK" ? "ok" : r.cls === "SYNC" || r.cls === "CHAOS" || r.cls === "DRIFT" ? "bad" : "warn"}`}
-        >
+          class={`arch-pill ${r.cls === "A-OK" ? "ok" : r.cls === "SYNC" || r.cls === "CHAOS" || r.cls === "DRIFT" ? "bad" : "warn"}`}>
           {r.cls.toLowerCase()}
         </span>
       ),
@@ -135,36 +124,27 @@ function gridColumns(): DataTableColumn<GridHealthRow>[] {
 }
 
 const queueCopy = (rows: GridHealthRow[]): string[] =>
-  rows.map(
-    (r) =>
-      `${r.cls}: ${r.path.replace(/^\/Contents\//, "")} — fix: ${gridFixCommand(r)}`,
-  );
+  rows.map((r) => `${r.cls}: ${r.path.replace(/^\/Contents\//, "")} — fix: ${gridFixCommand(r)}`);
 
 /** The card. `drive` names the drive whose snapshot context renders the
  *  scan button; the payload rides /api/grid-health. */
 export function GridHealthCard(props: { drive: string }) {
   const page = useFetched<GridHealthPayload | null>(
     () =>
-      api<GridHealthPayload | null>(
-        `/api/grid-health?drive=${encodeURIComponent(props.drive)}`,
-      ),
+      api<GridHealthPayload | null>(`/api/grid-health?drive=${encodeURIComponent(props.drive)}`),
     [],
   );
   const [scanning, setScanning] = useState(false);
 
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading grid health…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading grid health…" />;
   const p = page.data;
 
   const scan = async () => {
     setScanning(true);
     try {
-      await api(
-        `/api/grid-health/scan?drive=${encodeURIComponent(props.drive)}`,
-        {
-          method: "POST",
-        },
-      );
+      await api(`/api/grid-health/scan?drive=${encodeURIComponent(props.drive)}`, {
+        method: "POST",
+      });
     } finally {
       setScanning(false);
     }
@@ -183,16 +163,11 @@ export function GridHealthCard(props: { drive: string }) {
         <>
           <div class="note-card">
             <Icon name="pulse" size={20} />
-            No triage run recorded yet — run one to bucket every shelf grid
-            (SYNC vs analysis problems, A-OK … CHAOS).
+            No triage run recorded yet — run one to bucket every shelf grid (SYNC vs analysis
+            problems, A-OK … CHAOS).
           </div>
           <div class="arch-fix">
-            <button
-              type="button"
-              class="btn sm"
-              disabled={scanning}
-              onClick={scan}
-            >
+            <button type="button" class="btn sm" disabled={scanning} onClick={scan}>
               {scanning ? "Queuing…" : "Run triage"}
             </button>{" "}
             <code>deckctl run SHELF1 grid-health</code>
@@ -221,8 +196,8 @@ export function GridHealthCard(props: { drive: string }) {
               (p.syncIssues ?? 0) && (
             <div class="arch-legend">
               <span>
-                <em>queue truncated</em> — full census in the counts above;{" "}
-                <code>deckctl</code> JSON carries the complete sample
+                <em>queue truncated</em> — full census in the counts above; <code>deckctl</code>{" "}
+                JSON carries the complete sample
               </span>
             </div>
           )}
@@ -236,8 +211,8 @@ export function GridHealthCard(props: { drive: string }) {
             }
           />
           <div class="arch-fix">
-            SYNC rows fix: re-export the affected playlists. Analysis rows wait
-            on the GA-06 repair writer — do NOT hand-edit grids.
+            SYNC rows fix: re-export the affected playlists. Analysis rows wait on the GA-06 repair
+            writer — do NOT hand-edit grids.
           </div>
         </>
       )}

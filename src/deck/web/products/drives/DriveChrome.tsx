@@ -21,10 +21,7 @@ export function DriveHero(props: {
     <div class="hero">
       <div class="photo">
         {detail.drive.photo_path ? (
-          <img
-            src={`/photos/${props.driveId}?v=${detail.drive.last_seen_at}`}
-            alt={props.name}
-          />
+          <img src={`/photos/${props.driveId}?v=${detail.drive.last_seen_at}`} alt={props.name} />
         ) : (
           <Icon name="usb" size={26} />
         )}
@@ -46,9 +43,7 @@ export function DriveHero(props: {
                   props.setRenaming(false);
                 }
               }}
-              onInput={(event) =>
-                props.setNameDraft((event.target as HTMLInputElement).value)
-              }
+              onInput={(event) => props.setNameDraft((event.target as HTMLInputElement).value)}
             />
             <button
               type="button"
@@ -57,15 +52,10 @@ export function DriveHero(props: {
                 props.nameDraft.trim()
                   ? void props.rename(props.nameDraft.trim())
                   : props.setRenaming(false)
-              }
-            >
+              }>
               Save
             </button>
-            <button
-              type="button"
-              class="btn sm ghostbtn"
-              onClick={() => props.setRenaming(false)}
-            >
+            <button type="button" class="btn sm ghostbtn" onClick={() => props.setRenaming(false)}>
               Cancel
             </button>
           </span>
@@ -75,8 +65,7 @@ export function DriveHero(props: {
             {!detail.drive.mounted && (
               <span
                 class="badge muted"
-                title="Ghost: not plugged in right now — everything below reads from the last snapshot."
-              >
+                title="Ghost: not plugged in right now — everything below reads from the last snapshot.">
                 ghost
               </span>
             )}
@@ -86,8 +75,7 @@ export function DriveHero(props: {
             <InfoTip
               title={`verdict: ${props.report?.overall ?? "unknown"}`}
               body={
-                VERDICT_HELP[props.report?.overall ?? "unknown"] ??
-                "No report yet — run a scan."
+                VERDICT_HELP[props.report?.overall ?? "unknown"] ?? "No report yet — run a scan."
               }
               why="Worst status wins: one failing check makes the whole drive critical — the failing rows just below say which."
               below
@@ -106,8 +94,7 @@ export function DriveHero(props: {
               onClick={() => {
                 props.setRenaming(true);
                 props.setNameDraft(detail.drive.nickname ?? detail.drive.name);
-              }}
-            >
+              }}>
               <Icon name="pencil" size={13} />
             </button>
           </h2>
@@ -115,11 +102,7 @@ export function DriveHero(props: {
         <div class="hsub">
           <span>{detail.drive.name}</span>
           <span class="sep">·</span>
-          <span>
-            {detail.drive.capacity_bytes
-              ? fmtBytes(detail.drive.capacity_bytes)
-              : "—"}
-          </span>
+          <span>{detail.drive.capacity_bytes ? fmtBytes(detail.drive.capacity_bytes) : "—"}</span>
           {detail.drive.fs && (
             <>
               <span class="sep">·</span>
@@ -137,10 +120,8 @@ export function DriveHero(props: {
               <span class="sep">·</span>
               <span>
                 {detail.sync.verdict}
-                {detail.sync.missing
-                  ? ` (${detail.sync.missing} files)`
-                  : ""}{" "}
-                vs {detail.master_name}
+                {detail.sync.missing ? ` (${detail.sync.missing} files)` : ""} vs{" "}
+                {detail.master_name}
               </span>
             </>
           )}
@@ -148,11 +129,7 @@ export function DriveHero(props: {
         {(detail.drive.vendor || detail.drive.model) && (
           <div class="hsub hw">
             <Icon name="usb" size={12} />
-            <span>
-              {[detail.drive.vendor, detail.drive.model]
-                .filter(Boolean)
-                .join(" ")}
-            </span>
+            <span>{[detail.drive.vendor, detail.drive.model].filter(Boolean).join(" ")}</span>
             {detail.drive.usb_serial && (
               <>
                 <span class="sep">·</span>
@@ -182,11 +159,7 @@ export function DriveHero(props: {
 }
 
 /** Bounded recent-job summary kept separate from the main drive controller. */
-export function RecentDriveJobs(props: {
-  jobs: Job[];
-  failing: number;
-  warning: number;
-}) {
+export function RecentDriveJobs(props: { jobs: Job[]; failing: number; warning: number }) {
   if (props.jobs.length === 0) return null;
   return (
     <>
@@ -202,9 +175,7 @@ export function RecentDriveJobs(props: {
               <span class="check-detail">
                 {job.error ??
                   job.message ??
-                  (job.finished_at
-                    ? new Date(job.finished_at).toLocaleString()
-                    : "…")}
+                  (job.finished_at ? new Date(job.finished_at).toLocaleString() : "…")}
               </span>
             </span>
             {job.status === "running" && (

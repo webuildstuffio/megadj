@@ -41,13 +41,7 @@ describe("drive page degraded-leg contract (#231)", () => {
     // (detail first when both fail) produces the human copy expected.
     const degraded = new Set(["verify", "detail"]);
     const copy = [...degraded]
-      .map((leg) =>
-        leg === "detail"
-          ? "drive info"
-          : leg === "verify"
-            ? "verify report"
-            : leg,
-      )
+      .map((leg) => (leg === "detail" ? "drive info" : leg === "verify" ? "verify report" : leg))
       .join(", ");
     expect(copy).toBe("verify report, drive info");
   });

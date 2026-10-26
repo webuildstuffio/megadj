@@ -11,11 +11,7 @@
 // tail. Rung names/weights come from the shared defs table
 // (src/deck/shared/genre-vote-rungs.ts) — never a local twin.
 import { useEffect, useRef, useState } from "preact/hooks";
-import {
-  genreVoteRungsInOrder,
-  type FetchFeedWire,
-  type Job,
-} from "../../../shared/types";
+import { genreVoteRungsInOrder, type FetchFeedWire, type Job } from "../../../shared/types";
 import { api, apiPost, toast } from "../../ui/toast";
 import { errMessage } from "../../../../shared/leaf/fmt";
 import { Card, ListHead } from "../../ui/data";
@@ -91,9 +87,7 @@ export function GenreRunTab() {
     if (!isRunning(job) && feed.entries.length === 0) return;
     let alive = true;
     const poll = (): void => {
-      api<FeedState>(`/api/fetch/feed?since=${cursor.current}`, {
-        quiet: true,
-      })
+      api<FeedState>(`/api/fetch/feed?since=${cursor.current}`, { quiet: true })
         .then((s) => {
           if (!alive) return;
           feedFails.current = 0;
@@ -189,9 +183,7 @@ export function GenreRunTab() {
               <input
                 type="checkbox"
                 checked={opts.dryRun === true}
-                onChange={(e) =>
-                  setOpts({ ...opts, dryRun: e.currentTarget.checked })
-                }
+                onChange={(e) => setOpts({ ...opts, dryRun: e.currentTarget.checked })}
               />{" "}
               dry run
             </label>
@@ -199,9 +191,7 @@ export function GenreRunTab() {
               <input
                 type="checkbox"
                 checked={opts.aiFallback === true}
-                onChange={(e) =>
-                  setOpts({ ...opts, aiFallback: e.currentTarget.checked })
-                }
+                onChange={(e) => setOpts({ ...opts, aiFallback: e.currentTarget.checked })}
               />{" "}
               AI fallback
             </label>
@@ -209,18 +199,11 @@ export function GenreRunTab() {
               <input
                 type="checkbox"
                 checked={opts.all === true}
-                onChange={(e) =>
-                  setOpts({ ...opts, all: e.currentTarget.checked })
-                }
+                onChange={(e) => setOpts({ ...opts, all: e.currentTarget.checked })}
               />{" "}
               --all (re-tag everything)
             </label>
-            <button
-              type="button"
-              class="intake-go"
-              disabled={starting}
-              onClick={start}
-            >
+            <button type="button" class="intake-go" disabled={starting} onClick={start}>
               <Icon name={starting ? "refresh" : "play"} size={16} />
               {starting ? "starting…" : "Start fetch"}
             </button>
@@ -248,17 +231,11 @@ export function GenreRunTab() {
       {job && job.status === "running" ? (
         <Card>
           <div class="jbar">
-            <i
-              style={{
-                width: `${Math.max(2, Math.round((job.progress ?? 0) * 100))}%`,
-              }}
-            />
+            <i style={{ width: `${Math.max(2, Math.round((job.progress ?? 0) * 100))}%` }} />
           </div>
           <small class="muted">
             {Math.round((job.progress ?? 0) * 100)}%
-            {job.eta_seconds !== null
-              ? ` · ~${Math.round(job.eta_seconds / 60)}m left`
-              : ""}
+            {job.eta_seconds !== null ? ` · ~${Math.round(job.eta_seconds / 60)}m left` : ""}
           </small>
         </Card>
       ) : null}
@@ -290,17 +267,16 @@ export function GenreRunTab() {
               if (e.type === "start")
                 return (
                   <div class="genre-feed-row start" key={`s${i}`}>
-                    <Icon name="play" size={12} /> run started — {e.start.tasks}{" "}
-                    tasks ({e.start.total} tracks)
+                    <Icon name="play" size={12} /> run started — {e.start.tasks} tasks (
+                    {e.start.total} tracks)
                     {e.start.dry ? " · DRY RUN" : ""}
                   </div>
                 );
               if (e.type === "done")
                 return (
                   <div class="genre-feed-row done" key={`d${i}`}>
-                    <Icon name="check" size={12} /> run complete —{" "}
-                    {e.stats.genreElected ?? 0} elections from{" "}
-                    {e.stats.votesCast ?? 0} votes
+                    <Icon name="check" size={12} /> run complete — {e.stats.genreElected ?? 0}{" "}
+                    elections from {e.stats.votesCast ?? 0} votes
                   </div>
                 );
               const t = e.task;
@@ -310,9 +286,7 @@ export function GenreRunTab() {
                     {t.done}/{t.total} · {t.name}
                   </div>
                   {t.votes.length === 0 ? (
-                    <div class="genre-feed-votes muted">
-                      no votes — honest abstain
-                    </div>
+                    <div class="genre-feed-votes muted">no votes — honest abstain</div>
                   ) : (
                     <div class="genre-feed-votes">
                       {t.votes.map((v, vi) => {
@@ -321,8 +295,7 @@ export function GenreRunTab() {
                           <span
                             class="arch-pill"
                             key={`${v.rung}${vi}`}
-                            title={`${rung?.name ?? v.rung} · w=${v.weight.toFixed(2)} · ${rung?.description ?? ""}`}
-                          >
+                            title={`${rung?.name ?? v.rung} · w=${v.weight.toFixed(2)} · ${rung?.description ?? ""}`}>
                             {rung?.name ?? v.rung}
                             <b> {v.genre}</b>
                             <small> w={v.weight.toFixed(2)}</small>
@@ -337,9 +310,7 @@ export function GenreRunTab() {
                       <small>
                         {" "}
                         w={t.elected.weight.toFixed(2)} ·{" "}
-                        {t.elected.winnerRungs
-                          .map((r) => RUNGS.get(r)?.name ?? r)
-                          .join(" + ")}
+                        {t.elected.winnerRungs.map((r) => RUNGS.get(r)?.name ?? r).join(" + ")}
                       </small>
                     </div>
                   ) : (
@@ -358,8 +329,8 @@ export function GenreRunTab() {
       {!job && feed.entries.length === 0 ? (
         <Card>
           <div class="empty">
-            <Icon name="info" size={14} /> Press Start — the ladder's votes,
-            elections and rung tally stream here as tracks finish.
+            <Icon name="info" size={14} /> Press Start — the ladder's votes, elections and rung
+            tally stream here as tracks finish.
           </div>
         </Card>
       ) : null}
@@ -383,10 +354,7 @@ function KVROWS_TALLY(props: {
       {rows.map((r) => (
         <div class="genre-tally-row" key={r.rung.id}>
           <span class="genre-tally-name">{r.rung.name}</span>
-          <span
-            class="votebar"
-            style={{ width: `${(r.votes / props.max) * 70}%` }}
-          />
+          <span class="votebar" style={{ width: `${(r.votes / props.max) * 70}%` }} />
           <span class="genre-tally-nums">
             {r.votes} vote{r.votes === 1 ? "" : "s"}
             {r.elected > 0 ? ` · ★ ${r.elected} won` : ""}

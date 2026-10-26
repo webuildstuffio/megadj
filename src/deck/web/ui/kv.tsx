@@ -12,10 +12,7 @@ export async function copyList(name: string, lines: string[]): Promise<void> {
   if (lines.length === 0) return;
   try {
     await navigator.clipboard.writeText(lines.join("\n"));
-    toast(
-      `${name} copied (${lines.length} line${lines.length === 1 ? "" : "s"})`,
-      "ok",
-    );
+    toast(`${name} copied (${lines.length} line${lines.length === 1 ? "" : "s"})`, "ok");
   } catch (e: unknown) {
     // clipboard rejects on permission denial / insecure context — surface,
     // never silently no-op (the silent no-op Copy button is slop)
@@ -33,11 +30,7 @@ export function Card(props: { children: ComponentChildren; class?: string }) {
 /** The "showing N of M — Copy has the full list" footer. 8+ hand-rolled
  *  copies collapsed into one; `full` defaults to true (Copy carries the
  *  rest) — pass full={false} when lines aren't copyable. */
-export function Truncated(props: {
-  shown: number;
-  total: number;
-  full?: boolean;
-}) {
+export function Truncated(props: { shown: number; total: number; full?: boolean }) {
   if (props.total <= props.shown) return null;
   return (
     <div class="fleet-note">
@@ -56,11 +49,7 @@ export function KVRows(props: { children: ComponentChildren; class?: string }) {
   return <div class={`kvrows ${props.class ?? ""}`}>{props.children}</div>;
 }
 
-export function KVRow(props: {
-  children: ComponentChildren;
-  class?: string;
-  title?: string;
-}) {
+export function KVRow(props: { children: ComponentChildren; class?: string; title?: string }) {
   return (
     <div class={`kvrow ${props.class ?? ""}`} title={props.title}>
       {props.children}
@@ -74,11 +63,7 @@ export function KVKey(props: { children: ComponentChildren }) {
 }
 
 /** The right fragment of a KVRow — muted, ellipsized, right-aligned. */
-export function KVVal(props: {
-  children: ComponentChildren;
-  title?: string;
-  class?: string;
-}) {
+export function KVVal(props: { children: ComponentChildren; title?: string; class?: string }) {
   return (
     <span class={`kvval ${props.class ?? ""}`} title={props.title}>
       {props.children}

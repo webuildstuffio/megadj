@@ -16,17 +16,13 @@ export function useJobEvents(props: {
   onJobsError.current = props.reportJobsError;
   const reportJobsError = useRef<((error: unknown) => void) | null>(null);
   if (!reportJobsError.current) {
-    reportJobsError.current = createErrorThrottle((error) =>
-      onJobsError.current(error),
-    );
+    reportJobsError.current = createErrorThrottle((error) => onJobsError.current(error));
   }
   const onDrivesError = useRef(props.reportDrivesError);
   onDrivesError.current = props.reportDrivesError;
   const reportDrivesError = useRef<((error: unknown) => void) | null>(null);
   if (!reportDrivesError.current) {
-    reportDrivesError.current = createErrorThrottle((error) =>
-      onDrivesError.current(error),
-    );
+    reportDrivesError.current = createErrorThrottle((error) => onDrivesError.current(error));
   }
 
   useEffect(() => {
@@ -53,14 +49,11 @@ export function useJobEvents(props: {
     es.addEventListener("drives", () => void refreshDrives());
     es.addEventListener("interlock", (event) => {
       try {
-        const data: unknown = JSON.parse(
-          (event as MessageEvent<string>).data ?? "null",
-        );
+        const data: unknown = JSON.parse((event as MessageEvent<string>).data ?? "null");
         if (
           data &&
           typeof data === "object" &&
-          typeof (data as { rekordbox_running?: unknown }).rekordbox_running ===
-            "boolean"
+          typeof (data as { rekordbox_running?: unknown }).rekordbox_running === "boolean"
         ) {
           props.setInterlock(data as InterlockState);
         } else {

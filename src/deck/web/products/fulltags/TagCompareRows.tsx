@@ -9,8 +9,7 @@ import { useFetched, FetchedGate, type Fetched } from "../../ui/useFetched";
 import type { TrackPick } from "./TrackPickSearch";
 
 /** Pill classes per comparison outcome. */
-export const diffPill = (differ: boolean): string =>
-  differ ? "arch-pill warn" : "arch-pill ok";
+export const diffPill = (differ: boolean): string => (differ ? "arch-pill warn" : "arch-pill ok");
 
 export const show = (v: string | number | null): string =>
   v === null || v === "" ? "—" : String(v);
@@ -78,19 +77,16 @@ export function CompareCard(props: {
       </KVRows>
       {t.file === null && (
         <div class="arch-fix">
-          file not readable at its archived path — the mirror columns above are
-          uncorrected; <code>megadj adopt --shelf</code> repoints moved rows.
+          file not readable at its archived path — the mirror columns above are uncorrected;{" "}
+          <code>megadj adopt --shelf</code> repoints moved rows.
         </div>
       )}
       {t.rekordbox && (
         <details class="rb-meta">
           <summary>
-            full rekordbox payload ({Object.keys(t.rekordbox.metadata).length}{" "}
-            fields)
+            full rekordbox payload ({Object.keys(t.rekordbox.metadata).length} fields)
           </summary>
-          <pre class="rb-meta-pre">
-            {JSON.stringify(t.rekordbox.metadata, null, 1)}
-          </pre>
+          <pre class="rb-meta-pre">{JSON.stringify(t.rekordbox.metadata, null, 1)}</pre>
         </details>
       )}
     </Card>
@@ -108,10 +104,8 @@ function GenreRow({ t }: { t: CompareData }) {
             t.file !== null &&
               t.file.genre !== null &&
               t.pipeline.genre !== null &&
-              t.file.genre.trim().toLowerCase() !==
-                t.pipeline.genre.trim().toLowerCase(),
-          )}
-        >
+              t.file.genre.trim().toLowerCase() !== t.pipeline.genre.trim().toLowerCase(),
+          )}>
           file {show(t.file?.genre ?? null)}
         </span>{" "}
         <span class="arch-pill">{show(t.pipeline.genre)}</span>{" "}
@@ -127,8 +121,8 @@ function KeyRow({ t }: { t: CompareData }) {
     <KVRow key="key">
       <KVKey>key</KVKey>
       <KVVal>
-        file {show(t.file?.key ?? null)} · archive{" "}
-        {show(t.pipeline.key ?? null)} · rb {show(t.rekordbox?.key ?? null)}
+        file {show(t.file?.key ?? null)} · archive {show(t.pipeline.key ?? null)} · rb{" "}
+        {show(t.rekordbox?.key ?? null)}
       </KVVal>
     </KVRow>
   );
@@ -140,8 +134,7 @@ function BpmRow({ t }: { t: CompareData }) {
     <KVRow key="bpm">
       <KVKey>bpm</KVKey>
       <KVVal>
-        file {show(t.file?.bpm ?? null)} · ledger{" "}
-        {show(t.pipeline.bpmFolded ?? null)} · rb{" "}
+        file {show(t.file?.bpm ?? null)} · ledger {show(t.pipeline.bpmFolded ?? null)} · rb{" "}
         {show(t.rekordbox?.bpm ?? null)}
       </KVVal>
     </KVRow>
@@ -200,9 +193,7 @@ function CommentRow({ t }: { t: CompareData }) {
     <KVRow key="comment">
       <KVKey>comment</KVKey>
       <KVVal>
-        <span class="dt-sub">
-          {show(t.file?.comment ?? t.rekordbox?.comment ?? null)}
-        </span>
+        <span class="dt-sub">{show(t.file?.comment ?? t.rekordbox?.comment ?? null)}</span>
       </KVVal>
     </KVRow>
   );

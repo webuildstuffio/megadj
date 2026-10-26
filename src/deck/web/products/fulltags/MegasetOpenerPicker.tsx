@@ -16,10 +16,7 @@ export function MegasetOpenerPicker(props: {
 }) {
   if (props.opener)
     return (
-      <span
-        class="megaset-opener"
-        title="Chosen opening track — the arc starts here"
-      >
+      <span class="megaset-opener" title="Chosen opening track — the arc starts here">
         <span>Opening track</span>
         <b>{props.opener.title ?? props.opener.video_id}</b>
         <button
@@ -28,8 +25,7 @@ export function MegasetOpenerPicker(props: {
           aria-label="Clear opener (auto-pick instead)"
           title="Clear opener (auto-pick instead)"
           disabled={props.busy}
-          onClick={() => props.onPick(null)}
-        >
+          onClick={() => props.onPick(null)}>
           <Icon name="x" size={11} />
         </button>
       </span>

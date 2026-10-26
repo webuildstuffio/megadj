@@ -42,8 +42,7 @@ export function PrepTab() {
     URL.revokeObjectURL(a.href);
   };
 
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading prep digest…" />;
+  if (page.status !== "ok") return <FetchedGate page={page} loading="loading prep digest…" />;
   return (
     <div class="card">
       <div class="fleet-head">
@@ -52,8 +51,7 @@ export function PrepTab() {
         </b>
         <span
           class="fleet-sub"
-          title="Same content as `deckctl prep` — preflight verdicts, redundancy gaps, archive ingest queue, LOWQ backlog, and the archive integrity sweep. Rendered server-side; Copy/.md hand it to notes or an agent."
-        >
+          title="Same content as `deckctl prep` — preflight verdicts, redundancy gaps, archive ingest queue, LOWQ backlog, and the archive integrity sweep. Rendered server-side; Copy/.md hand it to notes or an agent.">
           the gig brief — preflight, redundancy, ingest, LOWQ, archive sweep
         </span>
         <div class="spacer" />
@@ -61,16 +59,10 @@ export function PrepTab() {
           type="button"
           class="btn"
           onClick={copy}
-          title="Copy the markdown to your clipboard (paste into notes, issues, or an agent prompt)"
-        >
+          title="Copy the markdown to your clipboard (paste into notes, issues, or an agent prompt)">
           <Icon name="copy" size={14} /> Copy
         </button>
-        <button
-          type="button"
-          class="btn"
-          onClick={download}
-          title="Download as prep-YYYY-MM-DD.md"
-        >
+        <button type="button" class="btn" onClick={download} title="Download as prep-YYYY-MM-DD.md">
           <Icon name="download" size={14} /> .md
         </button>
       </div>

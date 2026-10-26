@@ -59,13 +59,9 @@ export function CoverageStrip(props: {
                   done={n}
                   total={cov.tracks || n}
                   label=""
-                  cls={
-                    n >= cov.tracks ? "ok" : props.active === l.key ? "" : "dim"
-                  }
+                  cls={n >= cov.tracks ? "ok" : props.active === l.key ? "" : "dim"}
                 />
-                <code class="ft-coverage-cmd">
-                  {n >= cov.tracks ? "complete" : l.cmd}
-                </code>
+                <code class="ft-coverage-cmd">{n >= cov.tracks ? "complete" : l.cmd}</code>
               </>
             )}
           </div>

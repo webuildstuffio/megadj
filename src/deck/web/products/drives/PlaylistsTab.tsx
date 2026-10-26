@@ -46,8 +46,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const el = document.activeElement;
-      const typing =
-        el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+      const typing = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
       if (e.key === "/" && !typing) {
         e.preventDefault();
         inputRef.current?.focus();
@@ -122,11 +121,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
       (m.get(k) ?? m.set(k, []).get(k)!).push(pl);
     }
     return [...m.entries()].toSorted((a, b) =>
-      a[0] === "root playlists"
-        ? -1
-        : b[0] === "root playlists"
-          ? 1
-          : a[0].localeCompare(b[0]),
+      a[0] === "root playlists" ? -1 : b[0] === "root playlists" ? 1 : a[0].localeCompare(b[0]),
     );
   }, [shown, group]);
 
@@ -145,10 +140,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
   const copyInventory = () =>
     copyList(
       "Playlist inventory",
-      all.map(
-        (p) =>
-          `${p.name}${p.parent ? ` [${p.parent}]` : ""} — ${p.entries} entries`,
-      ),
+      all.map((p) => `${p.name}${p.parent ? ` [${p.parent}]` : ""} — ${p.entries} entries`),
     );
 
   return (
@@ -163,8 +155,8 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
         icon="disc"
         text={
           <>
-            {all.length} playlist{all.length === 1 ? "" : "s"} ·{" "}
-            {totalEntries.toLocaleString()} entr
+            {all.length} playlist{all.length === 1 ? "" : "s"} · {totalEntries.toLocaleString()}{" "}
+            entr
             {totalEntries === 1 ? "y" : "ies"}
             {biggest && biggest.entries > 0 && (
               <>
@@ -191,8 +183,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
               type="button"
               class="btn sm ghostbtn"
               title="Copy the full playlist inventory — paste to an agent or notes"
-              onClick={copyInventory}
-            >
+              onClick={copyInventory}>
               <Icon name="copy" size={12} /> Copy
             </button>
           </>
@@ -206,9 +197,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
             type="search"
             name="playlist-filter"
             aria-label="Filter playlists or tracks"
-            placeholder={
-              deep ? "Filter playlists or tracks…" : "Filter playlists…"
-            }
+            placeholder={deep ? "Filter playlists or tracks…" : "Filter playlists…"}
             value={filter}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
@@ -223,8 +212,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
               type="button"
               class="plsearch-clear"
               title="Clear filter (Escape)"
-              onClick={() => setFilter("")}
-            >
+              onClick={() => setFilter("")}>
               <Icon name="x" size={12} />
             </button>
           )}
@@ -234,16 +222,14 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
             type="button"
             class={sort === "entries" ? "on" : ""}
             onClick={() => setSort("entries")}
-            title="Sort by number of entries, busiest first"
-          >
+            title="Sort by number of entries, busiest first">
             Busiest
           </button>
           <button
             type="button"
             class={sort === "name" ? "on" : ""}
             onClick={() => setSort("name")}
-            title="Sort alphabetically"
-          >
+            title="Sort alphabetically">
             A–Z
           </button>
         </div>
@@ -252,16 +238,14 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
             type="button"
             class={group ? "on" : ""}
             onClick={() => setGroup(!group)}
-            title={group ? "Flatten to one list" : "Group playlists by folder"}
-          >
+            title={group ? "Flatten to one list" : "Group playlists by folder"}>
             Group folders
           </button>
         </div>
         {filter && (
           <span class="pl-results">
             {shown.length} of {all.length}
-            {trackHits > 0 &&
-              ` · ${trackHits} track hit${trackHits === 1 ? "" : "s"}`}
+            {trackHits > 0 && ` · ${trackHits} track hit${trackHits === 1 ? "" : "s"}`}
           </span>
         )}
       </div>

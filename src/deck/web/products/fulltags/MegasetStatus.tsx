@@ -36,8 +36,8 @@ export function FreshnessLine(props: {
       ]}
       note={
         <>
-          newer imports? run <code>megadj catch-up</code> (one pass: beats →
-          mood, skips ledgered work)
+          newer imports? run <code>megadj catch-up</code> (one pass: beats → mood, skips ledgered
+          work)
         </>
       }
     />
@@ -56,27 +56,12 @@ const LOAD_PHASES = [
 ] as const;
 
 export function MegasetLoading(props: { startedAt: number }) {
-  const elapsed = Math.max(
-    0,
-    Math.round((Date.now() - props.startedAt) / 1000),
-  );
+  const elapsed = Math.max(0, Math.round((Date.now() - props.startedAt) / 1000));
   // phase schedule: 25% DB read, 45% shelf walk, 20% ledger joins,
   // remainder sequencing — matches where whole-shelf builds spend time
-  const phase =
-    elapsed < 5
-      ? 0
-      : elapsed < 18
-        ? 1
-        : elapsed < 30
-          ? 2
-          : LOAD_PHASES.length - 1;
+  const phase = elapsed < 5 ? 0 : elapsed < 18 ? 1 : elapsed < 30 ? 2 : LOAD_PHASES.length - 1;
   return (
-    <div
-      class="megaset-loading"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
+    <div class="megaset-loading" role="status" aria-live="polite" aria-atomic="true">
       <span class="spin" aria-hidden="true" />
       <span class="megaset-loading-body">
         <strong>
@@ -84,19 +69,15 @@ export function MegasetLoading(props: { startedAt: number }) {
         </strong>
         <ol class="megaset-phases">
           {LOAD_PHASES.map((label, i) => (
-            <li
-              key={label}
-              class={i < phase ? "done" : i === phase ? "now" : ""}
-            >
+            <li key={label} class={i < phase ? "done" : i === phase ? "now" : ""}>
               {i < phase ? "✓ " : i === phase ? "→ " : ""}
               {label}
             </li>
           ))}
         </ol>
         <small>
-          Read-only: nothing is written to the archive or Rekordbox. A
-          whole-shelf build usually takes 15–30 seconds; the measured per-stage
-          split appears here once the build returns.
+          Read-only: nothing is written to the archive or Rekordbox. A whole-shelf build usually
+          takes 15–30 seconds; the measured per-stage split appears here once the build returns.
         </small>
       </span>
     </div>
@@ -125,14 +106,12 @@ export function ExcludedBreakdown(props: { data: MegasetPayload }) {
   return (
     <details class="megaset-excluded">
       <summary>
-        {data.excluded_total} of {data.pool.toLocaleString()} candidates not in
-        the chain — why?
+        {data.excluded_total} of {data.pool.toLocaleString()} candidates not in the chain — why?
       </summary>
       {budgetFilled > 0 && (
         <div class="fleet-note">
-          {budgetFilled.toLocaleString()} skipped only because the set's time
-          budget filled — a status, not a quality problem. The quality shape
-          below covers the remaining{" "}
+          {budgetFilled.toLocaleString()} skipped only because the set's time budget filled — a
+          status, not a quality problem. The quality shape below covers the remaining{" "}
           {(data.excluded_total - budgetFilled).toLocaleString()}.
         </div>
       )}
@@ -143,10 +122,7 @@ export function ExcludedBreakdown(props: { data: MegasetPayload }) {
             <KVVal>
               {b.count.toLocaleString()} track{b.count === 1 ? "" : "s"}
               {b.examples.length > 0 && (
-                <span class="megaset-excluded-examples">
-                  {" "}
-                  e.g. {b.examples.join(", ")}
-                </span>
+                <span class="megaset-excluded-examples"> e.g. {b.examples.join(", ")}</span>
               )}
             </KVVal>
           </KVRow>
@@ -190,8 +166,7 @@ export function ReproLine(props: {
     `--preset ${props.data.preset}`,
     `--minutes ${props.data.minutes}`,
   ];
-  if (props.searchChoice !== "auto")
-    parts.push(`--search ${props.searchChoice}`);
+  if (props.searchChoice !== "auto") parts.push(`--search ${props.searchChoice}`);
   if (props.poolLimit !== null) parts.push(`--limit ${props.poolLimit}`);
   if (props.openerId) parts.push(`--opener ${props.openerId}`);
   if (props.genre !== null && props.genre.trim() !== "")

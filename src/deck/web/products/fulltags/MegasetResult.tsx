@@ -1,8 +1,4 @@
-import {
-  MEGASET_PRESET_DEFS,
-  isShelfOffline,
-  type MegasetPayload,
-} from "../../../shared/types";
+import { MEGASET_PRESET_DEFS, isShelfOffline, type MegasetPayload } from "../../../shared/types";
 
 /** Derived banner verdict — computed ONCE so the JSX stays declarative.
  *  B1 (#104) added a mirror-built dimension on top of the complete /
@@ -50,16 +46,11 @@ function resultTitle(
   journeyLabel: string,
 ): string {
   if (empty) return "No playable set could be built";
-  if (shelfOffline && !mirrorBuilt)
-    return "Connect the shelf volume, then build again";
+  if (shelfOffline && !mirrorBuilt) return "Connect the shelf volume, then build again";
   return `${data.actualMinutes}-minute ${journeyLabel} ${data.complete ? "set draft" : "partial draft"}`;
 }
 
-function resultBody(
-  data: MegasetPayload,
-  shelfOffline: boolean,
-  mirrorBuilt: boolean,
-): string {
+function resultBody(data: MegasetPayload, shelfOffline: boolean, mirrorBuilt: boolean): string {
   if (data.pool === 0) {
     if (data.source_total > 0 && data.missing_files === data.source_total)
       return `All ${data.source_total.toLocaleString()} downloaded database paths are missing. Repair the archive paths, then build again.`;
@@ -85,9 +76,7 @@ function deriveVerdict(data: MegasetPayload): ResultVerdict {
   const empty = data.pool === 0;
   const shelfOffline = !data.complete && isShelfOffline(data, data);
   const mirrorBuilt = data.metadata_only > 0;
-  const journey = MEGASET_PRESET_DEFS.find(
-    (preset) => preset.id === data.preset,
-  );
+  const journey = MEGASET_PRESET_DEFS.find((preset) => preset.id === data.preset);
   const journeyLabel = journey?.label ?? data.preset;
   return {
     empty,
@@ -104,15 +93,9 @@ function deriveVerdict(data: MegasetPayload): ResultVerdict {
 /** Cleanup notes under the source grid — only the nonzero facts. */
 function libraryNotesOf(data: MegasetPayload, shelfOffline: boolean): string[] {
   return [
-    data.missing_files > 0 && !shelfOffline
-      ? `${data.missing_files} missing skipped`
-      : null,
-    data.duplicate_files > 0
-      ? `${data.duplicate_files} DB aliases collapsed`
-      : null,
-    data.relocated_files > 0
-      ? `${data.relocated_files} found on the mounted shelf`
-      : null,
+    data.missing_files > 0 && !shelfOffline ? `${data.missing_files} missing skipped` : null,
+    data.duplicate_files > 0 ? `${data.duplicate_files} DB aliases collapsed` : null,
+    data.relocated_files > 0 ? `${data.relocated_files} found on the mounted shelf` : null,
   ].filter((note): note is string => note !== null);
 }
 
@@ -192,8 +175,7 @@ export function MegasetResult(props: { data: MegasetPayload }) {
     <section
       class={`megaset-result ${v.tone}`}
       aria-labelledby="megaset-result-title"
-      aria-live="polite"
-    >
+      aria-live="polite">
       <div class="megaset-result-head">
         <span class="megaset-result-kicker">{v.kicker}</span>
         <h4 id="megaset-result-title">{v.title}</h4>
@@ -227,9 +209,7 @@ export function MegasetResult(props: { data: MegasetPayload }) {
             <dt>Avg blend</dt>
             <dd>
               <strong>{data.avg_transition.toFixed(3)}</strong>
-              <small>
-                worst {data.min_transition?.toFixed(3)} · higher is smoother
-              </small>
+              <small>worst {data.min_transition?.toFixed(3)} · higher is smoother</small>
             </dd>
           </div>
         )}
@@ -242,15 +222,12 @@ export function MegasetResult(props: { data: MegasetPayload }) {
         </div>
         <SourceGrid data={data} shelfOffline={v.shelfOffline} />
         {libraryNotes.length > 0 && (
-          <p class="megaset-library-notes">
-            Library cleanup: {libraryNotes.join(" · ")}.
-          </p>
+          <p class="megaset-library-notes">Library cleanup: {libraryNotes.join(" · ")}.</p>
         )}
         {v.shelfOffline && (
           <p class="megaset-library-notes">
             Shelf check: {data.missing_files.toLocaleString()} of{" "}
-            {data.source_total.toLocaleString()} downloaded paths were
-            unreadable during this build.
+            {data.source_total.toLocaleString()} downloaded paths were unreadable during this build.
           </p>
         )}
       </div>

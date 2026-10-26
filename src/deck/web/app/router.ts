@@ -35,19 +35,9 @@ function parse(): Route {
   const h = location.hash.replace(/^#\/?/, "");
   const parts = h.split("/").filter(Boolean);
   if (parts[0] === "fleet")
-    return {
-      product: "fleet",
-      driveId: null,
-      fleet: true,
-      tab: parts[1] || DEFAULT_TABS.fleet,
-    };
+    return { product: "fleet", driveId: null, fleet: true, tab: parts[1] || DEFAULT_TABS.fleet };
   if (parts[0] === "getdat")
-    return {
-      product: "getdat",
-      driveId: null,
-      fleet: false,
-      tab: parts[1] || DEFAULT_TABS.getdat,
-    };
+    return { product: "getdat", driveId: null, fleet: false, tab: parts[1] || DEFAULT_TABS.getdat };
   // #/megaset is canonical; legacy #/set keeps resolving to the product
   if (parts[0] === "megaset" || parts[0] === "set")
     return {
@@ -59,12 +49,7 @@ function parse(): Route {
   // legacy deep links: #/fulltags/set → the MegaSet product (the tab moved
   // up to its own product; old hashes keep working instead of 404-ing)
   if (parts[0] === "fulltags" && (parts[1] || DEFAULT_TABS.fulltags) === "set")
-    return {
-      product: "megaset",
-      driveId: null,
-      fleet: false,
-      tab: DEFAULT_TABS.megaset,
-    };
+    return { product: "megaset", driveId: null, fleet: false, tab: DEFAULT_TABS.megaset };
   if (parts[0] === "fulltags")
     return {
       product: "fulltags",
@@ -79,12 +64,7 @@ function parse(): Route {
       fleet: false,
       tab: parts[2] || DEFAULT_TABS.drives,
     };
-  return {
-    product: "drives",
-    driveId: null,
-    fleet: false,
-    tab: DEFAULT_TABS.drives,
-  };
+  return { product: "drives", driveId: null, fleet: false, tab: DEFAULT_TABS.drives };
 }
 
 export function useRoute(): Route {
@@ -102,15 +82,12 @@ export function useRoute(): Route {
  *  is only re-exported under its product-chrome name (knip: no unused
  *  aliases). */
 function go(product: Product, tab?: string): void {
-  const next =
-    product === "drives" ? "#/" : `#/${product}${tab ? `/${tab}` : ""}`;
+  const next = product === "drives" ? "#/" : `#/${product}${tab ? `/${tab}` : ""}`;
   if (location.hash !== next) location.hash = next;
 }
 
 export function navigate(driveId: string | null, tab?: string): void {
-  const next = driveId
-    ? `#/drives/${encodeURIComponent(driveId)}${tab ? `/${tab}` : ""}`
-    : "#/";
+  const next = driveId ? `#/drives/${encodeURIComponent(driveId)}${tab ? `/${tab}` : ""}` : "#/";
   if (location.hash !== next) location.hash = next;
 }
 

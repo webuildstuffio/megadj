@@ -27,8 +27,7 @@ export function useFetched<T>(
     let alive = true;
     loadRef.current().then(
       (data) => alive && setPage({ status: "ok", data }),
-      (e: unknown) =>
-        alive && setPage({ status: "error", message: errMessage(e) }),
+      (e: unknown) => alive && setPage({ status: "error", message: errMessage(e) }),
     );
     return () => {
       alive = false;
@@ -36,9 +35,7 @@ export function useFetched<T>(
     // tick: refresh() bumps it to re-run the loader in place (post-mutation
     // refresh — the caller's list must reflect the change without a nav).
   }, [...deps, tick]);
-  return page.status === "ok"
-    ? { ...page, refresh: () => setTick((t) => t + 1) }
-    : page;
+  return page.status === "ok" ? { ...page, refresh: () => setTick((t) => t + 1) } : page;
 }
 
 /** Shared loading/error gates for a useFetched tab: the `card > empty`
@@ -49,10 +46,7 @@ export function useFetched<T>(
  * spinning implies motion, static text implied a hang) and errors carry
  * the `.note bad` tone so failures read as failures at a glance, not
  * more muted prose. */
-export function FetchedGate(props: {
-  page: Fetched<unknown>;
-  loading: string;
-}) {
+export function FetchedGate(props: { page: Fetched<unknown>; loading: string }) {
   if (props.page.status === "error")
     return (
       <div class="card">

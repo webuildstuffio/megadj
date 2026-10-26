@@ -42,11 +42,7 @@ export interface CohortPlanWire {
 /** The ONE cohorts query builder (#316: was a 7L twin in the export-href
  *  and the fetch below — minutes + normalized families, one wire contract).
  *  `format` extends the query when the caller asks for a non-JSON render. */
-function cohortsQuery(
-  minutes: number,
-  familiesInput: string,
-  format?: "m3u8",
-): string {
+function cohortsQuery(minutes: number, familiesInput: string, format?: "m3u8"): string {
   const q = new URLSearchParams({ minutes: String(minutes) });
   const families = familiesInput
     .split(",")
@@ -60,10 +56,7 @@ function cohortsQuery(
 /** The cohort-session M3U8 download URL — the SAME plan re-requested
  *  with ?format=m3u8 (rev-52: the route renders the whole session as one
  *  importable playlist; the JSON plan stays the review surface). */
-export function cohortsExportHref(
-  plan: CohortPlanWire,
-  familiesInput: string,
-): string {
+export function cohortsExportHref(plan: CohortPlanWire, familiesInput: string): string {
   return cohortsQuery(plan.minutes, familiesInput, "m3u8");
 }
 
@@ -89,23 +82,9 @@ export function useCohortsPlanner() {
   const minutes = minutesFrom(minutesInput);
 
   const request = () => {
-    setState({
-      data: null,
-      loading: true,
-      error: null,
-      requestedMinutes: minutes,
-    });
-    api<CohortPlanWire>(cohortsQuery(minutes, familiesInput), {
-      timeoutMs: 120_000,
-    })
-      .then((data) =>
-        setState({
-          data,
-          loading: false,
-          error: null,
-          requestedMinutes: minutes,
-        }),
-      )
+    setState({ data: null, loading: true, error: null, requestedMinutes: minutes });
+    api<CohortPlanWire>(cohortsQuery(minutes, familiesInput), { timeoutMs: 120_000 })
+      .then((data) => setState({ data, loading: false, error: null, requestedMinutes: minutes }))
       .catch((error: unknown) =>
         setState({
           data: null,

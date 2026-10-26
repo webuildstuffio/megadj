@@ -23,9 +23,7 @@ import { EnrichmentFunnel } from "../products/getdat/getdat-tabs";
 
 describe("FetchedGate shared states (Sep 19 polish)", () => {
   test("loading spins — motion implies work, static text implied a hang", () => {
-    const html = render(
-      <FetchedGate page={{ status: "loading" }} loading="loading library…" />,
-    );
+    const html = render(<FetchedGate page={{ status: "loading" }} loading="loading library…" />);
     expect(html).toContain("loading library…");
     expect(html).toContain('class="spin"');
     expect(html).toContain("lucide-rotate-cw");
@@ -33,10 +31,7 @@ describe("FetchedGate shared states (Sep 19 polish)", () => {
 
   test("errors carry the bad tone + a real error glyph", () => {
     const html = render(
-      <FetchedGate
-        page={{ status: "error", message: "archive offline" }}
-        loading="x"
-      />,
+      <FetchedGate page={{ status: "error", message: "archive offline" }} loading="x" />,
     );
     expect(html).toContain("archive offline");
     expect(html).toContain("note bad");
@@ -49,10 +44,7 @@ describe("FetchedGate shared states (Sep 19 polish)", () => {
 // effect keyed only on the caller's deps — refresh bumped state that
 // nothing read, so the pending-queue card never updated after a skip.)
 describe("useFetched refresh (post-mutation reload)", () => {
-  const src = readFileSync(
-    join(import.meta.dir, "../ui/useFetched.tsx"),
-    "utf8",
-  );
+  const src = readFileSync(join(import.meta.dir, "../ui/useFetched.tsx"), "utf8");
 
   test("refresh's tick is an effect dep (the loader really re-runs)", () => {
     expect(src).toContain("setTick");
@@ -103,9 +95,7 @@ describe("EnrichmentFunnel (#260 downloaded ≠ finished)", () => {
     // source pin: the POST body uses props.folder verbatim (absolute);
     // only the visible label is shortened to the batch name.
     expect(funnelTabsSrc).toContain("{ folder: props.folder }");
-    expect(funnelTabsSrc).toContain(
-      'props.folder.split("/").filter(Boolean).pop()',
-    );
+    expect(funnelTabsSrc).toContain('props.folder.split("/").filter(Boolean).pop()');
   });
 
   test("the genre-pass fix routes to the FullTags Run tab", () => {
@@ -115,9 +105,7 @@ describe("EnrichmentFunnel (#260 downloaded ≠ finished)", () => {
   });
 
   test("an empty raw-batches list renders no intake buttons", () => {
-    const html = render(
-      <EnrichmentFunnel stages={{ ...funnelStages, rawBatches: [] }} />,
-    );
+    const html = render(<EnrichmentFunnel stages={{ ...funnelStages, rawBatches: [] }} />);
     expect(html).not.toContain("process 2026-");
     expect(html).toContain("Processing funnel");
   });

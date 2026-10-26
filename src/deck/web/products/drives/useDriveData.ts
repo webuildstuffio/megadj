@@ -52,9 +52,7 @@ export interface DriveData {
  * presentation/action shell and gives loading behavior one testable home. */
 export function useDriveData(driveId: string): DriveData {
   const [page, setPage] = useState<DrivePageState>({ status: "loading" });
-  const [report, setReport] = useState<
-    (DriveReport & { overall?: string }) | null
-  >(null);
+  const [report, setReport] = useState<(DriveReport & { overall?: string }) | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [bench, setBench] = useState<HealthTabBench[]>([]);
   const [probes, setProbes] = useState<{ ran_at: number; mbps: number }[]>([]);
@@ -70,35 +68,22 @@ export function useDriveData(driveId: string): DriveData {
     // is the page's failure); every other leg degrades its own panel.
     // A named tuple (not Object.values, which erases element types)
     // keeps every leg's fulfilled-value fully typed.
-    const [detailR, reportR, timelineR, benchR, probesR, jobsR, verifyR] =
-      await Promise.allSettled([
+    const [detailR, reportR, timelineR, benchR, probesR, jobsR, verifyR] = await Promise.allSettled(
+      [
         api<DriveDetail>(`/api/drives/${enc}`, { quiet: true }),
         api<DriveReport>(`/api/drives/${enc}/report`, { quiet: true }),
         api<TimelineEvent[]>(`/api/drives/${enc}/timeline`, { quiet: true }),
-        api<HealthTabBench[]>(`/api/drives/${enc}/benchmarks`, {
-          quiet: true,
-        }),
-        api<{ ran_at: number; mbps: number }[]>(
-          `/api/drives/${enc}/speedprobes`,
-          { quiet: true },
-        ),
+        api<HealthTabBench[]>(`/api/drives/${enc}/benchmarks`, { quiet: true }),
+        api<{ ran_at: number; mbps: number }[]>(`/api/drives/${enc}/speedprobes`, { quiet: true }),
         api<Job[]>(`/api/jobs?drive=${enc}`, { quiet: true }),
         api<VerifyReport>(`/api/drives/${enc}/verify`, { quiet: true }),
-      ]);
-    const legNames = [
-      "detail",
-      "report",
-      "timeline",
-      "bench",
-      "probes",
-      "jobs",
-      "verify",
-    ] as const;
+      ],
+    );
+    const legNames = ["detail", "report", "timeline", "bench", "probes", "jobs", "verify"] as const;
     const failed = new Set<string>(
       legNames.filter(
         (_, i) =>
-          [detailR, reportR, timelineR, benchR, probesR, jobsR, verifyR][i]
-            ?.status === "rejected",
+          [detailR, reportR, timelineR, benchR, probesR, jobsR, verifyR][i]?.status === "rejected",
       ),
     );
 
@@ -113,9 +98,7 @@ export function useDriveData(driveId: string): DriveData {
         return;
       }
       const message = errMessage(reason);
-      setPage((previous) =>
-        previous.status === "ok" ? previous : { status: "error", message },
-      );
+      setPage((previous) => (previous.status === "ok" ? previous : { status: "error", message }));
       setDegraded(failed);
       return;
     }
@@ -148,15 +131,12 @@ export function useDriveData(driveId: string): DriveData {
     let stuckCount = 0;
     const loop = async (): Promise<void> => {
       try {
-        const active = await api<Job[]>(
-          `/api/jobs?drive=${encodeURIComponent(driveId)}&active=1`,
-          { quiet: true },
-        );
+        const active = await api<Job[]>(`/api/jobs?drive=${encodeURIComponent(driveId)}&active=1`, {
+          quiet: true,
+        });
         const activeCount = Array.isArray(active) ? active.length : 0;
         if (activeCount > 0) {
-          const snapshot = JSON.stringify(
-            active.map((job) => [job.id, job.progress]),
-          );
+          const snapshot = JSON.stringify(active.map((job) => [job.id, job.progress]));
           stuckCount = snapshot === lastSnapshot ? stuckCount + 1 : 0;
           lastSnapshot = snapshot;
           if (stuckCount >= 45) {
@@ -217,15 +197,5 @@ export function useDriveData(driveId: string): DriveData {
     };
   }, [refreshJobs]);
 
-  return {
-    page,
-    report,
-    timeline,
-    bench,
-    probes,
-    jobs,
-    verify,
-    degraded,
-    refresh,
-  };
+  return { page, report, timeline, bench, probes, jobs, verify, degraded, refresh };
 }

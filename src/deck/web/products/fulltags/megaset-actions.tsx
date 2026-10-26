@@ -24,8 +24,7 @@ export function MegasetActions(props: {
         class="btn ghostbtn"
         aria-label="Save draft as a local JSON file"
         disabled={props.stale}
-        onClick={() => saveDraft(props.data, props.draftKnobs)}
-      >
+        onClick={() => saveDraft(props.data, props.draftKnobs)}>
         <Icon name="download" size={13} /> Save JSON draft
       </button>
       {props.stale || props.exportHref === null ? (
@@ -37,15 +36,13 @@ export function MegasetActions(props: {
           class="btn ghostbtn"
           href={props.exportHref}
           download
-          title="Download a UTF-8 M3U8 playlist; this does not open or change Rekordbox"
-        >
+          title="Download a UTF-8 M3U8 playlist; this does not open or change Rekordbox">
           <Icon name="download" size={13} /> Export .m3u8 for Rekordbox
         </a>
       )}
       <span class="megaset-actions-note">
-        Import the .m3u8 through Rekordbox File → Import → Playlist. Save JSON
-        keeps the full technical evidence. Neither action opens or changes the
-        Rekordbox database.
+        Import the .m3u8 through Rekordbox File → Import → Playlist. Save JSON keeps the full
+        technical evidence. Neither action opens or changes the Rekordbox database.
       </span>
     </div>
   );
