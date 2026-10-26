@@ -43,10 +43,7 @@ const DROP_ENTRY_AROUSAL_MIN = 6.0;
 
 /** Classify a transition between two consecutive steps.
  *  Pure function — reads only from the step pair, no ledger. */
-export function classifyTransition(
-  prev: MegasetStep,
-  curr: MegasetStep,
-): TransitionClassification {
+export function classifyTransition(prev: MegasetStep, curr: MegasetStep): TransitionClassification {
   // No transition data = hold (honest gap)
   if (curr.transition === null) {
     return { type: "hold", reason: "opener — no transition" };
@@ -54,10 +51,7 @@ export function classifyTransition(
 
   // Half-time shift: the evidence says halftime
   if (curr.evidence?.halftime === true) {
-    return {
-      type: "half-time-shift",
-      reason: "B8 half/double-time lane active",
-    };
+    return { type: "half-time-shift", reason: "B8 half/double-time lane active" };
   }
 
   // Both steps have cues — classify by overlap and energy shape
@@ -99,10 +93,7 @@ export function classifyTransition(
     }
 
     // Phrase cut: cues present but no special condition
-    return {
-      type: "phrase-cut",
-      reason: `${overlapBars}-bar overlap, standard phrase alignment`,
-    };
+    return { type: "phrase-cut", reason: `${overlapBars}-bar overlap, standard phrase alignment` };
   }
 
   // No cues — classify by evidence alone
@@ -120,13 +111,9 @@ export function classifyTransition(
 
 /** Classify all transitions in a step chain.
  *  The opener (first step) always gets `hold` with reason "opener". */
-export function classifyChain(
-  steps: MegasetStep[],
-): TransitionClassification[] {
+export function classifyChain(steps: MegasetStep[]): TransitionClassification[] {
   if (steps.length === 0) return [];
-  const result: TransitionClassification[] = [
-    { type: "hold", reason: "opener — first track" },
-  ];
+  const result: TransitionClassification[] = [{ type: "hold", reason: "opener — first track" }];
   for (let i = 1; i < steps.length; i++) {
     const prev = steps[i - 1];
     const curr = steps[i];

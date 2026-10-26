@@ -38,24 +38,19 @@ test("#44: every registered icon produces a renderable glyph vnode", () => {
 
 test("#44: api keeps FormData intact and reports locked responses", async () => {
   const requests: RequestInit[] = [];
-  globalThis.fetch = mockFetch(
-    async (_input: RequestInfo | URL, init?: RequestInit) => {
-      requests.push(init ?? {});
-      return Response.json({ ok: true });
-    },
-  );
+  globalThis.fetch = mockFetch(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push(init ?? {});
+    return Response.json({ ok: true });
+  });
 
   const form = new FormData();
   form.set("cover", "artwork");
-  expect(await apiPost<{ ok: boolean }>("/api/upload", form)).toEqual({
-    ok: true,
-  });
+  expect(await apiPost<{ ok: boolean }>("/api/upload", form)).toEqual({ ok: true });
   expect(requests[0]?.body).toBe(form);
   expect(requests[0]?.headers).toBeUndefined();
 
-  globalThis.fetch = mockFetch(
-    async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      Response.json({ error: "rekordbox is running" }, { status: 423 }),
+  globalThis.fetch = mockFetch(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+    Response.json({ error: "rekordbox is running" }, { status: 423 }),
   );
   try {
     await api("/api/locked", { quiet: true });
@@ -86,39 +81,33 @@ test("#44: api failure reporting is injectable without importing the toast view"
 });
 
 test("#44: api deadline stays armed while the response body is read", async () => {
-  globalThis.fetch = mockFetch(
-    async (_input: RequestInfo | URL, init?: RequestInit) => {
-      const signal = init?.signal;
-      const response = Response.json({ ok: true });
-      Object.defineProperty(response, "json", {
-        value: () =>
-          new Promise((_resolve, reject) => {
-            signal?.addEventListener(
-              "abort",
-              () => {
-                const error = new Error("aborted response body");
-                error.name = "AbortError";
-                reject(error);
-              },
-              { once: true },
-            );
-          }),
-      });
-      return response;
-    },
-  );
+  globalThis.fetch = mockFetch(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const signal = init?.signal;
+    const response = Response.json({ ok: true });
+    Object.defineProperty(response, "json", {
+      value: () =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => {
+              const error = new Error("aborted response body");
+              error.name = "AbortError";
+              reject(error);
+            },
+            { once: true },
+          );
+        }),
+    });
+    return response;
+  });
 
   const outcome = await Promise.race([
     api("/api/stalled-body", { quiet: true, timeoutMs: 5 }).then(
       () => "resolved",
       (error: unknown) =>
-        error instanceof ApiError
-          ? `${error.status}:${error.message}`
-          : `raw:${String(error)}`,
+        error instanceof ApiError ? `${error.status}:${error.message}` : `raw:${String(error)}`,
     ),
-    new Promise<string>((resolve) =>
-      setTimeout(() => resolve("still pending"), 30),
-    ),
+    new Promise<string>((resolve) => setTimeout(() => resolve("still pending"), 30)),
   ]);
   expect(outcome).toBe("0:timed out after 0s — server busy; retry");
 });
@@ -198,9 +187,7 @@ test("#44: ledger reader stays read-only and degrades query failures to empty", 
   db.close();
 
   const reader = new TestLedgerReader(path);
-  expect(reader.all<{ value: string }>("SELECT value FROM rows")).toEqual([
-    { value: "kept" },
-  ]);
+  expect(reader.all<{ value: string }>("SELECT value FROM rows")).toEqual([{ value: "kept" }]);
   expect(reader.all("SELECT missing FROM rows")).toEqual([]);
   reader.close();
 });

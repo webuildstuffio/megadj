@@ -26,14 +26,10 @@ export async function cmdCoverage(minCopies?: string): Promise<void> {
   for (const drive of result.drives)
     log(`  ${drive.name}: ${drive.tracks.toLocaleString()} tracks`);
   if (!result.at_risk.length) {
-    log(
-      `✓ no at-risk tracks — everything lives on ≥${result.min_copies} drive(s)`,
-    );
+    log(`✓ no at-risk tracks — everything lives on ≥${result.min_copies} drive(s)`);
     return;
   }
-  log(
-    `⚠ ${result.at_risk.length} track(s) below ${result.min_copies} copies (first 50):`,
-  );
+  log(`⚠ ${result.at_risk.length} track(s) below ${result.min_copies} copies (first 50):`);
   for (const track of result.at_risk.slice(0, 50)) {
     const name = track.identity.title ?? track.identity.path;
     const artist = track.identity.artist ? ` — ${track.identity.artist}` : "";
@@ -44,9 +40,7 @@ export async function cmdCoverage(minCopies?: string): Promise<void> {
 export async function cmdRedundancy(minCopies?: string): Promise<void> {
   const parsed = minCopies ? parseInt(minCopies, 10) : undefined;
   const query = parsed && parsed > 0 ? `?min_copies=${parsed}` : "";
-  const result = await getJson<RedundancyResult>(
-    `/api/fleet/redundancy${query}`,
-  );
+  const result = await getJson<RedundancyResult>(`/api/fleet/redundancy${query}`);
   if (JSON_MODE) {
     await emitJson(result);
     return;
@@ -69,9 +63,7 @@ export async function cmdRedundancy(minCopies?: string): Promise<void> {
 
 export async function cmdDiff(a?: string, b?: string): Promise<void> {
   if (!a || !b) {
-    await errOut(
-      "usage: deckctl diff <driveA> <driveB>  (name, nickname, or UUID)",
-    );
+    await errOut("usage: deckctl diff <driveA> <driveB>  (name, nickname, or UUID)");
     process.exit(2);
   }
   const driveA = await resolveDrive(a);
@@ -117,29 +109,21 @@ export async function cmdRadar(drive?: string): Promise<void> {
     return;
   }
   log(`new-music radar — ${result.summary}`);
-  const wants = drive
-    ? result.drives.filter((d) => d.driveId === drive)
-    : result.drives;
+  const wants = drive ? result.drives.filter((d) => d.driveId === drive) : result.drives;
   if (drive && wants.length === 0) {
     await errOut(`unknown drive: ${drive}`);
     process.exit(2);
   }
   for (const r of wants) {
-    const snap = r.snapshotAt
-      ? ` · snapshot ${r.snapshotAt.slice(0, 10)}`
-      : " · never scanned";
+    const snap = r.snapshotAt ? ` · snapshot ${r.snapshotAt.slice(0, 10)}` : " · never scanned";
     log(`  ${r.driveName}: ${r.summary}${snap}`);
     for (const row of r.missing.slice(0, 10))
-      log(
-        `    ${row.artist ? `${row.artist} — ` : ""}${row.title ?? row.path}`,
-      );
+      log(`    ${row.artist ? `${row.artist} — ` : ""}${row.title ?? row.path}`);
     if (r.missing.length > 10)
       log(`    … and ${r.missingCount - 10} more (web Radar tab or --json)`);
   }
   if (result.totalMissing > 0)
-    log(
-      `  fix: megadj shelf-sync (additive, MD5-verified) — then re-scan the drive`,
-    );
+    log(`  fix: megadj shelf-sync (additive, MD5-verified) — then re-scan the drive`);
 }
 
 async function reportFleet(data: BoothFleetPayload): Promise<void> {
@@ -153,9 +137,7 @@ async function reportFleet(data: BoothFleetPayload): Promise<void> {
   );
   for (const profile of data.profiles) {
     const mark = data.selected.includes(profile.id) ? "x" : " ";
-    log(
-      `  [${mark}] ${profile.name} (${profile.id})${profile.defaultOn ? " — default on" : ""}`,
-    );
+    log(`  [${mark}] ${profile.name} (${profile.id})${profile.defaultOn ? " — default on" : ""}`);
   }
   log("set with: deckctl booth set <id ...>");
 }
@@ -165,16 +147,12 @@ export async function cmdBoothFleet(
   ids: string[] | undefined,
 ): Promise<void> {
   if (setCmd !== undefined && setCmd !== "set") {
-    await errOut(
-      `unknown booth subcommand "${setCmd}" — usage: booth [set ID ...]`,
-    );
+    await errOut(`unknown booth subcommand "${setCmd}" — usage: booth [set ID ...]`);
     process.exit(2);
   }
   if (setCmd === "set") {
     if (!ids?.length) {
-      await errOut(
-        "booth set needs at least one player id (e.g. xdj-xz cdj-3000 cdj-2000nxs2)",
-      );
+      await errOut("booth set needs at least one player id (e.g. xdj-xz cdj-3000 cdj-2000nxs2)");
       process.exit(2);
     }
     const response = await apiPost("/api/booth/fleet", { selected: ids });

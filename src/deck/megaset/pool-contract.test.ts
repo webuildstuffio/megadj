@@ -89,9 +89,7 @@ describe("setCandidates pool contract", () => {
       expect(result.missingFiles).toBe(2);
       expect(result.metadataOnly).toBe(0);
       expect(result.duplicateFiles).toBe(0);
-      expect(result.candidates.map((candidate) => candidate.videoId)).toEqual([
-        "actual",
-      ]);
+      expect(result.candidates.map((candidate) => candidate.videoId)).toEqual(["actual"]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -112,9 +110,7 @@ describe("setCandidates pool contract", () => {
       for (const ms of [sql, fileCheck, keyFills]) {
         expect(ms).toBeGreaterThanOrEqual(0);
       }
-      expect(sql + fileCheck + keyFills).toBeLessThanOrEqual(
-        Math.max(50, wall * 2),
-      );
+      expect(sql + fileCheck + keyFills).toBeLessThanOrEqual(Math.max(50, wall * 2));
       // the census results are unchanged by the timing instrumentation
       expect(result.total).toBe(1);
       expect(result.sourceTotal).toBe(1);
@@ -311,9 +307,7 @@ describe("setCandidates pool contract", () => {
     const dir = t5.dir();
     const audioPath = join(dir, "same-track.m4a");
     writeFileSync(audioPath, "cached test fixture");
-    const dbRows = ["older-id", "newer-id"].map((video_id) =>
-      poolRow(video_id, audioPath, 128),
-    );
+    const dbRows = ["older-id", "newer-id"].map((video_id) => poolRow(video_id, audioPath, 128));
     const reader = readerOver(dbRows);
 
     try {
@@ -352,9 +346,7 @@ describe("setCandidates pool contract", () => {
           },
         ] as T[],
       row: <T>(sql: string) =>
-        (sql.includes("sqlite_master")
-          ? { present: 1 }
-          : { beats_at: null, mood_at: null }) as T,
+        (sql.includes("sqlite_master") ? { present: 1 } : { beats_at: null, mood_at: null }) as T,
       keyRecord: () => null,
       rememberKeyRecord: () => undefined,
       trackCols: () => "",
@@ -398,21 +390,17 @@ describe("setCandidates pool contract", () => {
         updated_at TEXT NOT NULL
       );
     `);
-    db.query(
-      `INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, 'downloaded', ?)`,
-    ).run("track", "Track", "DJ", 300, stalePath, "house", "2026-09-11");
-    db.query(`INSERT INTO beats VALUES (?, ?, ?)`).run(
+    db.query(`INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, 'downloaded', ?)`).run(
       "track",
-      128,
+      "Track",
+      "DJ",
+      300,
+      stalePath,
+      "house",
       "2026-09-11",
     );
-    db.query(`INSERT INTO mood VALUES (?, ?, ?, ?, ?)`).run(
-      "track",
-      5,
-      6,
-      0.8,
-      "2026-09-11",
-    );
+    db.query(`INSERT INTO beats VALUES (?, ?, ?)`).run("track", 128, "2026-09-11");
+    db.query(`INSERT INTO mood VALUES (?, ?, ?, ?, ?)`).run("track", 5, 6, 0.8, "2026-09-11");
     db.query(`INSERT INTO rekordbox_content VALUES (?, ?, ?, ?, ?)`).run(
       "rb-track",
       "track",
@@ -459,24 +447,25 @@ describe("setCandidates pool contract", () => {
         analyzed_at TEXT NOT NULL
       );
     `);
-    db.query(
-      `INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, 'downloaded', ?)`,
-    ).run("track", "Track", "DJ", 300, audioPath, "house", "2026-09-11");
-    db.query(
-      `INSERT INTO tracks VALUES (?, ?, ?, ?, NULL, ?, 'downloaded', ?)`,
-    ).run("no-path", "No path", "DJ", 300, null, "2026-09-11");
-    db.query(`INSERT INTO beats VALUES (?, ?, ?)`).run(
+    db.query(`INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, 'downloaded', ?)`).run(
       "track",
-      128,
+      "Track",
+      "DJ",
+      300,
+      audioPath,
+      "house",
       "2026-09-11",
     );
-    db.query(`INSERT INTO mood VALUES (?, ?, ?, ?, ?)`).run(
-      "track",
-      5,
-      6,
-      0.8,
+    db.query(`INSERT INTO tracks VALUES (?, ?, ?, ?, NULL, ?, 'downloaded', ?)`).run(
+      "no-path",
+      "No path",
+      "DJ",
+      300,
+      null,
       "2026-09-11",
     );
+    db.query(`INSERT INTO beats VALUES (?, ?, ?)`).run("track", 128, "2026-09-11");
+    db.query(`INSERT INTO mood VALUES (?, ?, ?, ?, ?)`).run("track", 5, 6, 0.8, "2026-09-11");
     db.close();
 
     try {
@@ -487,9 +476,7 @@ describe("setCandidates pool contract", () => {
       reader.close();
       const check = new Database(path, { readonly: true });
       const cacheTable = check
-        .query(
-          `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'track_keys'`,
-        )
+        .query(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'track_keys'`)
         .get();
       check.close();
       expect(cacheTable).toBeNull();
@@ -513,10 +500,7 @@ describe("setCandidates pool contract", () => {
         source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL
       );
     `);
-    db.query(`INSERT INTO tracks VALUES (?, ?)`).run(
-      "track",
-      "2026-09-11T00:00:00.000Z",
-    );
+    db.query(`INSERT INTO tracks VALUES (?, ?)`).run("track", "2026-09-11T00:00:00.000Z");
     db.query(`INSERT INTO track_keys VALUES (?, ?, ?, ?)`).run(
       "track",
       "8A",
@@ -528,11 +512,7 @@ describe("setCandidates pool contract", () => {
     try {
       const reader = new ArchiveReader(path);
       expect(reader.keyRecord("track", audioPath)).toBeNull();
-      reader.rememberKeyRecord({
-        videoId: "track",
-        key: "9A",
-        sourcePath: audioPath,
-      });
+      reader.rememberKeyRecord({ videoId: "track", key: "9A", sourcePath: audioPath });
       expect(reader.keyRecord("track", audioPath)?.key).toBe("9A");
       writeFileSync(audioPath, "replacement contents with a distinct size");
       expect(reader.keyRecord("track", audioPath)).toBeNull();

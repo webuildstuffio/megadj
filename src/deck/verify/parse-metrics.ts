@@ -107,41 +107,21 @@ function extractCounts(
   useJson: boolean,
   sum: (pick: (d: DriveEntry) => number | undefined) => number | null,
 ): CountFields {
-  const tracks = useJson
-    ? sum((d) => d.tracks)
-    : grabNum(out, /^  tracks: (\d+)/m);
-  const pdb = useJson
-    ? sum((d) => d.pdb_tracks)
-    : grabNum(out, /export\.pdb=(\d+) tracks/);
+  const tracks = useJson ? sum((d) => d.tracks) : grabNum(out, /^  tracks: (\d+)/m);
+  const pdb = useJson ? sum((d) => d.pdb_tracks) : grabNum(out, /export\.pdb=(\d+) tracks/);
   const odb = useJson
     ? sum((d) => d.onelibrary_tracks)
     : grabNum(out, /OneLibrary DB=(\d+) tracks/);
-  const playlists = useJson
-    ? sum((d) => d.playlists)
-    : grabNum(out, /playlists: (\d+)/);
-  const entries = useJson
-    ? sum((d) => d.playlist_entries)
-    : grabNum(out, /entries: (\d+)/);
+  const playlists = useJson ? sum((d) => d.playlists) : grabNum(out, /playlists: (\d+)/);
+  const entries = useJson ? sum((d) => d.playlist_entries) : grabNum(out, /entries: (\d+)/);
   const dangling = useJson
     ? sum((d) => d.dangling_entries)
     : (grabNum(out, /dangling: (\d+)/) ?? 0);
   const artistFk = useJson
     ? sum((d) => d.artist_fk_bad)
     : (grabNum(out, /artist FK bad: (\d+)/) ?? 0);
-  const pioneerVar = grabNum(
-    out,
-    /pioneer-native variance \(informational\): (\d+)/,
-  );
-  return {
-    tracks,
-    pdb,
-    odb,
-    playlists,
-    entries,
-    dangling,
-    artistFk,
-    pioneerVar,
-  };
+  const pioneerVar = grabNum(out, /pioneer-native variance \(informational\): (\d+)/);
+  return { tracks, pdb, odb, playlists, entries, dangling, artistFk, pioneerVar };
 }
 
 interface OffenderLists {
@@ -191,9 +171,7 @@ function extractOffenders(
     missingAnlz: hasList((d) => d.missing_anlz)
       ? lists.missingAnlzList.length
       : (grabNum(out, /missing analysis: (\d+)/) ?? 0),
-    noBpm: hasList((d) => d.no_bpm)
-      ? lists.noBpmList.length
-      : (grabNum(out, /no BPM: (\d+)/) ?? 0),
+    noBpm: hasList((d) => d.no_bpm) ? lists.noBpmList.length : (grabNum(out, /no BPM: (\d+)/) ?? 0),
     badLen: hasList((d) => d.bad_length)
       ? lists.badLenList.length
       : (grabNum(out, /bad length: (\d+)/) ?? 0),
@@ -219,11 +197,7 @@ interface ParityFields {
 }
 
 /** Cross-drive parity fields (2-drive runs only). */
-function extractParity(
-  out: string,
-  j: VerifyJsonPayload | null,
-  useJson: boolean,
-): ParityFields {
+function extractParity(out: string, j: VerifyJsonPayload | null, useJson: boolean): ParityFields {
   const crossDrive = useJson
     ? typeof j!.db_identical === "boolean" ||
       j!.anlz_mismatches !== undefined ||
@@ -258,9 +232,7 @@ export function extractVerifyMetrics(out: string): VerifyMetrics {
   let j: VerifyJsonPayload | null = null;
   if (jsonLine) {
     try {
-      j = JSON.parse(
-        jsonLine.slice("VERIFY_JSON: ".length),
-      ) as VerifyJsonPayload;
+      j = JSON.parse(jsonLine.slice("VERIFY_JSON: ".length)) as VerifyJsonPayload;
     } catch (error) {
       console.warn(
         "usb_verify.py VERIFY_JSON payload is malformed; using human-output fallback",
@@ -286,9 +258,7 @@ export function extractVerifyMetrics(out: string): VerifyMetrics {
 
   // script may verify 1 or 2 drives; per-drive metrics aggregate when 2
   const sum = (pick: (d: DriveEntry) => number | undefined): number | null => {
-    const vals = drives
-      .map(pick)
-      .filter((v): v is number => typeof v === "number");
+    const vals = drives.map(pick).filter((v): v is number => typeof v === "number");
     return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
   };
 
@@ -301,16 +271,9 @@ export function extractVerifyMetrics(out: string): VerifyMetrics {
 
   const { tracks, pdb, odb, playlists, entries, dangling, artistFk } = counts;
   const pioneerVar = counts.pioneerVar;
-  const {
-    missingFiles,
-    missingAnlzList,
-    anlzHashList,
-    noBpmList,
-    badLenList,
-    badGridList,
-  } = offenders.lists;
-  const { missingAudio, missingAnlz, noBpm, badLen, badGrids, anlzHash } =
-    offenders.counts;
+  const { missingFiles, missingAnlzList, anlzHashList, noBpmList, badLenList, badGridList } =
+    offenders.lists;
+  const { missingAudio, missingAnlz, noBpm, badLen, badGrids, anlzHash } = offenders.counts;
 
   if (pdb !== null) stats.pdb_tracks = pdb;
   if (odb !== null) stats.onelibrary_tracks = odb;

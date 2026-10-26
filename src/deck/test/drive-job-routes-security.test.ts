@@ -3,11 +3,7 @@ import { tempDir } from "./testutil";
 import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { CrateConfig } from "../config";
-import {
-  makeEnqueueDriveJob,
-  photoUpload,
-  resolveMountPoint,
-} from "../drive/job-routes";
+import { makeEnqueueDriveJob, photoUpload, resolveMountPoint } from "../drive/job-routes";
 import { DRIVE_JOB_KINDS, type Drive, type DriveRole } from "../shared/types";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
@@ -61,9 +57,7 @@ test("resolveMountPoint returns a readable volume contained by volumesRoot", () 
   const volume = join(root, "DJMASTER");
   mkdirSync(volume);
 
-  expect(resolveMountPoint(config(root), "DJMASTER")).toBe(
-    realpathSync(volume),
-  );
+  expect(resolveMountPoint(config(root), "DJMASTER")).toBe(realpathSync(volume));
 });
 
 test("resolveMountPoint rejects traversal into a sibling-prefix directory", () => {
@@ -73,9 +67,9 @@ test("resolveMountPoint rejects traversal into a sibling-prefix directory", () =
   mkdirSync(root);
   mkdirSync(sibling);
 
-  expect(() =>
-    resolveMountPoint(config(root), `../${basename(sibling)}`),
-  ).toThrow("outside configured volumes root");
+  expect(() => resolveMountPoint(config(root), `../${basename(sibling)}`)).toThrow(
+    "outside configured volumes root",
+  );
 });
 
 test("resolveMountPoint rejects absolute names and symlink escapes", () => {
@@ -83,9 +77,7 @@ test("resolveMountPoint rejects absolute names and symlink escapes", () => {
   const outside = t3.dir();
   symlinkSync(outside, join(root, "escaped"));
 
-  expect(() => resolveMountPoint(config(root), outside)).toThrow(
-    "outside configured volumes root",
-  );
+  expect(() => resolveMountPoint(config(root), outside)).toThrow("outside configured volumes root");
   expect(() => resolveMountPoint(config(root), "escaped")).toThrow(
     "outside configured volumes root",
   );
@@ -169,9 +161,7 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
   expect(enqueuedKinds).toContain("grid-health");
   const bad = await post("not-a-kind");
   expect(bad.status).toBe(400);
-  expect(((await bad.json()) as { error: string }).error).toContain(
-    "grid-health",
-  );
+  expect(((await bad.json()) as { error: string }).error).toContain("grid-health");
 });
 
 test("enqueue rejects mirror kind on non-mirror-role drives (#411)", async () => {
@@ -237,9 +227,7 @@ test("enqueue returns 400 (not 500) on a malformed JSON body", async () => {
     "drive-1",
   );
   expect(r.status).toBe(400);
-  expect(((await r.json()) as { error: string }).error).toContain(
-    "invalid JSON body",
-  );
+  expect(((await r.json()) as { error: string }).error).toContain("invalid JSON body");
 });
 
 test("photoUpload returns 400 (not 500) on a malformed JSON body", async () => {
@@ -259,7 +247,5 @@ test("photoUpload returns 400 (not 500) on a malformed JSON body", async () => {
     (data, status = 200) => Response.json(data, { status }),
   );
   expect(r.status).toBe(400);
-  expect(((await r.json()) as { error: string }).error).toContain(
-    "invalid JSON body",
-  );
+  expect(((await r.json()) as { error: string }).error).toContain("invalid JSON body");
 });

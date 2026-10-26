@@ -165,13 +165,7 @@ export async function checksumLedger(
     const needsHash = !prev || prev.size !== st.size || prev.mtime !== mtime;
     if (!prev) {
       // first sighting — hash and seed the ledger
-      db.ledgerPut(
-        driveId,
-        rel,
-        st.size,
-        mtime,
-        await hashFileAsync(f, signal),
-      );
+      db.ledgerPut(driveId, rel, st.size, mtime, await hashFileAsync(f, signal));
     } else if (prev.size !== st.size || prev.mtime !== mtime) {
       // metadata changed since the stored hash — re-hash and compare
       const fresh = await hashFileAsync(f, signal);
@@ -201,18 +195,13 @@ export async function hashFileAsync(
     if (signal?.cancelled) throw new Error("cancelled");
     h.update(chunk as Buffer);
     // yield periodically — a full 8GB pass must not starve the server
-    if ((hashedCounter++ & 0x3f) === 0)
-      await new Promise((r) => setTimeout(r, 0));
+    if ((hashedCounter++ & 0x3f) === 0) await new Promise((r) => setTimeout(r, 0));
   }
   return h.digest("hex");
 }
 let hashedCounter = 0;
 
-async function biggestFiles(
-  root: string,
-  limit: number,
-  maxTotal = Infinity,
-): Promise<string[]> {
+async function biggestFiles(root: string, limit: number, maxTotal = Infinity): Promise<string[]> {
   const out: { p: string; size: number }[] = [];
   let total = 0;
   await walkTree(root, {

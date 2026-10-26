@@ -6,14 +6,12 @@
 // parse test) so the browser never imports server code.
 
 /** Triage bucket names — byte-for-byte the CLI's classes. */
-export type GridBucket =
-  "A-OK" | "SHIFT" | "PHASE" | "TEMPO" | "DRIFT" | "CHAOS";
+export type GridBucket = "A-OK" | "SHIFT" | "PHASE" | "TEMPO" | "DRIFT" | "CHAOS";
 
 export interface GridHealthRow {
   id: number;
   path: string;
-  cls:
-    GridBucket | "SYNC" | "DRIVE-MISSING" | "NO-ANLZ" | "NO-LEDGER" | "NO-GRID";
+  cls: GridBucket | "SYNC" | "DRIVE-MISSING" | "NO-ANLZ" | "NO-LEDGER" | "NO-GRID";
   /** Anchor / phase numbers when audited (ms; phaseBeats whole beats). */
   anchorDeltaMs?: number;
   phaseMs?: number;

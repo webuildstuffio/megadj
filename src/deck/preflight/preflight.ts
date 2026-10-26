@@ -9,15 +9,8 @@
 // The individual check builders live in preflight/checks.ts (one builder
 // per rule); this module owns the role-matrix filter, aggregation, and the
 // report wire shapes.
-import type {
-  HealthCheck,
-  PreflightDriveResult,
-  PreflightReport,
-} from "../shared/types";
-export {
-  type PreflightDriveResult,
-  type PreflightReport,
-} from "../shared/types";
+import type { HealthCheck, PreflightDriveResult, PreflightReport } from "../shared/types";
+export { type PreflightDriveResult, type PreflightReport } from "../shared/types";
 import { checkApplies, type CheckId } from "../shared/check-matrix";
 import { firmwareAdvisories } from "../players";
 import {
@@ -80,15 +73,9 @@ export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
   const builders = [
     { key: "dualDb", run: () => dualDbCheck(snap, role) },
     { key: "grids", run: () => gridsCheck(snap) },
-    {
-      key: "verify",
-      run: () => verifyCheck(input.latestVerify, snap, input.now, role),
-    },
+    { key: "verify", run: () => verifyCheck(input.latestVerify, snap, input.now, role) },
     { key: "bench", run: () => benchCheck(input.bench) },
-    {
-      key: "bitrot",
-      run: () => bitrotCheck(input.ledgerFiles, input.latestChecksum),
-    },
+    { key: "bitrot", run: () => bitrotCheck(input.ledgerFiles, input.latestChecksum) },
     { key: "space", run: () => spaceCheck(snap) },
     { key: "mirror", run: () => mirrorCheck(snap, input.masterSnapshot) },
     { key: "players", run: () => playersCheck(input.players) },
@@ -98,22 +85,12 @@ export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
     .map((b) => b.run())
     .filter((c): c is HealthCheck => c !== null);
 
-  const blockers = checks
-    .filter((c) => c.status === "fail")
-    .map((c) => `${c.label}: ${c.detail}`);
+  const blockers = checks.filter((c) => c.status === "fail").map((c) => `${c.label}: ${c.detail}`);
 
-  return {
-    drive: input.drive,
-    overall: driveOverall(checks),
-    checks,
-    blockers,
-  };
+  return { drive: input.drive, overall: driveOverall(checks), checks, blockers };
 }
 
-export function buildPreflight(
-  inputs: PreflightInput[],
-  now = Date.now(),
-): PreflightReport {
+export function buildPreflight(inputs: PreflightInput[], now = Date.now()): PreflightReport {
   const drives = inputs.map((i) => preflightForDrive({ ...i, now }));
   const mounted = drives.filter((d) => d.drive.mounted);
   const notReady = mounted.filter((d) => d.overall === "not-ready");
@@ -139,8 +116,7 @@ export function buildPreflight(
         .map((d) => d.drive.nickname ?? d.drive.name)
         .join(", ")}`,
     );
-  if (unknown.length)
-    parts.push(`${unknown.length} unknown (run a scan + verify)`);
+  if (unknown.length) parts.push(`${unknown.length} unknown (run a scan + verify)`);
 
   return {
     generated_at: now,

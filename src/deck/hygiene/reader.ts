@@ -45,10 +45,7 @@ export class HygieneReader extends ArchiveLedgerReader {
       try {
         return [hydrateHygieneFinding(row)];
       } catch (error) {
-        console.error(
-          `hygiene finding ${row.id} has corrupt JSON — skipping`,
-          errMessage(error),
-        );
+        console.error(`hygiene finding ${row.id} has corrupt JSON — skipping`, errMessage(error));
         return [];
       }
     });
@@ -56,14 +53,7 @@ export class HygieneReader extends ArchiveLedgerReader {
 
   /** The banner census + per-drive badge numbers. Zeros when unavailable. */
   counts(): HygieneCounts {
-    const out: HygieneCounts = {
-      open: 0,
-      confirmed: 0,
-      safe: 0,
-      review: 0,
-      byKind: {},
-      bySub: {},
-    };
+    const out: HygieneCounts = { open: 0, confirmed: 0, safe: 0, review: 0, byKind: {}, bySub: {} };
     const rows = this.query<{
       status: string;
       kind: string;
@@ -86,9 +76,7 @@ export class HygieneReader extends ArchiveLedgerReader {
         if (r.kind === "acoustic-twin") {
           let sub = "unclassified";
           try {
-            const ev = r.evidence
-              ? (JSON.parse(r.evidence) as Record<string, unknown>)
-              : {};
+            const ev = r.evidence ? (JSON.parse(r.evidence) as Record<string, unknown>) : {};
             if (typeof ev.subcategory === "string") sub = ev.subcategory;
           } catch (e) {
             // guarded parse (rule: corrupt ledger JSON is a visible

@@ -80,22 +80,11 @@ export function intakePhaseFor(
   // spawn tick — this is a message+progress nudge, not an advance (guard
   // < 1 so it can't re-fire once dedupe began).
   if (phaseIdx < 1 && t.includes("audio file(s) under")) {
-    return {
-      progress: intakePhaseAt(0).at,
-      message: "probing files",
-      nextIdx: 0,
-    };
+    return { progress: intakePhaseAt(0).at, message: "probing files", nextIdx: 0 };
   }
-  if (
-    phaseIdx < 3 &&
-    (t.includes("already in archive") || t.includes("[upgrade]"))
-  ) {
+  if (phaseIdx < 3 && (t.includes("already in archive") || t.includes("[upgrade]"))) {
     const p = intakePhaseAt(2);
-    return {
-      progress: p.at,
-      message: "checking against the archive",
-      nextIdx: 2,
-    };
+    return { progress: p.at, message: "checking against the archive", nextIdx: 2 };
   }
   if (phaseIdx < 2 && (t.includes("[dupe]") || t.includes("[fp]"))) {
     const p = intakePhaseAt(1);
@@ -103,11 +92,7 @@ export function intakePhaseFor(
   }
   if (phaseIdx < 3 && INTAKE_FILE_LINE.test(line)) {
     const p = intakePhaseAt(3);
-    return {
-      progress: p.at,
-      message: "tagging + artwork + analysis",
-      nextIdx: 3,
-    };
+    return { progress: p.at, message: "tagging + artwork + analysis", nextIdx: 3 };
   }
   if (phaseIdx < 4 && t.startsWith("done: ")) {
     const p = intakePhaseAt(4);
@@ -139,10 +124,7 @@ export function splitIntakeStdout(out: string): {
         summary: JSON.parse(whole) as Record<string, unknown>,
       };
     } catch (error) {
-      console.error(
-        "intake summary JSON is malformed; trying mixed-log recovery",
-        error,
-      );
+      console.error("intake summary JSON is malformed; trying mixed-log recovery", error);
       // Fall through to the mixed-log parser below.
     }
   }
@@ -191,9 +173,7 @@ export function ensureIntakeWatchDir(cfg: { musicDir: string }): string {
  *  folder already inside the archive. Absolute-path allowlist: the start
  *  route refuses anything else, so a crafted request can't point ingest at
  *  an arbitrary directory. */
-export function intakeCandidateDirs(cfg: {
-  musicDir: string;
-}): IntakeCandidate[] {
+export function intakeCandidateDirs(cfg: { musicDir: string }): IntakeCandidate[] {
   const out: IntakeCandidate[] = [];
   const seen = new Set<string>();
   const add = (path: string, label: string): void => {
@@ -216,8 +196,7 @@ export function intakeCandidateDirs(cfg: {
   try {
     for (const e of readdirSync(cfg.musicDir, { withFileTypes: true })) {
       if (!e.isDirectory()) continue;
-      if (e.name.startsWith(".") || e.name.startsWith("ingest-duplicates"))
-        continue;
+      if (e.name.startsWith(".") || e.name.startsWith("ingest-duplicates")) continue;
       add(join(cfg.musicDir, e.name), e.name);
     }
   } catch {

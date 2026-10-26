@@ -33,10 +33,7 @@ export interface AudioStats {
 
 /** The guard every route in this module goes through first. Returns the
  *  resolved path or null (null → caller answers 403). */
-export function servableAudioPath(
-  raw: string | null,
-  shelfRoot: string,
-): string | null {
+export function servableAudioPath(raw: string | null, shelfRoot: string): string | null {
   if (!raw || raw.split(sep).includes("..")) return null;
   const ext = extname(raw).toLowerCase();
   if (!AUDIO_EXTS.has(ext)) return null;

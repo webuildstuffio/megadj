@@ -78,11 +78,7 @@ export interface DriveRef {
  *  src/index.ts from fleet.trackLocations + display-name merge; the web
  *  coverage tab derives its hit type from here (never re-declares it). */
 export interface TrackLocationsResponse {
-  identity: {
-    path: string;
-    title: string | null;
-    artist: string | null;
-  } | null;
+  identity: { path: string; title: string | null; artist: string | null } | null;
   drives: DriveRef[];
 }
 

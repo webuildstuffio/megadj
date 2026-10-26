@@ -75,10 +75,7 @@ describe("GET /api/archive/megaset-cohorts (rev-51)", () => {
   });
 
   test("explicit-but-empty families → 400 (the silent zero-cohort run is retired)", async () => {
-    const res = call(
-      "http://localhost/api/archive/megaset-cohorts?families=%2C%2C",
-      stubReader(),
-    );
+    const res = call("http://localhost/api/archive/megaset-cohorts?families=%2C%2C", stubReader());
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string };
     expect(body.error).toContain("empty list");
@@ -90,10 +87,7 @@ describe("GET /api/archive/megaset-cohorts (rev-51)", () => {
       stubReader(),
     );
     expect(badMinutes.status).toBe(400);
-    const badLimit = call(
-      "http://localhost/api/archive/megaset-cohorts?limit=abc",
-      stubReader(),
-    );
+    const badLimit = call("http://localhost/api/archive/megaset-cohorts?limit=abc", stubReader());
     expect(badLimit.status).toBe(400);
   });
 
@@ -147,10 +141,7 @@ describe("GET /api/archive/megaset-cohorts (rev-51)", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       all_complete: boolean;
-      cohorts: {
-        family: string;
-        warmup: { complete: boolean; pool: number };
-      }[];
+      cohorts: { family: string; warmup: { complete: boolean; pool: number } }[];
     };
     expect(body.all_complete).toBe(false);
     expect(body.cohorts[0]!.warmup.complete).toBe(false);
@@ -190,10 +181,7 @@ describe("GET /api/archive/megaset-cohorts (rev-51)", () => {
   });
 
   test("rev-52: the JSON wire strips the server-side export fields (no filePath leaks)", async () => {
-    const res = call(
-      "http://localhost/api/archive/megaset-cohorts?families=edm",
-      stubReader(),
-    );
+    const res = call("http://localhost/api/archive/megaset-cohorts?families=edm", stubReader());
     expect(res.status).toBe(200);
     const text = await res.text();
     // filePath + poolRows + chain never serialize — the download is the

@@ -58,10 +58,7 @@ export type RadarCore = Omit<
 export function radar(
   driveId: string,
   driveName: string,
-  archive: (RadarSource & {
-    videoId: string;
-    firstSeenAt: string | null;
-  })[],
+  archive: (RadarSource & { videoId: string; firstSeenAt: string | null })[],
   driveRows: RadarSource[],
   previewLimit = 50,
 ): RadarCore {
@@ -92,9 +89,7 @@ export function radar(
   }
 
   // Newest-first: the tracks you added most recently lead the list.
-  missing.sort((a, b) =>
-    (b.firstSeenAt ?? "").localeCompare(a.firstSeenAt ?? ""),
-  );
+  missing.sort((a, b) => (b.firstSeenAt ?? "").localeCompare(a.firstSeenAt ?? ""));
 
   const missingCount = missing.length;
   const preview = missing.slice(0, Math.max(1, previewLimit));

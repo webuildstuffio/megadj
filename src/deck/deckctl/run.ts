@@ -1,11 +1,5 @@
 import type { ChecksumResult } from "../tools/bench";
-import {
-  apiPost,
-  jobTerminal,
-  pollJob,
-  resolveDrive,
-  type Job,
-} from "../deckapi";
+import { apiPost, jobTerminal, pollJob, resolveDrive, type Job } from "../deckapi";
 import { fmtEta } from "../../shared/leaf/fmt";
 import { DRIVE_JOB_KINDS, type InterlockState } from "../shared/types";
 import { IS_TTY, JSON_MODE, emitJson, errOut, getJson, log } from "./runtime";
@@ -23,23 +17,15 @@ function pollJobForCli(id: string): Promise<Job> {
   return pollJob(id, { onGiveUp: (message) => void errOut(message) });
 }
 
-async function finishLine(
-  job: Job,
-  driveName: string,
-  elapsedSeconds: number,
-): Promise<void> {
+async function finishLine(job: Job, driveName: string, elapsedSeconds: number): Promise<void> {
   if (job.status !== "done") {
-    await errOut(
-      `✕ ${job.kind} on ${driveName} ${job.status}: ${job.error ?? "no details"}`,
-    );
+    await errOut(`✕ ${job.kind} on ${driveName} ${job.status}: ${job.error ?? "no details"}`);
     process.exit(1);
   }
   log(`✓ ${job.kind} on ${driveName} finished in ${fmtEta(elapsedSeconds)}`);
   let result: Record<string, unknown> | null = null;
   try {
-    result = job.result_json
-      ? (JSON.parse(job.result_json) as Record<string, unknown>)
-      : null;
+    result = job.result_json ? (JSON.parse(job.result_json) as Record<string, unknown>) : null;
   } catch (error) {
     console.error("job result_json was not valid JSON", error);
   }
@@ -59,8 +45,7 @@ async function finishLine(
       const passed = checks.filter((check) => check.status === "pass");
       log(`  ${passed.length} passed, ${failed.length} need attention:`);
       for (const check of checks) {
-        const mark =
-          check.status === "pass" ? "✓" : check.status === "warn" ? "⚠" : "✕";
+        const mark = check.status === "pass" ? "✓" : check.status === "warn" ? "⚠" : "✕";
         log(`  ${mark} ${check.label}`);
         log(`     ${check.detail}`);
         log(`     why it matters: ${check.meaning}`);
@@ -83,11 +68,7 @@ async function finishLine(
   process.exit(0);
 }
 
-export async function cmdRun(
-  nameOrId: string,
-  kind: string,
-  wait: boolean,
-): Promise<void> {
+export async function cmdRun(nameOrId: string, kind: string, wait: boolean): Promise<void> {
   if (!(DRIVE_JOB_KINDS as readonly string[]).includes(kind)) {
     await errOut(`bad kind "${kind}" — one of: ${DRIVE_JOB_KINDS.join(", ")}`);
     process.exit(2);
@@ -98,9 +79,7 @@ export async function cmdRun(
     process.exit(2);
   }
   if (!drive.mounted) {
-    await errOut(
-      `drive ${drive.nickname ?? drive.name} is not mounted — plug it in first`,
-    );
+    await errOut(`drive ${drive.nickname ?? drive.name} is not mounted — plug it in first`);
     process.exit(1);
   }
   const interlock = await getJson<InterlockState>("/api/interlock");
@@ -110,10 +89,7 @@ export async function cmdRun(
     );
     process.exit(3);
   }
-  const response = await apiPost(`/api/drives/${drive.id}/jobs`, {
-    kind,
-    origin: "deckctl",
-  });
+  const response = await apiPost(`/api/drives/${drive.id}/jobs`, { kind, origin: "deckctl" });
   const job = (await response.json()) as Job & { error?: string };
   if (!response.ok) {
     await errOut(`enqueue failed: ${job.error ?? response.status}`);
@@ -123,9 +99,7 @@ export async function cmdRun(
     await emitJson(job);
     return;
   }
-  log(
-    `▶ ${kind} started on ${drive.nickname ?? drive.name} (job ${job.id.slice(0, 8)})`,
-  );
+  log(`▶ ${kind} started on ${drive.nickname ?? drive.name} (job ${job.id.slice(0, 8)})`);
   if (!wait) {
     log("poll with: deckctl jobs   (or re-run with --wait)");
     return;
@@ -160,17 +134,11 @@ export async function cmdRun(
       lastRender = now;
       frame++;
       const percent = Math.round(current.progress * 100);
-      const eta =
-        current.eta_seconds !== null
-          ? ` · ~${fmtEta(current.eta_seconds)} left`
-          : "";
+      const eta = current.eta_seconds !== null ? ` · ~${fmtEta(current.eta_seconds)} left` : "";
       const message = current.message ?? current.phase ?? "";
       if (IS_TTY)
-        process.stderr.write(
-          `\r\x1b[K${spinFrame()} ${kind} ${percent}% ${message}${eta}`,
-        );
-      else if (frame % 10 === 0)
-        console.log(`${kind} ${percent}% ${message}${eta}`);
+        process.stderr.write(`\r\x1b[K${spinFrame()} ${kind} ${percent}% ${message}${eta}`);
+      else if (frame % 10 === 0) console.log(`${kind} ${percent}% ${message}${eta}`);
     }
     await Bun.sleep(750);
   }

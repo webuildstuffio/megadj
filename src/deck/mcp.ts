@@ -87,8 +87,7 @@ const TOOLS: Record<string, ToolDef> = {
   // dump census (#20) reads megadj's archive DB readonly (same path the
   // server's readers use — MEGADJ_DB / the state default).
   ...getdatTools({
-    dumpCensus: () =>
-      new DumpReader(nonEmptyEnv("MEGADJ_DB") ?? DB_PATH).census(),
+    dumpCensus: () => new DumpReader(nonEmptyEnv("MEGADJ_DB") ?? DB_PATH).census(),
   }),
 
   // ---- O82b: the archive half (megadj's own DB, readonly) -------------------

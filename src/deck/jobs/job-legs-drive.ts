@@ -7,20 +7,11 @@ import { lastLines } from "../verify/report";
 import { parseVerifyReport } from "../verify/parse";
 import type { LegArgs } from "./job-legs-types";
 
-export async function runScan({
-  deps,
-  job,
-  mountPoint,
-  handle,
-  tick,
-}: LegArgs) {
+export async function runScan({ deps, job, mountPoint, handle, tick }: LegArgs) {
   tick(0, 1, "walking filesystem…", "light-scan", true);
   const light = await scanVolume(mountPoint);
   deps.db.setSnapshot(job.drive_id, light);
-  deps.db.event(job.drive_id, "scan", {
-    kind: "light",
-    files: light.file_count,
-  });
+  deps.db.event(job.drive_id, "scan", { kind: "light", files: light.file_count });
   if (handle.cancelled) throw new Error("cancelled");
 
   let full = false;
@@ -41,10 +32,7 @@ export async function runScan({
       manifest: light.manifest,
     });
     full = true;
-    deps.db.event(job.drive_id, "scan", {
-      kind: "full",
-      tracks: fullSnap.track_count,
-    });
+    deps.db.event(job.drive_id, "scan", { kind: "full", tracks: fullSnap.track_count });
   } catch (error) {
     if ((error as Error).message.startsWith("REKORDBOX_RUNNING")) throw error;
   }
@@ -52,14 +40,7 @@ export async function runScan({
   return { light: true, full };
 }
 
-export async function runVerify({
-  deps,
-  job,
-  mountPoint,
-  handle,
-  tick,
-  log,
-}: LegArgs) {
+export async function runVerify({ deps, job, mountPoint, handle, tick, log }: LegArgs) {
   const name = basename(mountPoint);
   const startedAt = Date.now();
   tick(0, 1, `verifying ${name} — opening rekordbox DB…`, "1-databases", true);
@@ -86,19 +67,13 @@ export async function runVerify({
   ]);
   const out = verdict.out + (errText ? `\n[stderr]\n${errText}` : "");
   const finalLine = lastFinalLine(verdict.out);
-  const pass =
-    finalLine !== undefined &&
-    /FINAL: ALL PASS/.test(finalLine) &&
-    proc.exitCode === 0;
+  const pass = finalLine !== undefined && /FINAL: ALL PASS/.test(finalLine) && proc.exitCode === 0;
   tick(
     1,
     1,
     pass
       ? "verify passed"
-      : `verify FAILED — ${finalLine ?? "no FINAL line (crashed?)"}`.slice(
-          0,
-          200,
-        ),
+      : `verify FAILED — ${finalLine ?? "no FINAL line (crashed?)"}`.slice(0, 200),
     "done",
     true,
   );
@@ -117,12 +92,7 @@ export async function runMirror({ deps, handle, tick, log }: LegArgs) {
   const proc = spawnMirror(deps.cfg, []);
   handle.proc = proc;
   const [result, errText] = await Promise.all([
-    drain(
-      proc,
-      (line) => log(line),
-      handle,
-      deps.cfg.mirrorTimeoutMin * 60_000,
-    ),
+    drain(proc, (line) => log(line), handle, deps.cfg.mirrorTimeoutMin * 60_000),
     drainText(proc.stderr),
   ]);
   const out = result.out + (errText ? `\n[stderr]\n${errText}` : "");

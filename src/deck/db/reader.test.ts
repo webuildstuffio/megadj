@@ -66,11 +66,7 @@ function grid(bpm: number, seconds: number): number[] {
  *  nothing from the enclosing test. */
 function cueSet(n: number): string {
   return JSON.stringify(
-    Array.from({ length: n }, (_, i) => ({
-      index: i,
-      position: i * 16,
-      bar: i * 8 + 1,
-    })),
+    Array.from({ length: n }, (_, i) => ({ index: i, position: i * 16, bar: i * 8 + 1 })),
   );
 }
 
@@ -104,25 +100,10 @@ function ins(
     "2026-09-05T00:00:00Z",
   );
 }
-ins("v1", {
-  title: "Awakening",
-  artist: "Amelie Lens",
-  bitrate: 320,
-  codec: "mp3",
-});
-ins("v2", {
-  title: "Spastik",
-  artist: "Plastikman",
-  bitrate: 128,
-  codec: "mp4a",
-});
+ins("v1", { title: "Awakening", artist: "Amelie Lens", bitrate: 320, codec: "mp3" });
+ins("v2", { title: "Spastik", artist: "Plastikman", bitrate: 128, codec: "mp4a" });
 ins("v3", { title: "Lost", status: "failed" });
-ins("v4", {
-  title: "From Zip",
-  source: "PLzip123",
-  bitrate: 1411,
-  codec: "aiff",
-});
+ins("v4", { title: "From Zip", source: "PLzip123", bitrate: 1411, codec: "aiff" });
 seed
   .query(
     `INSERT INTO runs (started_at, finished_at, downloaded, failed, gone, bytes_downloaded)
@@ -261,53 +242,17 @@ describe("ArchiveReader (O82b)", () => {
     insT5.run("v6");
     insT5.run("vd");
     // v1: RB says 128, grid agrees → ok (300 s ≈ 640 beats)
-    insB.run(
-      "v1",
-      128,
-      128,
-      JSON.stringify(grid(128, 300)),
-      "[]",
-      "m",
-      "p",
-      "t",
-    );
+    insB.run("v1", 128, 128, JSON.stringify(grid(128, 300)), "[]", "m", "p", "t");
     // v5: RB says 130.4, grid truly at 146 → peak positional deviation
     // grows monotonically way past 15 ms → DRIFT. (The v1 count-based
     // check called this "off"; the positional verdict is strictly
     // sharper: any real tempo gap over a minutes-long track IS drift.)
-    insB.run(
-      "v5",
-      130.4,
-      130.4,
-      JSON.stringify(grid(146, 300)),
-      "[]",
-      "m",
-      "p",
-      "t",
-    );
+    insB.run("v5", 130.4, 130.4, JSON.stringify(grid(146, 300)), "[]", "m", "p", "t");
     // vd: mild version — 1.5% tempo gap over 300 s, still drifts far
     // past tolerance. Pins that small tempo gaps classify as drift, not ok.
-    insB.run(
-      "vd",
-      129.9,
-      129.9,
-      JSON.stringify(grid(131.9, 300)),
-      "[]",
-      "m",
-      "p",
-      "t",
-    );
+    insB.run("vd", 129.9, 129.9, JSON.stringify(grid(131.9, 300)), "[]", "m", "p", "t");
     // v6: RB says 174 (drum&bass), grid locks the half-tempo 87 → octave
-    insB.run(
-      "v6",
-      174,
-      174,
-      JSON.stringify(grid(87, 300)),
-      "[]",
-      "m",
-      "p",
-      "t",
-    );
+    insB.run("v6", 174, 174, JSON.stringify(grid(87, 300)), "[]", "m", "p", "t");
     const r = reader();
     const g = r.gridCrossCheck();
     expect(g.available).toBe(true);
@@ -362,12 +307,7 @@ describe("ArchiveReader (O82b)", () => {
                   artist: "A",
                   vec_json: '{"not":"an array"}',
                 },
-                {
-                  video_id: "query-vector",
-                  title: "Query",
-                  artist: "B",
-                  vec_json: "[1,0]",
-                },
+                { video_id: "query-vector", title: "Query", artist: "B", vec_json: "[1,0]" },
               ]
         ) as T[];
       },
@@ -531,9 +471,7 @@ describe("ArchiveReader (O82b)", () => {
     const oldDir = t4.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
-    old.exec(
-      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`,
-    );
+    old.exec(`CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`);
     old.close();
     const r = new ArchiveReader(oldPath);
     const c = r.cueStats();
@@ -554,9 +492,7 @@ describe("ArchiveReader (O82b)", () => {
     expect(lib.genres).toEqual([{ name: "Techno", count: lib.tracks }]);
     // artwork_status is NULL on the fixtures unless the sibling test set it;
     // embedded + queued + missing must always sum to tracks
-    expect(
-      lib.artwork.embedded + lib.artwork.queued + lib.artwork.missing,
-    ).toBe(lib.tracks);
+    expect(lib.artwork.embedded + lib.artwork.queued + lib.artwork.missing).toBe(lib.tracks);
     expect(lib.energy.stamped <= lib.tracks).toBe(true);
     // codec counts sum to the playable total, ordered worst-first by count
     expect(lib.codecs.reduce((s, c) => s + c.count, 0)).toBe(lib.tracks);
@@ -595,9 +531,7 @@ describe("ArchiveReader (O82b)", () => {
     const lib = r.libraryOverview();
     expect(lib.artwork.embedded).toBe(1);
     expect(lib.artwork.queued).toBe(1);
-    expect(
-      lib.artwork.embedded + lib.artwork.queued + lib.artwork.missing,
-    ).toBe(lib.tracks);
+    expect(lib.artwork.embedded + lib.artwork.queued + lib.artwork.missing).toBe(lib.tracks);
     expect(lib.years.known).toBe(1);
     expect(lib.years.min).toBe("2026");
     expect(lib.years.max).toBe("2026");
@@ -617,9 +551,7 @@ describe("ArchiveReader (O82b)", () => {
     const oldDir = t5.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
-    old.exec(
-      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`,
-    );
+    old.exec(`CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`);
     old.close();
     const r = new ArchiveReader(oldPath);
     const lib = r.libraryOverview();
@@ -713,9 +645,7 @@ describe("ArchiveReader (O82b)", () => {
     expect(liked!.tracks).toBeGreaterThanOrEqual(3);
     const failedLiked = (
       seed
-        .query(
-          `SELECT COUNT(*) n FROM tracks WHERE source = 'liked' AND status = 'failed'`,
-        )
+        .query(`SELECT COUNT(*) n FROM tracks WHERE source = 'liked' AND status = 'failed'`)
         .all() as { n: number }[]
     )[0]!.n;
     expect(liked!.playable).toBe(liked!.tracks - failedLiked);
@@ -723,9 +653,7 @@ describe("ArchiveReader (O82b)", () => {
     expect(zip!.tracks).toBe(1);
     expect(zip!.playable).toBe(1);
     // ordered biggest first
-    expect(c.sources[0]!.tracks).toBeGreaterThanOrEqual(
-      c.sources[c.sources.length - 1]!.tracks,
-    );
+    expect(c.sources[0]!.tracks).toBeGreaterThanOrEqual(c.sources[c.sources.length - 1]!.tracks);
     r.close();
   });
 
@@ -763,9 +691,7 @@ describe("ArchiveReader (O82b)", () => {
     const oldDir = t6.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
-    old.exec(
-      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`,
-    );
+    old.exec(`CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`);
     old.close();
     const r = new ArchiveReader(oldPath);
     const cov = r.analysisCoverage();
@@ -837,12 +763,8 @@ describe("ArchiveReader (O82b)", () => {
       ]),
     );
     // not-a-batch paths never appear; junk empty-segment never appears
-    expect(s.rawBatches.some((b) => b.folder.includes("not-a-batch"))).toBe(
-      false,
-    );
-    expect(s.rawBatches.some((b) => b.folder.endsWith("DJ-Imports/"))).toBe(
-      false,
-    );
+    expect(s.rawBatches.some((b) => b.folder.includes("not-a-batch"))).toBe(false);
+    expect(s.rawBatches.some((b) => b.folder.endsWith("DJ-Imports/"))).toBe(false);
     // genre_votes column absent in this fixture → 0 (never voted), not a crash
     expect(s.genreVoted).toBe(0);
     // cleanup: the stage fixture rows must not leak into later tests

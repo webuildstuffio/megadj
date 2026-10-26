@@ -11,11 +11,7 @@
 //      a job that never finished;
 //   4. phase strings were machine-speak ("phase-2") in a human dock.
 import { describe, it, expect } from "bun:test";
-import {
-  createEtaEstimator,
-  ownsRunningJob,
-  verifyPhase,
-} from "../jobs/engine";
+import { createEtaEstimator, ownsRunningJob, verifyPhase } from "../jobs/engine";
 
 describe("createEtaEstimator", () => {
   it("returns null until a full sample window exists (primed, not frozen)", () => {
@@ -65,14 +61,8 @@ describe("running job ownership", () => {
   it("does not let a stale database row cancel a different active job", () => {
     const handle = { cancelled: false, jobId: "current-job" };
 
-    expect(ownsRunningJob({ id: "stale-job", status: "running" }, handle)).toBe(
-      false,
-    );
-    expect(
-      ownsRunningJob({ id: "current-job", status: "running" }, handle),
-    ).toBe(true);
-    expect(
-      ownsRunningJob({ id: "current-job", status: "queued" }, handle),
-    ).toBe(false);
+    expect(ownsRunningJob({ id: "stale-job", status: "running" }, handle)).toBe(false);
+    expect(ownsRunningJob({ id: "current-job", status: "running" }, handle)).toBe(true);
+    expect(ownsRunningJob({ id: "current-job", status: "queued" }, handle)).toBe(false);
   });
 });

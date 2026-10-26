@@ -70,10 +70,7 @@ export function bpmScore(a: number, b: number): number {
   const d = Math.abs(a - b) / Math.max(a, b);
   if (d <= MEGASET_TEMPO_PERFECT) return 1;
   if (d >= MEGASET_TEMPO_WINDOW) return 0;
-  return (
-    1 -
-    (d - MEGASET_TEMPO_PERFECT) / (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT)
-  );
+  return 1 - (d - MEGASET_TEMPO_PERFECT) / (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT);
 }
 
 /** M2 (#326): genre families where the half-time lane is plausible.
@@ -96,14 +93,9 @@ export const HALFTIME_GENRE_FAMILIES = new Set([
 
 /** M2: true when BOTH tracks' genre families permit half-time pairing.
  *  Null genre = gate CLOSED (honest default — never assume half-time). */
-export function halftimeGateOpen(
-  familyA: string | null,
-  familyB: string | null,
-): boolean {
+export function halftimeGateOpen(familyA: string | null, familyB: string | null): boolean {
   if (familyA === null || familyB === null) return false;
-  return (
-    HALFTIME_GENRE_FAMILIES.has(familyA) && HALFTIME_GENRE_FAMILIES.has(familyB)
-  );
+  return HALFTIME_GENRE_FAMILIES.has(familyA) && HALFTIME_GENRE_FAMILIES.has(familyB);
 }
 
 /** B8 (#107): the tempo lane for one hop — the direct window first
@@ -135,11 +127,8 @@ export function megasetTempoLane(
  * The beats ledger can carry placeholder rows (0 or NaN) from aborted
  * analysis runs — those are NOT tempos, and gating only on `!== null` let
  * a 0-BPM row be picked as opener and instantly dead-end the chain. */
-export const mixableBpm = (
-  c: SetCandidate,
-): c is SetCandidate & {
-  bpm: number;
-} => c.bpm !== null && Number.isFinite(c.bpm) && c.bpm > 0;
+export const mixableBpm = (c: SetCandidate): c is SetCandidate & { bpm: number } =>
+  c.bpm !== null && Number.isFinite(c.bpm) && c.bpm > 0;
 
 /** Arc position 0..1 → target arousal/dance for the preset (lerp). */
 function envelope(p: readonly [number, number], t: number): number {
@@ -169,8 +158,7 @@ export function withinAnchorBudget(bpm: number, anchorBpm: number): boolean {
   const drift = Math.abs(bpm / anchorBpm - 1);
   if (drift <= MEGASET_DRIFT_BUDGET) return true;
   for (const branch of [2, 0.5]) {
-    if (Math.abs(bpm / (anchorBpm * branch) - 1) <= MEGASET_BRANCH_TOLERANCE)
-      return true;
+    if (Math.abs(bpm / (anchorBpm * branch) - 1) <= MEGASET_BRANCH_TOLERANCE) return true;
   }
   return false;
 }
@@ -186,8 +174,7 @@ export function withinAnchorBudget(bpm: number, anchorBpm: number): boolean {
 function segmentDirection(preset: SetPreset, t: number): number {
   const [start, end] = preset.arousal;
   const third = (Math.min(Math.max(t, 0), 1) * 3) | 0; // 0,1,2
-  const at = (slot: number): number =>
-    start + (end - start) * (Math.min(slot, 3) / 3);
+  const at = (slot: number): number => start + (end - start) * (Math.min(slot, 3) / 3);
   const d = at(third + 1) - at(third);
   // a flat third is directionless; tiny slopes keep their sign
   return Math.abs(d) < 1e-9 ? 0 : d > 0 ? 1 : -1;
@@ -239,10 +226,7 @@ function transitionCore(
   // pairings it admits are exactly the ones the budget spares; F3
   // super-fix: the old ×2/×½-only branch exemption never admitted the
   // advertised 87-under-130 ×1.5 feel pairing, making the lane dead code)
-  if (
-    !withinAnchorBudget(c.bpm, anchorBpm) &&
-    !isMegasetHalfTimePair(anchorBpm, c.bpm)
-  )
+  if (!withinAnchorBudget(c.bpm, anchorBpm) && !isMegasetHalfTimePair(anchorBpm, c.bpm))
     return null;
   // B8 (#107): the direct window first; outside it the half-time lane
   // (×2/×½/×1.5/×⅔) lets a DnB/trap pairing compete at a flat 0.75 ×
@@ -250,12 +234,7 @@ function transitionCore(
   // (F1 super-fix: the old code scaled direct matches by 0.9 too, a
   // silent ~10% tax on every ordinary hop), so half-time never beats an
   // equal-everything direct match.
-  const tempoLane = megasetTempoLane(
-    prev.bpm,
-    c.bpm,
-    prev.genreFamily,
-    c.genreFamily,
-  );
+  const tempoLane = megasetTempoLane(prev.bpm, c.bpm, prev.genreFamily, c.genreFamily);
   if (tempoLane === 0) return null;
   const keyVal = keyScore(prev, c);
   if (keyVal === 0) return null;
@@ -274,12 +253,7 @@ function transitionCore(
   if (dir !== 0 && lastArousal !== null && c.arousal !== null) {
     if ((c.arousal - lastArousal) * dir < -MEGASET_AROUSAL_EPSILON) return null;
   }
-  const fit =
-    1 -
-    Math.min(
-      1,
-      (Math.abs(a - targetArousal / 9) + Math.abs(d - targetDance)) / 2,
-    );
+  const fit = 1 - Math.min(1, (Math.abs(a - targetArousal / 9) + Math.abs(d - targetDance)) / 2);
   // B2 soft anchor term: distance from the arc-local tempo target
   // (anchor lerped along preset.tempoTarget), scored on the same
   // relative scale as bpmScore's perfect-window slope.

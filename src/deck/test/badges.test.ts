@@ -47,16 +47,10 @@ describe("badges", () => {
       pdb_mtime: 10_000,
     };
     const b = driveBadges(
-      drive({
-        role: "shelf",
-        name: "SHELF1",
-        last_snapshot_json: JSON.stringify(snap),
-      }),
+      drive({ role: "shelf", name: "SHELF1", last_snapshot_json: JSON.stringify(snap) }),
       { latestVerify: { ran_at: 5_000, ok: false } },
     );
-    expect(b.some((x) => x.key === "attn" && x.label === "verify failed")).toBe(
-      true,
-    );
+    expect(b.some((x) => x.key === "attn" && x.label === "verify failed")).toBe(true);
     expect(b.some((x) => x.label === "changed since verify")).toBe(false);
     expect(b.some((x) => x.label.startsWith("grids"))).toBe(false);
   });
@@ -70,11 +64,7 @@ describe("badges", () => {
       pdb_mtime: 0,
     };
     const b = driveBadges(
-      drive({
-        role: "shelf",
-        name: "SHELF1",
-        last_snapshot_json: JSON.stringify(snap),
-      }),
+      drive({ role: "shelf", name: "SHELF1", last_snapshot_json: JSON.stringify(snap) }),
       { latestVerify: { ran_at: 5_000, ok: true } },
     );
     expect(b.some((x) => x.label === "archive ready")).toBe(true);
@@ -101,22 +91,13 @@ describe("badges", () => {
       kind: "light",
       taken_at: 1,
       file_count: 5,
-      junk: {
-        zero_byte: ["bad.m4a"],
-        case_collisions: [],
-        orphan_resource_forks: 0,
-      },
+      junk: { zero_byte: ["bad.m4a"], case_collisions: [], orphan_resource_forks: 0 },
     };
     const b = driveBadges(drive({ last_snapshot_json: JSON.stringify(snap) }));
     expect(b.some((x) => x.key === "attn")).toBe(true);
   });
   it("ready when verified after last change", () => {
-    const snap: SnapshotData = {
-      kind: "full",
-      taken_at: 1,
-      db_mtime: 100,
-      pdb_mtime: 100,
-    };
+    const snap: SnapshotData = { kind: "full", taken_at: 1, db_mtime: 100, pdb_mtime: 100 };
     const b = driveBadges(drive({ last_snapshot_json: JSON.stringify(snap) }), {
       latestVerify: { ran_at: 200, ok: true },
     });
@@ -124,12 +105,7 @@ describe("badges", () => {
   });
 
   it("stale when changed since verify", () => {
-    const snap: SnapshotData = {
-      kind: "full",
-      taken_at: 1,
-      db_mtime: 300,
-      pdb_mtime: 100,
-    };
+    const snap: SnapshotData = { kind: "full", taken_at: 1, db_mtime: 300, pdb_mtime: 100 };
     const b = driveBadges(drive({ last_snapshot_json: JSON.stringify(snap) }), {
       latestVerify: { ran_at: 200, ok: true },
     });
@@ -141,9 +117,7 @@ describe("badges", () => {
     const b = driveBadges(drive({ last_snapshot_json: JSON.stringify(snap) }), {
       latestVerify: { ran_at: 200, ok: false },
     });
-    expect(b.some((x) => x.key === "attn" && x.label === "verify failed")).toBe(
-      true,
-    );
+    expect(b.some((x) => x.key === "attn" && x.label === "verify failed")).toBe(true);
   });
 
   it("never-verified when no verify history", () => {
@@ -153,15 +127,9 @@ describe("badges", () => {
   });
 
   it("grid coverage badge", () => {
-    const snap: SnapshotData = {
-      kind: "full",
-      taken_at: 1,
-      grid_coverage: 0.93,
-    };
+    const snap: SnapshotData = { kind: "full", taken_at: 1, grid_coverage: 0.93 };
     const b = driveBadges(drive({ last_snapshot_json: JSON.stringify(snap) }));
-    expect(b.some((x) => x.key === "stale" && x.label === "grids 93%")).toBe(
-      true,
-    );
+    expect(b.some((x) => x.key === "stale" && x.label === "grids 93%")).toBe(true);
   });
 
   // USB link class badges (Sep 10 sweep: SHELF1's 6h relocate question)
@@ -177,9 +145,7 @@ describe("badges", () => {
 
   it("USB2 link is a warn badge, not a silent pass", () => {
     const b = driveBadges(drive({ link_bps: 480_000_000 }));
-    expect(b.some((x) => x.label === "USB 2.0 link" && x.tone === "warn")).toBe(
-      true,
-    );
+    expect(b.some((x) => x.label === "USB 2.0 link" && x.tone === "warn")).toBe(true);
   });
 
   it("no link data = no link badge (honest unknown)", () => {
@@ -189,11 +155,7 @@ describe("badges", () => {
 });
 
 describe("syncBadge", () => {
-  const masterSnap: SnapshotData = {
-    kind: "light",
-    taken_at: 1,
-    file_count: 100,
-  };
+  const masterSnap: SnapshotData = { kind: "light", taken_at: 1, file_count: 100 };
 
   it("in-sync for superset mirror", () => {
     const mine: SnapshotData = { kind: "light", taken_at: 1, file_count: 157 };
@@ -226,24 +188,17 @@ describe("syncBadge", () => {
     const d = drive({ last_snapshot_json: "{corrupt json" });
     expect(() => driveBadges(d, {})).not.toThrow();
     const badges = driveBadges(d, {});
-    expect(
-      badges.some((b) => b.key === "attn" && b.label === "snapshot corrupt"),
-    ).toBe(true);
+    expect(badges.some((b) => b.key === "attn" && b.label === "snapshot corrupt")).toBe(true);
   });
 
   it("snapshot blob parsing to a non-object → corrupt badge, not a throw", () => {
     const d = drive({ last_snapshot_json: "null" });
     expect(() => driveBadges(d, {})).not.toThrow();
-    expect(driveBadges(d, {}).some((b) => b.label === "snapshot corrupt")).toBe(
-      true,
-    );
+    expect(driveBadges(d, {}).some((b) => b.label === "snapshot corrupt")).toBe(true);
   });
 
   it("syncBadge on corrupt blob → corrupt badge (never a false in-sync)", () => {
-    const b = syncBadge(
-      drive({ role: "mirror", last_snapshot_json: "garbage{" }),
-      masterSnap,
-    );
+    const b = syncBadge(drive({ role: "mirror", last_snapshot_json: "garbage{" }), masterSnap);
     expect(b?.key).toBe("attn");
     expect(b?.label).toBe("snapshot corrupt");
   });
@@ -272,10 +227,7 @@ describe("rankBadges", () => {
   });
 
   it("caps at 3 and counts the overflow", () => {
-    const r = rankBadges(
-      [b("attn"), b("stale"), b("unknown"), b("insync"), b("ready")],
-      3,
-    );
+    const r = rankBadges([b("attn"), b("stale"), b("unknown"), b("insync"), b("ready")], 3);
     expect(r.top).toHaveLength(3);
     expect(r.extra).toHaveLength(2);
     expect(r.extra.map((x) => x.key)).toEqual(["insync", "ready"]);

@@ -31,10 +31,7 @@ export function fetchFeedPush(e: FetchFeedEntry): void {
 
 /** Drain the feed (oldest first), optionally from an index — the poller
  *  passes back the length it last saw and gets only the tail. */
-export function fetchFeedSince(since: number): {
-  entries: FetchFeedEntry[];
-  next: number;
-} {
+export function fetchFeedSince(since: number): { entries: FetchFeedEntry[]; next: number } {
   const tail = since > 0 ? entries.slice(since) : entries;
   // next is an epoch counter: base 0 grows with pushes; if the caller's
   // cursor is past the current length (feed reset under it), restart.

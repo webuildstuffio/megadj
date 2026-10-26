@@ -24,9 +24,7 @@ function withCfg(body: string | null): string {
 describe("resolveServerPort (#227 strictness)", () => {
   test("default when no env and no config", () => {
     const dir = withCfg(null);
-    expect(resolveServerPort(undefined, join(dir, "config.toml"))).toBe(
-      DEFAULT_PORT,
-    );
+    expect(resolveServerPort(undefined, join(dir, "config.toml"))).toBe(DEFAULT_PORT);
     expect(resolveServerPort("", join(dir, "config.toml"))).toBe(DEFAULT_PORT);
     rmSync(dir, { recursive: true, force: true });
   });
@@ -46,9 +44,7 @@ describe("resolveServerPort (#227 strictness)", () => {
   test("invalid env throws LOUDLY with the value named — never silent fallthrough", () => {
     const dir = withCfg("[server]\nport = 9999\n");
     for (const bad of ["abc", "0", "-5", "65536", "12.5", "0x10"]) {
-      expect(() => resolveServerPort(bad, join(dir, "config.toml"))).toThrow(
-        bad,
-      );
+      expect(() => resolveServerPort(bad, join(dir, "config.toml"))).toThrow(bad);
     }
     // blank/whitespace-only = unset (same tier as an exported-empty var),
     // NOT invalid — it falls through to config/default like "not set"

@@ -19,11 +19,7 @@ beforeEach(() => {
   // Real default config (env untouched in CI-style sandboxes) — the paths
   // this suite exercises never touch cfg beyond name comparisons, but a
   // fully-typed default beats an `as never` lie.
-  reg = new Registry(
-    loadConfig("/tmp/cratedeck-test-nonexistent"),
-    db,
-    () => {},
-  );
+  reg = new Registry(loadConfig("/tmp/cratedeck-test-nonexistent"), db, () => {});
 });
 
 function snapWith(over: Partial<SnapshotData>): SnapshotData {
@@ -44,19 +40,9 @@ function snapWith(over: Partial<SnapshotData>): SnapshotData {
 
 describe("registry.search", () => {
   beforeEach(() => {
-    db.upsertDrive({
-      id: "fp:A:0",
-      volume_uuid: "A",
-      name: "DJMASTER",
-      mounted: true,
-    });
+    db.upsertDrive({ id: "fp:A:0", volume_uuid: "A", name: "DJMASTER", mounted: true });
     db.setSnapshot("fp:A:0", snapWith({}));
-    db.upsertDrive({
-      id: "fp:B:0",
-      volume_uuid: "B",
-      name: "MISC",
-      mounted: false,
-    });
+    db.upsertDrive({ id: "fp:B:0", volume_uuid: "B", name: "MISC", mounted: false });
     db.setNickname("fp:B:0", "Resident Crate");
   });
 

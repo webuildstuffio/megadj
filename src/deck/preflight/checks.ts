@@ -46,9 +46,7 @@ export function spaceCheck(snap: SnapshotData | null): HealthCheck | null {
     status: freePct < 0.05 ? "fail" : freePct < 0.15 ? "warn" : "pass",
     detail: `${pct}% free (${fmtBytes(snap.free_bytes)} of ${fmtBytes(cap)})`,
     fix:
-      freePct < 0.15
-        ? "rekordbox needs headroom for ANLZ + DB WAL — prune or offload"
-        : undefined,
+      freePct < 0.15 ? "rekordbox needs headroom for ANLZ + DB WAL — prune or offload" : undefined,
   };
 }
 
@@ -97,18 +95,12 @@ export function verifyCheck(
 }
 
 /** Library mtimes moved past the verify, or the weekly schedule lapsed. */
-function verifyStale(
-  snap: SnapshotData | null,
-  ranAt: number,
-  ageDays: number,
-): boolean {
+function verifyStale(snap: SnapshotData | null, ranAt: number, ageDays: number): boolean {
   return changedSinceVerify(snap, ranAt) || ageDays > 7;
 }
 
 function changedSinceVerify(snap: SnapshotData | null, ranAt: number): boolean {
-  return snap
-    ? Math.max(snap.db_mtime ?? 0, snap.pdb_mtime ?? 0) > ranAt
-    : false;
+  return snap ? Math.max(snap.db_mtime ?? 0, snap.pdb_mtime ?? 0) > ranAt : false;
 }
 
 /** Read-speed gate: absolute CDJ floor (30 MB/s) + a >40% drop between the
@@ -183,10 +175,7 @@ export function gridsCheck(snap: SnapshotData | null): HealthCheck | null {
     label: "Beatgrid coverage",
     status: pct >= 99 ? "pass" : pct >= 90 ? "warn" : "fail",
     detail: `${pct}% of tracks have ANLZ at the hash path`,
-    fix:
-      pct >= 99
-        ? undefined
-        : "Analyze the remaining tracks in rekordbox, then re-sync",
+    fix: pct >= 99 ? undefined : "Analyze the remaining tracks in rekordbox, then re-sync",
   };
 }
 
@@ -195,12 +184,8 @@ export function gridsCheck(snap: SnapshotData | null): HealthCheck | null {
  *  is a vestigial copy of whatever stick tree was migrated over. pdb
  *  parity is a GIG-STICK concern; on a shelf it must never fail the
  *  preflight. */
-export function dualDbCheck(
-  snap: SnapshotData | null,
-  role?: string,
-): HealthCheck | null {
-  if (snap?.onelibrary_rows === undefined || snap?.pdb_live_rows === undefined)
-    return null;
+export function dualDbCheck(snap: SnapshotData | null, role?: string): HealthCheck | null {
+  if (snap?.onelibrary_rows === undefined || snap?.pdb_live_rows === undefined) return null;
   if (role === "shelf") {
     return {
       id: "dual-db",
@@ -217,9 +202,7 @@ export function dualDbCheck(
     detail: match
       ? "export.pdb matches OneLibrary — players see the full library"
       : `OneLibrary ${snap.onelibrary_rows} vs pdb ${snap.pdb_live_rows} — players see a stale library`,
-    fix: match
-      ? undefined
-      : "Re-run the rekordbox USB sync to rebuild export.pdb",
+    fix: match ? undefined : "Re-run the rekordbox USB sync to rebuild export.pdb",
   };
 }
 
@@ -244,9 +227,7 @@ export function mirrorCheck(
 /** N75/N78: which players can read this stick, from MEASURED db rows. A
  *  partial block (e.g. OneLibrary-only content on an XZ-only rig) warns —
  *  usable at tonight's venue, invisible elsewhere. No db data → no check. */
-export function playersCheck(
-  players: PreflightInput["players"],
-): HealthCheck | null {
+export function playersCheck(players: PreflightInput["players"]): HealthCheck | null {
   if (!players || players.unknown) return null;
   if (!players.blocked.length) {
     return {

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  buildPreflight,
-  preflightForDrive,
-  type PreflightInput,
-} from "./preflight";
+import { buildPreflight, preflightForDrive, type PreflightInput } from "./preflight";
 import type { Drive, SnapshotData } from "../shared/types";
 
 const NOW = 1_800_000_000_000;
@@ -86,9 +82,7 @@ describe("preflight (B12)", () => {
   });
 
   it("dual-db mismatch is a blocker (players see a stale library)", () => {
-    const r = preflightForDrive(
-      input({ snapshot: snap({ pdb_live_rows: 3400 }) }),
-    );
+    const r = preflightForDrive(input({ snapshot: snap({ pdb_live_rows: 3400 }) }));
     expect(r.overall).toBe("not-ready");
     expect(r.blockers.some((b) => b.startsWith("Hardware library"))).toBe(true);
   });
@@ -113,19 +107,12 @@ describe("preflight (B12)", () => {
     const r = preflightForDrive(
       input({
         drive: drive({ name: "SHELF1", role: "shelf" }),
-        snapshot: snap({
-          pdb_live_rows: 0,
-          onelibrary_rows: 0,
-          grid_coverage: 0,
-        }),
+        snapshot: snap({ pdb_live_rows: 0, onelibrary_rows: 0, grid_coverage: 0 }),
         players: {
           ok: [],
           blocked: [
             { player: { name: "XDJ-XZ", reads: "device" }, reason: "no db" },
-            {
-              player: { name: "CDJ-3000", reads: "onelibrary" },
-              reason: "no db",
-            },
+            { player: { name: "CDJ-3000", reads: "onelibrary" }, reason: "no db" },
           ],
           unknown: false,
         },
@@ -157,38 +144,24 @@ describe("preflight (B12)", () => {
   it("gig sticks keep every check (matrix is shelf-only)", () => {
     // a master stick with the same bad data still fails loudly
     const r = preflightForDrive(
-      input({
-        snapshot: snap({
-          pdb_live_rows: 0,
-          onelibrary_rows: 0,
-          grid_coverage: 0,
-        }),
-      }),
+      input({ snapshot: snap({ pdb_live_rows: 0, onelibrary_rows: 0, grid_coverage: 0 }) }),
     );
     expect(byId(r, "grids")?.status).toBe("fail");
   });
 
   it("failed verify is a blocker", () => {
-    const r = preflightForDrive(
-      input({ latestVerify: { ran_at: NOW - DAY, ok: false } }),
-    );
+    const r = preflightForDrive(input({ latestVerify: { ran_at: NOW - DAY, ok: false } }));
     expect(r.overall).toBe("not-ready");
   });
 
   it("verify older than a week warns even when it passed", () => {
-    const r = preflightForDrive(
-      input({ latestVerify: { ran_at: NOW - 8 * DAY, ok: true } }),
-    );
+    const r = preflightForDrive(input({ latestVerify: { ran_at: NOW - 8 * DAY, ok: true } }));
     expect(byId(r, "verify")?.status).toBe("warn");
     expect(r.overall).toBe("attention");
   });
 
   it("library changed after the last verify → warn, not stale-pass", () => {
-    const r = preflightForDrive(
-      input({
-        snapshot: snap({ db_mtime: NOW - 3_600_000 }),
-      }),
-    );
+    const r = preflightForDrive(input({ snapshot: snap({ db_mtime: NOW - 3_600_000 }) }));
     expect(byId(r, "verify")?.status).toBe("warn");
   });
 
@@ -206,53 +179,35 @@ describe("preflight (B12)", () => {
   });
 
   it("single slow benchmark run fails on the absolute CDJ floor", () => {
-    const r = preflightForDrive(
-      input({ bench: [{ ran_at: NOW - DAY, seq_mbps: 20 }] }),
-    );
+    const r = preflightForDrive(input({ bench: [{ ran_at: NOW - DAY, seq_mbps: 20 }] }));
     expect(byId(r, "speed")?.status).toBe("fail");
   });
 
   it("bitrot: checksum job reporting changed files blocks the drive", () => {
     const r = preflightForDrive(
-      input({
-        ledgerFiles: 3500,
-        latestChecksum: { ran_at: NOW - DAY, changed: 2 },
-      }),
+      input({ ledgerFiles: 3500, latestChecksum: { ran_at: NOW - DAY, changed: 2 } }),
     );
     expect(r.overall).toBe("not-ready");
     expect(byId(r, "bitrot")?.detail).toContain("2 file(s)");
   });
 
   it("low free space: <5% fails, <15% warns", () => {
-    const fail = preflightForDrive(
-      input({ snapshot: snap({ free_bytes: 30_000_000_000 }) }),
-    );
+    const fail = preflightForDrive(input({ snapshot: snap({ free_bytes: 30_000_000_000 }) }));
     expect(byId(fail, "space")?.status).toBe("fail");
-    const warn = preflightForDrive(
-      input({ snapshot: snap({ free_bytes: 100_000_000_000 }) }),
-    );
+    const warn = preflightForDrive(input({ snapshot: snap({ free_bytes: 100_000_000_000 }) }));
     expect(byId(warn, "space")?.status).toBe("warn");
     expect(warn.overall).toBe("attention");
   });
 
   it("grid coverage: 99%+ pass, 90–99% warn, <90% fail", () => {
     expect(
-      byId(
-        preflightForDrive(input({ snapshot: snap({ grid_coverage: 0.995 }) })),
-        "grids",
-      )?.status,
+      byId(preflightForDrive(input({ snapshot: snap({ grid_coverage: 0.995 }) })), "grids")?.status,
     ).toBe("pass");
     expect(
-      byId(
-        preflightForDrive(input({ snapshot: snap({ grid_coverage: 0.95 }) })),
-        "grids",
-      )?.status,
+      byId(preflightForDrive(input({ snapshot: snap({ grid_coverage: 0.95 }) })), "grids")?.status,
     ).toBe("warn");
     expect(
-      byId(
-        preflightForDrive(input({ snapshot: snap({ grid_coverage: 0.8 }) })),
-        "grids",
-      )?.status,
+      byId(preflightForDrive(input({ snapshot: snap({ grid_coverage: 0.8 }) })), "grids")?.status,
     ).toBe("fail");
   });
 
@@ -260,9 +215,7 @@ describe("preflight (B12)", () => {
     const base = { isMirror: true, masterSnapshot: snap({ file_count: 3520 }) };
     const warn = preflightForDrive(input(base));
     expect(byId(warn, "mirror")?.status).toBe("warn");
-    const fail = preflightForDrive(
-      input({ ...base, masterSnapshot: snap({ file_count: 3600 }) }),
-    );
+    const fail = preflightForDrive(input({ ...base, masterSnapshot: snap({ file_count: 3600 }) }));
     expect(byId(fail, "mirror")?.status).toBe("fail");
     expect(fail.overall).toBe("not-ready");
   });
@@ -298,12 +251,7 @@ describe("preflight (B12)", () => {
       [
         input(),
         input({
-          drive: drive({
-            id: "d2",
-            name: "DJMIRROR",
-            role: "mirror",
-            mounted: false,
-          }),
+          drive: drive({ id: "d2", name: "DJMIRROR", role: "mirror", mounted: false }),
           snapshot: null,
           latestVerify: null,
         }),
@@ -315,9 +263,7 @@ describe("preflight (B12)", () => {
   });
 
   it("players check: no db data → omitted (no fake verdict)", () => {
-    const r = preflightForDrive(
-      input({ players: { ok: [], blocked: [], unknown: true } }),
-    );
+    const r = preflightForDrive(input({ players: { ok: [], blocked: [], unknown: true } }));
     expect(byId(r, "players")).toBeUndefined();
   });
 
@@ -328,10 +274,7 @@ describe("preflight (B12)", () => {
           ok: [],
           blocked: [
             { player: { name: "XDJ-XZ", reads: "device" }, reason: "stale" },
-            {
-              player: { name: "XDJ-AZ", reads: "onelibrary" },
-              reason: "no rows",
-            },
+            { player: { name: "XDJ-AZ", reads: "onelibrary" }, reason: "no rows" },
           ],
           unknown: false,
         },
@@ -348,10 +291,7 @@ describe("preflight (B12)", () => {
         players: {
           ok: [{ name: "XDJ-XZ", reads: "device" }],
           blocked: [
-            {
-              player: { name: "CDJ-3000X", reads: "onelibrary" },
-              reason: "no OneLibrary rows",
-            },
+            { player: { name: "CDJ-3000X", reads: "onelibrary" }, reason: "no OneLibrary rows" },
           ],
           unknown: false,
         },

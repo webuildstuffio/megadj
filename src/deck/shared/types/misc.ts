@@ -20,11 +20,7 @@ export interface SearchResult {
   drive_id: string;
   drive_name: string;
   mounted: boolean;
-  matches: {
-    type: "playlist" | "folder" | "track" | "drive";
-    name: string;
-    entries?: number;
-  }[];
+  matches: { type: "playlist" | "folder" | "track" | "drive"; name: string; entries?: number }[];
 }
 
 // ---- new-music radar (#148, PRD F10): wire types moved to shared/radar.ts --

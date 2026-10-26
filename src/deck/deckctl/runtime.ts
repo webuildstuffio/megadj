@@ -8,9 +8,7 @@ import { createDeckctlOutput } from "./output";
 export const JSON_MODE = process.argv.includes("--json");
 export const IS_TTY = process.stderr.isTTY ?? false;
 
-export const { emitJson, flushStdout, log, errOut } = createDeckctlOutput({
-  jsonMode: JSON_MODE,
-});
+export const { emitJson, flushStdout, log, errOut } = createDeckctlOutput({ jsonMode: JSON_MODE });
 
 export async function getJson<T>(path: string, timeoutMs?: number): Promise<T> {
   const response = await apiGet(path, timeoutMs);
@@ -18,19 +16,12 @@ export async function getJson<T>(path: string, timeoutMs?: number): Promise<T> {
 }
 
 export function baseHooks() {
-  return {
-    jsonMode: JSON_MODE,
-    log,
-    errOut,
-    argv: process.argv,
-    exit: process.exit,
-  };
+  return { jsonMode: JSON_MODE, log, errOut, argv: process.argv, exit: process.exit };
 }
 
 /** `deckctl prep` — the weekly-prep digest, markdown to stdout or a file. */
 export async function cmdPrep(outPath: string | undefined): Promise<void> {
-  const { fetchWeeklyPrepInput, renderWeeklyPrep } =
-    await import("../jobs/weekly-prep");
+  const { fetchWeeklyPrepInput, renderWeeklyPrep } = await import("../jobs/weekly-prep");
   const input = await fetchWeeklyPrepInput(getJson);
   const markdown = renderWeeklyPrep(input);
   if (outPath) await Bun.write(outPath, `${markdown}\n`);

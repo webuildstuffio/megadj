@@ -18,20 +18,8 @@ import {
   cmdPreflight,
   cmdStatus,
 } from "./deckctl/status";
-import {
-  cmdBoothFleet,
-  cmdCoverage,
-  cmdDiff,
-  cmdRadar,
-  cmdRedundancy,
-} from "./deckctl/fleet";
-import {
-  baseHooks,
-  cmdPrep,
-  errOut,
-  flushStdout,
-  log,
-} from "./deckctl/runtime";
+import { cmdBoothFleet, cmdCoverage, cmdDiff, cmdRadar, cmdRedundancy } from "./deckctl/fleet";
+import { baseHooks, cmdPrep, errOut, flushStdout, log } from "./deckctl/runtime";
 import { cmdExplain } from "./deckctl/explain";
 import { KIND_DOCS } from "./deckctl/docs";
 import { errMessage } from "../shared/leaf/fmt";
@@ -54,16 +42,13 @@ const DECK_COMMANDS: Record<string, (a: DeckArgs) => Promise<void>> = {
   preflight: () => cmdPreflight(),
   prep: () =>
     cmdPrep(
-      process.argv.includes("--out")
-        ? process.argv[process.argv.indexOf("--out") + 1]
-        : undefined,
+      process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : undefined,
     ),
   note: ({ arg }) => cmdNote(baseHooks(), arg(1), arg(2)),
   notes: ({ args }) => cmdNotes(baseHooks(), args[1]),
   search: ({ arg }) => cmdSearch(baseHooks(), arg(1)),
   report: ({ arg }) => cmdReport(baseHooks(), arg(1), process.argv),
-  rename: ({ args, arg }) =>
-    cmdRename(baseHooks(), arg(1), args.slice(2).join(" ") || null),
+  rename: ({ args, arg }) => cmdRename(baseHooks(), arg(1), args.slice(2).join(" ") || null),
   players: ({ args }) => cmdPlayers(args[1]),
   booth: ({ args }) =>
     cmdBoothFleet(
@@ -84,10 +69,7 @@ const DECK_COMMANDS: Record<string, (a: DeckArgs) => Promise<void>> = {
   stop: async () => {
     log("stopping server…");
     await apiPost("/api/stop").catch((error: unknown) => {
-      console.error(
-        "stop request failed (server may already be down):",
-        errMessage(error),
-      );
+      console.error("stop request failed (server may already be down):", errMessage(error));
     });
   },
 };
@@ -162,9 +144,7 @@ try {
 } catch (error) {
   // The one sanctioned stack-preserving site: deckctl's own crash prints
   // the stack, not just the message (#82 bespoke list).
-  console.error(
-    error instanceof Error ? (error.stack ?? error.message) : error,
-  );
+  console.error(error instanceof Error ? (error.stack ?? error.message) : error);
   await flushStdout();
   process.exit(1);
 }

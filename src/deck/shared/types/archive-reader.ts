@@ -47,16 +47,9 @@ export interface ArchiveQuery {
   ) => T | undefined;
   /** Cached musical key (Camelot TKEY), valid for this exact source path.
    *  Null means read the actual file. */
-  keyRecord: (
-    videoId: string,
-    sourcePath: string,
-  ) => { key: string; analyzedAt: string } | null;
+  keyRecord: (videoId: string, sourcePath: string) => { key: string; analyzedAt: string } | null;
   /** Remember a live file read for this reader's lifetime only. */
-  rememberKeyRecord: (rec: {
-    videoId: string;
-    key: string;
-    sourcePath: string;
-  }) => void;
+  rememberKeyRecord: (rec: { videoId: string; key: string; sourcePath: string }) => void;
   /** The ArchiveTrack column list shared by every full-row query. */
   trackCols: () => string;
 }

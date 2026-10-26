@@ -31,20 +31,7 @@ const { DB } = await import("../db");
 const { loadConfig } = await import("../config");
 
 // a 1x1 PNG (valid magic; the service checks size/ext, not decodability)
-const PNG = Uint8Array.of(
-  0x89,
-  0x50,
-  0x4e,
-  0x47,
-  0x0d,
-  0x0a,
-  0x1a,
-  0x0a,
-  0,
-  0,
-  0,
-  13,
-);
+const PNG = Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13);
 const PNG_ALT = Uint8Array.from(PNG, (byte, index) =>
   index === PNG.length - 1 ? byte ^ 0xff : byte,
 );
@@ -101,20 +88,18 @@ afterAll(() => {
 
 describe("drive cover photos (dual-save)", () => {
   it("bounds remote image bodies while streaming, before full buffering", async () => {
-    await expect(
-      readBoundedImageBody(new Response(Uint8Array.of(1, 2, 3)), 2),
-    ).rejects.toThrow("image > 2 bytes");
+    await expect(readBoundedImageBody(new Response(Uint8Array.of(1, 2, 3)), 2)).rejects.toThrow(
+      "image > 2 bytes",
+    );
     await expect(
       readBoundedImageBody(
-        new Response(Uint8Array.of(1), {
-          headers: { "Content-Length": "99" },
-        }),
+        new Response(Uint8Array.of(1), { headers: { "Content-Length": "99" } }),
         2,
       ),
     ).rejects.toThrow("image > 2 bytes");
-    expect(
-      await readBoundedImageBody(new Response(Uint8Array.of(1, 2, 3)), 3),
-    ).toEqual(Uint8Array.of(1, 2, 3));
+    expect(await readBoundedImageBody(new Response(Uint8Array.of(1, 2, 3)), 3)).toEqual(
+      Uint8Array.of(1, 2, 3),
+    );
   });
 
   it("choose() saves to BOTH the local dir and the stick", async () => {
@@ -155,9 +140,7 @@ describe("drive cover photos (dual-save)", () => {
 
   it("driveImageFile refuses path escape and non-allowed dirs", () => {
     expect(images.driveImageFile("DJPHOTO", "../../etc/hosts")).toBeNull();
-    expect(
-      images.driveImageFile("DJPHOTO", "Contents/Elsewhere/x.png"),
-    ).toBeNull();
+    expect(images.driveImageFile("DJPHOTO", "Contents/Elsewhere/x.png")).toBeNull();
     expect(images.driveImageFile("DJPHOTO", "cover.jpg")).toBeTruthy();
   });
 
@@ -227,9 +210,7 @@ describe("drive cover photos (dual-save)", () => {
     await images.choose("d8", { data: PNG, name: "first.png" });
     await images.choose("d8", { data: PNG_ALT, name: "second.png" });
 
-    expect(readFileSync(join(stickPhotoDir(), "photo.png"))).toEqual(
-      Buffer.from(PNG_ALT),
-    );
+    expect(readFileSync(join(stickPhotoDir(), "photo.png"))).toEqual(Buffer.from(PNG_ALT));
   });
 
   it("clear() removes every canonical and stale photo sibling", () => {

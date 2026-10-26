@@ -51,23 +51,16 @@ export { bpmScore, keyScore, withinAnchorBudget } from "./scoring";
 // family owns the row shape it scores; #173 madge pass moved it here so
 // scoring's type-only back-edge into this file stops being a cycle).
 // Re-exported for every existing consumer — same symbol, never a twin.
-import {
-  mixableBpm,
-  transitionEvidence,
-  transitionScore,
-  type SetCandidate,
-} from "./scoring";
+import { mixableBpm, transitionEvidence, transitionScore, type SetCandidate } from "./scoring";
 export type { SetCandidate } from "./scoring";
 
 // N80 energy-arc presets — DERIVED from the shared registry
 // (shared/types.ts MEGASET_PRESET_DEFS), never hand-copied: the route, the UI
 // picker and this engine read the same table so a new preset lands
 // everywhere at once. MegasetPresetDef is the shared interface.
-export const SET_PRESETS: Record<MegasetPresetId, MegasetPresetDef> =
-  Object.fromEntries(MEGASET_PRESET_DEFS.map((p) => [p.id, p])) as Record<
-    MegasetPresetId,
-    MegasetPresetDef
-  >;
+export const SET_PRESETS: Record<MegasetPresetId, MegasetPresetDef> = Object.fromEntries(
+  MEGASET_PRESET_DEFS.map((p) => [p.id, p]),
+) as Record<MegasetPresetId, MegasetPresetDef>;
 /** The preset type `buildMegaset` scores against (alias of the shared def —
  *  the old local `SetPreset` interface name, kept for callers). */
 export type SetPreset = MegasetPresetDef;
@@ -98,23 +91,17 @@ export function parseMegasetQuery(params: {
   if (minutesRaw === null || minutesRaw === undefined || minutesRaw === "") {
     return { preset, minutes: MEGASET_MINUTES_DEFAULT };
   }
-  const n =
-    typeof minutesRaw === "number" ? minutesRaw : Number(String(minutesRaw));
+  const n = typeof minutesRaw === "number" ? minutesRaw : Number(String(minutesRaw));
   // B7 (issue #105): non-numeric minutes used to silently re-score as the
   // 60-minute default — a typo'd `?minutes=abc` or `--minutes abc` got a
   // set the caller never asked for. Absent stays default-60; PRESENT but
   // invalid is a caller bug and errors like the unknown-preset path.
   if (!Number.isFinite(n)) {
-    return {
-      error: `minutes must be a number (got "${String(minutesRaw)}")`,
-    };
+    return { error: `minutes must be a number (got "${String(minutesRaw)}")` };
   }
   return {
     preset,
-    minutes: Math.min(
-      MEGASET_MINUTES_MAX,
-      Math.max(MEGASET_MINUTES_MIN, Math.round(n)),
-    ),
+    minutes: Math.min(MEGASET_MINUTES_MAX, Math.max(MEGASET_MINUTES_MIN, Math.round(n))),
   };
 }
 
@@ -127,17 +114,12 @@ export function parseMegasetQuery(params: {
  *  version of this merge silently flipped both ends to CLOSED (the
  *  doc comment even labeled the modes backwards); pinned in
  *  engine.test.ts. */
-export function boundIndex(
-  sorted: number[],
-  target: number,
-  mode: "lower" | "upper",
-): number {
+export function boundIndex(sorted: number[], target: number, mode: "lower" | "upper"): number {
   let lo = 0;
   let hi = sorted.length;
   while (lo < hi) {
     const mid = lo + Math.floor((hi - lo) / 2);
-    if (mode === "lower" ? sorted[mid]! < target : sorted[mid]! <= target)
-      lo = mid + 1;
+    if (mode === "lower" ? sorted[mid]! < target : sorted[mid]! <= target) lo = mid + 1;
     else hi = mid;
   }
   return lo;
@@ -191,9 +173,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   // rule and the plan's other fields see the admitted pool, exactly as
   // the pre-refactor flow did. Same inputs → byte-identical Plan
   // (engine-plan.test.ts golden pins).
-  const fillLandmarkIds = input.landmarkIds
-    ? [...new Set(input.landmarkIds)]
-    : [];
+  const fillLandmarkIds = input.landmarkIds ? [...new Set(input.landmarkIds)] : [];
   const plan = buildPlan({
     preset,
     minutes,
@@ -202,10 +182,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     searchOverride: input.searchOverride,
     poolSize: candidates.filter((candidate) => {
       const d = candidateDuration(candidate);
-      return (
-        d >= MEGASET_TRACK_MINUTES_MIN * 60 &&
-        d <= MEGASET_TRACK_MINUTES_MAX * 60
-      );
+      return d >= MEGASET_TRACK_MINUTES_MIN * 60 && d <= MEGASET_TRACK_MINUTES_MAX * 60;
     }).length,
   });
   // consumed at the strategy pick (plan.strategy) + the landmark repair
@@ -282,18 +259,12 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     // #283-followup: set-level quality stats so proposals are COMPARABLE
     // (the MD eval previously hand-derived these from steps). null on a
     // single-step chain — no transitions, no average.
-    const transitions = steps
-      .map((s) => s.transition)
-      .filter((t): t is number => t !== null);
+    const transitions = steps.map((s) => s.transition).filter((t): t is number => t !== null);
     const avgTransition =
       transitions.length === 0
         ? null
-        : Math.round(
-            (transitions.reduce((a, b) => a + b, 0) / transitions.length) *
-              1000,
-          ) / 1000;
-    const minTransition =
-      transitions.length === 0 ? null : Math.min(...transitions);
+        : Math.round((transitions.reduce((a, b) => a + b, 0) / transitions.length) * 1000) / 1000;
+    const minTransition = transitions.length === 0 ? null : Math.min(...transitions);
     // B6 (#107): same-artist adjacency census over the built chain —
     // the diversity guard's honest report card (0 for a well-spread set).
     let sameArtistPairs = 0;
@@ -343,9 +314,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   // proposal (`first.bpm === null` → everything excluded) even when the
   // rest of the pool was fully analyzed. A requested-but-unanalyzed
   // opener is excluded honestly and the arc still builds.
-  const opener =
-    (input.openerId && pool.find((c) => c.videoId === input.openerId)) ||
-    undefined;
+  const opener = (input.openerId && pool.find((c) => c.videoId === input.openerId)) || undefined;
   if (input.openerId && !opener && !requestedOpenerExists) {
     // a requested opener that ISN'T in the pool is a caller mistake (bad
     // id, or the track isn't playable/analyzed) — excluded loudly, never
@@ -362,8 +331,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     excluded.push({
       videoId: opener.videoId,
       title: opener.title,
-      reason:
-        "requested opener has no usable beats-ledger BPM — run `megadj beats`",
+      reason: "requested opener has no usable beats-ledger BPM — run `megadj beats`",
     });
     pool.splice(pool.indexOf(opener), 1);
   }
@@ -405,14 +373,10 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
           const qualified = mixable
             .filter((c) => tempoNeighbors(c.bpm) >= OPENER_MIN_NEIGHBORS)
             .toSorted(arousalSort);
-          return qualified.length > 0
-            ? qualified
-            : mixable.toSorted(arousalSort);
+          return qualified.length > 0 ? qualified : mixable.toSorted(arousalSort);
         })();
   const anchored =
-    rankedOpeners.length > 0
-      ? rankedOpeners[seed % rankedOpeners.length]
-      : undefined;
+    rankedOpeners.length > 0 ? rankedOpeners[seed % rankedOpeners.length] : undefined;
   const first = anchored;
   if (!first) {
     excluded.push(
@@ -442,11 +406,8 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   const rest = pool;
   // S14 (#288): odd seeds flip the strategy (when no explicit override).
   // This gives N-candidates variety beyond just the opener rotation.
-  const seedFlip =
-    seed > 0 && seed % 2 === 1 && input.searchOverride === undefined;
-  const useBeam = seedFlip
-    ? plan.strategy !== "beam"
-    : plan.strategy === "beam";
+  const seedFlip = seed > 0 && seed % 2 === 1 && input.searchOverride === undefined;
+  const useBeam = seedFlip ? plan.strategy !== "beam" : plan.strategy === "beam";
   search = useBeam ? "beam" : "greedy";
   const picked = useBeam
     ? beamChain(first, rest, preset, budget, anchorBpm)
@@ -498,30 +459,13 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       const tPin = Math.min(1, elapsedThroughPrev / budget);
       // both hops must be arc-legal (transitionScore returns −1 when a
       // gate fails: key clash, tempo window, drift budget, arc direction)
-      const scoreIn = transitionScore(
-        prevC,
-        pin,
-        preset,
-        tPin,
-        anchorBpm,
-        prevC.arousal,
-      );
+      const scoreIn = transitionScore(prevC, pin, preset, tPin, anchorBpm, prevC.arousal);
       if (scoreIn <= 0) continue;
       const elapsedAfterPin = elapsedThroughPrev + candidateDuration(pin);
       const tOut = Math.min(1, elapsedAfterPin / budget);
-      const scoreOut = transitionScore(
-        pin,
-        nextEntry,
-        preset,
-        tOut,
-        anchorBpm,
-        pin.arousal,
-      );
+      const scoreOut = transitionScore(pin, nextEntry, preset, tOut, anchorBpm, pin.arousal);
       if (scoreOut <= 0) continue;
-      picked.chain.splice(i + 1, 0, {
-        candidate: pin,
-        transition: scoreIn,
-      });
+      picked.chain.splice(i + 1, 0, { candidate: pin, transition: scoreIn });
       // the displaced successor's transition is stale — it described a
       // hop from the old predecessor; recompute it from the pin at the
       // successor's own (new) slot position
@@ -616,11 +560,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     for (const c of leftover) {
       if (leftoverSeen.has(c.videoId)) continue;
       leftoverSeen.add(c.videoId);
-      excluded.push({
-        videoId: c.videoId,
-        title: c.title,
-        reason: "set budget filled",
-      });
+      excluded.push({ videoId: c.videoId, title: c.title, reason: "set budget filled" });
     }
   }
   // stopCause "exhausted": pool was fully consumed — nothing to explain

@@ -70,9 +70,7 @@ export function driveCompatibility(
   // has content: a drive with 0 OneLibrary rows is a valid device-only
   // export (pre-7.2.11 style), not a "stale" one.
   const deviceCurrent =
-    deviceOk && ol !== null && ol > 0
-      ? Math.abs(pdb! - ol) <= Math.max(5, ol * 0.02)
-      : deviceOk;
+    deviceOk && ol !== null && ol > 0 ? Math.abs(pdb! - ol) <= Math.max(5, ol * 0.02) : deviceOk;
   const onelibraryOk = ol !== null && ol > 0;
 
   const ok: PlayerSpec[] = [];
@@ -83,8 +81,7 @@ export function driveCompatibility(
       else if (!deviceOk)
         blocked.push({
           player: p,
-          reason:
-            "no export.pdb rows — drive was never exported for device-library players",
+          reason: "no export.pdb rows — drive was never exported for device-library players",
         });
       else
         blocked.push({
@@ -94,10 +91,7 @@ export function driveCompatibility(
     } else {
       if (onelibraryOk) ok.push(p);
       else
-        blocked.push({
-          player: p,
-          reason: "no OneLibrary rows — rekordbox 7.2.11+ export needed",
-        });
+        blocked.push({ player: p, reason: "no OneLibrary rows — rekordbox 7.2.11+ export needed" });
     }
   }
   return { ok, blocked, unknown: false };
@@ -106,9 +100,7 @@ export function driveCompatibility(
 /** Build extra PlayerSpec entries from config's [players.players] mapping
  *  (name → "device" | "onelibrary"). Invalid entries are skipped, not
  *  thrown — a typo in one custom player must not take down the server. */
-export function playersFromConfig(
-  mapping: Record<string, string> | undefined,
-): PlayerSpec[] {
+export function playersFromConfig(mapping: Record<string, string> | undefined): PlayerSpec[] {
   if (!mapping) return [];
   const out: PlayerSpec[] = [];
   for (const [name, reads] of Object.entries(mapping)) {

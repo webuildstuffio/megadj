@@ -173,12 +173,7 @@ export interface ArchiveLibraryOverview {
   tracks: number;
   artwork: { embedded: number; missing: number; queued: number };
   genres: { name: string; count: number }[];
-  years: {
-    known: number;
-    unknown: number;
-    min: string | null;
-    max: string | null;
-  };
+  years: { known: number; unknown: number; min: string | null; max: string | null };
   energy: { stamped: number };
   codecs: { codec: string; count: number }[];
   sizes: { files: number; total_bytes: number };
@@ -194,12 +189,7 @@ export interface ArchiveSimilar {
   video_id: string;
   title: string | null;
   corpus: number;
-  hits: {
-    video_id: string;
-    title: string | null;
-    artist: string | null;
-    score: number;
-  }[];
+  hits: { video_id: string; title: string | null; artist: string | null; score: number }[];
 }
 
 /** #215 — one track's #173 vote-ladder breakdown (genre-why). The read
@@ -222,13 +212,7 @@ export interface ArchiveGenreWhy {
   matches_db?: boolean;
   /** only when the video_id matched no row at all. */
   missing?: boolean;
-  votes: {
-    rung: string;
-    genre: string;
-    weight: number;
-    elected: boolean;
-    detail: string | null;
-  }[];
+  votes: { rung: string; genre: string; weight: number; elected: boolean; detail: string | null }[];
 }
 
 export type ArchiveSearchHit = ArchiveTrack;
@@ -294,12 +278,7 @@ export interface ArchiveSetCandidates {
    *  sql/fileCheck/keyFills come from setCandidates; engine is timed by
    *  the caller around buildMegaset and added here. The phase list
    *  renders these once the build returns — measured, not a schedule. */
-  stagesMs: {
-    sql: number;
-    fileCheck: number;
-    keyFills: number;
-    engine?: number;
-  };
+  stagesMs: { sql: number; fileCheck: number; keyFills: number; engine?: number };
 }
 
 // ---- tag census (fulltags vs rekordbox side-by-side) -----------------------

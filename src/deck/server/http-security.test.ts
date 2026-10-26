@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  isTrustedMutationRequest,
-  withSecurityHeaders,
-} from "../server/http-security";
+import { isTrustedMutationRequest, withSecurityHeaders } from "../server/http-security";
 import { photoUpload } from "../drive/job-routes";
 import { MAX_IMAGE_BYTES } from "../image/store";
 
@@ -49,19 +46,14 @@ describe("CrateDeck HTTP browser boundary", () => {
 
     const mismatchedHost = new Request("http://127.0.0.1:7742/api/stop", {
       method: "POST",
-      headers: {
-        Host: "attacker.example",
-        Origin: "http://127.0.0.1:7742",
-      },
+      headers: { Host: "attacker.example", Origin: "http://127.0.0.1:7742" },
     });
     expect(isTrustedMutationRequest(mismatchedHost)).toBe(false);
   });
 
   it("keeps non-browser clients working and does not gate safe methods", () => {
     expect(
-      isTrustedMutationRequest(
-        new Request("http://127.0.0.1:7742/api/stop", { method: "POST" }),
-      ),
+      isTrustedMutationRequest(new Request("http://127.0.0.1:7742/api/stop", { method: "POST" })),
     ).toBe(true);
     expect(
       isTrustedMutationRequest(
@@ -86,12 +78,8 @@ describe("CrateDeck HTTP browser boundary", () => {
     const response = withSecurityHeaders(new Response("ok"));
     expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    expect(response.headers.get("Referrer-Policy")).toBe(
-      "strict-origin-when-cross-origin",
-    );
-    expect(response.headers.get("Content-Security-Policy")).toBe(
-      "frame-ancestors 'none'",
-    );
+    expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    expect(response.headers.get("Content-Security-Policy")).toBe("frame-ancestors 'none'");
   });
 
   it("rejects oversized multipart uploads before parsing or storing them", async () => {

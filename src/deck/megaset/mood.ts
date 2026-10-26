@@ -19,21 +19,11 @@ interface MoodExtreme {
   v: number;
 }
 
-export function moodProfile(
-  reader: ArchiveQuery,
-  limit = 5,
-): ArchiveMoodProfile {
+export function moodProfile(reader: ArchiveQuery, limit = 5): ArchiveMoodProfile {
   const empty = {
     available: reader.available(),
     analyzed: 0,
-    avg: {
-      dance: 0,
-      valence: 0,
-      arousal: 0,
-      party: 0,
-      electronic: 0,
-      aggressive: 0,
-    },
+    avg: { dance: 0, valence: 0, arousal: 0, party: 0, electronic: 0, aggressive: 0 },
     extremes: {
       valence: [] as MoodExtreme[],
       arousal: [] as MoodExtreme[],
@@ -62,12 +52,7 @@ export function moodProfile(
   const n = Math.min(Math.max(limit, 1), 25);
   const top = (col: string, dir: "DESC" | "ASC"): MoodExtreme[] =>
     reader
-      .rows<{
-        video_id: string;
-        title: string | null;
-        artist: string | null;
-        v: number;
-      }>(
+      .rows<{ video_id: string; title: string | null; artist: string | null; v: number }>(
         `SELECT m.video_id, t.title, t.artist, m.${col} v
        FROM mood m LEFT JOIN tracks t ON t.video_id = m.video_id
        ORDER BY m.${col} ${dir}, m.video_id LIMIT ?`,

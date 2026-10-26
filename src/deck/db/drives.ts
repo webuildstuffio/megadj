@@ -21,12 +21,10 @@ import { sanitizeVerifyReport } from "../verify/report";
 export function canon(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
   if (v !== null && typeof v === "object") {
-    const entries = Object.entries(v as Record<string, unknown>).toSorted(
-      ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
+    const entries = Object.entries(v as Record<string, unknown>).toSorted(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
     );
-    return `{${entries
-      .map(([k, val]) => `${JSON.stringify(k)}:${canon(val)}`)
-      .join(",")}}`;
+    return `{${entries.map(([k, val]) => `${JSON.stringify(k)}:${canon(val)}`).join(",")}}`;
   }
   return JSON.stringify(v) ?? "null";
 }
@@ -101,9 +99,7 @@ export class DriveStore {
   }
 
   get(id: string): Drive | null {
-    const r = this.sqlite
-      .query("SELECT * FROM drives WHERE id = ?")
-      .get(id) as DriveRow | null;
+    const r = this.sqlite.query("SELECT * FROM drives WHERE id = ?").get(id) as DriveRow | null;
     return r ? this.normDrive(r) : null;
   }
 
@@ -117,9 +113,7 @@ export class DriveStore {
   all(): Drive[] {
     return (
       this.sqlite
-        .query(
-          "SELECT * FROM drives ORDER BY mounted DESC, nickname IS NULL, name",
-        )
+        .query("SELECT * FROM drives ORDER BY mounted DESC, nickname IS NULL, name")
         .all() as DriveRow[]
     ).map((r) => this.normDrive(r));
   }
@@ -214,17 +208,13 @@ export class DriveStore {
 
   /** Increment at mount time (ghost → mounted flip). Called by registry. */
   bumpPlugCount(id: string): void {
-    this.sqlite
-      .query("UPDATE drives SET plug_count = plug_count + 1 WHERE id=?")
-      .run(id);
+    this.sqlite.query("UPDATE drives SET plug_count = plug_count + 1 WHERE id=?").run(id);
   }
 
   /** Stamp first_seen_at (now) — called by DB.bumpPlugCount on the first
    *  mount (plug_count 0 → 1), preserving the old INSERT's semantics. */
   bumpFirstSeen(id: string): void {
-    this.sqlite
-      .query("UPDATE drives SET first_seen_at=? WHERE id=?")
-      .run(Date.now(), id);
+    this.sqlite.query("UPDATE drives SET first_seen_at=? WHERE id=?").run(Date.now(), id);
   }
 
   setNickname(id: string, nickname: string | null): void {
@@ -236,9 +226,7 @@ export class DriveStore {
   }
 
   setPhoto(id: string, path: string): void {
-    this.sqlite
-      .query("UPDATE drives SET photo_path=? WHERE id=?")
-      .run(path, id);
+    this.sqlite.query("UPDATE drives SET photo_path=? WHERE id=?").run(path, id);
   }
 
   /** True when the stored snapshot equals `snap` apart from taken_at —
@@ -250,18 +238,12 @@ export class DriveStore {
     if (!cur?.last_snapshot_json) return false;
     try {
       const prev = JSON.parse(cur.last_snapshot_json) as SnapshotData;
-      return (
-        canon(snapshotWithoutTakenAt(prev)) ===
-        canon(snapshotWithoutTakenAt(snap))
-      );
+      return canon(snapshotWithoutTakenAt(prev)) === canon(snapshotWithoutTakenAt(snap));
     } catch (e) {
       // Unparsable previous blob: the dedupe guard can't run, so we fall
       // through and write — but silently skipping the compare would mask
       // HOW the blob got corrupt. Log it at the boundary.
-      console.error(
-        `previous snapshot blob for drive ${id} unparsable — rewriting`,
-        e,
-      );
+      console.error(`previous snapshot blob for drive ${id} unparsable — rewriting`, e);
       return false;
     }
   }
@@ -269,9 +251,7 @@ export class DriveStore {
   /** The two snapshot writes (latest blob + history row). */
   putSnapshot(id: string, snap: SnapshotData): void {
     const json = JSON.stringify(snap);
-    this.sqlite
-      .query("UPDATE drives SET last_snapshot_json=? WHERE id=?")
-      .run(json, id);
+    this.sqlite.query("UPDATE drives SET last_snapshot_json=? WHERE id=?").run(json, id);
     this.sqlite
       .query(
         "INSERT OR REPLACE INTO snapshots (drive_id, taken_at, kind, data_json) VALUES (?,?,?,?)",
@@ -298,9 +278,7 @@ export class DriveStore {
   snapshots(driveId: string): SnapshotData[] {
     return (
       this.sqlite
-        .query(
-          "SELECT data_json FROM snapshots WHERE drive_id=? ORDER BY taken_at",
-        )
+        .query("SELECT data_json FROM snapshots WHERE drive_id=? ORDER BY taken_at")
         .all(driveId) as { data_json: string }[]
     ).flatMap((r) => {
       const snapshot = decodeSnapshot(r.data_json, driveId);

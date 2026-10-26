@@ -10,27 +10,17 @@ import {
   megadjCliPath,
   splitIntakeStdout,
 } from "./intake-run";
-import {
-  drain,
-  type JobLog,
-  type JobTick,
-  type RunHandle,
-} from "./job-runtime";
+import { drain, type JobLog, type JobTick, type RunHandle } from "./job-runtime";
 import type { LegArgs } from "./job-legs-types";
 import { awaitLegExit } from "./job-legs-shared";
 
-export async function runIngest({
-  deps,
-  mountPoint: folder,
-  handle,
-  tick,
-  log,
-}: LegArgs) {
+export async function runIngest({ deps, mountPoint: folder, handle, tick, log }: LegArgs) {
   tick(0, 1, `intake from ${folder}`, INTAKE_PHASES[0]!.phase, true);
-  const proc = Bun.spawn(
-    ["bun", megadjCliPath(deps.cfg.root), ...intakeArgs(folder)],
-    { stdout: "pipe", stderr: "pipe", cwd: deps.cfg.root },
-  );
+  const proc = Bun.spawn(["bun", megadjCliPath(deps.cfg.root), ...intakeArgs(folder)], {
+    stdout: "pipe",
+    stderr: "pipe",
+    cwd: deps.cfg.root,
+  });
   handle.proc = proc;
   let phaseIdx = 0;
   let enrichBase: number = INTAKE_PHASES[3]!.at;
@@ -41,13 +31,7 @@ export async function runIngest({
     if (phase) {
       phaseIdx = phase.nextIdx;
       if (phaseIdx >= 3) enrichBase = phase.progress;
-      tick(
-        phase.progress,
-        1,
-        phase.message,
-        INTAKE_PHASES[phaseIdx]!.phase,
-        true,
-      );
+      tick(phase.progress, 1, phase.message, INTAKE_PHASES[phaseIdx]!.phase, true);
       return;
     }
     if (phaseIdx >= 3 && phaseIdx < 4 && INTAKE_FILE_LINE.test(line)) {
@@ -67,12 +51,7 @@ export async function runIngest({
   await awaitLegExit(proc, handle, "megadj ingest", errResult.out);
   const { summary } = splitIntakeStdout(result.out);
   const counters = parseIngestSummary(summary);
-  const { audit, auditErrors } = await auditArchive(
-    deps.cfg,
-    handle,
-    tick,
-    log,
-  );
+  const { audit, auditErrors } = await auditArchive(deps.cfg, handle, tick, log);
   const intake: IntakeResult = { ...counters, audit, auditErrors };
   deps.db.event("local-archive", "intake", {
     folder,
@@ -90,13 +69,7 @@ export async function auditArchive(
   tick: JobTick,
   log: JobLog,
 ): Promise<Pick<IntakeResult, "audit" | "auditErrors">> {
-  tick(
-    INTAKE_PHASES[5]!.at,
-    1,
-    "auditing the archive…",
-    INTAKE_PHASES[5]!.phase,
-    true,
-  );
+  tick(INTAKE_PHASES[5]!.at, 1, "auditing the archive…", INTAKE_PHASES[5]!.phase, true);
   const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), "audit", "--json"], {
     stdout: "pipe",
     stderr: "pipe",
@@ -132,12 +105,6 @@ export async function auditArchive(
     log(`audit leg failed to report — continuing without it: ${detail}`);
     return { audit: null, auditErrors: [] };
   }
-  tick(
-    1,
-    1,
-    `archive ${result.audit!.complete}/${result.audit!.total} complete`,
-    "done",
-    true,
-  );
+  tick(1, 1, `archive ${result.audit!.complete}/${result.audit!.total} complete`, "done", true);
   return result;
 }

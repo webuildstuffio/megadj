@@ -14,10 +14,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { GENRE_VOTE_WEIGHTS } from "../../fulltags/genre/genre-vote";
-import {
-  GENRE_VOTE_RUNG_DEFS,
-  genreVoteRungsInOrder,
-} from "../shared/genre-vote-rungs";
+import { GENRE_VOTE_RUNG_DEFS, genreVoteRungsInOrder } from "../shared/genre-vote-rungs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
@@ -28,22 +25,15 @@ describe("genre vote rung metadata census (defs table ↔ weights SSOT)", () => 
     const defined = new Set(GENRE_VOTE_RUNG_DEFS.map((d) => d.id));
     const missing = [...weighted].filter((k) => !defined.has(k));
     const orphan = [...defined].filter((k) => !weighted.has(k));
-    expect(
-      missing,
-      `rungs with a weight but no def: ${missing.join(", ")}`,
-    ).toEqual([]);
+    expect(missing, `rungs with a weight but no def: ${missing.join(", ")}`).toEqual([]);
     expect(orphan, `defs without a weight: ${orphan.join(", ")}`).toEqual([]);
   });
 
   test("def order is weight-descending (the reliability ladder)", () => {
     const ordered = genreVoteRungsInOrder();
     for (let i = 1; i < ordered.length; i++) {
-      const prev =
-        GENRE_VOTE_WEIGHTS[
-          ordered[i - 1]!.id as keyof typeof GENRE_VOTE_WEIGHTS
-        ];
-      const cur =
-        GENRE_VOTE_WEIGHTS[ordered[i]!.id as keyof typeof GENRE_VOTE_WEIGHTS];
+      const prev = GENRE_VOTE_WEIGHTS[ordered[i - 1]!.id as keyof typeof GENRE_VOTE_WEIGHTS];
+      const cur = GENRE_VOTE_WEIGHTS[ordered[i]!.id as keyof typeof GENRE_VOTE_WEIGHTS];
       expect(
         prev! >= cur!,
         `ladder order broken at #${i}: ${ordered[i - 1]!.name} (w=${prev}) must not weigh less than ${ordered[i]!.name} (w=${cur})`,
@@ -54,10 +44,7 @@ describe("genre vote rung metadata census (defs table ↔ weights SSOT)", () => 
   test("mirrored weights match the SSOT exactly (pinned mirror, not a twin)", () => {
     for (const d of GENRE_VOTE_RUNG_DEFS) {
       const ssot = GENRE_VOTE_WEIGHTS[d.id as keyof typeof GENRE_VOTE_WEIGHTS];
-      expect(
-        ssot,
-        `def ${d.id} has no weight in GENRE_VOTE_WEIGHTS`,
-      ).toBeDefined();
+      expect(ssot, `def ${d.id} has no weight in GENRE_VOTE_WEIGHTS`).toBeDefined();
       expect(
         d.weight,
         `def ${d.id} weight ${d.weight} ≠ SSOT ${ssot} — update the def alongside the SSOT change`,

@@ -22,12 +22,7 @@ function fixtureDir() {
 }
 
 function baseTrack(file: string, size = 1000) {
-  return {
-    file_path: file,
-    title: "T",
-    artist: "A",
-    size_hint: size,
-  };
+  return { file_path: file, title: "T", artist: "A", size_hint: size };
 }
 
 describe("D30 sweepArchive", () => {
@@ -64,12 +59,7 @@ describe("D30 sweepArchive", () => {
       const ledger = new Map<string, LedgerRow>();
       const upd = (r: LedgerRow) => ledger.set(r.file_path, r);
       await sweepArchive(dir, [baseTrack("a.wav", 500)], ledger, upd);
-      const second = await sweepArchive(
-        dir,
-        [baseTrack("a.wav", 500)],
-        ledger,
-        upd,
-      );
+      const second = await sweepArchive(dir, [baseTrack("a.wav", 500)], ledger, upd);
       expect(second.checked).toBe(1);
       expect(second.unchanged).toBe(1);
       expect(second.findings.length).toBe(0);
@@ -104,12 +94,7 @@ describe("D30 sweepArchive", () => {
       await sweepArchive(dir, [baseTrack("b.wav", 500)], ledger, upd);
       // silent corruption: same length, different bytes
       writeFileSync(join(dir, "b.wav"), "w".repeat(500));
-      const second = await sweepArchive(
-        dir,
-        [baseTrack("b.wav", 500)],
-        ledger,
-        upd,
-      );
+      const second = await sweepArchive(dir, [baseTrack("b.wav", 500)], ledger, upd);
       const f = second.findings[0];
       expect(f?.verdict).toBe("changed");
       expect(f?.detail).toContain("differs from known-good");
@@ -126,12 +111,7 @@ describe("D30 sweepArchive", () => {
       const upd = (r: LedgerRow) => ledger.set(r.file_path, r);
       await sweepArchive(dir, [baseTrack("c.wav", 800)], ledger, upd);
       writeFileSync(join(dir, "c.wav"), "q".repeat(300));
-      const second = await sweepArchive(
-        dir,
-        [baseTrack("c.wav", 800)],
-        ledger,
-        upd,
-      );
+      const second = await sweepArchive(dir, [baseTrack("c.wav", 800)], ledger, upd);
       expect(second.findings[0]?.verdict).toBe("truncated");
       expect(second.findings[0]?.detail).toContain("800 → 300");
     } finally {
@@ -142,12 +122,7 @@ describe("D30 sweepArchive", () => {
   test("deleted file listed as downloaded → missing", async () => {
     const dir = fixtureDir();
     try {
-      const report = await sweepArchive(
-        dir,
-        [baseTrack("ghost.wav")],
-        new Map(),
-        () => {},
-      );
+      const report = await sweepArchive(dir, [baseTrack("ghost.wav")], new Map(), () => {});
       expect(report.findings[0]?.verdict).toBe("missing");
       expect(report.checked).toBe(0);
     } finally {
@@ -171,38 +146,18 @@ describe("D30 sweepArchive", () => {
       await sweepArchive(dir, [baseTrack("r.wav", 400)], ledger, upd);
       // corruption: same length, different bytes
       writeFileSync(join(dir, "r.wav"), "b".repeat(400));
-      const second = await sweepArchive(
-        dir,
-        [baseTrack("r.wav", 400)],
-        ledger,
-        upd,
-      );
+      const second = await sweepArchive(dir, [baseTrack("r.wav", 400)], ledger, upd);
       expect(second.findings[0]?.verdict).toBe("changed");
       // THIRD sweep with the file still corrupt: must STILL report
-      const third = await sweepArchive(
-        dir,
-        [baseTrack("r.wav", 400)],
-        ledger,
-        upd,
-      );
+      const third = await sweepArchive(dir, [baseTrack("r.wav", 400)], ledger, upd);
       expect(third.findings[0]?.verdict).toBe("changed");
       // repaired (original bytes back): the flag clears + restored fires
       writeFileSync(join(dir, "r.wav"), "g".repeat(400));
-      const fourth = await sweepArchive(
-        dir,
-        [baseTrack("r.wav", 400)],
-        ledger,
-        upd,
-      );
+      const fourth = await sweepArchive(dir, [baseTrack("r.wav", 400)], ledger, upd);
       expect(fourth.findings.map((f) => f.verdict)).toContain("restored");
       expect(updates.at(-1)?.flagged_at).toBeNull();
       // and a healthy sweep after that is quiet again
-      const fifth = await sweepArchive(
-        dir,
-        [baseTrack("r.wav", 400)],
-        ledger,
-        upd,
-      );
+      const fifth = await sweepArchive(dir, [baseTrack("r.wav", 400)], ledger, upd);
       expect(fifth.findings).toHaveLength(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -243,10 +198,7 @@ describe("weekly prep digest: D30 section", () => {
   };
 
   test("clean sweep renders the all-good line", () => {
-    const md = renderWeeklyPrep({
-      ...base,
-      sweep: { available: true, checked: 88, findings: [] },
-    });
+    const md = renderWeeklyPrep({ ...base, sweep: { available: true, checked: 88, findings: [] } });
     expect(md).toContain("## Archive integrity (D30 sweep)");
     expect(md).toContain("All 88 files match known-good hashes. ✓");
   });

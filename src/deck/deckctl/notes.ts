@@ -31,11 +31,7 @@ async function getJson<T>(p: string): Promise<T> {
 }
 
 /** `deckctl note <drive> <text> [--severity s]` — lands a timeline card. */
-export async function cmdNote(
-  h: NotePrintHooks,
-  nameOrId: string,
-  text: string,
-): Promise<void> {
+export async function cmdNote(h: NotePrintHooks, nameOrId: string, text: string): Promise<void> {
   const sevIdx = h.argv.indexOf("--severity");
   const severity = sevIdx !== -1 ? h.argv[sevIdx + 1] : undefined;
   const d = await resolveDriveOrExit(h, nameOrId);
@@ -57,28 +53,20 @@ export async function cmdNote(
 }
 
 /** `deckctl notes [drive]` — the active (undismissed) findings feed. */
-export async function cmdNotes(
-  h: NotePrintHooks,
-  nameOrId?: string,
-): Promise<void> {
+export async function cmdNotes(h: NotePrintHooks, nameOrId?: string): Promise<void> {
   if (!nameOrId) {
     // P1: --json must work on every verb, in every branch (agent-first
     // contract). One JSON object covering every drive's feed.
     const drives =
-      await getJson<{ id: string; name: string; nickname: string | null }[]>(
-        "/api/drives",
-      );
+      await getJson<{ id: string; name: string; nickname: string | null }[]>("/api/drives");
     const perDrive: { drive: string; notes: StoredNote[] }[] = [];
     for (const d of drives) {
       // A failed notes fetch must NOT read as "no notes" in --json (the
       // agent-first contract: corrupt/failed data can never read as an
       // empty-but-valid answer). Surface the failure per drive.
-      const notes = await getJson<StoredNote[]>(
-        `/api/drives/${d.id}/notes`,
-      ).catch((e: unknown) => {
+      const notes = await getJson<StoredNote[]>(`/api/drives/${d.id}/notes`).catch((e: unknown) => {
         const msg = errorText(e);
-        if (!h.jsonMode)
-          h.log(`  ⚠ notes fetch failed for ${d.nickname ?? d.name}: ${msg}`);
+        if (!h.jsonMode) h.log(`  ⚠ notes fetch failed for ${d.nickname ?? d.name}: ${msg}`);
         return null;
       });
       if (notes === null) {
@@ -100,8 +88,7 @@ export async function cmdNotes(
       }
       perDrive.push({ drive: d.nickname ?? d.name, notes });
       if (!h.jsonMode)
-        for (const n of notes)
-          h.log(`${d.nickname ?? d.name} [${n.severity}] ${n.note}`);
+        for (const n of notes) h.log(`${d.nickname ?? d.name} [${n.severity}] ${n.note}`);
     }
     if (h.jsonMode) await emitJson({ notes: perDrive });
     return;
@@ -112,8 +99,7 @@ export async function cmdNotes(
     await emitJson({ drive: d.name, notes });
     return;
   }
-  for (const n of notes)
-    h.log(`[${n.severity}] ${n.note} (${new Date(n.at).toISOString()})`);
+  for (const n of notes) h.log(`[${n.severity}] ${n.note} (${new Date(n.at).toISOString()})`);
   if (!notes.length) h.log("(no active notes)");
 }
 
@@ -126,19 +112,13 @@ export async function cmdRename(
   nickname: string | null,
 ): Promise<void> {
   const d = await resolveDriveOrExit(h, nameOrId);
-  const res = await apiPost(`/api/drives/${d.id}/name`, {
-    nickname: nickname?.trim() || null,
-  });
+  const res = await apiPost(`/api/drives/${d.id}/name`, { nickname: nickname?.trim() || null });
   if (!res.ok) {
     const body = (await res.json()) as { error?: string };
     h.errOut(body.error ?? `rename rejected (${res.status})`);
     h.exit(1);
   }
   if (h.jsonMode)
-    await emitJson({
-      command: "rename",
-      drive: d.name,
-      nickname: nickname?.trim() || null,
-    });
+    await emitJson({ command: "rename", drive: d.name, nickname: nickname?.trim() || null });
   else h.log(`renamed ${d.name} → ${nickname?.trim() || "(cleared)"}`);
 }

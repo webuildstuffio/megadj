@@ -20,13 +20,7 @@ function eventRow(row: EventRow): TimelineEvent {
     console.error(`timeline event ${row.id} has corrupt data_json`, error);
     data = { corrupt: true, raw: row.data_json ?? null };
   }
-  return {
-    id: row.id,
-    drive_id: row.drive_id,
-    at: row.at,
-    kind: row.kind,
-    data,
-  };
+  return { id: row.id, drive_id: row.drive_id, at: row.at, kind: row.kind, data };
 }
 
 /** Timeline and job persistence layered over library state. */
@@ -34,11 +28,7 @@ export class DBActivity extends DBLibrary {
   private eventStmt?: ReturnType<Database["prepare"]>;
   private eventPruneStmt?: ReturnType<Database["prepare"]>;
 
-  event(
-    driveId: string,
-    kind: string,
-    data: Record<string, unknown> = {},
-  ): string {
+  event(driveId: string, kind: string, data: Record<string, unknown> = {}): string {
     this.eventStmt ??= this.sqlite.prepare(
       "INSERT INTO events (id, drive_id, at, kind, data_json) VALUES (?,?,?,?,?)",
     );
@@ -112,12 +102,7 @@ export class DBActivity extends DBLibrary {
 
   setJobProgress(
     id: string,
-    progress: {
-      progress?: number;
-      message?: string;
-      phase?: string;
-      eta_seconds?: number | null;
-    },
+    progress: { progress?: number; message?: string; phase?: string; eta_seconds?: number | null },
   ): void {
     this.sqlite
       .query(
@@ -139,11 +124,7 @@ export class DBActivity extends DBLibrary {
   }
 
   getJob(id: string): Job | null {
-    return (
-      (this.sqlite
-        .query("SELECT * FROM jobs WHERE id=?")
-        .get(id) as Job | null) ?? null
-    );
+    return (this.sqlite.query("SELECT * FROM jobs WHERE id=?").get(id) as Job | null) ?? null;
   }
 
   jobsForDrive(driveId: string, limit = 20, activeOnly = false): Job[] {
@@ -160,17 +141,13 @@ export class DBActivity extends DBLibrary {
         .all(driveId, limit) as Job[];
     }
     return this.sqlite
-      .query(
-        "SELECT * FROM jobs WHERE drive_id=? ORDER BY created_at DESC LIMIT ?",
-      )
+      .query("SELECT * FROM jobs WHERE drive_id=? ORDER BY created_at DESC LIMIT ?")
       .all(driveId, limit) as Job[];
   }
 
   activeJobs(): Job[] {
     return this.sqlite
-      .query(
-        "SELECT * FROM jobs WHERE status IN ('queued','running') ORDER BY created_at",
-      )
+      .query("SELECT * FROM jobs WHERE status IN ('queued','running') ORDER BY created_at")
       .all() as Job[];
   }
 
@@ -190,9 +167,7 @@ export class DBActivity extends DBLibrary {
   activeJobOfKind(driveId: string, kind: JobKind): Job | null {
     return (
       (this.sqlite
-        .query(
-          "SELECT * FROM jobs WHERE drive_id=? AND kind=? AND status IN ('queued','running')",
-        )
+        .query("SELECT * FROM jobs WHERE drive_id=? AND kind=? AND status IN ('queued','running')")
         .get(driveId, kind) as Job | null) ?? null
     );
   }
@@ -210,14 +185,9 @@ export class DBActivity extends DBLibrary {
     if (!row) return null;
     let ok = false;
     try {
-      ok =
-        (JSON.parse(row.result_json) as { verdict?: string } | null)
-          ?.verdict === "pass";
+      ok = (JSON.parse(row.result_json) as { verdict?: string } | null)?.verdict === "pass";
     } catch (error) {
-      console.error(
-        `verify result for ${driveId} has corrupt result_json`,
-        error,
-      );
+      console.error(`verify result for ${driveId} has corrupt result_json`, error);
     }
     return { ran_at: row.finished_at, ok };
   }
@@ -232,19 +202,12 @@ export class DBActivity extends DBLibrary {
       .get(driveId) as { finished_at: number; result_json: string } | null;
     if (!row) return null;
     try {
-      const parsed = JSON.parse(row.result_json) as {
-        changed?: unknown;
-      } | null;
+      const parsed = JSON.parse(row.result_json) as { changed?: unknown } | null;
       const changed = parsed?.changed;
       const count = Array.isArray(changed) ? changed.length : undefined;
-      return typeof count === "number"
-        ? { ran_at: row.finished_at, changed: count }
-        : null;
+      return typeof count === "number" ? { ran_at: row.finished_at, changed: count } : null;
     } catch (error) {
-      console.error(
-        `checksum result for ${driveId} has corrupt result_json`,
-        errMessage(error),
-      );
+      console.error(`checksum result for ${driveId} has corrupt result_json`, errMessage(error));
       return null;
     }
   }

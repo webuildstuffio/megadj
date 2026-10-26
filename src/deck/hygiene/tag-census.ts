@@ -14,10 +14,7 @@
 //
 // The rb-adopt mirror is OPTIONAL: absent `rekordbox_content` (rb-adopt
 // never ran) degrades to `rekordboxMirror: false`, not an error.
-import type {
-  ArchiveTagCensus,
-  ArchiveTagCensusRow,
-} from "../shared/archive-wire";
+import type { ArchiveTagCensus, ArchiveTagCensusRow } from "../shared/archive-wire";
 import type { ArchiveQuery } from "../shared/types/archive-reader";
 import { poolFreshness } from "../megaset/pool";
 
@@ -77,10 +74,7 @@ const COMPARE_FIELDS = ["title", "artist", "genre", "key", "bpm"] as const;
  *  a census that cries wolf is a census nobody reads). A difference is
  *  two PRESENT values that disagree: strings trim+case-insensitive,
  *  numbers exactly. Exported for the census tests. */
-export function differ(
-  a: string | number | null,
-  b: string | number | null,
-): boolean {
+export function differ(a: string | number | null, b: string | number | null): boolean {
   if (a === null || b === null) return false;
   if (typeof a === "string" && typeof b === "string")
     return a.trim().toLowerCase() !== b.trim().toLowerCase();
@@ -159,10 +153,7 @@ export function tagCensus(reader: ArchiveQuery, limit = 200): ArchiveTagCensus {
     // census compares them only where a mirror value exists on BOTH
     // sides. Omitted here: the per-track compare view has the full
     // three-source truth (the file's own year/label).
-    const pairs: Record<
-      string,
-      [string | number | null, string | number | null]
-    > = {
+    const pairs: Record<string, [string | number | null, string | number | null]> = {
       title: [r.title, r.rb_title],
       artist: [r.artist, r.rb_artist],
       genre: [r.archive_genre, r.rb_genre],

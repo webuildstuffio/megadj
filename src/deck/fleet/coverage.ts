@@ -12,11 +12,7 @@
 //              different sticks (B6's "same track, different folder" case).
 
 import type { CoverageResult, TrackCoverage, TrackRow } from "../shared/types";
-export {
-  type ManifestRow,
-  type PlaylistEntryRow,
-  type TrackRow,
-} from "../shared/types";
+export { type ManifestRow, type PlaylistEntryRow, type TrackRow } from "../shared/types";
 // fold + metaKey: the #201 one-definition module (was a byte-identical
 // twin here, radar.ts, coverage_fleet.ts).
 import { fold, metaKey } from "./coverage-meta";
@@ -31,10 +27,7 @@ import { fold, metaKey } from "./coverage-meta";
  * @param inventories drive_id → DB track rows for that drive
  * @param minCopies redundancy floor; rows below it are flagged at_risk
  */
-export function coverage(
-  inventories: Map<string, TrackRow[]>,
-  minCopies = 2,
-): CoverageResult {
+export function coverage(inventories: Map<string, TrackRow[]>, minCopies = 2): CoverageResult {
   const drives = [...inventories.entries()]
     .filter(([, rows]) => rows.length > 0)
     .map(([id, rows]) => ({ id, tracks: rows.length }))
@@ -70,16 +63,10 @@ export function coverage(
     }
   }
 
-  const rows = [...byPath.values()].map((r) => ({
-    ...r,
-    at_risk: r.copies < minCopies,
-  }));
+  const rows = [...byPath.values()].map((r) => ({ ...r, at_risk: r.copies < minCopies }));
   const atRisk = rows
     .filter((r) => r.at_risk)
-    .toSorted(
-      (a, b) =>
-        a.copies - b.copies || a.identity.path.localeCompare(b.identity.path),
-    );
+    .toSorted((a, b) => a.copies - b.copies || a.identity.path.localeCompare(b.identity.path));
 
   return {
     drives,
@@ -111,10 +98,7 @@ export function trackLocations(
   const hit: {
     identity: { path: string; title: string | null; artist: string | null };
     drives: string[];
-  } = {
-    identity: { path: "", title: null, artist: null },
-    drives: [],
-  };
+  } = { identity: { path: "", title: null, artist: null }, drives: [] };
   const tryRow = (t: TrackRow, driveId: string, ok: boolean): void => {
     if (!ok) return;
     if (!hit.drives.includes(driveId)) hit.drives.push(driveId);

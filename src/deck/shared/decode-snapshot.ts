@@ -4,10 +4,7 @@
 import type { SnapshotData } from "./types";
 import { parseSnapshotJson } from "./badges";
 
-export function decodeSnapshot(
-  raw: string | null,
-  driveId: string,
-): SnapshotData | null {
+export function decodeSnapshot(raw: string | null, driveId: string): SnapshotData | null {
   const parsed = parseSnapshotJson(raw);
   if (parsed.corrupt) {
     console.error(`snapshot for drive ${driveId} is corrupt — skipping`);

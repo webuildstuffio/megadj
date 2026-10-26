@@ -203,8 +203,7 @@ export async function sweepArchive(
       path: rel,
       title: t.title,
       artist: t.artist,
-      verdict:
-        priorSize !== null && st.size < priorSize ? "truncated" : "changed",
+      verdict: priorSize !== null && st.size < priorSize ? "truncated" : "changed",
       detail:
         priorSize !== null && st.size < priorSize
           ? `shrank ${priorSize} → ${st.size} B (silent truncation)`
@@ -232,7 +231,9 @@ export async function sweepArchive(
 }
 
 /** Read the full track list for sweeping, from the archive DB (readonly). */
-export function tracksForSweep(reader: ArchiveReader): {
+export function tracksForSweep(
+  reader: ArchiveReader,
+): {
   file_path: string | null;
   title: string | null;
   artist: string | null;

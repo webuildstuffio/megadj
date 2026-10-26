@@ -21,8 +21,7 @@ const corpus = (n = 40): number[][] =>
   });
 
 /** Plain dot product (module scope — oxlint consistent-function-scoping). */
-const sim = (a: number[], b: number[]): number =>
-  a.reduce((acc, v, i) => acc + v * b[i]!, 0);
+const sim = (a: number[], b: number[]): number => a.reduce((acc, v, i) => acc + v * b[i]!, 0);
 
 describe("vector-space: all-but-the-top whitening + CSLS", () => {
   test("isSimilarSpace guards the shared space contract", () => {
@@ -70,8 +69,7 @@ describe("vector-space: all-but-the-top whitening + CSLS", () => {
     const X = corpus(10).map((v) => l2normalize(v));
     const pen = cslsPenalties(X);
     expect(pen).toEqual(cslsPenalties(X));
-    for (const p of pen)
-      expect(Math.round(p * 10000)).toBe(Math.round(p * 10000));
+    for (const p of pen) expect(Math.round(p * 10000)).toBe(Math.round(p * 10000));
     const q = cslsQueryPenalty(X[0]!, X.slice(1));
     expect(q).toBe(cslsQueryPenalty(X[0]!, X.slice(1)));
   });

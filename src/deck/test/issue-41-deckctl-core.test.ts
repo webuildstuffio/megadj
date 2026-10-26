@@ -15,9 +15,7 @@ function tsFiles(dir: string): string[] {
 
 function importsCore(file: string, coreFile: string): boolean {
   const source = readFileSync(file, "utf8");
-  const specifiers = source.matchAll(
-    /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)["']([^"']+)["']/g,
-  );
+  const specifiers = source.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)["']([^"']+)["']/g);
   return [...specifiers].some((match) => {
     const specifier = match[1];
     if (!specifier?.startsWith(".")) return false;

@@ -33,8 +33,7 @@ function makeFakeDrive(): string {
     ["Contents/Dance.MP3", 2 * 1024 * 1024],
     ["Contents/dance.mp3", 2 * 1024 * 1024], // case collision with Dance.MP3
   ];
-  for (const [f, size] of files)
-    writeFileSync(`${root}/${f}`, new Uint8Array(size));
+  for (const [f, size] of files) writeFileSync(`${root}/${f}`, new Uint8Array(size));
   return root;
 }
 
@@ -43,9 +42,7 @@ describe("scan", () => {
     const root = makeFakeDrive();
     const snap = await scanVolume(root);
     expect(snap.kind).toBe("light");
-    expect(snap.junk?.zero_byte).toContain(
-      "Contents/YTMusic Liked/002 - Artist - Other.m4a",
-    );
+    expect(snap.junk?.zero_byte).toContain("Contents/YTMusic Liked/002 - Artist - Other.m4a");
     expect(snap.junk?.orphan_resource_forks).toBe(1);
     // folder composition
     const yt = snap.folders?.find((f) => f.name === "YTMusic Liked");
@@ -57,10 +54,7 @@ describe("scan", () => {
     // /tmp is case-insensitive on this Mac, so the fixture can't hold both
     // spellings; test the grouping logic directly instead.
     const groups = new Map<string, string[]>([
-      [
-        nfcCasefold("Contents/Dance.MP3"),
-        ["Contents/Dance.MP3", "Contents/dance.mp3"],
-      ],
+      [nfcCasefold("Contents/Dance.MP3"), ["Contents/Dance.MP3", "Contents/dance.mp3"]],
       [nfcCasefold("Contents/only.mp3"), ["Contents/only.mp3"]],
     ]);
     const collisions = [...groups.values()].filter((p) => p.length > 1).flat();
@@ -212,9 +206,7 @@ describe("detect", () => {
     for (const payload of ["{}", '{"devices":{}}', '{"devices":[{}]}']) {
       expect(parseUsbTreeJson(payload), payload).toEqual([]);
     }
-    expect(
-      parseUsbTreeJson(JSON.stringify({ devices: [devices[2], {}] })),
-    ).toEqual([devices[2]!]);
+    expect(parseUsbTreeJson(JSON.stringify({ devices: [devices[2], {}] }))).toEqual([devices[2]!]);
   });
 });
 
@@ -223,45 +215,21 @@ describe("physical-media gate", () => {
   // image-backed = virtual whole disk / disk-image bus / root DeviceTreePath;
   // internal = inside the Mac; unknown-everything = fixtures (accepted).
   it("accepts physical external, rejects images and internal", () => {
+    expect(isPhysicalExternal({ virtual: false, busProtocol: "USB", internal: false })).toBe(true);
     expect(
-      isPhysicalExternal({
-        virtual: false,
-        busProtocol: "USB",
-        internal: false,
-      }),
+      isPhysicalExternal({ virtual: false, busProtocol: "Thunderbolt", internal: false }),
     ).toBe(true);
-    expect(
-      isPhysicalExternal({
-        virtual: false,
-        busProtocol: "Thunderbolt",
-        internal: false,
-      }),
-    ).toBe(true);
-    expect(
-      isPhysicalExternal({ virtual: null, busProtocol: null, internal: null }),
-    ).toBe(true); // fixture / probe-less
+    expect(isPhysicalExternal({ virtual: null, busProtocol: null, internal: null })).toBe(true); // fixture / probe-less
     // image-backed: any of the three measured signals is enough
-    expect(
-      isPhysicalExternal({
-        virtual: true,
-        busProtocol: "Disk Image",
-        internal: false,
-      }),
-    ).toBe(false);
-    expect(
-      isPhysicalExternal({ virtual: true, busProtocol: null, internal: null }),
-    ).toBe(false);
-    expect(
-      isPhysicalExternal({
-        virtual: null,
-        busProtocol: "Disk Image",
-        internal: null,
-      }),
-    ).toBe(false);
+    expect(isPhysicalExternal({ virtual: true, busProtocol: "Disk Image", internal: false })).toBe(
+      false,
+    );
+    expect(isPhysicalExternal({ virtual: true, busProtocol: null, internal: null })).toBe(false);
+    expect(isPhysicalExternal({ virtual: null, busProtocol: "Disk Image", internal: null })).toBe(
+      false,
+    );
     // internal: rejected even when every other field is unknown
-    expect(
-      isPhysicalExternal({ virtual: null, busProtocol: null, internal: true }),
-    ).toBe(false);
+    expect(isPhysicalExternal({ virtual: null, busProtocol: null, internal: true })).toBe(false);
   });
 
   it("end-to-end: a mounted image-backed volume is refused (real macOS probe)", async () => {

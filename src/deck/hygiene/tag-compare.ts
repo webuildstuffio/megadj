@@ -29,12 +29,9 @@ function readRekordboxMirror(
     };
     const bpmRaw = m["BPM"];
     const bpm =
-      typeof bpmRaw === "number" && Number.isFinite(bpmRaw) && bpmRaw > 0
-        ? bpmRaw / 100
-        : null;
+      typeof bpmRaw === "number" && Number.isFinite(bpmRaw) && bpmRaw > 0 ? bpmRaw / 100 : null;
     const yearRaw = s("ReleaseYear");
-    const year =
-      yearRaw && yearRaw !== "0" && /^\d{4}$/.test(yearRaw) ? yearRaw : null;
+    const year = yearRaw && yearRaw !== "0" && /^\d{4}$/.test(yearRaw) ? yearRaw : null;
     return {
       contentId: s("ID") ?? videoId,
       title: s("Title"),
@@ -90,8 +87,7 @@ function makeDifferFn(
       present.length < 2 ||
       present.every((v) =>
         typeof v === "string"
-          ? (present[0] as string).trim().toLowerCase() ===
-            (v as string).trim().toLowerCase()
+          ? (present[0] as string).trim().toLowerCase() === (v as string).trim().toLowerCase()
           : v === present[0],
       );
     if (!allSame)
@@ -131,35 +127,18 @@ interface CompareSources {
   rbRemixer: string | null;
 }
 
-const COMPARE_ROWS: readonly (readonly [
-  field: string,
-  get: (s: CompareSources) => CompareTrio,
-])[] = [
+const COMPARE_ROWS: readonly (readonly [field: string, get: (s: CompareSources) => CompareTrio])[] =
   [
-    "title",
-    (s) => [s.file?.title ?? null, s.t.title, s.rekordbox?.title ?? null],
-  ],
-  [
-    "artist",
-    (s) => [s.file?.artist ?? null, s.t.artist, s.rekordbox?.artist ?? null],
-  ],
-  [
-    "genre",
-    (s) => [s.file?.genre ?? null, s.t.genre, s.rekordbox?.genre ?? null],
-  ],
-  [
-    "key",
-    (s) => [s.file?.key ?? null, s.t.archive_key, s.rekordbox?.key ?? null],
-  ],
-  [
-    "bpm",
-    (s) => [s.file?.bpm ?? null, s.t.bpm_folded, s.rekordbox?.bpm ?? null],
-  ],
-  ["year", (s) => [s.file?.year ?? null, null, s.rekordbox?.year ?? null]],
-  ["label", (s) => [s.file?.label ?? null, null, s.rekordbox?.label ?? null]],
-  ["mix", (s) => [s.file?.mixName ?? null, null, null]],
-  ["remixer", (s) => [s.file?.remixer ?? null, null, s.rbRemixer]],
-];
+    ["title", (s) => [s.file?.title ?? null, s.t.title, s.rekordbox?.title ?? null]],
+    ["artist", (s) => [s.file?.artist ?? null, s.t.artist, s.rekordbox?.artist ?? null]],
+    ["genre", (s) => [s.file?.genre ?? null, s.t.genre, s.rekordbox?.genre ?? null]],
+    ["key", (s) => [s.file?.key ?? null, s.t.archive_key, s.rekordbox?.key ?? null]],
+    ["bpm", (s) => [s.file?.bpm ?? null, s.t.bpm_folded, s.rekordbox?.bpm ?? null]],
+    ["year", (s) => [s.file?.year ?? null, null, s.rekordbox?.year ?? null]],
+    ["label", (s) => [s.file?.label ?? null, null, s.rekordbox?.label ?? null]],
+    ["mix", (s) => [s.file?.mixName ?? null, null, null]],
+    ["remixer", (s) => [s.file?.remixer ?? null, null, s.rbRemixer]],
+  ];
 
 function compareFields(
   t: CompareSources["t"],
@@ -167,19 +146,14 @@ function compareFields(
   rekordbox: CompareSources["rekordbox"],
 ): [string, CompareTrio][] {
   const rbRemixer =
-    rekordbox === null
-      ? null
-      : ((rekordbox.metadata["RemixerName"] as string | null) ?? null);
+    rekordbox === null ? null : ((rekordbox.metadata["RemixerName"] as string | null) ?? null);
   const src: CompareSources = { t, file, rekordbox, rbRemixer };
   return COMPARE_ROWS.map(([field, get]) => [field, get(src)]);
 }
 
 /** Three-source read of ONE track. The file is read LIVE (ground truth:
  *  one ffprobe+mutagen read per request); mirrors come from the DBs. */
-export function trackTagCompare(
-  reader: ArchiveQuery,
-  videoId: string,
-): ArchiveTrackTagCompare {
+export function trackTagCompare(reader: ArchiveQuery, videoId: string): ArchiveTrackTagCompare {
   const base: ArchiveTrackTagCompare = {
     available: reader.available(),
     videoId,

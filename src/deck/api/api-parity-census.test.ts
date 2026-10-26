@@ -40,9 +40,7 @@ function serverRoutes(): Set<string> {
   // Slice tables in api_routes.ts: the register(...) calls name the
   // producers; each factory's return-table keys ARE the routes it serves.
   const apiRoutes = read("src/deck/api/routes.ts");
-  const sliceFactories = [
-    ...apiRoutes.matchAll(/register\((\w+)\(deps\)\)/g),
-  ].map((m) => m[1]);
+  const sliceFactories = [...apiRoutes.matchAll(/register\((\w+)\(deps\)\)/g)].map((m) => m[1]);
   expect(
     sliceFactories.length,
     "the api_routes slice registry changed — update this census's producer derivation",
@@ -52,8 +50,7 @@ function serverRoutes(): Set<string> {
     const returnAt = apiRoutes.indexOf("return {", start);
     const end = apiRoutes.indexOf("\n  };", returnAt);
     const block = apiRoutes.slice(returnAt, end);
-    for (const m of block.matchAll(/"\/([a-z0-9][a-z0-9/-]*)":/g))
-      if (m[1]) routes.add(`/${m[1]}`);
+    for (const m of block.matchAll(/"\/([a-z0-9][a-z0-9/-]*)":/g)) if (m[1]) routes.add(`/${m[1]}`);
   }
 
   // Dynamic families in api_dispatch.ts — the regexes/literals the
@@ -75,26 +72,20 @@ function serverRoutes(): Set<string> {
     routes.add("/drives/:id/notes/:id/dismiss");
 
   // archive family: the REAL handler keys (imported producer).
-  for (const key of Object.keys(archiveHandlers()))
-    routes.add(`/archive/${key}`);
+  for (const key of Object.keys(archiveHandlers())) routes.add(`/archive/${key}`);
 
   // fleet family: route === literals + the /fleet/ prefix fall-through.
   const fleet = read("src/deck/fleet/routes.ts");
-  for (const m of fleet.matchAll(/route === "(\/fleet\/[a-z]+)"/g))
-    if (m[1]) routes.add(m[1]);
-  if (apiRoutes.includes('route.startsWith("/fleet/")'))
-    routes.add("/fleet/prep");
+  for (const m of fleet.matchAll(/route === "(\/fleet\/[a-z]+)"/g)) if (m[1]) routes.add(m[1]);
+  if (apiRoutes.includes('route.startsWith("/fleet/")')) routes.add("/fleet/prep");
 
   // hygiene/fixes/grid-health delegator literals (kept literal form ON
   // PURPOSE — surface-parity's comment: switch labels would hide them).
-  for (const m of dispatch.matchAll(
-    /route === "(\/(?:hygiene|fixes|grid-health)[a-z/-]*)"/g,
-  ))
+  for (const m of dispatch.matchAll(/route === "(\/(?:hygiene|fixes|grid-health)[a-z/-]*)"/g))
     if (m[1]) routes.add(m[1]);
 
   // /images/search — the inline literal in the router closure.
-  if (apiRoutes.includes('route === "/images/search"'))
-    routes.add("/images/search");
+  if (apiRoutes.includes('route === "/images/search"')) routes.add("/images/search");
 
   return routes;
 }
@@ -114,9 +105,7 @@ function normalizeFamily(lit: string): string {
   // stripped; a `${...}` in segment position (`/jobs/${id}/cancel`) is a
   // path parameter — collapsed to :x.
   const noQuery = lit.split("?")[0] ?? lit;
-  return noQuery
-    .replace(/(?<!\/)\$\{[^}]*\}/g, "")
-    .replace(/\$\{[^}]*\}/g, ":x");
+  return noQuery.replace(/(?<!\/)\$\{[^}]*\}/g, "").replace(/\$\{[^}]*\}/g, ":x");
 }
 
 /** First string/template literal at/after `from` (prettier wraps the
@@ -176,16 +165,13 @@ function walkWebTargets(dir: string, out: ClientTarget[]): void {
       // Scaffold-mediated: useScanApply's readPath/actionPath props plus
       // the literal scan/apply kinds it POSTs — the composite targets a
       // call-literal scan cannot see (the #231 dead-endpoint class).
-      const scaffoldPaths = [
-        ...src.matchAll(/(?:readPath|actionPath): "([^"]+)"/g),
-      ]
+      const scaffoldPaths = [...src.matchAll(/(?:readPath|actionPath): "([^"]+)"/g)]
         .map((m) => m[1])
         .filter((p): p is string => Boolean(p));
       for (const p of scaffoldPaths) {
         out.push({ family: p, where: rel });
         if (/actionPath/.test(src))
-          for (const kind of ["scan", "apply"])
-            out.push({ family: `${p}/${kind}`, where: rel });
+          for (const kind of ["scan", "apply"]) out.push({ family: `${p}/${kind}`, where: rel });
       }
     }
   }
@@ -194,13 +180,11 @@ function walkWebTargets(dir: string, out: ClientTarget[]): void {
 /** deckctl/MCP client legs — the server's other consumers. Their targets
  *  must ALSO resolve: a deckctl-only route that 404s is the same bug. */
 function clientSourceFiles(dir: string): string[] {
-  return readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap(
-    (entry) => {
-      const rel = `${dir}/${entry.name}`;
-      if (entry.isDirectory()) return clientSourceFiles(rel);
-      return /\.(tsx|ts)$/.test(entry.name) ? [rel] : [];
-    },
-  );
+  return readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((entry) => {
+    const rel = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) return clientSourceFiles(rel);
+    return /\.(tsx|ts)$/.test(entry.name) ? [rel] : [];
+  });
 }
 
 function deckctlTargets(): ClientTarget[] {
@@ -224,12 +208,10 @@ function deckctlTargets(): ClientTarget[] {
     const src = read(rel);
     // helper-call shapes — the opening quote stays for firstLiteral
     // (longest names first so apiGetJson isn't cut at apiGet).
-    const callRe =
-      /\b(?:apiGetJsonT|apiGetJson|apiGet|apiPost|getJson)(?:<[^>]*>)?\s*\(/g;
+    const callRe = /\b(?:apiGetJsonT|apiGetJson|apiGet|apiPost|getJson)(?:<[^>]*>)?\s*\(/g;
     for (const m of src.matchAll(callRe)) {
       const lit = firstLiteral(src, (m.index ?? 0) + m[0].length);
-      if (lit?.includes("/api/"))
-        out.push({ family: normalizeFamily(lit), where: rel });
+      if (lit?.includes("/api/")) out.push({ family: normalizeFamily(lit), where: rel });
     }
     // enqueueAndFollow(h, "hygiene", sub) — the queue-leg family comes
     // from the CALL-SITE literal, not the helper's template (deckctl_hygiene
@@ -315,8 +297,7 @@ describe("api parity census (#249: the client↔server /api contract)", () => {
   test("every server route is client-reachable or allowlisted with a reason", () => {
     const problems: string[] = [];
     for (const route of server) {
-      if ([...clientFamilies].some((f) => familyMatchesRoute(f, route)))
-        continue;
+      if ([...clientFamilies].some((f) => familyMatchesRoute(f, route))) continue;
       if (SERVER_ONLY_ROUTES[route]) continue;
       problems.push(route);
     }
@@ -332,8 +313,6 @@ describe("api parity census (#249: the client↔server /api contract)", () => {
     const genreWhy = "/archive/genre-why";
     expect(server.has(genreWhy)).toBeTrue();
     const without = new Set([...server].filter((r) => r !== genreWhy));
-    expect(
-      [...without].some((r) => familyMatchesRoute("/api/archive/genre-why", r)),
-    ).toBeFalse();
+    expect([...without].some((r) => familyMatchesRoute("/api/archive/genre-why", r))).toBeFalse();
   });
 });

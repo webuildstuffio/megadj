@@ -23,14 +23,9 @@ export async function collectPlayers(
   const skipped: { drive: string; reason: string }[] = [];
   for (const d of drives) {
     try {
-      players.push(
-        await getJson<PlayersPayload>(`/api/drives/${d.id}/players`),
-      );
+      players.push(await getJson<PlayersPayload>(`/api/drives/${d.id}/players`));
     } catch (e) {
-      skipped.push({
-        drive: d.nickname ?? d.name,
-        reason: errorText(e),
-      });
+      skipped.push({ drive: d.nickname ?? d.name, reason: errorText(e) });
     }
   }
   return { players, skipped };

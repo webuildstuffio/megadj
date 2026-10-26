@@ -1,16 +1,7 @@
 // sessions.test.ts — M6 (#330): session storage + verb tests.
 import { describe, expect, test } from "bun:test";
-import {
-  createSession,
-  keepSteps,
-  sessionResultStable,
-  swapStep,
-} from "./sessions";
-import type {
-  MegasetQuality,
-  MegasetResult,
-  MegasetStep,
-} from "../shared/megaset";
+import { createSession, keepSteps, sessionResultStable, swapStep } from "./sessions";
+import type { MegasetQuality, MegasetResult, MegasetStep } from "../shared/megaset";
 
 const step = (over: Partial<MegasetStep> = {}): MegasetStep => ({
   videoId: "x",

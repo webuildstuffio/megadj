@@ -20,12 +20,7 @@ import {
   taskDoneEvent,
   type FetchTaskDoneEvent,
 } from "../../fulltags/fetch/fetch-events";
-import {
-  fetchFeedPush,
-  fetchFeedSince,
-  fetchFeedReset,
-  fetchFeedClear,
-} from "../tools/fetch-feed";
+import { fetchFeedPush, fetchFeedSince, fetchFeedReset, fetchFeedClear } from "../tools/fetch-feed";
 import { JOB_KINDS } from "../shared/types";
 
 describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
@@ -45,11 +40,7 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
         name: "Artist - Title",
         notes: ["genre:Techno ELECTED"],
         votes: [{ rung: "bp", genre: "Techno", weight: 0.6 }],
-        elected: {
-          genre: "Techno",
-          weight: 0.6,
-          winnerRungs: ["bp"],
-        },
+        elected: { genre: "Techno", weight: 0.6, winnerRungs: ["bp"] },
       };
       emitTaskDone(evt, true);
       emitFetchDone({ votesCast: 1 });
@@ -62,42 +53,32 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
       /^@fetch-start \{"total":10,"tasks":8,"jobs":6,"dry":false\}$/,
     );
     expect(lines[1]?.trim()).toMatch(/^@task-done \{.*"name":"Artist - Title"/);
-    expect(lines[2]?.trim()).toMatch(
-      /^@fetch-done \{"stats":\{"votesCast":1\}\}$/,
-    );
+    expect(lines[2]?.trim()).toMatch(/^@fetch-done \{"stats":\{"votesCast":1\}\}$/);
     // taskDoneEvent maps votes to the wire triple
     const mapped = taskDoneEvent({
       done: 2,
       total: 8,
       name: "x",
       notes: [],
-      votes: [
-        { rung: "sc", genre: "House", weight: 0.35, detail: "d" } as never,
-      ],
+      votes: [{ rung: "sc", genre: "House", weight: 0.35, detail: "d" } as never],
       elected: null,
     });
-    expect(mapped.votes).toEqual([
-      { rung: "sc", genre: "House", weight: 0.35 },
-    ]);
+    expect(mapped.votes).toEqual([{ rung: "sc", genre: "House", weight: 0.35 }]);
   });
 
   // ---- the parser side (cratedeck leg) ----
   test("parseFetchStart accepts the shape, refuses junk", () => {
-    expect(parseFetchStart({ total: 5, tasks: 4, jobs: 6, dry: true })).toEqual(
-      {
-        total: 5,
-        tasks: 4,
-        jobs: 6,
-        dry: true,
-      },
-    );
+    expect(parseFetchStart({ total: 5, tasks: 4, jobs: 6, dry: true })).toEqual({
+      total: 5,
+      tasks: 4,
+      jobs: 6,
+      dry: true,
+    });
     expect(parseFetchStart(null)).toBeNull();
     expect(parseFetchStart("x")).toBeNull();
     expect(parseFetchStart({ total: "5", tasks: 4, jobs: 6 })).toBeNull();
     expect(parseFetchStart({ total: 5, tasks: 4 })).toBeNull(); // missing jobs
-    expect(parseFetchStart({ total: 5, tasks: 4, jobs: 6 })).toMatchObject({
-      dry: false,
-    }); // dry defaults false
+    expect(parseFetchStart({ total: 5, tasks: 4, jobs: 6 })).toMatchObject({ dry: false }); // dry defaults false
   });
 
   test("parseFetchTask accepts the shape, refuses junk fields", () => {
@@ -106,20 +87,12 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
       total: 3,
       name: "A - B",
       notes: ["tags(genre)"],
-      votes: [
-        { rung: "bp", genre: "Techno", weight: 0.6 },
-        { rung: "junk", weight: "no" },
-        null,
-      ],
+      votes: [{ rung: "bp", genre: "Techno", weight: 0.6 }, { rung: "junk", weight: "no" }, null],
       elected: { genre: "Techno", weight: 0.6, winnerRungs: ["bp", 7] },
     });
     expect(good).not.toBeNull();
     expect(good!.votes).toEqual([{ rung: "bp", genre: "Techno", weight: 0.6 }]);
-    expect(good!.elected).toEqual({
-      genre: "Techno",
-      weight: 0.6,
-      winnerRungs: ["bp"],
-    });
+    expect(good!.elected).toEqual({ genre: "Techno", weight: 0.6, winnerRungs: ["bp"] });
     expect(parseFetchTask({ done: "x" })).toBeNull();
     expect(parseFetchTask([])).toBeNull();
     // elected junk → null election, not a crash
@@ -138,22 +111,11 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
   test("feed: push/since cursor arithmetic + reset", () => {
     fetchFeedClear();
     fetchFeedReset();
-    fetchFeedPush({
-      at: 1,
-      type: "start",
-      start: { total: 1, tasks: 1, jobs: 1, dry: false },
-    });
+    fetchFeedPush({ at: 1, type: "start", start: { total: 1, tasks: 1, jobs: 1, dry: false } });
     fetchFeedPush({
       at: 2,
       type: "task",
-      task: {
-        done: 1,
-        total: 1,
-        name: "n",
-        notes: [],
-        votes: [],
-        elected: null,
-      },
+      task: { done: 1, total: 1, name: "n", notes: [], votes: [], elected: null },
     });
     const all = fetchFeedSince(0);
     expect(all.entries).toHaveLength(2);
@@ -171,13 +133,7 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
   test("fetchArgs maps options to CLI flags", () => {
     expect(fetchArgs({})).toEqual(["fetch", "--json"]);
     expect(
-      fetchArgs({
-        all: true,
-        only: "genres",
-        aiFallback: true,
-        dryRun: true,
-        jobs: 4,
-      }),
+      fetchArgs({ all: true, only: "genres", aiFallback: true, dryRun: true, jobs: 4 }),
     ).toEqual([
       "fetch",
       "--json",
@@ -193,12 +149,8 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
   // ---- both sides stay tied to the job-kind SSOT ----
   test("the fetch job kind exists + both doc tables carry it", () => {
     expect(JOB_KINDS).toContain("fetch");
-    const { KIND_DOCS } = require("../deckctl/docs") as {
-      KIND_DOCS: Record<string, unknown>;
-    };
-    const { HELP_JOBS } = require("../shared/help") as {
-      HELP_JOBS: { kind: string }[];
-    };
+    const { KIND_DOCS } = require("../deckctl/docs") as { KIND_DOCS: Record<string, unknown> };
+    const { HELP_JOBS } = require("../shared/help") as { HELP_JOBS: { kind: string }[] };
     expect(KIND_DOCS.fetch).toBeDefined();
     expect(HELP_JOBS.some((j) => j.kind === "fetch")).toBeTrue();
   });

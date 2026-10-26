@@ -10,10 +10,7 @@
 // READ-ONLY, by construction and by promise: opened with `readonly: true` so
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
 import { similarTracks as similarTracksImpl } from "../megaset/similar";
-import {
-  genreWhy as genreWhyImpl,
-  type ArchiveGenreWhy,
-} from "../megaset/genre";
+import { genreWhy as genreWhyImpl, type ArchiveGenreWhy } from "../megaset/genre";
 import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
@@ -26,10 +23,7 @@ import {
 import { trackTagCompare as trackTagCompareImpl } from "../hygiene/tag-compare";
 import { gridCrossCheck as gridCrossCheckImpl } from "../report/grid";
 import { moodProfile as moodProfileImpl } from "../megaset/mood";
-import type {
-  ArchiveQuery,
-  ArchiveTrack,
-} from "../shared/types/archive-reader";
+import type { ArchiveQuery, ArchiveTrack } from "../shared/types/archive-reader";
 import type {
   ArchiveAnalysisCoverage,
   ArchiveCueStats,
@@ -89,10 +83,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   trackStats(videoId: string): ArchiveTrack | null {
     return (
       (
-        this.rows(
-          `SELECT ${TRACK_COLS} FROM tracks WHERE video_id = ?`,
-          videoId,
-        ) as ArchiveTrack[]
+        this.rows(`SELECT ${TRACK_COLS} FROM tracks WHERE video_id = ?`, videoId) as ArchiveTrack[]
       )[0] ?? null
     );
   }
@@ -140,21 +131,13 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
    * queries. GONE tracks surface first (they're the actionable ones).
    */
   skipCensus(limit = 12): ArchiveSkipCensus {
-    const empty = {
-      available: this.handle() !== null,
-      skipped: 0,
-      gone: 0,
-      buckets: [],
-    };
+    const empty = { available: this.handle() !== null, skipped: 0, gone: 0, buckets: [] };
     if (!this.handle()) return empty;
     // Totals come from dedicated COUNT queries — NEVER from summing the
     // bucket list, which is LIMIT-clamped (a 13th reason would silently
     // shrink the reported totals).
     const total = (kind: string): number =>
-      this.rows<{ n: number }>(
-        `SELECT COUNT(*) n FROM tracks WHERE status = ?`,
-        kind,
-      )[0]?.n ?? 0;
+      this.rows<{ n: number }>(`SELECT COUNT(*) n FROM tracks WHERE status = ?`, kind)[0]?.n ?? 0;
     const bucket = (kind: string): { reason: string; count: number }[] =>
       this.rows<{ reason: string; count: number }>(
         `SELECT COALESCE(NULLIF(TRIM(last_error), ''), 'unknown reason') reason,
@@ -173,10 +156,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
       gone,
       buckets: [
         ...bucket("gone").map((b) => ({ ...b, kind: "gone" })),
-        ...bucket("skipped_not_music").map((b) => ({
-          ...b,
-          kind: "skipped",
-        })),
+        ...bucket("skipped_not_music").map((b) => ({ ...b, kind: "skipped" })),
       ],
     };
   }
@@ -189,11 +169,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
    * describe the source's history), playable is the live half.
    */
   sourceCensus(): ArchiveSourceCensus {
-    const rows = this.rows<{
-      source: string;
-      tracks: number;
-      playable: number;
-    }>(
+    const rows = this.rows<{ source: string; tracks: number; playable: number }>(
       `SELECT COALESCE(NULLIF(TRIM(source), ''), 'unknown') source,
               COUNT(*) tracks,
               SUM(CASE WHEN status = 'downloaded' THEN 1 ELSE 0 END) playable
@@ -212,9 +188,8 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   analysisCoverage(): ArchiveAnalysisCoverage {
     const db = this.handle();
     const tracks = db
-      ? (this.rows<{ n: number }>(
-          `SELECT COUNT(*) n FROM tracks WHERE status = 'downloaded'`,
-        )[0]?.n ?? 0)
+      ? (this.rows<{ n: number }>(`SELECT COUNT(*) n FROM tracks WHERE status = 'downloaded'`)[0]
+          ?.n ?? 0)
       : 0;
     const ledger = (name: string): number | null => {
       const has = this.rows<{ name: string }>(
@@ -222,9 +197,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
         name,
       );
       if (!has.length) return null;
-      return (
-        this.rows<{ n: number }>(`SELECT COUNT(*) n FROM ${name}`)[0]?.n ?? 0
-      );
+      return this.rows<{ n: number }>(`SELECT COUNT(*) n FROM ${name}`)[0]?.n ?? 0;
     };
     // Enrichment stages (#260 UX): where the downloaded pool stands per
     // stage — unprocessed cohorts (no genre, not yet genre-voted, raw
@@ -321,10 +294,9 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
         sc_sets: [],
       };
     }
-    const countRows = this.rows<{
-      status: string;
-      n: number;
-    }>(`SELECT status, COUNT(*) n FROM tracks GROUP BY status`);
+    const countRows = this.rows<{ status: string; n: number }>(
+      `SELECT status, COUNT(*) n FROM tracks GROUP BY status`,
+    );
     const runs = this.rows<{
       started_at: string;
       finished_at: string | null;
@@ -368,12 +340,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
             if (typeof l !== "object" || l === null) return [];
             const rec = l as Record<string, unknown>;
             if (typeof rec.url !== "string") return [];
-            return [
-              {
-                kind: typeof rec.kind === "string" ? rec.kind : "link",
-                url: rec.url,
-              },
-            ];
+            return [{ kind: typeof rec.kind === "string" ? rec.kind : "link", url: rec.url }];
           });
       } catch (error) {
         // Corrupt source_links JSON must be visible, never a silent
@@ -397,11 +364,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     // `soundcloud:<slug>` label IS a set the user scraped; decompose its
     // rows by status so progress ("29 of 34 handled") is derivable from
     // the ledger, never hand-kept.
-    const setRows = this.rows<{
-      source: string;
-      status: string;
-      n: number;
-    }>(
+    const setRows = this.rows<{ source: string; status: string; n: number }>(
       `SELECT source, status, COUNT(*) n FROM tracks
        WHERE source LIKE 'soundcloud:%' GROUP BY source, status`,
     );
@@ -430,8 +393,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
       if (r.status === "downloaded") entry.downloaded += r.n;
       else if (r.status === "gone") entry.gone += r.n;
       else if (r.status === "link_surfaced") entry.surfaced += r.n;
-      else if (r.status === "pending" || r.status === "failed")
-        entry.pending += r.n;
+      else if (r.status === "pending" || r.status === "failed") entry.pending += r.n;
       setMap.set(slug, entry);
     }
     const sc_sets = [...setMap.values()].toSorted((a, b) => b.total - a.total);
@@ -587,10 +549,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     return genreWhyImpl(this, videoId);
   }
 
-  setCandidates(
-    limit?: number,
-    genre?: string | undefined,
-  ): ArchiveSetCandidates {
+  setCandidates(limit?: number, genre?: string | undefined): ArchiveSetCandidates {
     return setCandidatesImpl(this, limit, this.shelfContents, genre);
   }
 

@@ -50,12 +50,7 @@ describe("issue #33: process-crash recovery", () => {
       const dir = t.dir(); /* was cratedeck-event-cap- */
       const dbPath = join(dir, "db.sqlite");
       const db = new DB(dbPath);
-      db.upsertDrive({
-        id: DRIVE_ID,
-        volume_uuid: DRIVE_ID,
-        name: "CAP_TEST",
-        mounted: true,
-      });
+      db.upsertDrive({ id: DRIVE_ID, volume_uuid: DRIVE_ID, name: "CAP_TEST", mounted: true });
       for (let i = 0; i < 2_005; i++) db.event(DRIVE_ID, "scan", { i });
       expect(db.timeline(DRIVE_ID, 3_000)).toHaveLength(2_000);
       db.sqlite.close();

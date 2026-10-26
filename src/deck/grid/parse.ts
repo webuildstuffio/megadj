@@ -3,20 +3,9 @@
 // boundary: every field is checked, never trusted (the boundary-census
 // rule). Buckets are complete (all six) or the payload fails — a partial
 // census could silently read as healthy.
-import type {
-  GridBucket,
-  GridHealthPayload,
-  GridHealthRow,
-} from "../shared/grid-health";
+import type { GridBucket, GridHealthPayload, GridHealthRow } from "../shared/grid-health";
 
-const BUCKETS: GridBucket[] = [
-  "A-OK",
-  "SHIFT",
-  "PHASE",
-  "TEMPO",
-  "DRIFT",
-  "CHAOS",
-];
+const BUCKETS: GridBucket[] = ["A-OK", "SHIFT", "PHASE", "TEMPO", "DRIFT", "CHAOS"];
 
 const intOr = (v: unknown, fallback: number): number =>
   typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : fallback;
@@ -62,19 +51,15 @@ export function summarizeGridHealth(
     typeof s.buckets === "object" && s.buckets !== null
       ? (s.buckets as Record<string, unknown>)
       : null;
-  if (!rawBuckets)
-    throw new Error("rb-grid-triage summary has no buckets object");
-  const buckets = Object.fromEntries(
-    BUCKETS.map((b) => [b, intOr(rawBuckets[b], 0)]),
-  ) as Record<GridBucket, number>;
+  if (!rawBuckets) throw new Error("rb-grid-triage summary has no buckets object");
+  const buckets = Object.fromEntries(BUCKETS.map((b) => [b, intOr(rawBuckets[b], 0)])) as Record<
+    GridBucket,
+    number
+  >;
   const offendersRaw = Array.isArray(s.offenders) ? s.offenders : [];
-  const offenders = offendersRaw
-    .map(parseRow)
-    .filter((r): r is GridHealthRow => r !== null);
+  const offenders = offendersRaw.map(parseRow).filter((r): r is GridHealthRow => r !== null);
   const compareDrive =
-    typeof s.compareDrive === "string" && s.compareDrive !== ""
-      ? s.compareDrive
-      : null;
+    typeof s.compareDrive === "string" && s.compareDrive !== "" ? s.compareDrive : null;
   return {
     driveId,
     driveName,

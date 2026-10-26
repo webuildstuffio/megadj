@@ -12,13 +12,7 @@
 // also the import surface (images.ts, 19L, was a bare re-export barrel over
 // this file — merged per #221; import "./store.ts/image-store" directly).
 // File primitives (name/ext rules, capped reader) live in photo-files.ts.
-import {
-  readFileSync,
-  readdirSync,
-  realpathSync,
-  statSync,
-  type Dirent,
-} from "node:fs";
+import { readFileSync, readdirSync, realpathSync, statSync, type Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "../config";
@@ -80,9 +74,7 @@ export class ImageService {
     } catch {
       return [];
     }
-    return names
-      .filter((name) => PHOTO_BASENAME.test(name))
-      .map((name) => join(dir, name));
+    return names.filter((name) => PHOTO_BASENAME.test(name)).map((name) => join(dir, name));
   }
 
   private currentPhoto(dir: string): string | null {
@@ -187,10 +179,7 @@ export class ImageService {
     }
   }
 
-  private *dirFiles(
-    dir: string,
-    relPrefix: string,
-  ): Generator<{ abs: string; rel: string }> {
+  private *dirFiles(dir: string, relPrefix: string): Generator<{ abs: string; rel: string }> {
     let names: string[];
     try {
       names = readdirSync(dir);
@@ -206,11 +195,7 @@ export class ImageService {
     if (!this.cfg.imageProvider || !this.cfg.imageKey) {
       return { provider: "none", hits: [] };
     }
-    const hits = await searchProviders(
-      this.cfg.imageProvider,
-      this.cfg.imageKey,
-      q,
-    );
+    const hits = await searchProviders(this.cfg.imageProvider, this.cfg.imageKey, q);
     return { provider: this.cfg.imageProvider, hits };
   }
 
@@ -249,13 +234,7 @@ export class ImageService {
     await this.syncToDrive(driveId);
     this.db.setPhoto(driveId, dest);
     this.db.event(driveId, "photo-set", {
-      source: opts.url
-        ? "url"
-        : opts.data
-          ? "upload"
-          : opts.driveRel
-            ? "drive"
-            : "upload",
+      source: opts.url ? "url" : opts.data ? "upload" : opts.driveRel ? "drive" : "upload",
     });
     return dest;
   }
@@ -269,8 +248,7 @@ export class ImageService {
     const res = await fetch(sourceUrl, { signal: AbortSignal.timeout(30_000) });
     if (!res.ok) throw new Error(`download failed ${res.status}`);
     const buf = await readBoundedImageBody(res);
-    const ext =
-      extFromMime(res.headers.get("content-type") ?? "") ?? extOfPhotoPath(url);
+    const ext = extFromMime(res.headers.get("content-type") ?? "") ?? extOfPhotoPath(url);
     if (!ext) throw new Error("unsupported image type");
     const dest = join(dir, `photo${ext}`);
     await this.guard.write(dest, buf);
@@ -278,11 +256,7 @@ export class ImageService {
   }
 
   /** Stage a file that already exists on the mounted drive. */
-  private async stageFromDrive(
-    dir: string,
-    driveId: string,
-    driveRel: string,
-  ): Promise<string> {
+  private async stageFromDrive(dir: string, driveId: string, driveRel: string): Promise<string> {
     const drive = this.db.getDrive(driveId);
     if (!drive?.mounted) throw new Error("drive not mounted");
     const src = this.driveImageFile(drive.name, driveRel);
@@ -349,9 +323,7 @@ export class ImageService {
   /** The path to serve for /photos/:id — local first (works for ghosts),
    *  falling back to the stick copy when only that exists. */
   photoPath(driveId: string): string | null {
-    return (
-      this.localPhoto(driveId) ?? this.db.getDrive(driveId)?.photo_path ?? null
-    );
+    return this.localPhoto(driveId) ?? this.db.getDrive(driveId)?.photo_path ?? null;
   }
 
   /** Remove a drive's cover photo (both copies + DB pointer). */
@@ -391,10 +363,7 @@ export class ImageService {
   }
 
   /** Stage a local server-side file into the canonical dir. */
-  private async stageFromLocal(
-    dir: string,
-    localPath: string,
-  ): Promise<string> {
+  private async stageFromLocal(dir: string, localPath: string): Promise<string> {
     const ext = extOfPhotoPath(localPath);
     if (!ext) throw new Error("unsupported image type");
     const dest = join(dir, `photo${ext}`);

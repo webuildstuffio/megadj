@@ -27,10 +27,7 @@ import {
  *  scorer consumes PLUS the file fields the M3U8 export needs. The real
  *  ArchiveReader returns ArchiveSetCandidate rows (a structural
  *  superset) — tests stub exactly this shape. */
-export type CohortArmCandidate = SetCandidate & {
-  filePath: string | null;
-  metadataOnly: boolean;
-};
+export type CohortArmCandidate = SetCandidate & { filePath: string | null; metadataOnly: boolean };
 
 /** The census-row fields the M3U8 export needs (rev-52: the plan now
  *  carries its own path index — the route never re-censuses, and the
@@ -105,8 +102,7 @@ export interface CohortPlanInput {
 export function parseCohortFamilies(
   raw: string | null | undefined,
 ): { families: string[] } | { error: string } {
-  if (raw === null || raw === undefined)
-    return { families: [...MEGASET_COHORT_FAMILIES] };
+  if (raw === null || raw === undefined) return { families: [...MEGASET_COHORT_FAMILIES] };
   const requested = raw
     .split(",")
     .map((f) => f.trim().toLowerCase())
@@ -135,11 +131,7 @@ export function buildCohortArm(
     setCandidates: (
       limit?: number | undefined,
       genre?: string | undefined,
-    ) => {
-      candidates: CohortArmCandidate[];
-      genreFiltered: number;
-      total: number;
-    };
+    ) => { candidates: CohortArmCandidate[]; genreFiltered: number; total: number };
   },
   family: string,
   presetId: "warmup" | "peak",
@@ -156,11 +148,7 @@ export function buildCohortArm(
   if (presetDef === undefined) {
     throw new Error(`cohort arm preset "${presetId}" is not in the registry`);
   }
-  const built = buildMegaset({
-    candidates: census.candidates,
-    preset: presetDef,
-    minutes,
-  });
+  const built = buildMegaset({ candidates: census.candidates, preset: presetDef, minutes });
   return {
     preset: presetId,
     actualMinutes: built.actualMinutes,
@@ -202,20 +190,8 @@ export function buildCohortPlan(
   const cohorts: CohortResult[] = [];
   let allComplete = true;
   for (const family of families) {
-    const warmup = buildCohortArm(
-      archive,
-      family,
-      "warmup",
-      input.minutes,
-      input.limit,
-    );
-    const peak = buildCohortArm(
-      archive,
-      family,
-      "peak",
-      input.minutes,
-      input.limit,
-    );
+    const warmup = buildCohortArm(archive, family, "warmup", input.minutes, input.limit);
+    const peak = buildCohortArm(archive, family, "peak", input.minutes, input.limit);
     if (!warmup.complete || !peak.complete) allComplete = false;
     cohorts.push({ family, warmup, peak });
   }

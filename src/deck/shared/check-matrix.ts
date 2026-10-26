@@ -63,10 +63,7 @@ export function driveTier(role: DriveRole | string | undefined): DriveTier {
 
 /** Does this check apply to a drive with this role? The only question any
  *  check surface should ask. */
-export function checkApplies(
-  id: CheckId,
-  role: DriveRole | string | undefined,
-): boolean {
+export function checkApplies(id: CheckId, role: DriveRole | string | undefined): boolean {
   return CHECK_APPLIES[id][driveTier(role)];
 }
 
@@ -74,9 +71,7 @@ export function checkApplies(
  *  the drive page to explain the drive's verdict in product language. */
 export function omittedChecks(role: DriveRole | string | undefined): CheckId[] {
   const tier = driveTier(role);
-  return (Object.keys(CHECK_APPLIES) as CheckId[]).filter(
-    (id) => !CHECK_APPLIES[id][tier],
-  );
+  return (Object.keys(CHECK_APPLIES) as CheckId[]).filter((id) => !CHECK_APPLIES[id][tier]);
 }
 
 /** Product-language one-liner: why those checks don't apply. Surfaced on

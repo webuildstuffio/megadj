@@ -29,11 +29,7 @@ interface MirrorRow {
   first_seen_at: string | null;
 }
 
-function mirror(
-  videoId: string,
-  filePath: string,
-  over: Partial<MirrorRow> = {},
-): MirrorRow {
+function mirror(videoId: string, filePath: string, over: Partial<MirrorRow> = {}): MirrorRow {
   return {
     video_id: videoId,
     file_path: filePath,
@@ -55,9 +51,7 @@ function driveResult(
   snapTakenAt: number | undefined,
 ): RadarResult {
   const snapshotAt =
-    snapTakenAt && Number.isFinite(snapTakenAt)
-      ? new Date(snapTakenAt).toISOString()
-      : null;
+    snapTakenAt && Number.isFinite(snapTakenAt) ? new Date(snapTakenAt).toISOString() : null;
   if (rows === null) {
     return {
       driveId,
@@ -74,16 +68,15 @@ function driveResult(
       role: null,
     };
   }
-  const archive: (RadarSource & {
-    videoId: string;
-    firstSeenAt: string | null;
-  })[] = rows.map((r) => ({
-    path: r.file_path,
-    title: r.title,
-    artist: r.artist,
-    videoId: r.video_id,
-    firstSeenAt: r.first_seen_at,
-  }));
+  const archive: (RadarSource & { videoId: string; firstSeenAt: string | null })[] = rows.map(
+    (r) => ({
+      path: r.file_path,
+      title: r.title,
+      artist: r.artist,
+      videoId: r.video_id,
+      firstSeenAt: r.first_seen_at,
+    }),
+  );
   const driveRows: RadarSource[] = inv.map((row) => ({
     path: row.path,
     title: row.title,
@@ -149,13 +142,7 @@ describe("fleet radar route assembly (#148)", () => {
     db.upsertDrive({ id: A, volume_uuid: A, name: "Stick A", mounted: true });
     // no setSnapshot → no fleet rows, no taken_at
     const inv = db.fleetInventories([A]).get(A) ?? [];
-    const r = driveResult(
-      A,
-      "Stick A",
-      [mirror("v1", "/m/Contents/a.mp3")],
-      inv,
-      undefined,
-    );
+    const r = driveResult(A, "Stick A", [mirror("v1", "/m/Contents/a.mp3")], inv, undefined);
     expect(r.snapshotAt).toBeNull();
     // The raw delta is still the truth (the archive track is not on the
     // drive's — empty — inventory), but snapshotAt=null is the freshness
@@ -168,11 +155,7 @@ describe("fleet radar route assembly (#148)", () => {
     // landed, so the route sees an empty inventory over a RECENT snapshot.
     // That combination must read "unknown" — the pre-fix live probe showed
     // it reading as missing=3664 on six real drives.
-    const lightSnap: SnapshotData = {
-      kind: "light",
-      taken_at: Date.now(),
-      file_count: 12,
-    };
+    const lightSnap: SnapshotData = { kind: "light", taken_at: Date.now(), file_count: 12 };
     const light = (() => {
       const snapshotAt = new Date(lightSnap.taken_at).toISOString();
       const inventoryAvailable = (lightSnap.kind ?? "full") === "full" || false;
@@ -185,8 +168,7 @@ describe("fleet radar route assembly (#148)", () => {
             driveTracks: 0,
             missingCount: 0,
             missing: [],
-            summary:
-              "light scan only — no track inventory; run a full scan for the radar delta",
+            summary: "light scan only — no track inventory; run a full scan for the radar delta",
             snapshotAt,
             archiveAvailable: true,
             inventoryAvailable: false,

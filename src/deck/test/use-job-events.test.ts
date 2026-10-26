@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  createErrorThrottle,
-  createJobRefreshCoalescer,
-} from "../web/app/jobEvents";
+import { createErrorThrottle, createJobRefreshCoalescer } from "../web/app/jobEvents";
 
 describe("useJobEvents timing primitives", () => {
   test("coalesces a burst into one trailing job refresh", async () => {

@@ -46,12 +46,7 @@ function input(over: Partial<WeeklyPrepInput> = {}): WeeklyPrepInput {
   return {
     preflight: preflight(),
     redundancy: { playlists: [] },
-    ingest: {
-      available: false,
-      counts: {},
-      total: 0,
-      recent_tracks: [],
-    },
+    ingest: { available: false, counts: {}, total: 0, recent_tracks: [] },
     lowq: { available: false, tracks: [] },
     ...over,
   };
@@ -61,11 +56,7 @@ describe("weekly prep digest (O83)", () => {
   it("clean fleet renders a one-line all-clear", () => {
     const md = renderWeeklyPrep(
       input({
-        preflight: preflight({
-          overall: "ready",
-          summary: "2 ready",
-          mountedCount: 2,
-        }),
+        preflight: preflight({ overall: "ready", summary: "2 ready", mountedCount: 2 }),
         redundancy: { playlists: [] },
       }),
     );
@@ -136,11 +127,7 @@ describe("weekly prep digest (O83)", () => {
           counts: { downloaded: 40, failed: 2 },
           total: 50,
           recent_tracks: [
-            {
-              title: "Awakening",
-              artist: "Amelie Lens",
-              updated_at: "2026-09-05T01:00:00Z",
-            },
+            { title: "Awakening", artist: "Amelie Lens", updated_at: "2026-09-05T01:00:00Z" },
           ],
         },
       }),

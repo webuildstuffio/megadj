@@ -71,13 +71,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     // Not exhaustive — the census is the map itself. These anchor names
     // keep the map from ever going silently empty (a broken import or a
     // refactor that returns {} would pass every other assertion below).
-    for (const anchor of [
-      "search",
-      "similar",
-      "megaset",
-      "genre-why",
-      "sweep",
-    ]) {
+    for (const anchor of ["search", "similar", "megaset", "genre-why", "sweep"]) {
       expect(routes).toContain(anchor);
     }
   });
@@ -117,9 +111,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
       // Hermetic allowlist: intakeCandidateDirs(cfg) lists the watch dir
       // (HOME-independent: MEGADJ_INTAKE_WATCH override) + cfg.musicDir's
       // children. This fixture seeds one existing batch dir to post.
-      cfg: {
-        musicDir: archiveFixture.musicDir,
-      } as CrateConfig,
+      cfg: { musicDir: archiveFixture.musicDir } as CrateConfig,
       jobs: {
         enqueue: (driveId: string, kind: "ingest", mountPoint: string) => {
           enqueued.push({ drive: driveId, kind, mount: mountPoint });
@@ -146,11 +138,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     // The ingest is a JOB (progress/cancel/SSE — the Intake tab's engine),
     // never a blocking CLI spawn inside the request (Sep 19 UX pass).
     expect(enqueued).toEqual([
-      {
-        drive: "local-archive",
-        kind: "ingest",
-        mount: archiveFixture.batchDir,
-      },
+      { drive: "local-archive", kind: "ingest", mount: archiveFixture.batchDir },
     ]);
     const body = (await res?.json()) as { jobId?: string };
     expect(body.jobId).toBe("job-1234");
@@ -162,10 +150,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
     const calls: string[][] = [];
     const req = new Request("http://localhost/api/archive/surfaced-batch", {
       method: "POST",
-      body: JSON.stringify({
-        folder: archiveFixture.batchDir,
-        ids: ["track-1"],
-      }),
+      body: JSON.stringify({ folder: archiveFixture.batchDir, ids: ["track-1"] }),
       headers: { "content-type": "application/json" },
     });
     const res = await archiveRoutes(
@@ -194,10 +179,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
       },
       new Request("http://localhost/api/archive/surfaced-batch", {
         method: "POST",
-        body: JSON.stringify({
-          folder: archiveFixture.batchDir,
-          ids: ["bad"],
-        }),
+        body: JSON.stringify({ folder: archiveFixture.batchDir, ids: ["bad"] }),
         headers: { "content-type": "application/json" },
       }),
     );
@@ -229,10 +211,7 @@ describe("archive dispatch census (route list = handler map keys)", () => {
         method: "POST",
         // absolute, well-formed, NOT on the allowlist — exactly the
         // crafted-path shape the gate exists to refuse (Sep 20 parity fix)
-        body: JSON.stringify({
-          folder: "/etc",
-          ids: ["track-1"],
-        }),
+        body: JSON.stringify({ folder: "/etc", ids: ["track-1"] }),
         headers: { "content-type": "application/json" },
       }),
     );

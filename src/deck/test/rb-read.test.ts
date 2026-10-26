@@ -57,11 +57,7 @@ afterAll(() => {
 function runPython(
   code: string,
   extraArgs: string[] = [],
-): {
-  ok: boolean;
-  stdout: string;
-  stderr: string;
-} {
+): { ok: boolean; stdout: string; stderr: string } {
   // usb_verify.py imports pyrekordbox at module level (matching rb.ts's
   // production invocation), so the git-sourced package is always included.
   const withArgs = ["--with", PYREKORDBOX_PIN, ...extraArgs];
@@ -98,10 +94,7 @@ b = compute_anlz_folder("Contents/PIONEER/Tracks/track.mp3")
 print(json.dumps([a, b]))`,
     );
     expect(r.ok).toBe(true);
-    const [a, b] = JSON.parse(r.stdout.trim()) as [
-      [number, number],
-      [number, number],
-    ];
+    const [a, b] = JSON.parse(r.stdout.trim()) as [[number, number], [number, number]];
     expect(a).toEqual(b);
     // device prefix is derived from hr's bit pattern — must be < 4096 (PXXX)
     expect(a[0]).toBeLessThan(0x1000);
@@ -115,9 +108,7 @@ paths = ["Contents/a.mp3", "Contents/b.mp3", "Contents/c.mp3", "Contents/d.mp3",
 print(json.dumps([compute_anlz_folder(p) for p in paths]))`,
     );
     expect(r.ok).toBe(true);
-    const hrs = (JSON.parse(r.stdout.trim()) as [number, number][]).map(
-      ([, hr]) => hr,
-    );
+    const hrs = (JSON.parse(r.stdout.trim()) as [number, number][]).map(([, hr]) => hr);
     expect(new Set(hrs).size).toBeGreaterThan(1);
   });
 
@@ -153,10 +144,7 @@ free = next_free_suffix(0x12A, 0x1BEEF, occupied)
 print(json.dumps({"free": free, "key": folder_key(0x12A, free)}))`,
     );
     expect(r.ok).toBe(true);
-    const { free, key } = JSON.parse(r.stdout.trim()) as {
-      free: number;
-      key: string;
-    };
+    const { free, key } = JSON.parse(r.stdout.trim()) as { free: number; key: string };
     expect(free).toBe(0x1bef1);
     expect(key).toBe("P12A/0001BEF1");
   });
@@ -244,11 +232,7 @@ nfc = unicodedata.normalize("NFC", "Café Remix")
 print(json.dumps([casefold(nfd), casefold(nfc), casefold(nfd) == casefold(nfc)]))`,
     );
     expect(r.ok).toBe(true);
-    const [foldedNfd, foldedNfc, equal] = JSON.parse(r.stdout.trim()) as [
-      string,
-      string,
-      boolean,
-    ];
+    const [foldedNfd, foldedNfc, equal] = JSON.parse(r.stdout.trim()) as [string, string, boolean];
     expect(foldedNfd).toBe(foldedNfc);
     expect(equal).toBe(true);
     expect(foldedNfd).toBe("café remix");
@@ -269,14 +253,7 @@ describe("rb_read.main (CLI contract)", () => {
     // devicelib_plus (ModuleNotFoundError mid-snapshot, Sep 19/20). The
     // unpinned variant here made this test a false-green for the trap.
     const p = Bun.spawnSync({
-      cmd: [
-        "uv",
-        "run",
-        "--with",
-        PYREKORDBOX_PIN,
-        "python",
-        join(PY_DIR, "rb_read.py"),
-      ],
+      cmd: ["uv", "run", "--with", PYREKORDBOX_PIN, "python", join(PY_DIR, "rb_read.py")],
       stdout: "pipe",
       stderr: "pipe",
       cwd: TMP,
@@ -285,9 +262,7 @@ describe("rb_read.main (CLI contract)", () => {
       return; // skip gracefully
     }
     expect(p.exitCode).toBe(1);
-    const out = JSON.parse(
-      new TextDecoder().decode(p.stdout).trim(),
-    ) as RbReadError;
+    const out = JSON.parse(new TextDecoder().decode(p.stdout).trim()) as RbReadError;
     expect(out.ok).toBe(false);
     expect(out.error).toContain("usage");
   }, 60_000);
@@ -313,9 +288,7 @@ describe("rb_read.main (CLI contract)", () => {
       stderr: "pipe",
       cwd: TMP,
     });
-    const out = JSON.parse(
-      new TextDecoder().decode(p.stdout).trim(),
-    ) as RbReadError;
+    const out = JSON.parse(new TextDecoder().decode(p.stdout).trim()) as RbReadError;
     expect(out.ok).toBe(false);
     expect(typeof out.error).toBe("string");
     expect(out.error.length).toBeGreaterThan(0);

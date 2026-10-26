@@ -20,10 +20,7 @@ export interface SearchPrintHooks {
 }
 
 /** `deckctl search <query>` — playlists + folders across every snapshot. */
-export async function cmdSearch(
-  h: SearchPrintHooks,
-  query: string,
-): Promise<void> {
+export async function cmdSearch(h: SearchPrintHooks, query: string): Promise<void> {
   const q = query.trim();
   if (!q) {
     h.errOut("usage: deckctl search <query>");
@@ -43,7 +40,6 @@ export async function cmdSearch(
     h.log(
       `${hit.drive_name}${hit.mounted ? "" : " (unmounted)"} — ${hit.matches.length} match${hit.matches.length === 1 ? "" : "es"}`,
     );
-    for (const m of hit.matches)
-      h.log(`  [${m.type}] ${m.name} (${m.entries ?? 0} entries)`);
+    for (const m of hit.matches) h.log(`  [${m.type}] ${m.name} (${m.entries ?? 0} entries)`);
   }
 }

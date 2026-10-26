@@ -63,10 +63,7 @@ export const TERMINAL_JOB_STATUSES = [
 ] as const satisfies readonly JobStatus[];
 
 /** Live (non-terminal, non-blocked) statuses. */
-export const ACTIVE_JOB_STATUSES = [
-  "queued",
-  "running",
-] as const satisfies readonly JobStatus[];
+export const ACTIVE_JOB_STATUSES = ["queued", "running"] as const satisfies readonly JobStatus[];
 
 /** Client-side stamp: when THIS browser last received the row from a jobs
  *  fetch. The server never sends it — the web client attaches it after
@@ -140,11 +137,7 @@ export interface FetchTaskWire {
   name: string;
   notes: string[];
   votes: FetchVoteWire[];
-  elected: {
-    genre: string;
-    weight: number;
-    winnerRungs: string[];
-  } | null;
+  elected: { genre: string; weight: number; winnerRungs: string[] } | null;
 }
 
 /** The run's scope header (@fetch-start). */

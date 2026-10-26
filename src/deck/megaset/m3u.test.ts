@@ -76,10 +76,7 @@ describe("parseFormatParam (rev-52 format gate)", () => {
 describe("m3uSetLines (the single-set contract, seam-moved byte-for-byte)", () => {
   test("renders EXTINF + path; strips control characters from metadata", () => {
     const index = m3uCandidateIndex([candidate]);
-    const render = m3uSetLines(
-      [step({ title: "Track\nOne", artist: "Artist\x1b[A" })],
-      index,
-    );
+    const render = m3uSetLines([step({ title: "Track\nOne", artist: "Artist\x1b[A" })], index);
     // control chars (ESC, newline) collapse to spaces — a playlist line
     // can never be split or turned into a directive by track metadata
     expect(render.lines).toEqual([
@@ -95,10 +92,7 @@ describe("m3uSetLines (the single-set contract, seam-moved byte-for-byte)", () =
       { videoId: "gone", filePath: null, durationS: 10, metadataOnly: true },
       candidate,
     ]);
-    const render = m3uSetLines(
-      [step({ videoId: "gone" }), step({ videoId: "t1" })],
-      index,
-    );
+    const render = m3uSetLines([step({ videoId: "gone" }), step({ videoId: "t1" })], index);
     expect(render.lines).toHaveLength(3);
     expect(render.skippedMetadataOnly).toBe(1);
     expect(m3uSkipNote(2, 1)).toBe(
@@ -109,17 +103,10 @@ describe("m3uSetLines (the single-set contract, seam-moved byte-for-byte)", () =
   test("#106 handoff windows render as EXTREM comments", () => {
     const index = m3uCandidateIndex([candidate]);
     const render = m3uSetLines(
-      [
-        step({
-          mixInCue: { bar: 25, position: 45.1 },
-          mixOutCue: { bar: 57, position: 106.9 },
-        }),
-      ],
+      [step({ mixInCue: { bar: 25, position: 45.1 }, mixOutCue: { bar: 57, position: 106.9 } })],
       index,
     );
-    expect(render.lines[2]).toBe(
-      "#EXTREM:mix-in @ 45s (bar 25) · mix-out @ 107s (bar 57)",
-    );
+    expect(render.lines[2]).toBe("#EXTREM:mix-in @ 45s (bar 25) · mix-out @ 107s (bar 57)");
   });
 });
 
@@ -157,11 +144,7 @@ const plan: CohortPlan = {
     },
     {
       family: "techno",
-      warmup: arm({
-        preset: "warmup",
-        complete: false,
-        shortfallMinutes: 26,
-      }),
+      warmup: arm({ preset: "warmup", complete: false, shortfallMinutes: 26 }),
       peak: arm({ preset: "peak", complete: false, shortfallMinutes: 26 }),
     },
   ],
@@ -180,31 +163,20 @@ describe("m3uCohortSessionLines (the WHOLE session as ONE playlist)", () => {
     // section headers carry family + preset + honesty flag
     expect(render.lines).toContain("# --- edm · warmup (30m) ---");
     expect(render.lines).toContain("# --- edm · peak (30m) ---");
-    expect(render.lines).toContain(
-      "# --- techno · warmup (30m, SHORT 26m) ---",
-    );
+    expect(render.lines).toContain("# --- techno · warmup (30m, SHORT 26m) ---");
     // every arm's track rendered (4 arms × 1 step)
-    expect(
-      render.lines.filter((l) => l.endsWith("Track One.aiff")),
-    ).toHaveLength(4);
+    expect(render.lines.filter((l) => l.endsWith("Track One.aiff"))).toHaveLength(4);
     // family order preserved (warmup before peak, edm before techno)
     const positions = render.lines.map((l, i) => [l, i] as const);
     const edmWarmup = positions.find(([l]) => l.includes("edm · warmup"))![1];
     const edmPeak = positions.find(([l]) => l.includes("edm · peak"))![1];
-    const technoWarmup = positions.find(([l]) =>
-      l.includes("techno · warmup"),
-    )![1];
+    const technoWarmup = positions.find(([l]) => l.includes("techno · warmup"))![1];
     expect(edmWarmup).toBeLessThan(edmPeak);
     expect(edmPeak).toBeLessThan(technoWarmup);
   });
 
   test("the skip note counts across ALL arms", () => {
-    const gone = {
-      videoId: "gone",
-      filePath: null,
-      durationS: 10,
-      metadataOnly: true,
-    };
+    const gone = { videoId: "gone", filePath: null, durationS: 10, metadataOnly: true };
     const shortPlan: CohortPlan = {
       ...plan,
       cohorts: [
@@ -230,11 +202,9 @@ describe("m3uCohortSessionLines (the WHOLE session as ONE playlist)", () => {
       ["gone", gone],
     ]);
     const render = m3uCohortSessionLines(shortPlan, index);
-    expect(
-      render.lines.some((l) =>
-        l.includes("# megadj: 2 of 4 proposal tracks skipped"),
-      ),
-    ).toBe(true);
+    expect(render.lines.some((l) => l.includes("# megadj: 2 of 4 proposal tracks skipped"))).toBe(
+      true,
+    );
   });
 });
 

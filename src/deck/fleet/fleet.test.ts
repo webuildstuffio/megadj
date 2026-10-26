@@ -23,19 +23,10 @@ const B = "drive-b";
 /** Manifest row synth for diff byte-compare tests. Module-level —
  *  captures nothing from the enclosing test. */
 function man(drive: string, path: string, bytes: number): ManifestRow {
-  return {
-    drive_id: drive,
-    path,
-    bytes,
-    mtime_ms: 1,
-  };
+  return { drive_id: drive, path, bytes, mtime_ms: 1 };
 }
 
-function tr(
-  drive: string,
-  path: string,
-  over: Partial<TrackRow> = {},
-): TrackRow {
+function tr(drive: string, path: string, over: Partial<TrackRow> = {}): TrackRow {
   return {
     drive_id: drive,
     path,
@@ -51,19 +42,14 @@ function tr(
 
 function inv(...rows: TrackRow[]): Map<string, TrackRow[]> {
   const m = new Map<string, TrackRow[]>();
-  for (const r of rows)
-    (m.get(r.drive_id) ?? m.set(r.drive_id, []).get(r.drive_id)!).push(r);
+  for (const r of rows) (m.get(r.drive_id) ?? m.set(r.drive_id, []).get(r.drive_id)!).push(r);
   return m;
 }
 
 describe("coverage", () => {
   it("counts copies per unique track across drives", () => {
     const r = coverage(
-      inv(
-        tr(A, "house/one.mp3"),
-        tr(A, "house/two.mp3"),
-        tr(B, "house/one.mp3"),
-      ),
+      inv(tr(A, "house/one.mp3"), tr(A, "house/two.mp3"), tr(B, "house/one.mp3")),
       2,
     );
     expect(r.drives.map((d) => d.id)).toEqual([A, B]);
@@ -177,9 +163,7 @@ describe("redundancy", () => {
     );
     const r = redundancy(rich, entries, 2);
     expect(r.overall).toBe("pass");
-    expect(r.playlists.find((p) => p.playlist === "Party")!.verdict).toBe(
-      "pass",
-    );
+    expect(r.playlists.find((p) => p.playlist === "Party")!.verdict).toBe("pass");
   });
 
   it("unioned entries include tracks whose rows exist on any drive", () => {
@@ -341,10 +325,7 @@ describe("db fleet tables", () => {
     // identical content is skipped by setSnapshot, so force a real change
     db.setSnapshot(
       A,
-      snapWith({
-        taken_at: Date.now() + 2,
-        tracks: snapWith().tracks!.slice(0, 1),
-      }),
+      snapWith({ taken_at: Date.now() + 2, tracks: snapWith().tracks!.slice(0, 1) }),
     );
     expect(db.fleetInventories().get(A)!.length).toBe(1);
   });
@@ -353,13 +334,7 @@ describe("db fleet tables", () => {
     db.upsertDrive({ id: A, volume_uuid: A, name: "X", mounted: true });
     db.upsertDrive({ id: B, volume_uuid: B, name: "Y", mounted: true });
     db.setSnapshot(A, snapWith());
-    db.setSnapshot(
-      B,
-      snapWith({
-        taken_at: Date.now() + 5,
-        tracks: [snapWith().tracks![0]!],
-      }),
-    );
+    db.setSnapshot(B, snapWith({ taken_at: Date.now() + 5, tracks: [snapWith().tracks![0]!] }));
     const cov = coverage(db.fleetInventories(), 2);
     expect(cov.totals.unique_tracks).toBe(2);
     expect(cov.at_risk.map((r) => r.identity.path)).toEqual(["house/two.mp3"]);

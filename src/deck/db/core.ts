@@ -91,18 +91,14 @@ export class DBCore {
       .query<{ name: string }, []>("PRAGMA table_info(jobs)")
       .all()
       .map((c) => c.name);
-    if (!cols.includes("message"))
-      this.sqlite.exec("ALTER TABLE jobs ADD COLUMN message TEXT");
-    if (!cols.includes("phase"))
-      this.sqlite.exec("ALTER TABLE jobs ADD COLUMN phase TEXT");
+    if (!cols.includes("message")) this.sqlite.exec("ALTER TABLE jobs ADD COLUMN message TEXT");
+    if (!cols.includes("phase")) this.sqlite.exec("ALTER TABLE jobs ADD COLUMN phase TEXT");
     if (!cols.includes("eta_seconds"))
       this.sqlite.exec("ALTER TABLE jobs ADD COLUMN eta_seconds REAL");
     if (!this.columnNames("drives").includes("verify_report_json"))
       this.sqlite.exec("ALTER TABLE drives ADD COLUMN verify_report_json TEXT");
     if (!this.columnNames("jobs").includes("origin"))
-      this.sqlite.exec(
-        "ALTER TABLE jobs ADD COLUMN origin TEXT NOT NULL DEFAULT 'web'",
-      );
+      this.sqlite.exec("ALTER TABLE jobs ADD COLUMN origin TEXT NOT NULL DEFAULT 'web'");
     this.driveStore.pruneAll();
     if (!this.columnNames("drives").includes("link_bps"))
       this.sqlite.exec("ALTER TABLE drives ADD COLUMN link_bps INTEGER");
@@ -110,10 +106,7 @@ export class DBCore {
     const version = this.sqlite
       .query<{ value: string }, []>("SELECT value FROM meta WHERE key='schema'")
       .get();
-    if (!version)
-      this.sqlite
-        .query("INSERT INTO meta (key, value) VALUES ('schema', '2')")
-        .run();
+    if (!version) this.sqlite.query("INSERT INTO meta (key, value) VALUES ('schema', '2')").run();
   }
 
   private columnNames(table: "drives" | "jobs"): string[] {

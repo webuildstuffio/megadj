@@ -9,14 +9,7 @@
 // mcp/read-tools.ts; mcp.ts owns assembly.
 
 import { str, num, RpcParamError, obj, s, sEnum, sArr, n, b } from "./params";
-import {
-  apiGetJson,
-  apiPost,
-  PORT,
-  waitForJob,
-  type Job,
-  dismissNote,
-} from "../deckapi";
+import { apiGetJson, apiPost, PORT, waitForJob, type Job, dismissNote } from "../deckapi";
 import { JOB_KINDS } from "../shared/types";
 import type { ToolDef } from "./server";
 import { DRIVE_PARAM, needDrive } from "./read-tools";
@@ -57,10 +50,7 @@ async function jobResult(job: Job): Promise<unknown> {
 /** One enqueue: POST + the TOCTOU 423 map + the error unwrap. The server
  *  re-checks the interlock at enqueue; its 423 becomes the same clean
  *  param-style message our own guard throws. */
-async function enqueueMapped(
-  apiPath: string,
-  body: Record<string, unknown>,
-): Promise<Job> {
+async function enqueueMapped(apiPath: string, body: Record<string, unknown>): Promise<Job> {
   const r = await apiPost(apiPath, body);
   if (r.status === 423)
     throw new RpcParamError(
@@ -122,15 +112,11 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
     run: async (args) => {
       const kind = str(args, "kind") ?? "";
       if (!RUNNABLE_KINDS.includes(kind as (typeof RUNNABLE_KINDS)[number])) {
-        throw new RpcParamError(
-          `bad kind "${kind}" — one of: ${RUNNABLE_KINDS.join(", ")}`,
-        );
+        throw new RpcParamError(`bad kind "${kind}" — one of: ${RUNNABLE_KINDS.join(", ")}`);
       }
       const d = await needDrive(str(args, "drive"));
       if (!d.mounted)
-        throw new RpcParamError(
-          `drive ${d.nickname ?? d.name} is not mounted — plug it in first`,
-        );
+        throw new RpcParamError(`drive ${d.nickname ?? d.name} is not mounted — plug it in first`);
       await interlockGuard();
       // O87 attribution: agent-initiated jobs carry the MCP session so the
       // timeline answers "why did this verify run at 3am" ("mcp:<session>")
@@ -178,8 +164,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
       }
       if (action === "confirm" || action === "dismiss") {
         const id = str(args, "id");
-        if (!id)
-          throw new RpcParamError(`action "${action}" requires a finding id`);
+        if (!id) throw new RpcParamError(`action "${action}" requires a finding id`);
         await interlockGuard();
         const r = await apiPost("/api/hygiene/decide", {
           id,
@@ -187,8 +172,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
           origin: `mcp:${MCP_SESSION}`,
         });
         const body = (await r.json()) as { ok?: boolean; error?: string };
-        if (!r.ok || !body.ok)
-          throw new Error(body.error ?? `decide failed (${r.status})`);
+        if (!r.ok || !body.ok) throw new Error(body.error ?? `decide failed (${r.status})`);
         return { ok: true, id, action };
       }
       // scan | apply — enqueue + optionally wait (same shape as deck_run)
@@ -237,9 +221,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
     run: async (args: Record<string, unknown>) => {
       const raw = args.ids;
       const ids = Array.isArray(raw)
-        ? (raw as unknown[]).filter(
-            (x: unknown): x is string => typeof x === "string",
-          )
+        ? (raw as unknown[]).filter((x: unknown): x is string => typeof x === "string")
         : [];
       if (ids.length === 0) return apiGetJson("/api/booth/fleet");
       const r = await apiPost("/api/booth/fleet", { selected: ids });
@@ -255,10 +237,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
       {
         drive: s("volume name, nickname, or id"),
         note: s("the finding (max 600 chars)"),
-        severity: sEnum(
-          ["info", "warn", "critical"],
-          "card tone (default info)",
-        ),
+        severity: sEnum(["info", "warn", "critical"], "card tone (default info)"),
       },
       ["drive", "note"],
     ),
@@ -272,8 +251,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
       const res = await apiPost(`/api/drives/${d.id}/notes`, {
         note,
         origin: MCP_SESSION,
-        severity:
-          severity === "warn" || severity === "critical" ? severity : "info",
+        severity: severity === "warn" || severity === "critical" ? severity : "info",
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
@@ -305,9 +283,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
       const res = await apiPost(`/api/drives/${d.id}/name`, { nickname });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
-        throw new RpcParamError(
-          body.error ?? `rename rejected (${res.status})`,
-        );
+        throw new RpcParamError(body.error ?? `rename rejected (${res.status})`);
       }
       return { ok: true, drive: d.name, nickname };
     },
@@ -318,10 +294,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
       "DISMISSES AN AGENT NOTE (mutating, confirm with the human): removes a finding from the active notes feed once it's handled — history is kept, the timeline card stays but reads as dismissed. Pass the note id exactly as returned by deck_note / deck_notes. Only agent notes can be dismissed.",
     destructive: true,
     inputSchema: obj(
-      {
-        drive: DRIVE_PARAM(""),
-        note_id: s("the note id from deck_note/deck_notes (row id)"),
-      },
+      { drive: DRIVE_PARAM(""), note_id: s("the note id from deck_note/deck_notes (row id)") },
       ["drive", "note_id"],
     ),
     run: async (args) => {

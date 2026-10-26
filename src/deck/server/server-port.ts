@@ -44,17 +44,12 @@ function configPortFrom(text: string): number | null {
  * @param envPort raw CRATEDECK_PORT value (undefined = unset)
  * @param configPath path to config.toml; missing file = no config tier
  */
-export function resolveServerPort(
-  envPort: string | undefined,
-  configPath: string,
-): number {
+export function resolveServerPort(envPort: string | undefined, configPath: string): number {
   const raw = envPort?.trim();
   if (raw !== undefined && raw !== "") {
     const parsed = strictPort(raw);
     if (parsed === null) {
-      throw new Error(
-        `invalid CRATEDECK_PORT '${envPort}' — must be an integer 1..65535`,
-      );
+      throw new Error(`invalid CRATEDECK_PORT '${envPort}' — must be an integer 1..65535`);
     }
     return parsed;
   }

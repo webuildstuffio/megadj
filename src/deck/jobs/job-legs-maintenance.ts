@@ -8,31 +8,16 @@ import { finiteJobNumber } from "./job-legs-parse";
 import { drain, drainText } from "./job-runtime";
 import type { LegArgs } from "./job-legs-types";
 
-export async function runBenchmark({
-  deps,
-  job,
-  mountPoint,
-  handle,
-  tick,
-}: LegArgs) {
+export async function runBenchmark({ deps, job, mountPoint, handle, tick }: LegArgs) {
   tick(0, 1, "reading largest files sequentially…", "bench-seq", true);
   const result = await benchmarkDrive(mountPoint, deps.cfg.benchmarkMb, handle);
   deps.db.addBenchmark(job.drive_id, result.seq_mbps, result.rand4k_mbps);
-  deps.db.event(job.drive_id, "benchmark", {
-    seq: result.seq_mbps,
-    rand4k: result.rand4k_mbps,
-  });
+  deps.db.event(job.drive_id, "benchmark", { seq: result.seq_mbps, rand4k: result.rand4k_mbps });
   tick(1, 1, `${result.seq_mbps} MB/s sequential`, "done", true);
   return result;
 }
 
-export async function runChecksum({
-  deps,
-  job,
-  mountPoint,
-  handle,
-  tick,
-}: LegArgs) {
+export async function runChecksum({ deps, job, mountPoint, handle, tick }: LegArgs) {
   const result = await checksumLedger(
     deps.db,
     job.drive_id,
@@ -52,9 +37,7 @@ export async function runChecksum({
     changed: result.changed.length,
   });
   if (result.changed.length) {
-    deps.db.event(job.drive_id, "bitrot-suspect", {
-      paths: result.changed.slice(0, 50),
-    });
+    deps.db.event(job.drive_id, "bitrot-suspect", { paths: result.changed.slice(0, 50) });
   }
   tick(
     1,
@@ -68,23 +51,14 @@ export async function runChecksum({
   return result;
 }
 
-export async function runSpeedtest({
-  deps,
-  job,
-  mountPoint,
-  handle,
-  tick,
-}: LegArgs) {
+export async function runSpeedtest({ deps, job, mountPoint, handle, tick }: LegArgs) {
   tick(0, 1, "probing read speed (~10MB)…", "speedtest", true);
   const result = await speedProbe(mountPoint, 10, handle, [
     ...deps.db.ledgerBiggest(job.drive_id, 5),
     ...deps.db.manifestBiggest(job.drive_id, 5),
   ]);
   deps.db.addSpeedProbe(job.drive_id, result.mbps, result.bytes_read);
-  deps.db.event(job.drive_id, "speedtest", {
-    mbps: result.mbps,
-    bytes_read: result.bytes_read,
-  });
+  deps.db.event(job.drive_id, "speedtest", { mbps: result.mbps, bytes_read: result.bytes_read });
   tick(1, 1, `read ${result.mbps.toLocaleString()} MB/s`, "done", true);
   return { mbps: result.mbps, bytes_read: result.bytes_read };
 }
@@ -131,8 +105,7 @@ function cliDeps({ deps, job, handle, tick, log }: LegArgs) {
   return {
     cfg: deps.cfg,
     jobTimeoutMin: deps.cfg.jobTimeoutMin,
-    cancelled: (): boolean =>
-      handle.cancelled || deps.db.getJob(job.id)?.status !== "running",
+    cancelled: (): boolean => handle.cancelled || deps.db.getJob(job.id)?.status !== "running",
     killProc: (proc: Bun.Subprocess): void => proc.kill(),
     log: (line: string): void => log(line),
     tick,
@@ -142,8 +115,7 @@ function cliDeps({ deps, job, handle, tick, log }: LegArgs) {
       runHandle: { cancelled: boolean; proc?: Bun.Subprocess },
       timeoutMs: number,
     ) => drain(stream, onLine, runHandle, timeoutMs),
-    drainText: (stream: ReadableStream<Uint8Array> | undefined) =>
-      drainText(stream),
+    drainText: (stream: ReadableStream<Uint8Array> | undefined) => drainText(stream),
   };
 }
 
@@ -153,10 +125,7 @@ export async function runHygiene(args: LegArgs, apply: boolean) {
   return run(cliDeps(args), args.mountPoint, args.handle);
 }
 
-function toPayload(
-  summary: Record<string, unknown>,
-  scannedPath: string,
-): FixesPayload {
+function toPayload(summary: Record<string, unknown>, scannedPath: string): FixesPayload {
   return {
     fleet: (summary.fleet as string[]) ?? [],
     checked: finiteJobNumber(summary.checked),
@@ -173,11 +142,7 @@ export async function runFixes(args: LegArgs, apply: boolean) {
   const summary = await run(cliDeps(args), args.mountPoint, args.handle);
   const { recordFixes } = await import("../fixes/routes");
   if (apply) {
-    const after = await jobs.runFixesScan(
-      cliDeps(args),
-      args.mountPoint,
-      args.handle,
-    );
+    const after = await jobs.runFixesScan(cliDeps(args), args.mountPoint, args.handle);
     recordFixes(toPayload(after, args.mountPoint));
   } else {
     recordFixes(toPayload(summary, args.mountPoint));

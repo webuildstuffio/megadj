@@ -43,15 +43,7 @@ const TRANSITION_CEILING = 1.0;
 export function setQuality(result: MegasetResult): MegasetQuality {
   const steps = result.steps;
   if (steps.length === 0) {
-    return {
-      transition: 0,
-      floor: 0,
-      arc: 0,
-      diversity: 0,
-      budget: 0,
-      landmark: 0,
-      total: 0,
-    };
+    return { transition: 0, floor: 0, arc: 0, diversity: 0, budget: 0, landmark: 0, total: 0 };
   }
 
   const transition = transitionComponent(steps);
@@ -77,9 +69,7 @@ export function setQuality(result: MegasetResult): MegasetQuality {
 
 /** Mean transition score scaled against ceiling → 0–100. */
 function transitionComponent(steps: MegasetStep[]): number {
-  const transitions = steps
-    .map((s) => s.transition)
-    .filter((t): t is number => t !== null);
+  const transitions = steps.map((s) => s.transition).filter((t): t is number => t !== null);
   if (transitions.length === 0) return 100; // single-track chain
   const mean = transitions.reduce((a, b) => a + b, 0) / transitions.length;
   return clamp100((mean / TRANSITION_CEILING) * 100);
@@ -87,9 +77,7 @@ function transitionComponent(steps: MegasetStep[]): number {
 
 /** Min transition — weakest link. Scaled same as mean. */
 function floorComponent(steps: MegasetStep[]): number {
-  const transitions = steps
-    .map((s) => s.transition)
-    .filter((t): t is number => t !== null);
+  const transitions = steps.map((s) => s.transition).filter((t): t is number => t !== null);
   if (transitions.length === 0) return 100;
   const min = Math.min(...transitions);
   return clamp100((min / TRANSITION_CEILING) * 100);
@@ -124,10 +112,7 @@ function arcComponent(steps: MegasetStep[], presetId: string): number {
 
 /** Diversity: penalize same-artist adjacency pairs.
  *  0 pairs → 100; each pair deducts proportional to chain length. */
-function diversityComponent(
-  steps: MegasetStep[],
-  sameArtistPairs: number,
-): number {
+function diversityComponent(steps: MegasetStep[], sameArtistPairs: number): number {
   if (steps.length <= 1) return 100;
   const maxPairs = steps.length - 1;
   const ratio = sameArtistPairs / maxPairs;

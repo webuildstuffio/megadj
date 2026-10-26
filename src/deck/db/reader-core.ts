@@ -74,10 +74,7 @@ export class ArchiveReaderCore {
 
   // ---------- track_keys read-cache (strictly readonly) ----------
 
-  private sourceIdentity(sourcePath: string): {
-    size: number;
-    mtimeMs: number;
-  } | null {
+  private sourceIdentity(sourcePath: string): { size: number; mtimeMs: number } | null {
     try {
       const stat = statSync(sourcePath);
       return stat.isFile() ? { size: stat.size, mtimeMs: stat.mtimeMs } : null;
@@ -89,20 +86,12 @@ export class ArchiveReaderCore {
     }
   }
 
-  keyRecord(
-    videoId: string,
-    sourcePath: string,
-  ): { key: string; analyzedAt: string } | null {
+  keyRecord(videoId: string, sourcePath: string): { key: string; analyzedAt: string } | null {
     const memoryKey = `${videoId}\0${sourcePath}`;
     const identity = this.sourceIdentity(sourcePath);
     if (!identity) return null;
     const live = this.liveKeys.get(memoryKey);
-    if (
-      live &&
-      live.size === identity.size &&
-      live.mtimeMs === identity.mtimeMs
-    )
-      return live;
+    if (live && live.size === identity.size && live.mtimeMs === identity.mtimeMs) return live;
     if (this.hasKeyCache === null) {
       this.hasKeyCache =
         this.row<{ present: number }>(
@@ -111,11 +100,7 @@ export class ArchiveReaderCore {
         ) !== undefined;
     }
     if (!this.hasKeyCache) return null;
-    const row = this.row<{
-      key: string;
-      analyzed_at: string;
-      track_updated_at: string;
-    }>(
+    const row = this.row<{ key: string; analyzed_at: string; track_updated_at: string }>(
       `SELECT k.key, k.analyzed_at, t.updated_at AS track_updated_at
        FROM track_keys k
        JOIN tracks t ON t.video_id = k.video_id
@@ -136,11 +121,7 @@ export class ArchiveReaderCore {
     return { key: row.key, analyzedAt: row.analyzed_at };
   }
 
-  rememberKeyRecord(rec: {
-    videoId: string;
-    key: string;
-    sourcePath: string;
-  }): void {
+  rememberKeyRecord(rec: { videoId: string; key: string; sourcePath: string }): void {
     const identity = this.sourceIdentity(rec.sourcePath);
     if (!identity) return;
     this.liveKeys.set(`${rec.videoId}\0${rec.sourcePath}`, {

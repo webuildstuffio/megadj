@@ -40,9 +40,7 @@ function stripComments(src: string): string {
 describe("async-only invariant for event-loop fs code", () => {
   for (const f of FILES) {
     it(`${f} contains no synchronous fs/spawn calls`, () => {
-      const src = stripComments(
-        readFileSync(join(import.meta.dir, ".", f), "utf8"),
-      );
+      const src = stripComments(readFileSync(join(import.meta.dir, ".", f), "utf8"));
       const offenders = SYNC_FS_APIS.filter(
         (api) => api !== "existsSync?" && new RegExp(`\\b${api}\\b`).test(src),
       );
@@ -67,8 +65,7 @@ describe("async-only invariant for event-loop fs code", () => {
       for (let i = 0; i < 40; i++) {
         const sub = join(dir, `d${i}`);
         mkdirSync(sub);
-        for (let j = 0; j < 20; j++)
-          writeFileSync(join(sub, `f${j}.m4a`), new Uint8Array(10));
+        for (let j = 0; j < 20; j++) writeFileSync(join(sub, `f${j}.m4a`), new Uint8Array(10));
       }
       let timerFired = 0;
       const timer = setTimeout(() => timerFired++, 0);

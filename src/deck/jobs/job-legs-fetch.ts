@@ -18,25 +18,15 @@ interface FetchProgress {
   lastDone: number;
 }
 
-function recordFetchStart(
-  payload: unknown,
-  progress: FetchProgress,
-  log: JobLog,
-): void {
+function recordFetchStart(payload: unknown, progress: FetchProgress, log: JobLog): void {
   const start = parseFetchStart(payload);
   if (!start) return;
   progress.tasksTotal = start.tasks;
   fetchFeedPush({ at: Date.now(), type: "start", start });
-  log(
-    `ladder: ${start.tasks} tasks (${start.total} tracks)${start.dry ? " DRY" : ""}`,
-  );
+  log(`ladder: ${start.tasks} tasks (${start.total} tracks)${start.dry ? " DRY" : ""}`);
 }
 
-function recordFetchTask(
-  payload: unknown,
-  progress: FetchProgress,
-  tick: JobTick,
-): void {
+function recordFetchTask(payload: unknown, progress: FetchProgress, tick: JobTick): void {
   const task = parseFetchTask(payload);
   if (!task) return;
   fetchFeedPush({ at: Date.now(), type: "task", task });
@@ -90,10 +80,11 @@ export async function runFetchJob({
   const opts = parseFetchJobMount(mountPoint);
   tick(0, 1, "starting the fetch pipeline…", "probe", true);
   fetchFeedReset();
-  const proc = Bun.spawn(
-    ["bun", megadjCliPath(deps.cfg.root), ...fetchArgs(opts)],
-    { stdout: "pipe", stderr: "pipe", cwd: deps.cfg.root },
-  );
+  const proc = Bun.spawn(["bun", megadjCliPath(deps.cfg.root), ...fetchArgs(opts)], {
+    stdout: "pipe",
+    stderr: "pipe",
+    cwd: deps.cfg.root,
+  });
   handle.proc = proc;
   const progress: FetchProgress = { tasksTotal: 0, lastDone: 0 };
   const [result, errResult] = await Promise.all([
@@ -104,14 +95,8 @@ export async function runFetchJob({
   const { summary } = splitIntakeStdout(result.out);
   tick(1, 1, "fetch finished", "done", true);
   deps.db.event("local-archive", "fetch", {
-    votes:
-      summary && typeof summary.votesCast === "number"
-        ? summary.votesCast
-        : null,
-    elected:
-      summary && typeof summary.genreElected === "number"
-        ? summary.genreElected
-        : null,
+    votes: summary && typeof summary.votesCast === "number" ? summary.votesCast : null,
+    elected: summary && typeof summary.genreElected === "number" ? summary.genreElected : null,
   });
   return summary ?? { feed: "summary unparsable — see the feed" };
 }

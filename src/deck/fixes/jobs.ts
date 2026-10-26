@@ -3,11 +3,7 @@
 // this module was its byte-twin until jscpd flagged it). Scope: booth-fix
 // runs against the shelf Contents when mountPoint is a shelf volume
 // (MEGADJ_MUSIC_DIR).
-import {
-  runCliJobLeg,
-  summaryCount,
-  type CliJobDeps,
-} from "../jobs/cli-job-leg";
+import { runCliJobLeg, summaryCount, type CliJobDeps } from "../jobs/cli-job-leg";
 
 /** Kept as a named alias — the deps shape is the shared CliJobDeps. */
 export type FixesJobDeps = CliJobDeps;
@@ -34,8 +30,7 @@ async function runBoothFix(
     apply,
     handle,
   );
-  const tick = (m: string, phase: string): void =>
-    deps.tick(0, 1, m, phase, true);
+  const tick = (m: string, phase: string): void => deps.tick(0, 1, m, phase, true);
   const fixable = summaryCount(summary?.fixable);
   const applied = summaryCount(summary?.applied);
   tick(apply ? `applied ${applied} fix(es)` : `${fixable} fixable`, "done");

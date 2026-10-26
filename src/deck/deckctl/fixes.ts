@@ -10,10 +10,7 @@ import { enqueueAndFollow, type QueueHooks } from "./queue";
 
 export type FixesHooks = QueueHooks;
 
-export async function cmdFixes(
-  h: FixesHooks,
-  sub: string | undefined,
-): Promise<void> {
+export async function cmdFixes(h: FixesHooks, sub: string | undefined): Promise<void> {
   switch (sub) {
     case undefined: {
       // census: the verdict banner's numbers, for agents
@@ -31,9 +28,7 @@ export async function cmdFixes(
         await emitJson(p);
         return;
       }
-      h.log(
-        `fixes: ${p.checked} checked · ${p.fixable} fixable · fleet: ${p.fleet.join(", ")}`,
-      );
+      h.log(`fixes: ${p.checked} checked · ${p.fixable} fixable · fleet: ${p.fleet.join(", ")}`);
       for (const r of p.rows) {
         h.log(`  [${r.action}] ${r.file} — ${r.reasons.join(",")}`);
       }

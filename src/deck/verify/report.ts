@@ -58,10 +58,7 @@ export function sanitizeVerifyReport(r: VerifyReport): VerifyReport {
 /** Compare a fresh verify report against the previously stored one:
  *  per-check offender-count deltas so the UI can show "2 new broken grids
  *  since last run" instead of making the user re-derive that themselves. */
-export function verifyDeltas(
-  prev: VerifyReport | null,
-  next: VerifyReport,
-): VerifyDelta[] {
+export function verifyDeltas(prev: VerifyReport | null, next: VerifyReport): VerifyDelta[] {
   if (!prev) return [];
   const prevBy = new Map(prev.checks.map((c) => [c.id, c]));
   const deltas: VerifyDelta[] = [];

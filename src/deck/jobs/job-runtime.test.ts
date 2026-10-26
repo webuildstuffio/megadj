@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { tempDir } from "../test/testutil";
-import {
-  recordProgressIncrease,
-  withJobBudget,
-  type RunHandle,
-} from "./job-runtime";
+import { recordProgressIncrease, withJobBudget, type RunHandle } from "./job-runtime";
 
 describe("job wall-clock budget", () => {
   it("cancels and kills whichever extracted leg owns the subprocess", async () => {
@@ -27,9 +23,7 @@ describe("job wall-clock budget", () => {
   it("leaves a completed leg and its handle untouched", async () => {
     const handle: RunHandle = { cancelled: false };
 
-    await expect(
-      withJobBudget(Promise.resolve("done"), handle, 1),
-    ).resolves.toBe("done");
+    await expect(withJobBudget(Promise.resolve("done"), handle, 1)).resolves.toBe("done");
     expect(handle.cancelled).toBe(false);
   });
 });
@@ -39,9 +33,7 @@ describe("job stall progress clock", () => {
     const progressAt = new Map<string, number>();
 
     expect(recordProgressIncrease(progressAt, "job-1", null, 50)).toBe(false);
-    expect(recordProgressIncrease(progressAt, "job-1", Number.NaN, 60)).toBe(
-      false,
-    );
+    expect(recordProgressIncrease(progressAt, "job-1", Number.NaN, 60)).toBe(false);
     expect(recordProgressIncrease(progressAt, "job-1", 1.01, 70)).toBe(false);
     expect(progressAt.has("job-1")).toBe(false);
     expect(recordProgressIncrease(progressAt, "job-1", 0.25, 100)).toBe(true);
@@ -56,15 +48,9 @@ describe("job stall progress clock", () => {
   it("refreshes when a later stage restarts its own monotonic progress", () => {
     const progressAt = new Map<string, number>();
 
-    expect(recordProgressIncrease(progressAt, "job-1", 1, 1_000, "copy")).toBe(
-      true,
-    );
-    expect(
-      recordProgressIncrease(progressAt, "job-1", 0.1, 2_000, "verify"),
-    ).toBe(true);
-    expect(
-      recordProgressIncrease(progressAt, "job-1", 0.2, 3_000, "verify"),
-    ).toBe(true);
+    expect(recordProgressIncrease(progressAt, "job-1", 1, 1_000, "copy")).toBe(true);
+    expect(recordProgressIncrease(progressAt, "job-1", 0.1, 2_000, "verify")).toBe(true);
+    expect(recordProgressIncrease(progressAt, "job-1", 0.2, 3_000, "verify")).toBe(true);
     expect(progressAt.get("job-1")).toBe(3_000);
   });
 });
@@ -79,8 +65,7 @@ describe("auditArchive degrades instead of failing the job", () => {
   // must resolve audit:null and log the reason. Driven through the REAL
   // spawn seam with an env-swapped megadj CLI that emits garbage.
   it("resolves audit:null when the child emits unparseable output", async () => {
-    const { mkdirSync, rmSync, writeFileSync, chmodSync } =
-      await import("node:fs");
+    const { mkdirSync, rmSync, writeFileSync, chmodSync } = await import("node:fs");
     const { join } = await import("node:path");
     // #248 fixture seam: tempDir owns the mkdtemp lifecycle (this file's
     // fake-`bun` bin dir is test-owned throwaway).
@@ -92,10 +77,7 @@ describe("auditArchive degrades instead of failing the job", () => {
       const binDir = join(tmp, "bin");
       const shellScript = join(binDir, "bun");
       mkdirSync(binDir, { recursive: true });
-      writeFileSync(
-        shellScript,
-        "#!/bin/sh\necho 'boom: child exploded' >&2\nexit 1\n",
-      );
+      writeFileSync(shellScript, "#!/bin/sh\necho 'boom: child exploded' >&2\nexit 1\n");
       chmodSync(shellScript, 0o755);
       const prevPath = process.env.PATH;
       process.env.PATH = `${binDir}:${prevPath}`;
@@ -112,9 +94,7 @@ describe("auditArchive degrades instead of failing the job", () => {
         );
         expect(result.audit).toBeNull();
         expect(result.auditErrors).toEqual([]);
-        expect(logs.some((l) => l.includes("audit leg failed to report"))).toBe(
-          true,
-        );
+        expect(logs.some((l) => l.includes("audit leg failed to report"))).toBe(true);
       } finally {
         process.env.PATH = prevPath;
       }

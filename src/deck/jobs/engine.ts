@@ -94,8 +94,7 @@ export class JobEngine {
       });
       this.emit("job", this.db.getJob(j.id));
     }
-    if (orphans.length)
-      console.log(`cratedeck: reaped ${orphans.length} phantom job(s)`);
+    if (orphans.length) console.log(`cratedeck: reaped ${orphans.length} phantom job(s)`);
   }
 
   private killStalled(): void {
@@ -104,10 +103,7 @@ export class JobEngine {
     for (const handle of this.running.values()) {
       const job = handle.jobId ? this.db.getJob(handle.jobId) : null;
       if (!job || job.status !== "running") continue;
-      const lastMove = Math.max(
-        this.progressAt.get(job.id) ?? 0,
-        job.started_at ?? 0,
-      );
+      const lastMove = Math.max(this.progressAt.get(job.id) ?? 0, job.started_at ?? 0);
       if (lastMove > 0 && lastMove < stallCutoff && !handle.cancelled) {
         console.log(
           `cratedeck: job ${job.id.slice(0, 8)} (${job.kind}) stalled ` +
@@ -150,12 +146,7 @@ export class JobEngine {
    *  calls, "web", "deckctl", "auto" (auto-scheduler). Rendered in the
    *  timeline + jobs list so "why did this verify run at 3am" is answerable.
    *  Optional column: pre-migration rows read as "web" (the UI default). */
-  enqueue(
-    driveId: string,
-    kind: JobKind,
-    mountPoint: string,
-    origin = "web",
-  ): Job {
+  enqueue(driveId: string, kind: JobKind, mountPoint: string, origin = "web"): Job {
     this.assertInterlock();
     const dup = this.db.activeJobOfKind(driveId, kind);
     if (dup) return dup;
@@ -176,11 +167,7 @@ export class JobEngine {
       finished_at: null,
     };
     this.db.insertJob(job, origin);
-    this.db.event(driveId, "job-queued", {
-      kind,
-      job_id: job.id,
-      origin,
-    });
+    this.db.event(driveId, "job-queued", { kind, job_id: job.id, origin });
     this.queue.push({ job, mountPoint });
     this.emit("job", job);
     this.pump();
@@ -199,10 +186,7 @@ export class JobEngine {
     const qi = this.queue.findIndex((q) => q.job.id === jobId);
     if (qi !== -1) {
       this.queue.splice(qi, 1);
-      this.db.updateJob(jobId, {
-        status: "cancelled",
-        finished_at: Date.now(),
-      });
+      this.db.updateJob(jobId, { status: "cancelled", finished_at: Date.now() });
       this.emit("job", this.db.getJob(jobId));
       return true;
     }
@@ -244,13 +228,7 @@ export class JobEngine {
     // hammering SQLite.
     let lastWrite = 0;
     const eta = createEtaEstimator();
-    const tick = (
-      done: number,
-      total: number,
-      message: string,
-      phase: string,
-      force = false,
-    ) => {
+    const tick = (done: number, total: number, message: string, phase: string, force = false) => {
       const now = Date.now();
       const p = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
       // remember when the fraction last INCREASED — feeds the stall
@@ -259,12 +237,7 @@ export class JobEngine {
       if (!force && now - lastWrite < 250) return;
       lastWrite = now;
       const etaS = eta(done, total, now);
-      this.db.setJobProgress(job.id, {
-        progress: p,
-        message,
-        phase,
-        eta_seconds: etaS,
-      });
+      this.db.setJobProgress(job.id, { progress: p, message, phase, eta_seconds: etaS });
       this.emit("job", this.db.getJob(job.id));
     };
 
@@ -295,11 +268,7 @@ export class JobEngine {
         finished_at: Date.now(),
         result_json: JSON.stringify(result ?? null),
       });
-      this.db.event(job.drive_id, "job-done", {
-        kind: job.kind,
-        origin: job.origin,
-        result,
-      });
+      this.db.event(job.drive_id, "job-done", { kind: job.kind, origin: job.origin, result });
     } catch (e) {
       const msg = (e as Error).message;
       // A watchdog pre-stamps its reason (stall/budget) via updateJob; the
@@ -307,19 +276,13 @@ export class JobEngine {
       // wipe the useful trail.
       const cur = this.db.getJob(job.id);
       const error =
-        handle.cancelled && cur?.error && !cur.error.startsWith("cancel")
-          ? cur.error
-          : msg;
+        handle.cancelled && cur?.error && !cur.error.startsWith("cancel") ? cur.error : msg;
       this.db.updateJob(job.id, {
         status: handle.cancelled ? "cancelled" : "failed",
         error,
         finished_at: Date.now(),
       });
-      this.db.event(job.drive_id, "job-failed", {
-        kind: job.kind,
-        origin: job.origin,
-        error,
-      });
+      this.db.event(job.drive_id, "job-failed", { kind: job.kind, origin: job.origin, error });
     } finally {
       this.running.delete(job.drive_id);
       for (const key of this.progressAt.keys()) {
@@ -334,13 +297,7 @@ export class JobEngine {
     job: Job,
     mountPoint: string,
     handle: RunHandle,
-    tick: (
-      done: number,
-      total: number,
-      message: string,
-      phase: string,
-      force?: boolean,
-    ) => void,
+    tick: (done: number, total: number, message: string, phase: string, force?: boolean) => void,
   ): Promise<unknown> {
     // Live liveness tracking: touch on start + every 5s so the phantom-job
     // reaper can distinguish "running" from "lost". Verify/mirror log lines
@@ -360,13 +317,7 @@ export class JobEngine {
       if (isHeading) progressStage++;
       // Parsed progress is a real fraction signal. Ordinary log activity must
       // never refresh the stall clock: a wedged subprocess may keep logging.
-      recordProgressIncrease(
-        this.progressAt,
-        job.id,
-        p,
-        now,
-        `log-${progressStage}`,
-      );
+      recordProgressIncrease(this.progressAt, job.id, p, now, `log-${progressStage}`);
       if (p !== null || isHeading || now - lastMsg > 400) {
         lastMsg = now;
         this.db.setJobProgress(job.id, {

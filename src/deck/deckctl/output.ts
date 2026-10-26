@@ -32,9 +32,7 @@ const flushStdout = (): Promise<void> =>
     process.stdout.write("", () => resolve());
   });
 
-export function createDeckctlOutput(
-  options: DeckctlOutputOptions,
-): DeckctlOutput {
+export function createDeckctlOutput(options: DeckctlOutputOptions): DeckctlOutput {
   const write =
     options.write ??
     ((text: string): Promise<void> =>
@@ -54,10 +52,5 @@ export function createDeckctlOutput(
     else errorLine(message);
   };
 
-  return {
-    emitJson,
-    flushStdout,
-    log,
-    errOut,
-  };
+  return { emitJson, flushStdout, log, errOut };
 }

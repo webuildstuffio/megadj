@@ -7,11 +7,7 @@
 // URL already sliced to the route part ("/archive/..."). Returns null when
 // no archive route matched so index.ts can fall through.
 import type { ArchiveReader } from "../db/reader";
-import {
-  SET_PRESETS,
-  buildMegaset,
-  parseMegasetQuery,
-} from "../megaset/engine";
+import { SET_PRESETS, buildMegaset, parseMegasetQuery } from "../megaset/engine";
 import { buildCohortPlan, parseCohortFamilies } from "../megaset/cohorts";
 import {
   m3uCandidateIndex,
@@ -31,10 +27,7 @@ import {
 } from "../shared/megaset";
 import { setQuality } from "../megaset/set-quality";
 import { classifyChain } from "../megaset/transition-types";
-import {
-  buildMegasetCandidates,
-  type MegasetVariant,
-} from "../megaset/candidates";
+import { buildMegasetCandidates, type MegasetVariant } from "../megaset/candidates";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 import { intakeCandidateDirs } from "../jobs/intake-run";
 import { cliOk } from "../hygiene/routes";
@@ -54,12 +47,7 @@ export interface ArchiveRouteDeps {
 
 /** Minimal job-engine surface the archive family may use. */
 export interface ArchiveJobs {
-  enqueue: (
-    driveId: string,
-    kind: "ingest",
-    mountPoint: string,
-    origin: string,
-  ) => { id: string };
+  enqueue: (driveId: string, kind: "ingest", mountPoint: string, origin: string) => { id: string };
 }
 
 /** The CLI spawn seam for the family's single write (skip). The reads
@@ -97,12 +85,7 @@ function resolveSetBuild(
       census: Omit<ReturnType<ArchiveReader["setCandidates"]>, "stagesMs"> & {
         /** engine is ALWAYS set here — resolveSetBuild times the build
          *  and sums it in before returning (non-optional on the wire). */
-        stagesMs: {
-          sql: number;
-          fileCheck: number;
-          keyFills: number;
-          engine: number;
-        };
+        stagesMs: { sql: number; fileCheck: number; keyFills: number; engine: number };
       };
     } {
   const parsed = parseMegasetQuery({
@@ -126,10 +109,7 @@ function resolveSetBuild(
   // family). Absent/blank = no filter, byte-identical census. A value
   // that matches ZERO rows builds from an empty pool and reports the
   // honest empty-chain diagnosis (never a silent whole-library fallback).
-  const census = archive.setCandidates(
-    limit,
-    url.searchParams.get("genre") ?? undefined,
-  );
+  const census = archive.setCandidates(limit, url.searchParams.get("genre") ?? undefined);
   // #286: the engine stage is timed here (the caller's job) and summed
   // into the census's stagesMs on the wire.
   // A/B hook (E7): ?search=greedy|beam forces one strategy so the UI
@@ -160,35 +140,27 @@ function resolveSetBuild(
 /** /api/archive/megaset — set-builder route handler (#343: extracted from
  *  archiveHandlers to reduce CCN — the inline lambda was the biggest
  *  contributor to the 52-CCN hotspot). */
-function megasetHandler(
-  url: URL,
-  archive: ArchiveReader,
-): Response | Promise<Response> {
+function megasetHandler(url: URL, archive: ArchiveReader): Response | Promise<Response> {
   const resolved = resolveSetBuild(url, archive);
   if ("error" in resolved) return json({ error: resolved.error }, 400);
   const format = parseFormatParam(url.searchParams.get("format"));
-  if (typeof format === "object" && "error" in format)
-    return json({ error: format.error }, 400);
+  if (typeof format === "object" && "error" in format) return json({ error: format.error }, 400);
   if (format === "m3u8") {
     const index = m3uCandidateIndex(resolved.census.candidates);
     const render = m3uSetLines(resolved.built.steps, index);
     const lines = [...render.lines];
     if (render.skippedMetadataOnly > 0) {
-      lines.push(
-        m3uSkipNote(resolved.built.steps.length, render.skippedMetadataOnly),
-      );
+      lines.push(m3uSkipNote(resolved.built.steps.length, render.skippedMetadataOnly));
     }
     const actual = String(resolved.built.actualMinutes).replace(".", "-");
     return m3uResponse(lines, `set-${resolved.built.preset}-${actual}m.m3u8`);
   }
   const { census } = resolved;
   const genreSuggestionExtra =
-    census.genreFiltered === 0 &&
-    (url.searchParams.get("genre") ?? "").trim() !== ""
+    census.genreFiltered === 0 && (url.searchParams.get("genre") ?? "").trim() !== ""
       ? {
           genreSuggestion:
-            megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")
-              ?.family ?? undefined,
+            megasetNearestGenreFamily(url.searchParams.get("genre") ?? "")?.family ?? undefined,
         }
       : {};
 
@@ -240,11 +212,7 @@ function megasetHandler(
       candidateCount,
     );
     return json({
-      variants: variants.map((v) => ({
-        seed: v.seed,
-        label: v.label,
-        payload: toPayload(v),
-      })),
+      variants: variants.map((v) => ({ seed: v.seed, label: v.label, payload: toPayload(v) })),
       best: 0,
     });
   }
@@ -259,17 +227,10 @@ function megasetHandler(
 
 /** /api/archive/megaset-cohorts — genre-cohort session planner (#343:
  *  extracted from archiveHandlers). */
-function megasetCohortsHandler(
-  url: URL,
-  archive: ArchiveReader,
-): Response | Promise<Response> {
+function megasetCohortsHandler(url: URL, archive: ArchiveReader): Response | Promise<Response> {
   const format = parseFormatParam(url.searchParams.get("format"));
-  if (typeof format === "object" && "error" in format)
-    return json({ error: format.error }, 400);
-  const parsedQ = parseMegasetQuery({
-    preset: "peak",
-    minutes: url.searchParams.get("minutes"),
-  });
+  if (typeof format === "object" && "error" in format) return json({ error: format.error }, 400);
+  const parsedQ = parseMegasetQuery({ preset: "peak", minutes: url.searchParams.get("minutes") });
   if ("error" in parsedQ) return json({ error: parsedQ.error }, 400);
   const limitParam = url.searchParams.get("limit");
   let limit: number | undefined = undefined;
@@ -287,10 +248,7 @@ function megasetCohortsHandler(
     limit,
   });
   if (format === "m3u8") {
-    const index = new Map<
-      string,
-      (typeof plan)["cohorts"][number]["warmup"]["poolRows"][number]
-    >();
+    const index = new Map<string, (typeof plan)["cohorts"][number]["warmup"]["poolRows"][number]>();
     for (const row of plan.cohorts) {
       for (const arm of [row.warmup, row.peak]) {
         for (const c of arm.poolRows) index.set(c.videoId, c);
@@ -312,9 +270,7 @@ function megasetCohortsHandler(
       peak: cohortArmWire(row.peak),
     })),
     all_complete: plan.allComplete,
-    outside_scope: {
-      blank_genre_note: plan.blankGenreNote,
-    },
+    outside_scope: { blank_genre_note: plan.blankGenreNote },
     elapsed_ms: plan.elapsedMs,
   });
 }
@@ -349,15 +305,13 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // ledger mutation (§4-A1); kept in this map so the route census and
     // the dispatcher stay one source of truth.
     skip: async (_url, _archive, _db, _cfg, req) => {
-      if (!req || req.method !== "POST")
-        return json({ error: "POST required" }, 405);
+      if (!req || req.method !== "POST") return json({ error: "POST required" }, 405);
       if (!archiveCli) return json({ error: "skip not available" }, 501);
       return skipRoute(_url, archiveCli);
     },
     // POST /api/archive/surfaced-note — body {id, done}: the surfaced-link
     // checklist checkbox (Sep 19). Engine-owned via `megadj surfaced-note`.
-    "surfaced-note": async (_url, _archive, _db, _cfg, req) =>
-      surfacedNoteRoute(req, archiveCli),
+    "surfaced-note": async (_url, _archive, _db, _cfg, req) => surfacedNoteRoute(req, archiveCli),
     // POST /api/archive/surfaced-batch — body {ids: string[], folder}:
     // the checklist's final button. Runs the REAL fulltags batch engine
     // (`megadj ingest <folder> --json`) so the saved files get the same
@@ -372,9 +326,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // decided" card.
     "skip-census": (url, archive) => {
       const limit = intParam(url.searchParams.get("limit"));
-      return json(
-        limit !== undefined ? archive.skipCensus(limit) : archive.skipCensus(),
-      );
+      return json(limit !== undefined ? archive.skipCensus(limit) : archive.skipCensus());
     },
     // Source census: every source tag + playable split — the Sources
     // tab's diff-form suggestions.
@@ -386,38 +338,27 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     "source-diff": (url, archive) => {
       const a = url.searchParams.get("a");
       const b = url.searchParams.get("b");
-      if (!a || !b)
-        return json({ error: "a and b source names required" }, 400);
+      if (!a || !b) return json({ error: "a and b source names required" }, 400);
       return json(archive.sourceDiff(a, b));
     },
     // Independent beatgrid cross-check (roadmap §2/#2): beat_this
     // ledger vs RB BPM×duration. Read-only over the archive DB.
     "grid-cross-check": (url, archive) => {
       const limit = intParam(url.searchParams.get("limit"));
-      return json(
-        limit !== undefined
-          ? archive.gridCrossCheck(limit)
-          : archive.gridCrossCheck(),
-      );
+      return json(limit !== undefined ? archive.gridCrossCheck(limit) : archive.gridCrossCheck());
     },
     // Mood/dance/valence profile (roadmap #4): aggregate + extremes
     // over the mood ledger. `limit` (default 5, max 25) sizes the
     // per-dimension extremes lists.
     mood: (url, archive) => {
       const limit = intParam(url.searchParams.get("limit"));
-      return json(
-        limit !== undefined
-          ? archive.moodProfile(limit)
-          : archive.moodProfile(),
-      );
+      return json(limit !== undefined ? archive.moodProfile(limit) : archive.moodProfile());
     },
     // Structure cues ledger (roadmap "structure cues"): 8-bar phrase
     // markers from `megadj cues`, read-only over the archive DB.
     cues: (url, archive) => {
       const limit = intParam(url.searchParams.get("limit"));
-      return json(
-        limit !== undefined ? archive.cueStats(limit) : archive.cueStats(),
-      );
+      return json(limit !== undefined ? archive.cueStats(limit) : archive.cueStats());
     },
     // I49 "sounds like": cosine kNN over the embeddings ledger
     // (`megadj mood --embeddings` writes it). id required; k optional;
@@ -428,8 +369,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
       if (!id) return json({ error: "id (video_id) required" }, 400);
       const k = intParam(url.searchParams.get("k"));
       const space = url.searchParams.get("space") ?? "raw";
-      if (!isSimilarSpace(space))
-        return json({ error: "space must be raw or whitened" }, 400);
+      if (!isSimilarSpace(space)) return json({ error: "space must be raw or whitened" }, 400);
       return json(
         k !== undefined
           ? archive.similarTracks(id, k, space)
@@ -457,18 +397,14 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     library: (url, archive) => {
       const recent = intParam(url.searchParams.get("recent"));
       return json(
-        recent !== undefined
-          ? archive.libraryOverview(recent)
-          : archive.libraryOverview(),
+        recent !== undefined ? archive.libraryOverview(recent) : archive.libraryOverview(),
       );
     },
     // FullTags ↔ rekordbox tag comparison: the census (DB mirrors only,
     // cheap) and the per-track three-source read (live file truth).
     "tag-census": (url, archive) => {
       const limit = intParam(url.searchParams.get("limit"));
-      return json(
-        limit !== undefined ? archive.tagCensus(limit) : archive.tagCensus(),
-      );
+      return json(limit !== undefined ? archive.tagCensus(limit) : archive.tagCensus());
     },
     "tag-compare": (url, archive) => {
       const id = (url.searchParams.get("id") ?? "").trim();
@@ -484,11 +420,8 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // import keeps the sweep module out of the boot path).
     sweep: (_url, archive, db, cfg) =>
       import("../megaset/sweep").then(({ sweepArchive, tracksForSweep }) =>
-        sweepArchive(
-          cfg.musicDir,
-          tracksForSweep(archive),
-          db.archiveLedger(),
-          (row) => db.upsertArchiveLedger(row),
+        sweepArchive(cfg.musicDir, tracksForSweep(archive), db.archiveLedger(), (row) =>
+          db.upsertArchiveLedger(row),
         ).then((report) => json(report)),
       ),
     // #295: the genre-cohort PLAN — warmup + peak chain per genre family
@@ -503,9 +436,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
 
 /** The wire arm for /megaset-cohorts: summary counts only — chain +
  *  poolRows are the server-side export fields and never serialize. */
-function cohortArmWire(
-  arm: ReturnType<typeof buildCohortPlan>["cohorts"][number]["warmup"],
-) {
+function cohortArmWire(arm: ReturnType<typeof buildCohortPlan>["cohorts"][number]["warmup"]) {
   return {
     preset: arm.preset,
     actualMinutes: arm.actualMinutes,
@@ -569,8 +500,7 @@ async function skipRoute(url: URL, megadjCli: MegadjCli): Promise<Response> {
 async function readJsonObject(
   req: Request | undefined,
 ): Promise<{ body: Record<string, unknown> } | { error: Response }> {
-  if (!req || req.method !== "POST")
-    return { error: json({ error: "POST required" }, 405) };
+  if (!req || req.method !== "POST") return { error: json({ error: "POST required" }, 405) };
   let parsed: unknown;
   try {
     parsed = await req.json();
@@ -616,9 +546,7 @@ async function surfacedBatchRoute(
   if (!megadjCli) return json({ error: "surfaced-batch not available" }, 501);
   const rawFolder = gate.body.folder;
   const folder =
-    typeof rawFolder === "string" && rawFolder.trim().length > 0
-      ? rawFolder.trim()
-      : null;
+    typeof rawFolder === "string" && rawFolder.trim().length > 0 ? rawFolder.trim() : null;
   if (!folder || !folder.startsWith("/"))
     return json({ error: "folder must be an absolute path" }, 400);
   const ids = Array.isArray(gate.body.ids)
@@ -626,46 +554,30 @@ async function surfacedBatchRoute(
         (id: unknown): id is string => typeof id === "string",
       )
     : [];
-  if (
-    ids.length === 0 ||
-    ids.length > 500 ||
-    ids.some((id) => !/^[\w-]{6,24}$/u.test(id))
-  )
+  if (ids.length === 0 || ids.length > 500 || ids.some((id) => !/^[\w-]{6,24}$/u.test(id)))
     return json({ error: "ids must contain 1–500 valid surfaced ids" }, 400);
   // Job-based (Sep 19 UX pass): the ingest is a REAL job on the engine —
   // progress, cancel, SSE dock, one-at-a-time — instead of a blocking
   // CLI spawn inside the HTTP request (the 600s client deadline was a
   // symptom of that). The job's leg runs the CLI then notes the ids done.
-  if (!archiveJobs)
-    return json({ error: "surfaced-batch jobs not available" }, 501);
+  if (!archiveJobs) return json({ error: "surfaced-batch jobs not available" }, 501);
   // Allowlist parity with /intake/start (super-sure Sep 20): only folders
   // intakeCandidateDirs offers (watch folder + archive batch dirs) may
   // enqueue — the UI always posts from that census; a crafted path to
   // system dirs is refused, never ingested.
-  const allowed = intakeCandidateDirs(cfg).some(
-    (c) => c.path === folder && c.exists,
-  );
+  const allowed = intakeCandidateDirs(cfg).some((c) => c.path === folder && c.exists);
   if (!allowed)
     return json(
-      {
-        error:
-          "folder not on the intake allowlist — pick one from /intake/folders",
-      },
+      { error: "folder not on the intake allowlist — pick one from /intake/folders" },
       403,
     );
   const job = archiveJobs.enqueue("local-archive", "ingest", folder, "web");
   const noted = await megadjCli(["surfaced-note", ...ids, "--json"]);
   if (noted.code !== 0)
-    return json(
-      { ok: false, error: noted.stderr.slice(-800) || `exit ${noted.code}` },
-      409,
-    );
+    return json({ ok: false, error: noted.stderr.slice(-800) || `exit ${noted.code}` }, 409);
   return json({ ok: true, folder, submitted: ids.length, jobId: job.id });
 }
 
 function json(data: unknown, status = 200): Response {
-  return Response.json(data, {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+  return Response.json(data, { status, headers: { "Content-Type": "application/json" } });
 }

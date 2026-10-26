@@ -12,12 +12,7 @@ import { MAX_IMAGE_BYTES } from "../image/store";
 
 function isContainedMount(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);
-  return (
-    rel.length > 0 &&
-    rel !== ".." &&
-    !rel.startsWith(`..${sep}`) &&
-    !isAbsolute(rel)
-  );
+  return rel.length > 0 && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
 /** POST /api/drives/:id/photo — multipart upload or JSON url/rel/clear. */
@@ -49,8 +44,7 @@ export async function photoUpload(
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return json({ error: "file required" }, 400);
-    if (file.size > MAX_IMAGE_BYTES)
-      return json({ error: "image > 10MB" }, 413);
+    if (file.size > MAX_IMAGE_BYTES) return json({ error: "image > 10MB" }, 413);
     const dest = await images.choose(id, {
       data: new Uint8Array(await file.arrayBuffer()),
       // the upload's real name picks the extension (photo.png stays .png)
@@ -86,15 +80,10 @@ export async function photoUpload(
 /** Where a drive's volume is mounted. Respects CRATEDECK_VOLUMES/config
  *  volumesRoot (tests, fixtures, non-standard hosts) instead of assuming
  *  /Volumes — and verifies the directory is really there right now. */
-export function resolveMountPoint(
-  cfg: CrateConfig,
-  volumeName: string,
-): string {
+export function resolveMountPoint(cfg: CrateConfig, volumeName: string): string {
   const configuredRoot = resolve(cfg.volumesRoot);
   const outsideRoot = (): never => {
-    throw new Error(
-      `drive volume is outside configured volumes root: ${volumeName}`,
-    );
+    throw new Error(`drive volume is outside configured volumes root: ${volumeName}`);
   };
   if (isAbsolute(volumeName)) outsideRoot();
   const lexicalCandidate = resolve(configuredRoot, volumeName);
@@ -122,21 +111,13 @@ export function makeEnqueueDriveJob(deps: {
   cfg: CrateConfig;
   images: Parameters<typeof photoUpload>[2];
   jobs: {
-    enqueue: (
-      driveId: string,
-      kind: JobKind,
-      mountPoint: string,
-      origin: string,
-    ) => { id: string };
+    enqueue: (driveId: string, kind: JobKind, mountPoint: string, origin: string) => { id: string };
   };
   getDrive: (id: string) => (Drive & { mounted?: boolean }) | undefined;
   json: (data: unknown, status?: number) => Response;
 }) {
   const { cfg, jobs, getDrive, json } = deps;
-  return async function enqueueDriveJob(
-    req: Request,
-    id: string,
-  ): Promise<Response> {
+  return async function enqueueDriveJob(req: Request, id: string): Promise<Response> {
     let body: { kind: JobKind; origin?: string };
     try {
       body = (await req.json()) as typeof body;
@@ -148,10 +129,7 @@ export function makeEnqueueDriveJob(deps: {
     // the authority — a literal array here was a hand-copied twin that
     // already drifted once (grid-health 400'd while MCP advertised it).
     if (!(DRIVE_JOB_KINDS as readonly string[]).includes(body.kind)) {
-      return json(
-        { error: `bad kind — one of: ${DRIVE_JOB_KINDS.join(", ")}` },
-        400,
-      );
+      return json({ error: `bad kind — one of: ${DRIVE_JOB_KINDS.join(", ")}` }, 400);
     }
     const drive = getDrive(id);
     if (!drive?.mounted) return json({ error: "drive not mounted" }, 409);

@@ -51,9 +51,7 @@ describe("speedProbe", () => {
     const iso = t2.dir();
     try {
       writeFileSync(join(iso, "only.aiff"), Buffer.alloc(1_500_000, 3));
-      const r = await speedProbe(iso, 10, undefined, [
-        join(iso, "missing.aiff"),
-      ]);
+      const r = await speedProbe(iso, 10, undefined, [join(iso, "missing.aiff")]);
       expect(r.bytes_read).toBe(1_500_000);
     } finally {
       rmSync(iso, { recursive: true, force: true });
@@ -69,9 +67,7 @@ describe("speedProbe", () => {
   it("errors honestly with nothing to read", async () => {
     const empty = t3.dir();
     try {
-      expect(speedProbe(empty, 10)).rejects.toThrow(
-        "no audio files found to probe",
-      );
+      expect(speedProbe(empty, 10)).rejects.toThrow("no audio files found to probe");
     } finally {
       rmSync(empty, { recursive: true, force: true });
     }

@@ -5,9 +5,7 @@ const VITE_DEV_ORIGIN = "http://localhost:7743";
 function loopbackHttpUrl(raw: string): URL | null {
   try {
     const url = new URL(raw);
-    return url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname)
-      ? url
-      : null;
+    return url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname) ? url : null;
   } catch {
     return null;
   }

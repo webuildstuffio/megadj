@@ -39,23 +39,16 @@ export async function enqueueAndFollow(
       // lie to both the JSON consumer and the human (fallback-slop S1/S10).
       let result: Record<string, unknown>;
       try {
-        result = JSON.parse(polled.result_json ?? "{}") as Record<
-          string,
-          unknown
-        >;
+        result = JSON.parse(polled.result_json ?? "{}") as Record<string, unknown>;
       } catch (error) {
-        h.errOut(
-          `${family} job result was not valid JSON: ${errMessage(error)}`,
-        );
+        h.errOut(`${family} job result was not valid JSON: ${errMessage(error)}`);
         h.exit(1);
         return null;
       }
       if (h.jsonMode) await emitJson(result);
       return result;
     }
-    h.errOut(
-      `${family} job ${polled.status}: ${polled.error ?? "no error given"}`,
-    );
+    h.errOut(`${family} job ${polled.status}: ${polled.error ?? "no error given"}`);
     h.exit(1);
   }
   return null;

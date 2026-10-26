@@ -5,8 +5,4 @@
  * may not. Import from here, never from `../../test-support/testutil`
  * directly, so the seam has one address.
  */
-export {
-  tempDir,
-  tempState,
-  type TempDirHandle,
-} from "../../test-support/testutil";
+export { tempDir, tempState, type TempDirHandle } from "../../test-support/testutil";

@@ -36,12 +36,7 @@ export const BASE = `http://127.0.0.1:${PORT}`;
 
 // Wire shapes come from the shared type SSOT (src/deck/shared/types.ts) so
 // the server, CLI, and MCP layers can't drift apart.
-import {
-  TERMINAL_JOB_STATUSES,
-  type Drive,
-  type Job,
-  type JobStatus,
-} from "./shared/types";
+import { TERMINAL_JOB_STATUSES, type Drive, type Job, type JobStatus } from "./shared/types";
 export { type Drive, type Job, type JobStatus } from "./shared/types";
 
 /** True when a job has reached a terminal state. */
@@ -61,10 +56,7 @@ function offlineGate(): void {
   }
 }
 
-export async function apiGet(
-  path: string,
-  timeoutMs = 10_000,
-): Promise<Response> {
+export async function apiGet(path: string, timeoutMs = 10_000): Promise<Response> {
   offlineGate();
   // every server round-trip gets a deadline: a wedged/restarting server
   // must surface as a catchable failure, not an infinite client hang
@@ -74,10 +66,7 @@ export async function apiGet(
 /** apiGet + typed JSON body — the one place an untyped `r.json( + ` is
  * allowed in callers. Response.json() returns `any`; pinning it to a
  * caller-specified shape keeps the MCP tool layer off `any`. */
-export async function apiGetJson<T = unknown>(
-  path: string,
-  timeoutMs = 10_000,
-): Promise<T> {
+export async function apiGetJson<T = unknown>(path: string, timeoutMs = 10_000): Promise<T> {
   const res = await apiGet(path, timeoutMs);
   return (await res.json()) as T;
 }
@@ -88,11 +77,7 @@ export async function apiGetJson<T = unknown>(
 export const apiGetJsonT = <T>(path: string, timeoutMs?: number): Promise<T> =>
   apiGet(path, timeoutMs ?? 10_000).then((r) => r.json() as Promise<T>);
 
-export async function apiPost(
-  path: string,
-  body?: unknown,
-  timeoutMs = 30_000,
-): Promise<Response> {
+export async function apiPost(path: string, body?: unknown, timeoutMs = 30_000): Promise<Response> {
   offlineGate();
   return fetch(`${BASE}${path}`, {
     method: "POST",
@@ -105,21 +90,13 @@ export async function apiPost(
 /** POST the note-dismiss and parse the ok envelope (#316: deckctl
  *  cmdDismiss and the MCP dismiss tool each rebuilt the same call). The
  *  caller owns the failure surface (CLI exit vs RpcParamError). */
-export async function dismissNote(
-  driveId: string,
-  noteId: string,
-): Promise<void> {
-  const res = await apiPost(
-    `/api/drives/${driveId}/notes/${encodeURIComponent(noteId)}/dismiss`,
-  );
+export async function dismissNote(driveId: string, noteId: string): Promise<void> {
+  const res = await apiPost(`/api/drives/${driveId}/notes/${encodeURIComponent(noteId)}/dismiss`);
   const body = (await res.json()) as { ok?: boolean; error?: string };
   if (!res.ok || !body.ok)
-    throw Object.assign(
-      new Error(body.error ?? `dismiss failed (${res.status})`),
-      {
-        status: res.status,
-      },
-    );
+    throw Object.assign(new Error(body.error ?? `dismiss failed (${res.status})`), {
+      status: res.status,
+    });
 }
 
 /** Wait for the server, auto-starting it if it isn't running. Tests (and
@@ -131,18 +108,14 @@ export async function dismissNote(
 export async function ensureServer(): Promise<boolean> {
   if (process.env.CRATEDECK_NO_AUTOSTART === "1") {
     try {
-      const r = await fetch(`${BASE}/api/interlock`, {
-        signal: AbortSignal.timeout(1500),
-      });
+      const r = await fetch(`${BASE}/api/interlock`, { signal: AbortSignal.timeout(1500) });
       return r.ok;
     } catch {
       return false;
     }
   }
   try {
-    const r = await fetch(`${BASE}/api/interlock`, {
-      signal: AbortSignal.timeout(1500),
-    });
+    const r = await fetch(`${BASE}/api/interlock`, { signal: AbortSignal.timeout(1500) });
     if (r.ok) return true;
   } catch {
     // probe failure = not up yet; the spawn+retry loop below is the handling
@@ -164,9 +137,7 @@ export async function ensureServer(): Promise<boolean> {
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 500));
     try {
-      const r = await fetch(`${BASE}/api/interlock`, {
-        signal: AbortSignal.timeout(1000),
-      });
+      const r = await fetch(`${BASE}/api/interlock`, { signal: AbortSignal.timeout(1000) });
       if (r.ok) return true;
     } catch {
       // still not accepting connections — keep polling until the budget ends
@@ -228,9 +199,7 @@ export async function pollJob(
   const deadline = Date.now() + (opts.timeoutMs ?? 30 * 60 * 1000);
   while (Date.now() < deadline) {
     try {
-      const j = (await get(`/api/jobs/${jobId}`, 5_000).then((r) =>
-        r.json(),
-      )) as Job;
+      const j = (await get(`/api/jobs/${jobId}`, 5_000).then((r) => r.json())) as Job;
       transientErrors = 0;
       return j;
     } catch (e) {
@@ -254,9 +223,7 @@ export async function waitForJob(
   let last = "";
   while (Date.now() < deadline) {
     // pollJob owns transient-failure tolerance (identical contract)
-    const j = await pollJob(jobId, {
-      timeoutMs: Math.max(deadline - Date.now(), 0),
-    });
+    const j = await pollJob(jobId, { timeoutMs: Math.max(deadline - Date.now(), 0) });
     // dedupe on status+message: progress ticks fire every poll by design,
     // so including them would re-notify on each 3s poll while % moves
     const key = `${j.status}:${j.message}`;

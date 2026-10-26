@@ -44,8 +44,7 @@ function corpus(): SetCandidate[] {
       artist: i % 6 === 2 ? "Run Artist" : `Artist ${(i * 13) % 40}`,
       // floor rejects (i%29===0 → <1min), cap rejects (i%53===0 → >15min),
       // the rest a spread of real lengths
-      durationS:
-        i % 29 === 0 ? 35 : i % 53 === 0 ? 950 : 210 + ((i * 37) % 420),
+      durationS: i % 29 === 0 ? 35 : i % 53 === 0 ? 950 : 210 + ((i * 37) % 420),
       // unanalyzed every 11th; half-time lane pair near i%2; else a
       // 120–138 ladder around the warmup anchor
       bpm: i % 11 === 0 ? null : i % 2 === 0 ? 126 + (i % 7) : 87 + (i % 5),
@@ -61,8 +60,7 @@ function corpus(): SetCandidate[] {
               { bar: 65, position: 124.7 },
             ]
           : [],
-      embedding:
-        i % 3 === 0 ? [Math.sin(i) * 0.5, Math.cos(i) * 0.5, 0.1] : null,
+      embedding: i % 3 === 0 ? [Math.sin(i) * 0.5, Math.cos(i) * 0.5, 0.1] : null,
       genreFamily: i % 5 === 0 ? null : "house",
     });
   }
@@ -75,14 +73,10 @@ function corpus(): SetCandidate[] {
  *  exclusion reasons + the honest counters. NOT the whole wire object —
  *  the digest is stable against property reorderings but sensitive to
  *  every VALUE the scoring pipeline decides. */
-export function megasetScoreFingerprint(
-  r: ReturnType<typeof buildMegaset>,
-): string {
+export function megasetScoreFingerprint(r: ReturnType<typeof buildMegaset>): string {
   const lines: string[] = [];
   lines.push(`search=${r.search}`);
-  lines.push(
-    `minutes=${r.minutes} actual=${r.actualMinutes} complete=${r.complete}`,
-  );
+  lines.push(`minutes=${r.minutes} actual=${r.actualMinutes} complete=${r.complete}`);
   for (const s of r.steps) {
     const ev = s.evidence
       ? `${s.evidence.tempo}/${s.evidence.key}/${s.evidence.arcFit}/${s.evidence.anchor}/${s.evidence.similarity ?? "-"}`
@@ -104,10 +98,7 @@ export function megasetScoreFingerprint(
 }
 
 export function megasetDigest(r: ReturnType<typeof buildMegaset>): string {
-  return createHash("sha256")
-    .update(megasetScoreFingerprint(r))
-    .digest("hex")
-    .slice(0, 16);
+  return createHash("sha256").update(megasetScoreFingerprint(r)).digest("hex").slice(0, 16);
 }
 
 // ---- the scenarios -------------------------------------------------------
@@ -123,18 +114,8 @@ const SCENARIOS: {
   { name: "warmup-auto", preset: "warmup", minutes: 120 },
   { name: "peak-auto", preset: "peak", minutes: 180 },
   { name: "afterhours-auto", preset: "afterhours", minutes: 90 },
-  {
-    name: "peak-greedy-forced",
-    preset: "peak",
-    minutes: 90,
-    searchOverride: "greedy",
-  },
-  {
-    name: "warmup-beam-forced",
-    preset: "warmup",
-    minutes: 60,
-    searchOverride: "beam",
-  },
+  { name: "peak-greedy-forced", preset: "peak", minutes: 90, searchOverride: "greedy" },
+  { name: "warmup-beam-forced", preset: "warmup", minutes: 60, searchOverride: "beam" },
   {
     name: "warmup-landmarks",
     preset: "warmup",
@@ -150,9 +131,7 @@ describe("#306 scoring calibration gate", () => {
         candidates: corpus(),
         preset: SET_PRESETS[s.preset],
         minutes: s.minutes,
-        ...(s.searchOverride !== undefined
-          ? { searchOverride: s.searchOverride }
-          : {}),
+        ...(s.searchOverride !== undefined ? { searchOverride: s.searchOverride } : {}),
         ...(s.landmarkIds !== undefined ? { landmarkIds: s.landmarkIds } : {}),
         ...(s.openerId !== undefined ? { openerId: s.openerId } : {}),
       });
@@ -161,16 +140,8 @@ describe("#306 scoring calibration gate", () => {
   });
 
   test("determinism: same corpus twice → identical fingerprint (the gate's floor)", () => {
-    const a = buildMegaset({
-      candidates: corpus(),
-      preset: SET_PRESETS.peak,
-      minutes: 120,
-    });
-    const b = buildMegaset({
-      candidates: corpus(),
-      preset: SET_PRESETS.peak,
-      minutes: 120,
-    });
+    const a = buildMegaset({ candidates: corpus(), preset: SET_PRESETS.peak, minutes: 120 });
+    const b = buildMegaset({ candidates: corpus(), preset: SET_PRESETS.peak, minutes: 120 });
     expect(megasetScoreFingerprint(b)).toBe(megasetScoreFingerprint(a));
   });
 
@@ -181,9 +152,7 @@ describe("#306 scoring calibration gate", () => {
         candidates: corpus(),
         preset: SET_PRESETS[s.preset],
         minutes: s.minutes,
-        ...(s.searchOverride !== undefined
-          ? { searchOverride: s.searchOverride }
-          : {}),
+        ...(s.searchOverride !== undefined ? { searchOverride: s.searchOverride } : {}),
         ...(s.landmarkIds !== undefined ? { landmarkIds: s.landmarkIds } : {}),
         ...(s.openerId !== undefined ? { openerId: s.openerId } : {}),
       });
@@ -191,9 +160,7 @@ describe("#306 scoring calibration gate", () => {
     }
     // one combined digest over all six scenarios — a single moved hop flips it
     const combined = createHash("sha256")
-      .update(
-        SCENARIOS.map((s) => `${s.name}=${perScenario[s.name]}`).join("\n"),
-      )
+      .update(SCENARIOS.map((s) => `${s.name}=${perScenario[s.name]}`).join("\n"))
       .digest("hex")
       .slice(0, 16);
     // blessed at #306 ship (Sep 23, HEAD 2ed92ab1) — post-F1..F4 scoring.

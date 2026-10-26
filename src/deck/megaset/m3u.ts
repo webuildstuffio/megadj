@@ -18,16 +18,12 @@ import type { CohortPlan } from "./cohorts";
  *  playlist; ANYTHING ELSE is an error, never a silent JSON
  *  fall-through (a caller who asked for a file must not be handed a
  *  payload that only looks like success). */
-export function parseFormatParam(
-  raw: string | null,
-): "m3u8" | "json" | { error: string } {
+export function parseFormatParam(raw: string | null): "m3u8" | "json" | { error: string } {
   if (raw === null || raw.trim() === "") return "json";
   const v = raw.trim().toLowerCase();
   if (v === "json") return "json";
   if (v === "m3u8") return "m3u8";
-  return {
-    error: `unknown format "${raw}" — supported: json (default), m3u8`,
-  };
+  return { error: `unknown format "${raw}" — supported: json (default), m3u8` };
 }
 
 /** M3U comment fields are one physical line; strip control characters
@@ -35,9 +31,7 @@ export function parseFormatParam(
  *  Built from code points instead of a literal control-char class
  *  (no-control-regex). */
 const M3U_CONTROL_CHARS = new RegExp(
-  `[${String.fromCharCode(0x00)}-${String.fromCharCode(
-    0x1f,
-  )}${String.fromCharCode(0x7f)}]+`,
+  `[${String.fromCharCode(0x00)}-${String.fromCharCode(0x1f)}${String.fromCharCode(0x7f)}]+`,
   "g",
 );
 function m3uText(value: string | null, fallback: string): string {
@@ -66,11 +60,7 @@ export function m3uCandidateIndex(
   return new Map(
     candidates.map((c) => [
       c.videoId,
-      {
-        filePath: c.filePath,
-        durationS: c.durationS,
-        metadataOnly: c.metadataOnly,
-      },
+      { filePath: c.filePath, durationS: c.durationS, metadataOnly: c.metadataOnly },
     ]),
   );
 }
@@ -162,10 +152,7 @@ export function m3uCohortSessionLines(
 
 /** The download Response — ONE header set (the single-set route and the
  *  cohorts route must not drift on Content-Type or disposition). */
-export function m3uResponse(
-  lines: readonly string[],
-  filename: string,
-): Response {
+export function m3uResponse(lines: readonly string[], filename: string): Response {
   return new Response(`${lines.join("\n")}\n`, {
     headers: {
       "Cache-Control": "no-store",

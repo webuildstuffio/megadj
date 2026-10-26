@@ -21,10 +21,7 @@ export function makeGridHealthRoutes(deps: {
   /** drive resolver: name/nickname/id → {id,name} */
   resolveDrive: (
     nameOrId: string,
-  ) =>
-    | { id: string; name: string }
-    | null
-    | Promise<{ id: string; name: string } | null>;
+  ) => { id: string; name: string } | null | Promise<{ id: string; name: string } | null>;
 }) {
   const { enqueue, json, resolveDrive } = deps;
 

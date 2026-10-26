@@ -97,9 +97,7 @@ describe("cancelled hashing never poisons the checksum ledger", () => {
     const db = new DB(join(tmpDir(), "db.sqlite"));
     try {
       bigFile(mount, "big.wav", 4 * 1024 * 1024);
-      const r = await checksumLedger(db, "d1", mount, 8 * 1024 * 1024 * 1024, {
-        cancelled: true,
-      });
+      const r = await checksumLedger(db, "d1", mount, 8 * 1024 * 1024 * 1024, { cancelled: true });
       expect(r.hashed).toBe(0);
       expect(db.ledgerCount("d1")).toBe(0);
     } finally {

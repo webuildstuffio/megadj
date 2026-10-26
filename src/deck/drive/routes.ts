@@ -14,12 +14,7 @@ import { buildReport, buildReportSummary, overall } from "../report/report";
 import { VERIFY_HELP } from "../verify/help";
 import { exportDossier, reportInput, type ReportDeps } from "../report/inputs";
 import { driveCompatibility } from "../players";
-import {
-  normalizeNote,
-  addAgentNote,
-  dismissAgentNote,
-  agentNotes,
-} from "../notes";
+import { normalizeNote, addAgentNote, dismissAgentNote, agentNotes } from "../notes";
 import type { Drive, NoteSeverity, SnapshotData } from "../shared/types";
 
 /** Server-side badge computation glue (#221: was badges_view.ts, 26L —
@@ -35,12 +30,8 @@ function driveBadgesView(
   // parseSnapshotJson (not bare JSON.parse): a corrupt master blob must
   // surface as a badge, never 500 the /drives list it rides on.
   const master = db.masterDrive();
-  const masterSnap = master
-    ? parseSnapshotJson(master.last_snapshot_json).snap
-    : null;
-  const badges = driveBadges(drive, {
-    latestVerify: db.latestVerify(drive.id),
-  });
+  const masterSnap = master ? parseSnapshotJson(master.last_snapshot_json).snap : null;
+  const badges = driveBadges(drive, { latestVerify: db.latestVerify(drive.id) });
   const sync = syncBadge(drive, masterSnap);
   if (sync) badges.push(sync);
   return badges;
@@ -109,10 +100,7 @@ export function makeDriveRoutes(deps: {
   images: ImageService;
   reportDeps: ReportDeps;
   extraPlayers: ExtraPlayers;
-  enqueueDriveJobFor: (
-    req: Request,
-    id: string,
-  ) => Promise<Response> | Response;
+  enqueueDriveJobFor: (req: Request, id: string) => Promise<Response> | Response;
   serveDriveImage: (url: URL) => Response;
   photoUpload: (
     req: Request,
@@ -173,22 +161,16 @@ export function makeDriveRoutes(deps: {
                 file_count: s.file_count,
                 capacity_bytes: s.capacity_bytes,
                 free_bytes: s.free_bytes,
-                live_free_bytes: d.mounted
-                  ? (liveFree.get(d.id) ?? null)
-                  : null,
+                live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
               }
             : {
                 // never-scanned mounted drive: still show live free space
                 capacity_bytes: d.capacity_bytes || undefined,
                 free_bytes: null,
-                live_free_bytes: d.mounted
-                  ? (liveFree.get(d.id) ?? null)
-                  : null,
+                live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
               };
         })(),
-        badges: [
-          ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),
-        ],
+        badges: [...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive)],
       }))
       .map((d) => ({
         ...d,
@@ -197,8 +179,7 @@ export function makeDriveRoutes(deps: {
         // hygiene census rides only the shelf drive (§4.3: the badge that
         // opens the queue); null elsewhere so cards don't render it
         hygiene:
-          d.role === "shelf" &&
-          d.name.toUpperCase() === cfg.shelfDrive.toUpperCase()
+          d.role === "shelf" && d.name.toUpperCase() === cfg.shelfDrive.toUpperCase()
             ? deps.hygieneBadge()
             : null,
       }));
@@ -230,8 +211,7 @@ export function makeDriveRoutes(deps: {
     if (sub === "/timeline") return json(db.timeline(id));
     // O88: agent findings feed — active notes as JSON + write/dismiss.
     // Logic lives in notes.ts; db exposes the raw rows it needs.
-    if (sub === "/notes" && req.method === "GET")
-      return json(agentNotes(db, id));
+    if (sub === "/notes" && req.method === "GET") return json(agentNotes(db, id));
     if (sub === "/notes" && req.method === "POST") {
       return postNote(req, id, db, driveOr404, json);
     }

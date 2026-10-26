@@ -48,11 +48,7 @@ const mkTieOrder = (order: [string, string][]) =>
 
 const mkCandidates = (n: number, prefix: string): SetCandidate[] =>
   Array.from({ length: n }, (_, i) =>
-    cand({
-      videoId: `${prefix}${String(i).padStart(2, "0")}`,
-      bpm: 126,
-      key: "8A",
-    }),
+    cand({ videoId: `${prefix}${String(i).padStart(2, "0")}`, bpm: 126, key: "8A" }),
   );
 
 describe("camelotOf", () => {
@@ -80,12 +76,9 @@ describe("keyScore", () => {
     ["diagonal", "9B", 0.9],
     ["clash", "2B", 0],
     ["unparsable either side → neutral", null, 0.5],
-  ] as [string, string | null, number][])(
-    "%s (key %s)",
-    (_label, key, expected) => {
-      expect(keyScore(a, cand({ key }))).toBe(expected);
-    },
-  );
+  ] as [string, string | null, number][])("%s (key %s)", (_label, key, expected) => {
+    expect(keyScore(a, cand({ key }))).toBe(expected);
+  });
 });
 
 describe("bpmScore", () => {
@@ -104,53 +97,14 @@ describe("bpmScore", () => {
 
 describe("buildMegaset", () => {
   const pool: SetCandidate[] = [
-    cand({
-      videoId: "opener",
-      title: "Opener",
-      bpm: 124,
-      key: "7A",
-      arousal: 3,
-      dance: 0.5,
-    }),
-    cand({
-      videoId: "mid",
-      title: "Mid",
-      bpm: 126,
-      key: "8A",
-      arousal: 5,
-      dance: 0.7,
-    }),
-    cand({
-      videoId: "near",
-      title: "Near",
-      bpm: 127,
-      key: "8A",
-      arousal: 6,
-      dance: 0.8,
-    }),
-    cand({
-      videoId: "peak",
-      title: "Peak",
-      bpm: 128,
-      key: "8A",
-      arousal: 8,
-      dance: 0.9,
-    }),
-    cand({
-      videoId: "far",
-      title: "Far",
-      bpm: 140,
-      key: "2B",
-      arousal: 7,
-      dance: 0.9,
-    }),
+    cand({ videoId: "opener", title: "Opener", bpm: 124, key: "7A", arousal: 3, dance: 0.5 }),
+    cand({ videoId: "mid", title: "Mid", bpm: 126, key: "8A", arousal: 5, dance: 0.7 }),
+    cand({ videoId: "near", title: "Near", bpm: 127, key: "8A", arousal: 6, dance: 0.8 }),
+    cand({ videoId: "peak", title: "Peak", bpm: 128, key: "8A", arousal: 8, dance: 0.9 }),
+    cand({ videoId: "far", title: "Far", bpm: 140, key: "2B", arousal: 7, dance: 0.9 }),
   ];
   test("warmup arc: opener first, energy generally rises, budget respected", () => {
-    const r = buildMegaset({
-      candidates: pool,
-      preset: SET_PRESETS.warmup,
-      minutes: 20,
-    });
+    const r = buildMegaset({ candidates: pool, preset: SET_PRESETS.warmup, minutes: 20 });
     expect(r.steps.length).toBeGreaterThan(1);
     expect(r.steps[0]!.videoId).toBe("opener"); // closest to arc start (arousal 3)
     // cumulative minutes respect the budget (last track may overshoot by one)
@@ -159,9 +113,7 @@ describe("buildMegaset", () => {
     expect(r.steps[0]!.transition).toBeNull();
     expect(r.steps[1]!.transition).not.toBeNull();
     // #283-followup: set-level quality stats derive from the same steps
-    const transitions = r.steps
-      .map((s) => s.transition)
-      .filter((t): t is number => t !== null);
+    const transitions = r.steps.map((s) => s.transition).filter((t): t is number => t !== null);
     expect(r.avg_transition).toBeCloseTo(
       transitions.reduce((a, b) => a + b, 0) / transitions.length,
       3,
@@ -169,19 +121,9 @@ describe("buildMegaset", () => {
     expect(r.min_transition).toBe(Math.min(...transitions));
   });
   test("deterministic: same input → same chain", () => {
-    const a = buildMegaset({
-      candidates: pool,
-      preset: SET_PRESETS.peak,
-      minutes: 15,
-    });
-    const b = buildMegaset({
-      candidates: pool,
-      preset: SET_PRESETS.peak,
-      minutes: 15,
-    });
-    expect(a.steps.map((s) => s.videoId)).toEqual(
-      b.steps.map((s) => s.videoId),
-    );
+    const a = buildMegaset({ candidates: pool, preset: SET_PRESETS.peak, minutes: 15 });
+    const b = buildMegaset({ candidates: pool, preset: SET_PRESETS.peak, minutes: 15 });
+    expect(a.steps.map((s) => s.videoId)).toEqual(b.steps.map((s) => s.videoId));
   });
   test("#106 Phase D: steps carry ledger-derived mix-in/mix-out windows", () => {
     const withCues: SetCandidate[] = [
@@ -197,11 +139,7 @@ describe("buildMegaset", () => {
       }),
       cand({ videoId: "cueless", title: "Cueless", cues: [] }),
     ];
-    const r = buildMegaset({
-      candidates: withCues,
-      preset: SET_PRESETS.warmup,
-      minutes: 10,
-    });
+    const r = buildMegaset({ candidates: withCues, preset: SET_PRESETS.warmup, minutes: 10 });
     const cued = r.steps.find((s) => s.videoId === "cued");
     const cueless = r.steps.find((s) => s.videoId === "cueless");
     expect(cued).toBeDefined();
@@ -235,18 +173,12 @@ describe("buildMegaset", () => {
     expect(r.steps[0]!.mixOutCue).toBeNull();
   });
   test("unmixable leftovers land in excluded with a reason — never dropped silently", () => {
-    const r = buildMegaset({
-      candidates: pool,
-      preset: SET_PRESETS.warmup,
-      minutes: 10,
-    });
+    const r = buildMegaset({ candidates: pool, preset: SET_PRESETS.warmup, minutes: 10 });
     const ids = new Set(r.steps.map((s) => s.videoId));
     for (const e of r.excluded) expect(e.reason.length).toBeGreaterThan(0);
     // every candidate is either in the chain or excluded
     for (const c of pool) {
-      expect(
-        ids.has(c.videoId) || r.excluded.some((e) => e.videoId === c.videoId),
-      ).toBe(true);
+      expect(ids.has(c.videoId) || r.excluded.some((e) => e.videoId === c.videoId)).toBe(true);
     }
   });
 
@@ -305,13 +237,10 @@ describe("buildMegaset", () => {
     );
     expect(groupedIds.length).toBe(r.excluded.length);
     // group examples cap at 4
-    for (const g of r.excluded_groups)
-      expect(g.examples.length).toBeLessThanOrEqual(4);
+    for (const g of r.excluded_groups) expect(g.examples.length).toBeLessThanOrEqual(4);
     // ordering: biggest bucket first
     for (let i = 1; i < r.excluded_groups.length; i++) {
-      expect(r.excluded_groups[i]!.count).toBeLessThanOrEqual(
-        r.excluded_groups[i - 1]!.count,
-      );
+      expect(r.excluded_groups[i]!.count).toBeLessThanOrEqual(r.excluded_groups[i - 1]!.count);
     }
     // a pool that fully chains: one good candidate, tiny target →
     // nothing excluded, no groups
@@ -425,15 +354,8 @@ describe("buildMegaset", () => {
   });
 
   test("opener pick is deterministic under equal arc distance too", () => {
-    const pair = [
-      cand({ videoId: "b-eq", arousal: 6 }),
-      cand({ videoId: "a-eq", arousal: 6 }),
-    ];
-    const r = buildMegaset({
-      candidates: pair,
-      preset: SET_PRESETS.peak,
-      minutes: 5,
-    });
+    const pair = [cand({ videoId: "b-eq", arousal: 6 }), cand({ videoId: "a-eq", arousal: 6 })];
+    const r = buildMegaset({ candidates: pair, preset: SET_PRESETS.peak, minutes: 5 });
     expect(r.steps[0]!.videoId).toBe("a-eq"); // localeCompare tie-break
   });
 
@@ -452,11 +374,9 @@ describe("buildMegaset", () => {
     });
     expect(r.steps.length).toBeGreaterThanOrEqual(2);
     expect(r.steps[0]!.videoId).not.toBe("noBpm-fit");
-    expect(
-      r.excluded.some(
-        (e) => e.videoId === "noBpm-fit" && e.reason.includes("BPM"),
-      ),
-    ).toBe(true);
+    expect(r.excluded.some((e) => e.videoId === "noBpm-fit" && e.reason.includes("BPM"))).toBe(
+      true,
+    );
   });
 
   test("requested opener without BPM is excluded honestly, arc still builds", () => {
@@ -560,11 +480,7 @@ describe("buildMegaset", () => {
         }),
       ),
     ];
-    const r = buildMegaset({
-      candidates,
-      preset: SET_PRESETS.warmup,
-      minutes: 30,
-    });
+    const r = buildMegaset({ candidates, preset: SET_PRESETS.warmup, minutes: 30 });
     expect(r.steps.length).toBeGreaterThan(2);
     expect(r.steps[0]!.videoId).not.toBe("slow-outlier");
   });
@@ -582,12 +498,7 @@ describe("buildMegaset", () => {
       cand({ videoId: "decoy", bpm: 126, key: "9A", arousal: 6.5 }),
       // …but every chain track clashes with the decoy's key
       ...Array.from({ length: 6 }, (_, i) =>
-        cand({
-          videoId: `chain-${i}`,
-          bpm: 126,
-          key: "7A",
-          arousal: 7 + i * 0.2,
-        }),
+        cand({ videoId: `chain-${i}`, bpm: 126, key: "7A", arousal: 7 + i * 0.2 }),
       ),
     ];
     const greedy = buildMegaset({
@@ -603,21 +514,14 @@ describe("buildMegaset", () => {
       searchOverride: "beam",
     });
     // greedy takes the decoy and dies there (7A is a dist-2 wall from 9A)
-    expect(greedy.steps.map((s) => s.videoId).slice(0, 2)).toEqual([
-      "op",
-      "decoy",
-    ]);
+    expect(greedy.steps.map((s) => s.videoId).slice(0, 2)).toEqual(["op", "decoy"]);
     expect(greedy.steps.length).toBe(2);
     // beam skips the doomed branch and chains the whole cluster
     expect(beamed.steps.length).toBeGreaterThan(2);
     expect(beamed.steps.map((s) => s.videoId)).not.toContain("decoy");
     // the automatic pick for this small pool IS the beam path, and the
     // result reports which search ran (the deep search is never silent)
-    const auto = buildMegaset({
-      candidates,
-      preset: SET_PRESETS.peak,
-      minutes: 60,
-    });
+    const auto = buildMegaset({ candidates, preset: SET_PRESETS.peak, minutes: 60 });
     expect(auto.search).toBe("beam");
     expect(auto.steps.length).toBeGreaterThan(2);
   });
@@ -631,14 +535,7 @@ describe("buildMegaset", () => {
     // chain by more than ε — 5.9 clears that wall while still losing
     // the arc-fit race to the short tracks.)
     const candidates = [
-      cand({
-        videoId: "opener",
-        durationS: 60,
-        bpm: 126,
-        key: "8A",
-        arousal: 6.4,
-        dance: 0.85,
-      }),
+      cand({ videoId: "opener", durationS: 60, bpm: 126, key: "8A", arousal: 6.4, dance: 0.85 }),
       cand({
         videoId: "long",
         durationS: 900,
@@ -683,11 +580,7 @@ describe("buildMegaset", () => {
         arousal: 5 + (i % 4) * 0.8,
       }),
     );
-    const r = buildMegaset({
-      candidates,
-      preset: SET_PRESETS.peak,
-      minutes: 60,
-    });
+    const r = buildMegaset({ candidates, preset: SET_PRESETS.peak, minutes: 60 });
     expect(r.search).toBe("greedy");
     expect(r.steps.length).toBeGreaterThan(10);
   });
@@ -759,10 +652,7 @@ describe("buildMegaset", () => {
       }),
     );
     const r = buildMegaset({
-      candidates: [
-        cand({ videoId: "anchor", bpm: 100, arousal: 6 }),
-        ...ladder,
-      ],
+      candidates: [cand({ videoId: "anchor", bpm: 100, arousal: 6 }), ...ladder],
       preset: SET_PRESETS.peak,
       minutes: 60,
       searchOverride: "greedy",
@@ -773,16 +663,12 @@ describe("buildMegaset", () => {
     // lane's ceiling (B8 made that lane REACHABLE — a rung near 2× the
     // ~112 direct ceiling pairs on the half-time lane); the ladder's far
     // end (~900) is still unreachable, and no step escapes the budget.
-    expect(maxBpm).toBeLessThanOrEqual(
-      100 * 2 * (1 + MEGASET_BRANCH_TOLERANCE) + 1,
-    );
+    expect(maxBpm).toBeLessThanOrEqual(100 * 2 * (1 + MEGASET_BRANCH_TOLERANCE) + 1);
     // and the chain demonstrably extends (the budget didn't kill it):
     // the near-anchor ladder rungs stay reachable
     expect(r.steps.length).toBeGreaterThanOrEqual(3);
     // far rungs are excluded honestly under the same reason umbrella
-    expect(r.excluded.some((e) => e.reason.includes("drift budget"))).toBe(
-      true,
-    );
+    expect(r.excluded.some((e) => e.reason.includes("drift budget"))).toBe(true);
   });
 
   test("B2: withinAnchorBudget — the direct lane and the 2x/0.5x branch lane", () => {
@@ -845,9 +731,7 @@ describe("buildMegaset", () => {
     });
     const arousal = r.steps.map((s) => s.arousal ?? 5);
     for (let i = 1; i < arousal.length; i++) {
-      expect(arousal[i]!).toBeLessThanOrEqual(
-        arousal[i - 1]! + MEGASET_AROUSAL_EPSILON,
-      );
+      expect(arousal[i]!).toBeLessThanOrEqual(arousal[i - 1]! + MEGASET_AROUSAL_EPSILON);
     }
   });
 

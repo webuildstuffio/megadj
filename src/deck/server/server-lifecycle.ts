@@ -3,11 +3,7 @@
 // split, #42). Pure orchestration over injected deps: no HTTP, no globals.
 import { listMountedVolumes } from "../detect/detect";
 import { errMessage } from "../../shared/leaf/fmt";
-import {
-  shouldAutoScan,
-  shouldAutoVerify,
-  autoVerifyReason,
-} from "../jobs/auto-schedule";
+import { shouldAutoScan, shouldAutoVerify, autoVerifyReason } from "../jobs/auto-schedule";
 import type { DB } from "../db";
 import type { Registry } from "../registry";
 import type { ImageService } from "../image/store";
@@ -39,10 +35,7 @@ export function makeServerLifecycle(deps: {
       try {
         await images.syncOnMount(id);
       } catch (e) {
-        console.error(
-          `photo mount re-sync failed for ${d.name}:`,
-          errMessage(e),
-        );
+        console.error(`photo mount re-sync failed for ${d.name}:`, errMessage(e));
       }
     }
   }
@@ -60,8 +53,7 @@ export function makeServerLifecycle(deps: {
         const drive = db.getDrive(id);
         if (!drive?.mounted) continue;
         const snap = snaps.get(id);
-        const hasFresh =
-          Boolean(snap?.taken_at) && now - snap!.taken_at < 60_000;
+        const hasFresh = Boolean(snap?.taken_at) && now - snap!.taken_at < 60_000;
         if (
           shouldAutoScan(
             { mounted: true, justMounted: true, hasFreshSnapshot: hasFresh },
@@ -69,9 +61,7 @@ export function makeServerLifecycle(deps: {
           )
         ) {
           const j = jobs.enqueue(id, "scan", mountPointOf(drive.name), "auto");
-          console.log(
-            `cratedeck: auto-scan ${drive.name} (${j.id.slice(0, 8)})`,
-          );
+          console.log(`cratedeck: auto-scan ${drive.name} (${j.id.slice(0, 8)})`);
         }
       }
       registry.justMountedIds.clear();
@@ -95,15 +85,8 @@ export function makeServerLifecycle(deps: {
           if (now - lastAttempt < 3_600_000) continue; // max 1 attempt/hour
           autoVerifyAttempts.set(drive.id, now);
           const reason = autoVerifyReason(input, cfg.verifyIntervalDays);
-          const j = jobs.enqueue(
-            drive.id,
-            "verify",
-            mountPointOf(drive.name),
-            "auto",
-          );
-          console.log(
-            `cratedeck: auto-verify ${drive.name} (${j.id.slice(0, 8)}) — ${reason}`,
-          );
+          const j = jobs.enqueue(drive.id, "verify", mountPointOf(drive.name), "auto");
+          console.log(`cratedeck: auto-verify ${drive.name} (${j.id.slice(0, 8)}) — ${reason}`);
         }
       }
     }
