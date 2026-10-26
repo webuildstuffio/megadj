@@ -37,12 +37,7 @@ describe("boothFix — end to end (fixture archive)", () => {
   test("dry run: flags the rename, changes nothing on disk", async () => {
     setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2"]);
     const state = fakeState();
-    const res = await boothFix({
-      state,
-      musicDir,
-      dryRun: true,
-      log: () => {},
-    });
+    const res = await boothFix({ state, musicDir, dryRun: true, log: () => {} });
     expect(res.fleet).toEqual(["xdj-xz", "cdj-3000", "cdj-2000nxs2"]);
     expect(res.applied).toBe(0);
     const names = readdirSync(musicDir);
@@ -56,12 +51,7 @@ describe("boothFix — end to end (fixture archive)", () => {
   test("apply: renames the illegal-char file, idempotent re-run", async () => {
     setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2"]);
     const state = fakeState();
-    const res = await boothFix({
-      state,
-      musicDir,
-      apply: true,
-      log: () => {},
-    });
+    const res = await boothFix({ state, musicDir, apply: true, log: () => {} });
     expect(res.applied).toBeGreaterThanOrEqual(1);
     const names = readdirSync(musicDir);
     expect(names).toContain("bad ,name.aiff"); // ; → , + trailing space gone
@@ -70,12 +60,7 @@ describe("boothFix — end to end (fixture archive)", () => {
     // chars + trailing dot/space only; emoji lives in tags)
     expect(names).toContain("track 🔥.aiff");
     // idempotence: second run finds nothing more to rename
-    const again = await boothFix({
-      state,
-      musicDir,
-      apply: true,
-      log: () => {},
-    });
+    const again = await boothFix({ state, musicDir, apply: true, log: () => {} });
     expect(again.rows.filter((r) => r.action === "rename").length).toBe(0);
   });
 });
@@ -84,12 +69,7 @@ describe("boothFix — exit-code honesty", () => {
   test("rows with action 'none' (unfixable) keep the report honest", async () => {
     setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2"]);
     const state = fakeState();
-    const res = await boothFix({
-      state,
-      musicDir,
-      dryRun: true,
-      log: () => {},
-    });
+    const res = await boothFix({ state, musicDir, dryRun: true, log: () => {} });
     // every plan row names an executable command or a concrete rename
     for (const r of res.rows) {
       expect(r.plan.length).toBeGreaterThan(4);

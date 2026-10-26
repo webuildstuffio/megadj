@@ -36,18 +36,12 @@ export function runValidatePatchCases(): void {
   });
 
   test("rejects wrong types", () => {
-    expect(() => validatePatchUntrusted({ title: 42 })).toThrow(
-      /must be a string/,
-    );
-    expect(() => validatePatchUntrusted({ year: "2020" })).toThrow(
-      /integer 1900–2100/,
-    );
+    expect(() => validatePatchUntrusted({ title: 42 })).toThrow(/must be a string/);
+    expect(() => validatePatchUntrusted({ year: "2020" })).toThrow(/integer 1900–2100/);
   });
 
   test("rejects overlong strings", () => {
-    expect(() => validatePatchUntrusted({ title: "x".repeat(501) })).toThrow(
-      /too long/,
-    );
+    expect(() => validatePatchUntrusted({ title: "x".repeat(501) })).toThrow(/too long/);
   });
 
   test("allows undefined fields", () => {

@@ -22,9 +22,7 @@ import { canonGenre } from "../write/schema";
 import { guessFromFreeText, SC_GENRE_CANON } from "../genre/genre-vocab";
 
 /** Lowercase keys from the SC canon map for quick membership test. */
-const SC_GENRE_CANON_KEYS = new Set(
-  Object.keys(SC_GENRE_CANON).map((k) => k.toLowerCase()),
-);
+const SC_GENRE_CANON_KEYS = new Set(Object.keys(SC_GENRE_CANON).map((k) => k.toLowerCase()));
 
 /** The one-row truth shape an MB hit fills. */
 export interface MbTruth {
@@ -57,10 +55,7 @@ const mbIngestMiss = (): MbIngestRow => ({
 const mbCache = new Map<string, MbTruth | null>();
 
 /** MusicBrainz recording lookup — fills missing artist/album/date (1 rps). */
-export async function mbRecording(
-  artist: string | null,
-  title: string,
-): Promise<MbIngestRow> {
+export async function mbRecording(artist: string | null, title: string): Promise<MbIngestRow> {
   try {
     const rec = (await mbFetchRecordings(artist, title))?.[0];
     if (!rec) return mbIngestMiss();
@@ -138,9 +133,7 @@ function parseMbResponse(raw: string): { recordings?: MbRecording[] } {
   try {
     return JSON.parse(raw) as { recordings?: MbRecording[] };
   } catch (error) {
-    throw new Error("MusicBrainz search returned malformed JSON", {
-      cause: error,
-    });
+    throw new Error("MusicBrainz search returned malformed JSON", { cause: error });
   }
 }
 
@@ -156,24 +149,17 @@ async function mbFetchRecordings(
   const q = artist
     ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
     : `recording:"${encodeURIComponent(title)}"`;
-  const res = await fetch(
-    `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
-    {
-      headers: {
-        "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
-      },
-      signal: AbortSignal.timeout(MB_TIMEOUT_MS),
-    },
-  );
+  const res = await fetch(`https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`, {
+    headers: { "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)" },
+    signal: AbortSignal.timeout(MB_TIMEOUT_MS),
+  });
   if (!res.ok) return null;
   return parseMbResponse(await res.text()).recordings ?? null;
 }
 
 /** The one wire parse: recording row → truth row (+ the ingest-only
  *  date/artistTags projections). Previously assembled twice with drift. */
-function recordingToTruth(
-  rec: MbRecording,
-): MbTruth & { date: string | null; artistTags: string } {
+function recordingToTruth(rec: MbRecording): MbTruth & { date: string | null; artistTags: string } {
   const first = rec.releases?.[0];
   const credit = rec["artist-credit"]?.[0];
   const date = first?.date ?? null;
@@ -196,10 +182,7 @@ function recordingToTruth(
 // ---- folksonomy genre harvest (folded from mb.ts) ----
 
 interface MbArtistSearch {
-  artists?: {
-    name?: string;
-    tags?: { name: string; count: number }[];
-  }[];
+  artists?: { name?: string; tags?: { name: string; count: number }[] }[];
 }
 
 /** MB recording detail — tags on the recording + release group. */
@@ -218,9 +201,7 @@ const recordingTagCache = new Map<string, string | null>();
 
 /** Shared tag → genre resolver (3-pass folksonomy).
  *  Used by both artist and recording tag resolvers. */
-function resolveTags(
-  tags: readonly { name: string; count: number }[],
-): string | null {
+function resolveTags(tags: readonly { name: string; count: number }[]): string | null {
   const sorted = [...tags].toSorted((x, y) => y.count - x.count);
   // Pass 1: exact canon match
   for (const t of sorted) {
@@ -248,9 +229,7 @@ export async function mbGenreForArtist(artist: string): Promise<string | null> {
   const url = `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(`"${artist}"`)}&fmt=json&limit=1`;
   try {
     const res = await fetch(url, {
-      headers: {
-        "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
-      },
+      headers: { "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)" },
       signal: AbortSignal.timeout(MB_TIMEOUT_MS),
     });
     if (!res.ok) return null;
@@ -316,9 +295,7 @@ export async function mbGenreForRecording(
     const res = await fetch(
       `https://musicbrainz.org/ws/2/recording/${rec.id}?inc=tags+release-groups&fmt=json`,
       {
-        headers: {
-          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
-        },
+        headers: { "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)" },
         signal: AbortSignal.timeout(MB_TIMEOUT_MS),
       },
     );
@@ -336,20 +313,14 @@ export async function mbGenreForRecording(
   const rg = detail?.["release-groups"]?.[0];
   if (rg?.tags) {
     for (const t of rg.tags) {
-      allTags.push({
-        name: t.name,
-        count: Math.max(1, Math.floor(t.count * 0.7)),
-      });
+      allTags.push({ name: t.name, count: Math.max(1, Math.floor(t.count * 0.7)) });
     }
   }
   // Also fold in artist-credit tags from the search result
   const creditTags = rec["artist-credit"]?.[0]?.artist?.tags;
   if (creditTags) {
     for (const t of creditTags) {
-      allTags.push({
-        name: t.name,
-        count: Math.max(1, Math.floor(t.count * 0.5)),
-      });
+      allTags.push({ name: t.name, count: Math.max(1, Math.floor(t.count * 0.5)) });
     }
   }
 

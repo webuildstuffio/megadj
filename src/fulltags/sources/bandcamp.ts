@@ -91,19 +91,12 @@ export async function bcSearchRaw(q: SearchQueryParts): Promise<BcTrack[]> {
   if (!term) return [];
   let res: Response;
   try {
-    res = await fetch(
-      "https://bandcamp.com/api/bcsearch_public_api/1/autocomplete_elastic",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "User-Agent": UA },
-        body: JSON.stringify({
-          search_text: term,
-          search_filter: "t",
-          full_page: false,
-        }),
-        signal: AbortSignal.timeout(FETCH_TIMEOUT),
-      },
-    );
+    res = await fetch("https://bandcamp.com/api/bcsearch_public_api/1/autocomplete_elastic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": UA },
+      body: JSON.stringify({ search_text: term, search_filter: "t", full_page: false }),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT),
+    });
     if (!res.ok) {
       console.error(`bandcamp search → HTTP ${res.status}`);
       return [];
@@ -146,8 +139,8 @@ export async function bcSearchRaw(q: SearchQueryParts): Promise<BcTrack[]> {
 export function scoreBcHits(hits: BcTrack[], q: SearchQueryParts): BcTrack[] {
   const kept = hits.filter((h) => {
     if (titleOverlap(q.title, h.name) < BC_MIN_OVERLAP) return false;
-    const artistStrings = [h.bandName, h.artist, h.albumName].filter(
-      (s): s is string => Boolean(s),
+    const artistStrings = [h.bandName, h.artist, h.albumName].filter((s): s is string =>
+      Boolean(s),
     );
     return artistGate(q.artist, artistStrings) > 0;
   });
@@ -156,9 +149,7 @@ export function scoreBcHits(hits: BcTrack[], q: SearchQueryParts): BcTrack[] {
   for (const h of kept) {
     const g = artistGate(
       q.artist,
-      [h.bandName, h.artist, h.albumName].filter((s): s is string =>
-        Boolean(s),
-      ),
+      [h.bandName, h.artist, h.albumName].filter((s): s is string => Boolean(s)),
     );
     h.score += g === 6 ? 6 : g === 4 ? 4 : 0;
   }
@@ -213,9 +204,7 @@ export async function bcFetchPage(url: string): Promise<BcPage | null> {
   }
   const raw = await res.text();
 
-  const tags = [
-    ...raw.matchAll(/<a class="tag" href="[^"]*\/discover\/([^"?/]+)/g),
-  ]
+  const tags = [...raw.matchAll(/<a class="tag" href="[^"]*\/discover\/([^"?/]+)/g)]
     .map((m) => m[1]?.trim())
     .filter((t): t is string => Boolean(t));
 
@@ -231,32 +220,26 @@ export async function bcFetchPage(url: string): Promise<BcPage | null> {
     durationS: null,
   };
 
-  const ld = raw.match(
-    /<script type="application\/ld\+json">([\s\S]*?)<\/script>/,
-  );
+  const ld = raw.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
   if (ld?.[1]) {
     try {
-      const j = JSON.parse(
-        ld[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"),
-      ) as Record<string, unknown>;
+      const j = JSON.parse(ld[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&")) as Record<
+        string,
+        unknown
+      >;
       const byArtist = ldObj(j.byArtist);
       const publisher = ldObj(j.publisher);
       const inAlbum = ldObj(j.inAlbum);
       const albumPublisher = ldObj(inAlbum?.publisher);
-      const dateRaw =
-        ldStr(j.datePublished) ?? ldStr(inAlbum?.datePublished) ?? null;
+      const dateRaw = ldStr(j.datePublished) ?? ldStr(inAlbum?.datePublished) ?? null;
       const dur = parseIsoDuration(ldStr(j.duration));
       page = {
         ...page,
         title: ldStr(j.name) ?? page.title,
         artist: ldStr(byArtist?.name) ?? page.artist,
-        label:
-          ldStr(publisher?.name) ?? ldStr(albumPublisher?.name) ?? page.label,
+        label: ldStr(publisher?.name) ?? ldStr(albumPublisher?.name) ?? page.label,
         genre:
-          page.genre ??
-          (typeof j.genre === "string"
-            ? (j.genre.split("/").pop() ?? null)
-            : null),
+          page.genre ?? (typeof j.genre === "string" ? (j.genre.split("/").pop() ?? null) : null),
         artUrl: page.artUrl ?? (ldStr(j.image) ? String(j.image) : null),
         datePublished: dateRaw ? isoFromBcDate(dateRaw) : null,
         durationS: page.durationS ?? dur,
@@ -279,9 +262,7 @@ export function isoFromBcDate(bc: string): string | null {
 /** ISO-8601 duration ("P01H14M09S") → seconds; null when unparseable. */
 export function parseIsoDuration(iso: string | null): number | null {
   if (!iso) return null;
-  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(
-    iso,
-  );
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(iso);
   if (!m) return null;
   const [, d, h, min, s] = m;
   const total =
@@ -297,10 +278,7 @@ export function parseIsoDuration(iso: string | null): number | null {
  *  titles carry meaningful bracket info, e.g. "[free download]"). */
 export function bcQueryTerm(q: SearchQueryParts): string {
   const artist0 = primaryArtist(q.artist);
-  const tokens = `${artist0} ${q.title}`
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 8);
+  const tokens = `${artist0} ${q.title}`.split(/\s+/).filter(Boolean).slice(0, 8);
   return tokens.join(" ").trim();
 }
 
@@ -309,10 +287,7 @@ export function bcQueryTerm(q: SearchQueryParts): string {
  *  Returns null when nothing maps — never invents a label. The junk gate
  *  lives in the CALLER (applyScGenre-equivalent) so every source funnels
  *  through one numeric/`Music` refuse point. */
-export function bcGenre(
-  page: BcPage,
-  canon: (raw: string) => string,
-): string | null {
+export function bcGenre(page: BcPage, canon: (raw: string) => string): string | null {
   for (const tag of page.tags) {
     if (/^\d+$/.test(tag) || tag.toLowerCase() === "music") continue;
     const c = canon(tag);

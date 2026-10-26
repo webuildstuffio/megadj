@@ -7,11 +7,7 @@
 // (fetch-stages bpQueryArtist + stageBeatportIdentity correction).
 
 import { describe, expect, test } from "bun:test";
-import {
-  buildMetadata,
-  scInfoToYtdlpInfo,
-  splitArtistFromTitle,
-} from "../write/metadata-build";
+import { buildMetadata, scInfoToYtdlpInfo, splitArtistFromTitle } from "../write/metadata-build";
 
 describe("#275 splitArtistFromTitle (the download-time identity seam)", () => {
   test("splits on the first ' - ' only", () => {
@@ -20,9 +16,7 @@ describe("#275 splitArtistFromTitle (the download-time identity seam)", () => {
       track: "She Freaks (Original Mix)",
     });
     // later " - " boundaries stay in the track half
-    expect(
-      splitArtistFromTitle("GENESI & Equinøx - Chemistry - Truesoul"),
-    ).toEqual({
+    expect(splitArtistFromTitle("GENESI & Equinøx - Chemistry - Truesoul")).toEqual({
       artist: "GENESI & Equinøx",
       track: "Chemistry - Truesoul",
     });
@@ -33,10 +27,7 @@ describe("#275 splitArtistFromTitle (the download-time identity seam)", () => {
     expect(splitArtistFromTitle("X - ")).toBeNull();
     expect(splitArtistFromTitle(" - Y")).toBeNull();
     expect(splitArtistFromTitle(undefined)).toBeNull();
-    expect(splitArtistFromTitle("AC/DC - TNT")).toEqual({
-      artist: "AC/DC",
-      track: "TNT",
-    });
+    expect(splitArtistFromTitle("AC/DC - TNT")).toEqual({ artist: "AC/DC", track: "TNT" });
   });
 });
 
@@ -50,10 +41,7 @@ describe("#275 scInfoToYtdlpInfo artist correction", () => {
   });
 
   test("no-split title falls back to uploader→artist", () => {
-    const mapped = scInfoToYtdlpInfo({
-      title: "Sofia",
-      uploader: "Clairo",
-    });
+    const mapped = scInfoToYtdlpInfo({ title: "Sofia", uploader: "Clairo" });
     expect(mapped.artist).toBe("Clairo");
   });
 });
@@ -61,8 +49,7 @@ describe("#275 scInfoToYtdlpInfo artist correction", () => {
 describe("#275 buildMetadata identity hygiene", () => {
   test("'X - Unknown Album' placeholders dissolve to honest null", () => {
     expect(
-      buildMetadata({ title: "T", album: "Big Joy Records - Unknown Album" })
-        .album,
+      buildMetadata({ title: "T", album: "Big Joy Records - Unknown Album" }).album,
     ).toBeNull();
   });
 
@@ -72,10 +59,7 @@ describe("#275 buildMetadata identity hygiene", () => {
 
   test("description without an album mention stays null", () => {
     expect(
-      buildMetadata({
-        title: "T",
-        description: "out now everywhere, shout out my mom",
-      }).album,
+      buildMetadata({ title: "T", description: "out now everywhere, shout out my mom" }).album,
     ).toBeNull();
   });
 });

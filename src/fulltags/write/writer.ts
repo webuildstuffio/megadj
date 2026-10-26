@@ -65,10 +65,7 @@ export function yearFromDate(date: string): number | undefined {
  * Write a legacy EnrichedMetadata (full-record replace semantics).
  * Thin wrapper kept for megadj ingest/sync compat.
  */
-export async function applyTags(
-  filePath: string,
-  meta: EnrichedMetadata,
-): Promise<void> {
+export async function applyTags(filePath: string, meta: EnrichedMetadata): Promise<void> {
   const patch: TagPatch = {
     title: meta.title ?? undefined,
     artist: meta.artist ?? undefined,
@@ -111,8 +108,7 @@ function ffmpegTagPlan(
     "-disposition:v:0",
     "attached_pic",
   );
-  for (const [k, v] of pairs)
-    args.push("-metadata", `${FFMPEG_KEY[k]}=${String(v)}`);
+  for (const [k, v] of pairs) args.push("-metadata", `${FFMPEG_KEY[k]}=${String(v)}`);
   const tagged = tmpLike(filePath, ".tagged");
   if (extname(filePath).toLowerCase() === ".mp3") {
     // One -c:v decision, not two: the base plan sets mjpeg and this used to
@@ -167,11 +163,7 @@ function mutagenDispatch(
  *  in both containers). In-place atomic edit: audio + art bytes are
  *  never touched. Returns false on any failure (no throw) — callers
  *  treat it like any other failed write. */
-function writePatchMp3(
-  filePath: string,
-  patch: TagPatch,
-  ops?: Partial<WriterAtomicOps>,
-): boolean {
+function writePatchMp3(filePath: string, patch: TagPatch, ops?: Partial<WriterAtomicOps>): boolean {
   return mutagenPatchFrame(
     filePath,
     patch,
@@ -181,8 +173,7 @@ function writePatchMp3(
           .map(([k, v]) => mp3Id3Statement(k, v))
           .filter(Boolean)
           .join("\n"),
-      verifies: (pairs) =>
-        pairs.map(([k, v]) => mp3VerifyStatement(k, v)).join("\n"),
+      verifies: (pairs) => pairs.map(([k, v]) => mp3VerifyStatement(k, v)).join("\n"),
       script: mp3MutagenScript,
     },
     ops,
@@ -250,11 +241,7 @@ export function writePatchSync(
     if (handled !== null) return handled;
 
     const { args, tagged } = ffmpegTagPlan(filePath, pairs, true);
-    const pr = Bun.spawnSync({
-      cmd: ["ffmpeg", ...args],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const pr = Bun.spawnSync({ cmd: ["ffmpeg", ...args], stdout: "pipe", stderr: "pipe" });
     if (pr.exitCode !== 0) {
       // Never leak the tmp file — a failed write must leave the directory
       // exactly as it was (batch runs would otherwise drop one orphan
@@ -302,11 +289,7 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
  * (it also preserves embedded art). Sync API for the fetch-pipeline
  * workers; returns false on any failure (no throw).
  */
-function writePatchWav(
-  filePath: string,
-  patch: TagPatch,
-  ops?: Partial<WriterAtomicOps>,
-): boolean {
+function writePatchWav(filePath: string, patch: TagPatch, ops?: Partial<WriterAtomicOps>): boolean {
   return mutagenPatchFrame(
     filePath,
     patch,
@@ -316,8 +299,7 @@ function writePatchWav(
           .map(([k, v]) => wavId3Statement(k, v))
           .filter(Boolean)
           .join("\n"),
-      verifies: (pairs) =>
-        pairs.map(([k, v]) => wavVerifyStatement(k, v)).join("\n"),
+      verifies: (pairs) => pairs.map(([k, v]) => wavVerifyStatement(k, v)).join("\n"),
       script: (tempPath, sets, verifies) => `${id3Open(tempPath)}
 from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, TSRC, COMM
 if a.tags is None: a.add_tags()
@@ -340,11 +322,7 @@ print("ok")`,
  * survives, stamps persist. Sync API matching writePatchWav; returns
  * false on any failure (no throw).
  */
-function writePatchMp4(
-  filePath: string,
-  patch: TagPatch,
-  ops?: Partial<WriterAtomicOps>,
-): boolean {
+function writePatchMp4(filePath: string, patch: TagPatch, ops?: Partial<WriterAtomicOps>): boolean {
   return mutagenPatchFrame(
     filePath,
     patch,
@@ -354,13 +332,8 @@ function writePatchMp4(
           .map(([k, v]) => mp4Statement(k, v))
           .filter(Boolean)
           .join("\n"),
-      verifies: (pairs) =>
-        pairs.map(([k, v]) => mp4VerifyStatement(k, v)).join("\n"),
-      script: (
-        tempPath,
-        sets,
-        verifies,
-      ) => `from mutagen.mp4 import MP4, MP4FreeForm
+      verifies: (pairs) => pairs.map(([k, v]) => mp4VerifyStatement(k, v)).join("\n"),
+      script: (tempPath, sets, verifies) => `from mutagen.mp4 import MP4, MP4FreeForm
 a = MP4(${JSON.stringify(tempPath)})
 if a.tags is None: a.add_tags()
 ${sets}
@@ -455,10 +428,7 @@ print("ok")`,
 /** Fetch art from a URL and embed it as the front cover. The ingest art
  *  ladder (ingest-art.ts) rides this one-liner; the primitives (embedArt,
  *  art sources) live in this module + sources/art-sources.ts. */
-export async function embedArtwork(
-  filePath: string,
-  artUrl: string,
-): Promise<boolean> {
+export async function embedArtwork(filePath: string, artUrl: string): Promise<boolean> {
   const bytes = await fetchImage(artUrl);
   if (!bytes) return false;
   return embedArt(filePath, bytes);

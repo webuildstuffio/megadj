@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  sanitizeDisplayText,
-  sanitizeFilename,
-  repairMojibake,
-} from "./booth-fix";
+import { sanitizeDisplayText, sanitizeFilename, repairMojibake } from "./booth-fix";
 
 describe("sanitizeDisplayText", () => {
   test("strips emoji + ZWJ + variation selectors", () => {
@@ -16,17 +12,13 @@ describe("sanitizeDisplayText", () => {
     expect(sanitizeDisplayText("a\u0001b")).toBe("ab");
   });
   test("maps typographic punctuation to ASCII", () => {
-    expect(sanitizeDisplayText("\u201cQuote\u201d \u2014 em")).toBe(
-      '"Quote" - em',
-    );
+    expect(sanitizeDisplayText("\u201cQuote\u201d \u2014 em")).toBe('"Quote" - em');
     expect(sanitizeDisplayText("don\u2019t")).toBe("don't");
   });
   test("keeps accented Latin the fleet renders fine", () => {
     // em dash maps to ASCII hyphen (booth-safe); accents are untouched
     expect(sanitizeDisplayText("Beyoncé — Mø Rós")).toBe("Beyoncé - Mø Rós");
-    expect(sanitizeDisplayText("Sigur Rós — Hoppípolla")).toBe(
-      "Sigur Rós - Hoppípolla",
-    );
+    expect(sanitizeDisplayText("Sigur Rós — Hoppípolla")).toBe("Sigur Rós - Hoppípolla");
   });
   test("collapses runs of spaces left by strips", () => {
     expect(sanitizeDisplayText("A  B")).toBe("A B");

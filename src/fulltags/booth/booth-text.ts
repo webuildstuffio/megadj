@@ -225,10 +225,7 @@ export function boothTextCompat(input: {
   // Fleet-aware depth: the floor of every selected player's browsable
   // folder levels (XDJ-XZ manual table; others equal or looser).
   const fleet = boothFleetProfiles();
-  const maxDepth =
-    fleet.length > 0
-      ? Math.min(...fleet.map((p) => p.limits.maxFolderDepth))
-      : 8;
+  const maxDepth = fleet.length > 0 ? Math.min(...fleet.map((p) => p.limits.maxFolderDepth)) : 8;
   if (relPath.split("/").length - 1 >= maxDepth) {
     reasons.push("path-too-deep"); // files below the depth can't be played
   }

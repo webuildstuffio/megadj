@@ -42,18 +42,9 @@ export { parseMoodStamp, readAiStamps } from "./pipeline-stamps";
 
 // Types + STAGES moved to the leaf (pipeline-types.ts) — re-exported here
 // so every existing `from "./pipeline"` import site stays valid (#88).
-export type {
-  PipelineOptions,
-  Stage,
-  TrackInput,
-  TrackResult,
-} from "./pipeline-types";
+export type { PipelineOptions, Stage, TrackInput, TrackResult } from "./pipeline-types";
 export { STAGES } from "./pipeline-types";
-import type {
-  PipelineOptions,
-  TrackInput,
-  TrackResult,
-} from "./pipeline-types";
+import type { PipelineOptions, TrackInput, TrackResult } from "./pipeline-types";
 
 export { DEFAULT_QUEUE } from "./pipeline-art";
 
@@ -65,10 +56,7 @@ export { DEFAULT_QUEUE } from "./pipeline-art";
  * body is the stage ORDER only, so the CCN census (#198) measures the
  * arms individually instead of one 300-line ladder.
  */
-export async function enrichTrack(
-  t: TrackInput,
-  opts: PipelineOptions = {},
-): Promise<TrackResult> {
+export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Promise<TrackResult> {
   const notes: string[] = [];
   let artWritten = false;
   const truth = groundTruth(t.path);
@@ -104,8 +92,7 @@ export async function enrichTrack(
   // Art embedding writes the file directly (not via the tag patch), so
   // `wrote` covers both paths — the verify re-read must run whenever the
   // file could have changed, and only then.
-  const wrote =
-    (!opts.dryRun && Object.keys(ctx.patch).length > 0) || artWritten;
+  const wrote = (!opts.dryRun && Object.keys(ctx.patch).length > 0) || artWritten;
   if (!opts.dryRun && Object.keys(ctx.patch).length > 0) {
     await writePatch(t.path, ctx.patch);
   }
@@ -155,11 +142,8 @@ export async function enrichAll(
         const r = await enrichTrack({ path: f }, opts);
         results.push(r);
         if (r.notes.length)
-          log(
-            `  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`,
-          );
-        else if (opts.dryRun)
-          log(`  [${my + 1}/${files.length}] (dry) — ${basename(f)}`);
+          log(`  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`);
+        else if (opts.dryRun) log(`  [${my + 1}/${files.length}] (dry) — ${basename(f)}`);
       } catch (err) {
         log(
           `  [${my + 1}/${files.length}] ✗ ${(err as Error).message?.slice(0, 90)} — ${basename(f)}`,

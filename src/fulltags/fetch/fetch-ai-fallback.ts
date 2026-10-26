@@ -5,13 +5,7 @@
 // collected them (the stage gate keeps them clean).
 import { appendFile } from "node:fs/promises";
 import { aiGenres } from "../analysis/ai";
-import {
-  QUEUE,
-  db,
-  setFileTags,
-  type Row,
-  type TagValues,
-} from "../core/archive-ledger";
+import { QUEUE, db, setFileTags, type Row, type TagValues } from "../core/archive-ledger";
 import type { Stats } from "./fetch-stages";
 
 const BATCH = 20;
@@ -33,10 +27,7 @@ export async function aiGenreFallback(
       if (!genre) continue;
       const row = slice.find((b) => b.video_id === vid)!;
       db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(genre, vid);
-      setFileTags(row.file_path, {
-        genre,
-        aiGenre: `${genre}|${result[2] ?? 1}`,
-      });
+      setFileTags(row.file_path, { genre, aiGenre: `${genre}|${result[2] ?? 1}` });
       stats.genreAi++;
     }
   }
@@ -66,10 +57,7 @@ export async function aiYearFallback(
         stats.genreAi++;
       }
       if (year) {
-        db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-          String(year),
-          vid,
-        );
+        db.query("UPDATE tracks SET year=? WHERE video_id=?").run(String(year), vid);
         vals.year = year;
         vals.aiYear = `${year}|${confidence ?? 1}`;
         stats.yearAi++;
@@ -85,10 +73,7 @@ export async function aiYearFallback(
 }
 
 /** Append the artless rows to the AI cover queue (the last rung). */
-export async function queueArtless(
-  artless: Row[],
-  dry: boolean,
-): Promise<void> {
+export async function queueArtless(artless: Row[], dry: boolean): Promise<void> {
   if (!artless.length || dry) return;
   const lines = artless
     .filter((r) => r.artist && r.title)

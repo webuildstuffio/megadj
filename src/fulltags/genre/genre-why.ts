@@ -10,17 +10,8 @@
 // exists to surface; exit code makes it agent-detectable without
 // parsing). Never-voted is exit 0: a status, not an error.
 import { commandLog } from "../../shared/progress";
-import {
-  drainStdout,
-  finishCommandError,
-  setExit,
-  writeJson,
-} from "../../shared/cli-output";
-import {
-  GENRE_VOTE_WEIGHTS,
-  electGenre,
-  type GenreVoteRung,
-} from "./genre-vote";
+import { drainStdout, finishCommandError, setExit, writeJson } from "../../shared/cli-output";
+import { GENRE_VOTE_WEIGHTS, electGenre, type GenreVoteRung } from "./genre-vote";
 import type { ArchiveState } from "../../core/state";
 
 export interface GenreWhyOptions {
@@ -57,9 +48,7 @@ export async function genreWhy(opts: GenreWhyOptions): Promise<void> {
   if (votes.length === 0) {
     // honest empty-state: never-voted is a status, not an error — the
     // genre column may still carry a first-win-era or sync-era label.
-    log(
-      `${opts.videoId} has no vote breakdown — run \`megadj fetch --genres\` to vote it`,
-    );
+    log(`${opts.videoId} has no vote breakdown — run \`megadj fetch --genres\` to vote it`);
     await writeJson({
       command: "genre-why",
       video_id: opts.videoId,

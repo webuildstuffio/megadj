@@ -128,14 +128,7 @@ async function convertOneWav(
   if (art.source) log(`  ✓ art: ${art.source}`);
   let queueEntry: QueueEntry | null = null;
   if (art.queued) {
-    queueEntry = {
-      path: aiff,
-      title,
-      artist,
-      album,
-      reason: "no-source-found",
-      remixOf: null,
-    };
+    queueEntry = { path: aiff, title, artist, album, reason: "no-source-found", remixOf: null };
     if (videoId) opts.state.updateArtworkStatus(videoId, "queued");
     log(`  ~ art: queued for image-maker`);
   }
@@ -178,9 +171,7 @@ async function convertOneWav(
   });
 }
 
-export async function convertArchive(
-  opts: ConvertOptions,
-): Promise<ConvertResult> {
+export async function convertArchive(opts: ConvertOptions): Promise<ConvertResult> {
   const log = commandLog(opts);
   const res: ConvertResult = {
     total: 0,
@@ -228,11 +219,7 @@ export async function convertArchive(
 /** Fold one file's outcome into the run result. The only place outcome
  *  fields map onto result counters — a new outcome field fails review
  *  here instead of silently not being counted. */
-function applyOutcome(
-  res: ConvertResult,
-  queueEntries: QueueEntry[],
-  out: PerWavOutcome,
-): void {
+function applyOutcome(res: ConvertResult, queueEntries: QueueEntry[], out: PerWavOutcome): void {
   if (out.newPath) res.converted++;
   if (out.artAdded) res.artAdded++;
   if (out.failure) res.failed.push(out.failure);

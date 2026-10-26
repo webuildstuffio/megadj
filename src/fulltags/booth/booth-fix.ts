@@ -42,11 +42,7 @@ import type { ArchiveState } from "../../core/state";
 
 // Text sanitizers moved to booth-fix-text.ts with the fixer; re-exported so
 // existing `from "./booth-fix"` import sites (tests, CLI help) stay put.
-export {
-  sanitizeDisplayText,
-  sanitizeFilename,
-  repairMojibake,
-} from "./booth-fix-text";
+export { sanitizeDisplayText, sanitizeFilename, repairMojibake } from "./booth-fix-text";
 
 export interface BoothFixOptions {
   state: ArchiveState;
@@ -66,15 +62,10 @@ export interface BoothFixOptions {
 /** Look up the track a file belongs to (booth-fix's DB follow). Scans
  * the in-memory track list — the archive is ~hundreds of rows, and this
  * avoids widening ArchiveState's query surface. */
-export function trackIdForFile(
-  state: ArchiveState,
-  relPath: string,
-): string | null {
+export function trackIdForFile(state: ArchiveState, relPath: string): string | null {
   const hit = state
     .allTracks()
-    .find(
-      (t) => t.file_path === relPath || t.file_path?.endsWith(`/${relPath}`),
-    );
+    .find((t) => t.file_path === relPath || t.file_path?.endsWith(`/${relPath}`));
   return hit?.video_id ?? null;
 }
 

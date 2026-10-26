@@ -15,20 +15,12 @@ import {
   repeatedOf,
 } from "../../cli-flags";
 import { isMegasetSearchOverride } from "../../deck/shared/types";
-import {
-  finishCommandError,
-  setExit,
-  writeJson,
-} from "../../shared/cli-output";
+import { finishCommandError, setExit, writeJson } from "../../shared/cli-output";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 import { FETCH_TARGETS, type FetchTarget } from "../fetch/fetch";
 
 const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
-  const flags = parseFlags(
-    rest,
-    ["booth-fix"],
-    ["apply", "yes", "dry-run", "json"],
-  );
+  const flags = parseFlags(rest, ["booth-fix"], ["apply", "yes", "dry-run", "json"]);
   const { boothFix: fix } = await import("../booth/booth-fix");
   const report = await fix({
     state,
@@ -60,16 +52,8 @@ const drop: CliCommandHandler = async (rest, context) => {
     ["drop", "target", "max-beat-seconds"],
     ["dry-run", "no-mood", "no-fetch", "ai-fallback", "force-rip", "json"],
   );
-  if (
-    nonNegOptInvalid(flags, "max-beat-seconds", "drop", flags.bools.has("json"))
-  )
-    return;
-  const maxBeatSeconds = nonNegOpt(
-    flags,
-    "max-beat-seconds",
-    "drop",
-    flags.bools.has("json"),
-  );
+  if (nonNegOptInvalid(flags, "max-beat-seconds", "drop", flags.bools.has("json"))) return;
+  const maxBeatSeconds = nonNegOpt(flags, "max-beat-seconds", "drop", flags.bools.has("json"));
   const target =
     firstPositional(rest, "drop", ["drop", "target", "max-beat-seconds"]) ??
     flags.strings.get("target");
@@ -105,8 +89,7 @@ const drop: CliCommandHandler = async (rest, context) => {
 
 const artwork: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["model", "max"], ["dry-run", "json"]);
-  if (nonNegOptInvalid(flags, "max", "artwork", flags.bools.has("json")))
-    return;
+  if (nonNegOptInvalid(flags, "max", "artwork", flags.bools.has("json"))) return;
   const { artwork: addArtwork } = await import("../write/artwork");
   await addArtwork({
     state,
@@ -121,25 +104,13 @@ const fetchCommand: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
     ["jobs"],
-    [
-      "art",
-      "genres",
-      "tags",
-      "years",
-      "all",
-      "ai-fallback",
-      "revote",
-      "dry-run",
-      "json",
-    ],
+    ["art", "genres", "tags", "years", "all", "ai-fallback", "revote", "dry-run", "json"],
   );
   if (nonNegOptInvalid(flags, "jobs", "fetch", flags.bools.has("json"))) return;
   const jobs = nonNegOpt(flags, "jobs", "fetch", flags.bools.has("json"));
   const { fetch } = await import("../fetch/fetch");
   const only: FetchTarget =
-    FETCH_TARGETS.find(
-      (target) => target !== "all" && flags.bools.has(target),
-    ) ?? "all";
+    FETCH_TARGETS.find((target) => target !== "all" && flags.bools.has(target)) ?? "all";
   await fetch({
     all: flags.bools.has("all"),
     only,
@@ -164,14 +135,8 @@ const audit: CliCommandHandler = async (rest, { musicDir }) => {
       total: report.total,
       complete: report.complete,
       unplayable: unplayable.map((row) => row.file),
-      unreadable: unreadable.map((row) => ({
-        file: row.file,
-        reasons: row.unreadableReasons,
-      })),
-      incomplete: gaps.map((row) => ({
-        file: row.file,
-        missing: auditRowFlags(row),
-      })),
+      unreadable: unreadable.map((row) => ({ file: row.file, reasons: row.unreadableReasons })),
+      incomplete: gaps.map((row) => ({ file: row.file, missing: auditRowFlags(row) })),
     });
     // #160 ring 3: setExit is the one mutation point.
     if (gaps.length) setExit(1);
@@ -180,13 +145,10 @@ const audit: CliCommandHandler = async (rest, { musicDir }) => {
 
   const dimensions =
     "art + title + artist + album + genre + year + mood + energy + player-compat + booth-text";
-  console.log(
-    `audit: ${report.complete}/${report.total} complete (${dimensions})`,
-  );
+  console.log(`audit: ${report.complete}/${report.total} complete (${dimensions})`);
   if (gaps.length) {
     console.log("\nincomplete:");
-    for (const row of gaps)
-      console.log(`  [${auditRowFlags(row)}] ${row.file}`);
+    for (const row of gaps) console.log(`  [${auditRowFlags(row)}] ${row.file}`);
     setExit(1);
   } else {
     console.log("✅ all tracks fully tagged + booth-playable");
@@ -211,11 +173,8 @@ const tagCheck: CliCommandHandler = async (rest, { musicDir }) => {
       `✅ tag-check: all ${files.length} files' tags parse clean (structure, text, booth display)`,
     );
   } else {
-    console.log(
-      `tag-check: ${bad.length} of ${files.length} files have broken/suspect tags:`,
-    );
-    for (const row of bad)
-      console.log(`  [${row.reasons.join(", ")}] ${row.file}`);
+    console.log(`tag-check: ${bad.length} of ${files.length} files have broken/suspect tags:`);
+    for (const row of bad) console.log(`  [${row.reasons.join(", ")}] ${row.file}`);
     console.log(
       "\nwhat these mean: no-title-artist = identity frames empty; mojibake-* = double-encoded text (fix the spelling and re-stamp); control-bytes-* = invisible junk in frame text; booth-text:* = garbles on a CDJ/XDJ display (see `megadj booth-fix --dry-run`).",
     );
@@ -227,10 +186,7 @@ const tagCheck: CliCommandHandler = async (rest, { musicDir }) => {
 const years: CliCommandHandler = async (rest) => {
   const flags = parseFlags(rest, [], ["dry-run", "json"]);
   const { runFixYears } = await import("../pipeline/years");
-  await runFixYears({
-    dryRun: flags.bools.has("dry-run"),
-    json: flags.bools.has("json"),
-  });
+  await runFixYears({ dryRun: flags.bools.has("dry-run"), json: flags.bools.has("json") });
 };
 
 /** Shared analysis-flags parse+validate for beats / catch-up (#316: the
@@ -246,11 +202,7 @@ function parseAnalysisFlags(
   maxSeconds: number | undefined;
   jobs: number | undefined;
 } | null {
-  const flags = parseFlags(
-    rest,
-    ["limit", "jobs", "max-seconds"],
-    ["force", "dry-run", "json"],
-  );
+  const flags = parseFlags(rest, ["limit", "jobs", "max-seconds"], ["force", "dry-run", "json"]);
   const json = flags.bools.has("json");
   if (nonNegOptInvalid(flags, "limit", cmd, json)) return null;
   const limit = nonNegOpt(flags, "limit", cmd, json);
@@ -328,8 +280,7 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
 const similar: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["similar", "k", "space"], ["json"]);
   const videoId =
-    firstPositional(rest, "similar", ["similar", "k", "space"]) ??
-    flags.strings.get("similar");
+    firstPositional(rest, "similar", ["similar", "k", "space"]) ?? flags.strings.get("similar");
   if (!videoId) {
     // #160 ring 3: json-mode-safe epilogue (was bare console.error + the
     // only raw process.exit(1) left in a command body — process.exit
@@ -337,8 +288,7 @@ const similar: CliCommandHandler = async (rest, { state }) => {
     await finishCommandError({
       command: "similar",
       json: flags.bools.has("json"),
-      error:
-        "pass a video id — `megadj similar <video_id> [--k N] [--space raw|whitened]`",
+      error: "pass a video id — `megadj similar <video_id> [--k N] [--space raw|whitened]`",
       exitCode: 2,
     });
     return;
@@ -356,13 +306,7 @@ const similar: CliCommandHandler = async (rest, { state }) => {
     return;
   }
   const { similar: findSimilar } = await import("../analysis/similar");
-  await findSimilar({
-    state,
-    videoId,
-    k,
-    space: spaceRaw,
-    json: flags.bools.has("json"),
-  });
+  await findSimilar({ state, videoId, k, space: spaceRaw, json: flags.bools.has("json") });
 };
 
 // #295: the genre-cohort builder — ONE command producing the full
@@ -370,33 +314,11 @@ const similar: CliCommandHandler = async (rest, { state }) => {
 // incantations per cohort).
 const megasetCohorts: CliCommandHandler = async (rest) => {
   const flags = parseFlags(rest, ["minutes", "limit", "families"], ["json"]);
-  if (
-    nonNegOptInvalid(
-      flags,
-      "minutes",
-      "megaset-cohorts",
-      flags.bools.has("json"),
-    )
-  )
-    return;
-  const minutes = nonNegOpt(
-    flags,
-    "minutes",
-    "megaset-cohorts",
-    flags.bools.has("json"),
-  );
-  if (
-    nonNegOptInvalid(flags, "limit", "megaset-cohorts", flags.bools.has("json"))
-  )
-    return;
-  const limit = nonNegOpt(
-    flags,
-    "limit",
-    "megaset-cohorts",
-    flags.bools.has("json"),
-  );
-  const { megasetCohorts: runCohorts } =
-    await import("../megaset/megaset-cohorts");
+  if (nonNegOptInvalid(flags, "minutes", "megaset-cohorts", flags.bools.has("json"))) return;
+  const minutes = nonNegOpt(flags, "minutes", "megaset-cohorts", flags.bools.has("json"));
+  if (nonNegOptInvalid(flags, "limit", "megaset-cohorts", flags.bools.has("json"))) return;
+  const limit = nonNegOpt(flags, "limit", "megaset-cohorts", flags.bools.has("json"));
+  const { megasetCohorts: runCohorts } = await import("../megaset/megaset-cohorts");
   await runCohorts({
     minutes,
     limit,
@@ -409,43 +331,12 @@ const megasetCohorts: CliCommandHandler = async (rest) => {
 // preset × strategy grid and emit a dated digest; before/after a scoring
 // change, diff the two digests (the census test is the CI-speed gate).
 const megasetCalibrate: CliCommandHandler = async (rest) => {
-  const flags = parseFlags(
-    rest,
-    ["preset", "minutes", "limit", "out"],
-    ["json"],
-  );
-  if (
-    nonNegOptInvalid(
-      flags,
-      "minutes",
-      "megaset-calibrate",
-      flags.bools.has("json"),
-    )
-  )
-    return;
-  const minutes = nonNegOpt(
-    flags,
-    "minutes",
-    "megaset-calibrate",
-    flags.bools.has("json"),
-  );
-  if (
-    nonNegOptInvalid(
-      flags,
-      "limit",
-      "megaset-calibrate",
-      flags.bools.has("json"),
-    )
-  )
-    return;
-  const limit = nonNegOpt(
-    flags,
-    "limit",
-    "megaset-calibrate",
-    flags.bools.has("json"),
-  );
-  const { megasetCalibrate: runCalibrate } =
-    await import("../megaset/megaset-calibrate");
+  const flags = parseFlags(rest, ["preset", "minutes", "limit", "out"], ["json"]);
+  if (nonNegOptInvalid(flags, "minutes", "megaset-calibrate", flags.bools.has("json"))) return;
+  const minutes = nonNegOpt(flags, "minutes", "megaset-calibrate", flags.bools.has("json"));
+  if (nonNegOptInvalid(flags, "limit", "megaset-calibrate", flags.bools.has("json"))) return;
+  const limit = nonNegOpt(flags, "limit", "megaset-calibrate", flags.bools.has("json"));
+  const { megasetCalibrate: runCalibrate } = await import("../megaset/megaset-calibrate");
   await runCalibrate({
     preset: flags.strings.get("preset"),
     minutes,
@@ -458,37 +349,15 @@ const megasetCalibrate: CliCommandHandler = async (rest) => {
 const megaset: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
-    [
-      "preset",
-      "minutes",
-      "opener",
-      "limit",
-      "search",
-      "genre",
-      "landmark",
-      "candidates",
-    ],
+    ["preset", "minutes", "opener", "limit", "search", "genre", "landmark", "candidates"],
     ["json"],
   );
-  if (nonNegOptInvalid(flags, "minutes", "megaset", flags.bools.has("json")))
-    return;
-  const minutes = nonNegOpt(
-    flags,
-    "minutes",
-    "megaset",
-    flags.bools.has("json"),
-  );
-  if (nonNegOptInvalid(flags, "limit", "megaset", flags.bools.has("json")))
-    return;
+  if (nonNegOptInvalid(flags, "minutes", "megaset", flags.bools.has("json"))) return;
+  const minutes = nonNegOpt(flags, "minutes", "megaset", flags.bools.has("json"));
+  if (nonNegOptInvalid(flags, "limit", "megaset", flags.bools.has("json"))) return;
   const limit = nonNegOpt(flags, "limit", "megaset", flags.bools.has("json"));
-  if (nonNegOptInvalid(flags, "candidates", "megaset", flags.bools.has("json")))
-    return;
-  const candidateCount = nonNegOpt(
-    flags,
-    "candidates",
-    "megaset",
-    flags.bools.has("json"),
-  );
+  if (nonNegOptInvalid(flags, "candidates", "megaset", flags.bools.has("json"))) return;
+  const candidateCount = nonNegOpt(flags, "candidates", "megaset", flags.bools.has("json"));
   // the A/B hook (E7): same contract as the HTTP ?search= / MCP search
   // param — but a CLI typo must fail loudly (exit 2, zero work), not
   // silently compare the automatic pick against itself
@@ -574,19 +443,10 @@ const genre: CliCommandHandler = async (rest, { state }) => {
   // genre passes is a typo, not a union (same discipline as the
   // eval-only guard above): fail loudly, exit 2, zero work
   const disputeMode =
-    flags.bools.has("disputes") ||
-    flags.strings.has("agree") ||
-    flags.strings.has("keep");
+    flags.bools.has("disputes") || flags.strings.has("agree") || flags.strings.has("keep");
   if (disputeMode) {
     const stray = (
-      [
-        "eval",
-        "refold",
-        "flag",
-        "diagnostics",
-        "artist-disjoint",
-        "probe",
-      ] as const
+      ["eval", "refold", "flag", "diagnostics", "artist-disjoint", "probe"] as const
     ).find((f) => flags.bools.has(f));
     if (stray !== undefined) {
       await finishCommandError({
@@ -635,12 +495,8 @@ const cues: CliCommandHandler = async (rest, { state }) => {
 
 const goldReport: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, [], ["json"]);
-  const { goldReport: buildReport, printGoldReport } =
-    await import("../analysis/gold-report");
-  const report = await buildReport({
-    state,
-    json: flags.bools.has("json"),
-  });
+  const { goldReport: buildReport, printGoldReport } = await import("../analysis/gold-report");
+  const report = await buildReport({ state, json: flags.bools.has("json") });
   if (flags.bools.has("json")) await writeJson(report);
   else printGoldReport(report, console.log);
   // #160 ring 3: setExit is the one mutation point.
@@ -660,25 +516,15 @@ const genreWhy: CliCommandHandler = async (rest, { state }) => {
     return;
   }
   const { genreWhy: explainGenre } = await import("../genre/genre-why");
-  await explainGenre({
-    state,
-    videoId,
-    json: flags.bools.has("json"),
-  });
+  await explainGenre({ state, videoId, json: flags.bools.has("json") });
 };
 
 const regate: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["detector", "gold-dir"], ["json"]);
-  const dimension =
-    firstPositional(rest, "regate", ["detector", "gold-dir"]) ?? "bpm";
+  const dimension = firstPositional(rest, "regate", ["detector", "gold-dir"]) ?? "bpm";
   const detector = flags.strings.get("detector") ?? "ledger";
   const { regate: runRegate } = await import("../regate/regate");
-  const report = runRegate(
-    state,
-    dimension,
-    detector,
-    flags.strings.get("gold-dir"),
-  );
+  const report = runRegate(state, dimension, detector, flags.strings.get("gold-dir"));
   if (flags.bools.has("json")) await writeJson(report);
   else if (report.unavailable === true) {
     // honest gap (#169): the ledger isn't populated — say so on stdout
@@ -725,8 +571,7 @@ const bench: CliCommandHandler = async (rest, { state }) => {
     await import("../bench/stages/version-match");
     await import("../bench/stages/genre-loo");
     await import("../bench/stages/bpm-gold");
-    const { benchRun, benchRunAll, registeredStages } =
-      await import("../bench/runner");
+    const { benchRun, benchRunAll, registeredStages } = await import("../bench/runner");
     const { migrateBenchTables } = await import("../bench/store");
     migrateBenchTables(state.db);
     const answerKey = flags.strings.get("key") ?? "all";
@@ -752,12 +597,7 @@ const bench: CliCommandHandler = async (rest, { state }) => {
         });
         return;
       }
-      const run = benchRun({
-        db: state.db,
-        stage: stage as never,
-        answerKey,
-        split,
-      });
+      const run = benchRun({ db: state.db, stage: stage as never, answerKey, split });
       if (json) await writeJson({ command: "bench", mode: "run", run });
       else {
         console.log(
@@ -798,14 +638,12 @@ const bench: CliCommandHandler = async (rest, { state }) => {
       db: state.db,
       outDir: flags.strings.get("since") ? undefined : "docs/fulltags/bench",
     });
-    if (json)
-      await writeJson({ command: "bench", mode: "report", markdown: md });
+    if (json) await writeJson({ command: "bench", mode: "report", markdown: md });
     else console.log(md);
   } else if (sub === "extract-ak2") {
     const { extractAK2 } = await import("../bench/ak2-extractor");
     const result = extractAK2(state.db);
-    if (json)
-      await writeJson({ command: "bench", mode: "extract-ak2", ...result });
+    if (json) await writeJson({ command: "bench", mode: "extract-ak2", ...result });
     else
       console.log(
         `AK2: ${result.bpmCount} bpm + ${result.keyCount} key rows from ${result.total} mirrors`,
@@ -813,12 +651,7 @@ const bench: CliCommandHandler = async (rest, { state }) => {
   } else if (sub === "backfill-evidence") {
     const { backfillFromVotes } = await import("../evidence/backfill-votes");
     const result = backfillFromVotes(state.db);
-    if (json)
-      await writeJson({
-        command: "bench",
-        mode: "backfill-evidence",
-        ...result,
-      });
+    if (json) await writeJson({ command: "bench", mode: "backfill-evidence", ...result });
     else
       console.log(
         `evidence backfill: ${result.evidenceWritten} rows from ${result.tracksRead} tracks (${result.errors} errors)`,

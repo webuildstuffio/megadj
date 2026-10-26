@@ -42,10 +42,7 @@ describe("analysis-worker session kit (#189)", () => {
     // 200ms — the first request times out, the session must die, and a
     // second request must get null WITHOUT receiving the FIRST request's
     // late reply (the misattribution the kill semantics exist to prevent).
-    const session = await openWorkerSession<
-      string,
-      { id: string; ok: boolean }
-    >({
+    const session = await openWorkerSession<string, { id: string; ok: boolean }>({
       spawn: () =>
         Bun.spawn({
           cmd: ["bun", FAKE_ECHO, "2000"],
@@ -55,8 +52,7 @@ describe("analysis-worker session kit (#189)", () => {
         }),
       isReady: lineIsReady,
       readyTimeoutMs: 2_000,
-      encodeRequest: (id, enc, proc) =>
-        writeNdjsonRequest(proc, enc, { id, path: id }),
+      encodeRequest: (id, enc, proc) => writeNdjsonRequest(proc, enc, { id, path: id }),
       isResponse: lineHasRequestId,
       responseTimeoutMs: 200,
       parse: (line) => JSON.parse(line) as { id: string; ok: boolean },
@@ -95,8 +91,6 @@ describe("analysis-worker session kit (#189)", () => {
     // reaped by the kit — the exit info lands only after the exit event
     // settles (SIGTERM sets signalCode, not exitCode)
     await spawned!.exited;
-    expect(spawned!.exitCode !== null || spawned!.signalCode !== null).toBe(
-      true,
-    );
+    expect(spawned!.exitCode !== null || spawned!.signalCode !== null).toBe(true);
   });
 });

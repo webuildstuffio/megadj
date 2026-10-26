@@ -29,10 +29,7 @@ async function makeFile(name: string): Promise<string> {
   return p;
 }
 
-function runCli(args: string[]): {
-  exitCode: number | null;
-  stdout: string;
-} {
+function runCli(args: string[]): { exitCode: number | null; stdout: string } {
   const proc = Bun.spawnSync({
     cmd: ["bun", "run", "src/fulltags/cli/cli.ts", ...args],
     cwd: REPO,
@@ -40,26 +37,13 @@ function runCli(args: string[]): {
     stderr: "pipe",
     timeout: 120_000,
   });
-  return {
-    exitCode: proc.exitCode,
-    stdout: new TextDecoder().decode(proc.stdout),
-  };
+  return { exitCode: proc.exitCode, stdout: new TextDecoder().decode(proc.stdout) };
 }
 
 describe("bug 1: `fulltags single <file>` subcommand", () => {
   test("target pickup skips `single`, file gets tagged", async () => {
     const p = await makeFile("single.mp3");
-    const r = runCli([
-      "single",
-      p,
-      "--title",
-      "S",
-      "--artist",
-      "A",
-      "--album",
-      "B",
-      "--tags",
-    ]);
+    const r = runCli(["single", p, "--title", "S", "--artist", "A", "--album", "B", "--tags"]);
     expect(r.exitCode).toBe(0);
     // The old bug: "single" became the target → usage error, file untouched.
     expect(r.stdout).not.toContain("pass an existing file or folder");
@@ -174,25 +158,12 @@ describe("bug 5: `fulltags audit --json` exit gate", () => {
     const p = await makeFile("gap.mp3"); // no tags → incomplete
     const bad = runCli(["audit", DIR, "--json"]);
     expect(bad.exitCode).toBe(1);
-    const report = JSON.parse(bad.stdout) as {
-      ok: boolean;
-      rows: { file: string }[];
-    };
+    const report = JSON.parse(bad.stdout) as { ok: boolean; rows: { file: string }[] };
     expect(report.ok).toBe(false);
     expect(report.rows.some((r) => r.file === "gap.mp3")).toBe(true);
 
     // Fill every gap with offline hints → audit goes green, exit 0.
-    runCli([
-      "single",
-      p,
-      "--title",
-      "T",
-      "--artist",
-      "A",
-      "--album",
-      "B",
-      "--tags",
-    ]);
+    runCli(["single", p, "--title", "T", "--artist", "A", "--album", "B", "--tags"]);
     const t = await import("../write/readers").then((m) => m.groundTruth(p));
     expect(t.title).toBe("T");
     // genre/year/art still missing after a --tags-only pass, so the audit

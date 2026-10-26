@@ -77,19 +77,18 @@ export function rankL3(
 
   if (scores.size === 0) {
     // No L3 evidence — return the family-level subgenres with uniform priors
-    return subgenres.slice(0, maxResults).map((sub) => ({
-      subgenre: sub,
-      family,
-      probability: round3(familyPosterior / subgenres.length),
-      voteCount: 0,
-    }));
+    return subgenres
+      .slice(0, maxResults)
+      .map((sub) => ({
+        subgenre: sub,
+        family,
+        probability: round3(familyPosterior / subgenres.length),
+        voteCount: 0,
+      }));
   }
 
   // Normalize weights to probabilities within the family posterior
-  const totalWeight = [...scores.values()].reduce(
-    (acc, s) => acc + s.weight,
-    0,
-  );
+  const totalWeight = [...scores.values()].reduce((acc, s) => acc + s.weight, 0);
 
   const ranked: L3Ranked[] = [...scores.entries()]
     .map(([sub, s]) => ({

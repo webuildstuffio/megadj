@@ -29,9 +29,7 @@ describe("cleanSearchParts", () => {
 
 describe("cleanArtist (archive-ledger DB guard)", () => {
   test("un-bakes composed junk DB rows", () => {
-    expect(cleanArtist("UnknownArtist · UnknownAlbum · Audiojack")).toBe(
-      "Audiojack",
-    );
+    expect(cleanArtist("UnknownArtist · UnknownAlbum · Audiojack")).toBe("Audiojack");
   });
 
   test("bare junk → null", () => {

@@ -75,10 +75,7 @@ export function migrateEvidenceTable(db: Database): void {
  * Insert or update evidence rows. Uses UPSERT on the natural key
  * (track_id, annotator_id, scope, genre_family).
  */
-export function upsertEvidence(
-  db: Database,
-  rows: readonly GenreEvidence[],
-): number {
+export function upsertEvidence(db: Database, rows: readonly GenreEvidence[]): number {
   if (rows.length === 0) return 0;
   const stmt = db.prepare(`
     INSERT INTO genre_evidence
@@ -172,11 +169,7 @@ export function evidenceStats(
        GROUP BY annotator_id
        ORDER BY n DESC`,
     )
-    .all() as {
-    annotator_id: string;
-    n: number;
-    verified_n: number;
-  }[];
+    .all() as { annotator_id: string; n: number; verified_n: number }[];
   return rows.map((r) => ({
     annotatorId: r.annotator_id,
     count: r.n,

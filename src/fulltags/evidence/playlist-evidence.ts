@@ -38,12 +38,7 @@ export interface PlaylistEvidenceResult {
   /** Total evidence rows produced. */
   evidenceRows: number;
   /** Details per qualified playlist. */
-  details: {
-    playlistName: string;
-    family: string;
-    trackCount: number;
-    familyShare: number;
-  }[];
+  details: { playlistName: string; family: string; trackCount: number; familyShare: number }[];
 }
 
 /**

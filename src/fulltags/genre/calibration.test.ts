@@ -40,20 +40,14 @@ describe("temperatureScale", () => {
 describe("expectedCalibrationError", () => {
   test("perfectly calibrated → ECE = 0", () => {
     // If 80% of predictions at p=0.8 are correct, ECE is 0
-    const preds = Array.from({ length: 100 }, (_, i) => ({
-      probability: 0.85,
-      correct: i < 85,
-    }));
+    const preds = Array.from({ length: 100 }, (_, i) => ({ probability: 0.85, correct: i < 85 }));
     const ece = expectedCalibrationError(preds);
     expect(ece).toBeLessThan(0.02);
   });
 
   test("overconfident predictions → positive ECE", () => {
     // p=0.9 but only 50% correct → miscalibrated
-    const preds = Array.from({ length: 100 }, (_, i) => ({
-      probability: 0.9,
-      correct: i < 50,
-    }));
+    const preds = Array.from({ length: 100 }, (_, i) => ({ probability: 0.9, correct: i < 50 }));
     const ece = expectedCalibrationError(preds);
     expect(ece).toBeGreaterThan(0.3);
   });
@@ -69,15 +63,12 @@ describe("fitTemperature", () => {
   });
 
   test("finds a reasonable temperature for well-calibrated data", () => {
-    const posteriors: GenrePosterior[] = Array.from(
-      { length: 100 },
-      (_, i) => ({
-        trackId: `t${i}`,
-        family: i < 80 ? "house" : "techno",
-        probability: i < 80 ? 0.85 : 0.15,
-        truth: i < 80 ? "house" : "techno",
-      }),
-    );
+    const posteriors: GenrePosterior[] = Array.from({ length: 100 }, (_, i) => ({
+      trackId: `t${i}`,
+      family: i < 80 ? "house" : "techno",
+      probability: i < 80 ? 0.85 : 0.15,
+      truth: i < 80 ? "house" : "techno",
+    }));
     const t = fitTemperature(posteriors);
     expect(t).toBeGreaterThan(0);
     expect(t).toBeLessThan(5);
@@ -86,30 +77,24 @@ describe("fitTemperature", () => {
 
 describe("findTauThreshold", () => {
   test("high-confidence correct data → low τ", () => {
-    const posteriors: GenrePosterior[] = Array.from(
-      { length: 100 },
-      (_, i) => ({
-        trackId: `t${i}`,
-        family: "house",
-        probability: 0.95,
-        truth: "house",
-      }),
-    );
+    const posteriors: GenrePosterior[] = Array.from({ length: 100 }, (_, i) => ({
+      trackId: `t${i}`,
+      family: "house",
+      probability: 0.95,
+      truth: "house",
+    }));
     const { tau, precision } = findTauThreshold(posteriors, 0.9);
     expect(tau).toBeLessThanOrEqual(0.95);
     expect(precision).toBeGreaterThanOrEqual(0.9);
   });
 
   test("noisy data → higher τ or lower coverage", () => {
-    const posteriors: GenrePosterior[] = Array.from(
-      { length: 100 },
-      (_, i) => ({
-        trackId: `t${i}`,
-        family: i % 2 === 0 ? "house" : "techno",
-        probability: 0.6,
-        truth: "house",
-      }),
-    );
+    const posteriors: GenrePosterior[] = Array.from({ length: 100 }, (_, i) => ({
+      trackId: `t${i}`,
+      family: i % 2 === 0 ? "house" : "techno",
+      probability: 0.6,
+      truth: "house",
+    }));
     const { precision, coverage } = findTauThreshold(posteriors, 0.9);
     // With 50/50 data at p=0.6, precision at any τ ≤ 50%
     expect(precision + coverage).toBeLessThanOrEqual(2); // sanity

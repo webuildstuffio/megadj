@@ -1,11 +1,6 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { $ } from "bun";
-import {
-  copyFileSync,
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { embedArt, groundTruth, writePatchSync } from "../pipeline/index-all";
 import { hasValidContainerHeader } from "../write/writer-mutagen";
@@ -26,20 +21,15 @@ async function makeFile(ext: string): Promise<string> {
 /** Minimal valid JPEG (SOI + APP0 JFIF + EOI — 22 bytes): enough to
  *  poison ffmpeg's png decoder when the APIC mime claims image/png. */
 const JPEG_BYTES = Uint8Array.from([
-  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01,
-  0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01,
+  0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
 ]);
 
 describe("writePatchSync", () => {
   test("mp3 round-trip + perf parity with direct ffmpeg", async () => {
     const p = await makeFile(".mp3");
     expect(
-      writePatchSync(p, {
-        title: "Sync Song",
-        artist: "Sync Artist",
-        genre: "House",
-        year: 2024,
-      }),
+      writePatchSync(p, { title: "Sync Song", artist: "Sync Artist", genre: "House", year: 2024 }),
     ).toBe(true);
     const gt = groundTruth(p);
     expect(gt.title).toBe("Sync Song");
@@ -75,9 +65,7 @@ describe("writePatchSync", () => {
 
   test("m4a round-trip", async () => {
     const p = await makeFile(".m4a");
-    expect(
-      writePatchSync(p, { title: "M4a Sync", artist: "A", year: 2021 }),
-    ).toBe(true);
+    expect(writePatchSync(p, { title: "M4a Sync", artist: "A", year: 2021 })).toBe(true);
     const gt = groundTruth(p);
     expect(gt.title).toBe("M4a Sync");
     expect(gt.year).toBe("2021");
@@ -111,9 +99,7 @@ describe("writePatchSync", () => {
 
   test("wav sync path via mutagen", async () => {
     const p = await makeFile(".wav");
-    expect(writePatchSync(p, { title: "WAV Sync", genre: "Techno" })).toBe(
-      true,
-    );
+    expect(writePatchSync(p, { title: "WAV Sync", genre: "Techno" })).toBe(true);
     const gt = groundTruth(p);
     expect(gt.title).toBe("WAV Sync");
     expect(gt.genre).toBe("Techno");
@@ -141,9 +127,7 @@ describe("writePatchSync", () => {
     copyFileSync(base, poison);
     // Embed the poison art via mutagen directly (bypasses the writer
     // under test — the fixture needs the pre-existing bad APIC).
-    const hex = [...JPEG_BYTES]
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    const hex = [...JPEG_BYTES].map((b) => b.toString(16).padStart(2, "0")).join("");
     const script = `from mutagen.id3 import ID3, APIC
 a = ID3(${JSON.stringify(poison)})
 a.add(APIC(encoding=3, mime="image/png", type=3, desc="", data=bytes.fromhex("${hex}")))
@@ -180,31 +164,20 @@ print(pics[0].data.hex() if pics else "NONE")`;
     } satisfies Partial<WriterAtomicOps>);
     expect(ok).toBe(false);
     expect(readFileSync(p)).toEqual(before);
-    expect(
-      readdirSync(DIR).filter((name) => name.includes(".fulltags-")),
-    ).toEqual([]);
+    expect(readdirSync(DIR).filter((name) => name.includes(".fulltags-"))).toEqual([]);
   });
 
   test("mp3 header guard: ID3 tag, bare MPEG sync, and garbage", () => {
     // Files are padded past 12 bytes: the guard's read is all-or-nothing
     // (a short read = invalid, same contract as the other containers).
     const tagged = join(DIR, "guard-tagged.mp3");
-    writeFileSync(
-      tagged,
-      new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, ...new Uint8Array(10)]),
-    );
+    writeFileSync(tagged, new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00, ...new Uint8Array(10)]));
     expect(hasValidContainerHeader(tagged)).toBe(true);
     const bare = join(DIR, "guard-bare.mp3");
-    writeFileSync(
-      bare,
-      new Uint8Array([0xff, 0xfb, 0x90, 0x00, ...new Uint8Array(10)]),
-    );
+    writeFileSync(bare, new Uint8Array([0xff, 0xfb, 0x90, 0x00, ...new Uint8Array(10)]));
     expect(hasValidContainerHeader(bare)).toBe(true);
     const junk = join(DIR, "guard-junk.mp3");
-    writeFileSync(
-      junk,
-      new Uint8Array([0x00, 0x01, 0x02, 0x03, ...new Uint8Array(10)]),
-    );
+    writeFileSync(junk, new Uint8Array([0x00, 0x01, 0x02, 0x03, ...new Uint8Array(10)]));
     expect(hasValidContainerHeader(junk)).toBe(false);
   });
 
@@ -217,9 +190,7 @@ print(pics[0].data.hex() if pics else "NONE")`;
       } satisfies Partial<WriterAtomicOps>);
       expect(ok).toBe(false);
       expect(readFileSync(p)).toEqual(before);
-      expect(
-        readdirSync(DIR).filter((name) => name.includes(".fulltags-")),
-      ).toEqual([]);
+      expect(readdirSync(DIR).filter((name) => name.includes(".fulltags-"))).toEqual([]);
     });
   }
 
@@ -230,14 +201,10 @@ print(pics[0].data.hex() if pics else "NONE")`;
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc=size=32x32:duration=0.1 -frames:v 1 ${artPath}`.quiet();
       const art = readFileSync(artPath);
       const before = readFileSync(p);
-      const ok = embedArt(p, art, {
-        mutagenOk: () => false,
-      } satisfies Partial<WriterAtomicOps>);
+      const ok = embedArt(p, art, { mutagenOk: () => false } satisfies Partial<WriterAtomicOps>);
       expect(ok).toBe(false);
       expect(readFileSync(p)).toEqual(before);
-      expect(
-        readdirSync(DIR).filter((name) => name.includes(".fulltags-")),
-      ).toEqual([]);
+      expect(readdirSync(DIR).filter((name) => name.includes(".fulltags-"))).toEqual([]);
     });
   }
 

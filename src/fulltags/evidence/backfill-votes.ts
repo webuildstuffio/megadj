@@ -11,11 +11,7 @@
  * - confidence = normalized weight from the vote
  */
 import type { Database } from "bun:sqlite";
-import {
-  migrateEvidenceTable,
-  upsertEvidence,
-  type GenreEvidence,
-} from "./evidence-store";
+import { migrateEvidenceTable, upsertEvidence, type GenreEvidence } from "./evidence-store";
 import { mapToFamily } from "../genre/taxonomy-v3";
 
 interface VotesRow {
@@ -69,9 +65,7 @@ export function backfillFromVotes(db: Database): {
       if (!vote.genre || typeof vote.genre !== "string") continue;
       const source = vote.source ?? vote.provenance ?? "unknown";
       const weight =
-        typeof vote.weight === "number" && Number.isFinite(vote.weight)
-          ? vote.weight
-          : 1.0;
+        typeof vote.weight === "number" && Number.isFinite(vote.weight) ? vote.weight : 1.0;
 
       const family = mapToFamily(vote.genre) ?? vote.genre.toLowerCase();
       evidenceRows.push({
@@ -94,9 +88,5 @@ export function backfillFromVotes(db: Database): {
     }
   }
 
-  return {
-    tracksRead: rows.length,
-    evidenceWritten,
-    errors,
-  };
+  return { tracksRead: rows.length, evidenceWritten, errors };
 }

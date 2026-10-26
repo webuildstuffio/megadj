@@ -10,11 +10,7 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { existsSync } from "node:fs";
-import {
-  analyzeBeats,
-  openBeatSession,
-  parseBeatThisJson,
-} from "../analysis/beats-analysis";
+import { analyzeBeats, openBeatSession, parseBeatThisJson } from "../analysis/beats-analysis";
 import { enrichTrack } from "../pipeline/pipeline";
 
 const DIR = `/tmp/fulltags-analysis-test-${process.pid}`;
@@ -25,15 +21,7 @@ afterAll(async () => {
 
 const hasBeatThis =
   Bun.spawnSync({
-    cmd: [
-      "uv",
-      "run",
-      "--with",
-      "beat-this",
-      "python",
-      "-c",
-      "import beat_this",
-    ],
+    cmd: ["uv", "run", "--with", "beat-this", "python", "-c", "import beat_this"],
     stdout: "pipe",
     stderr: "pipe",
   }).exitCode === 0;
@@ -41,19 +29,11 @@ const hasBeatThis =
 describe("beat_this BPM (roadmap #2)", () => {
   test("malformed and structurally invalid worker JSON returns null", () => {
     expect(parseBeatThisJson("beat_this log noise\n{not-json")).toBeNull();
-    expect(
-      parseBeatThisJson(
-        '{"bpm":128,"beats":[0,0.5,"bad",1.5],"downbeats":[0]}',
-      ),
-    ).toBeNull();
+    expect(parseBeatThisJson('{"bpm":128,"beats":[0,0.5,"bad",1.5],"downbeats":[0]}')).toBeNull();
     expect(parseBeatThisJson('{"bpm":128}')).toBeNull();
     expect(parseBeatThisJson('{"bpm":128,"beats":[]}')).toBeNull();
-    expect(
-      parseBeatThisJson('{"bpm":128,"beats":[],"downbeats":[]}'),
-    ).toBeNull();
-    expect(
-      parseBeatThisJson('{"bpm":128,"beats":[0,0.5,1],"downbeats":[0]}'),
-    ).toBeNull();
+    expect(parseBeatThisJson('{"bpm":128,"beats":[],"downbeats":[]}')).toBeNull();
+    expect(parseBeatThisJson('{"bpm":128,"beats":[0,0.5,1],"downbeats":[0]}')).toBeNull();
     expect(parseBeatThisJson('{"bpm":0,"beats":[],"downbeats":[]}')).toBeNull();
   });
 
@@ -64,20 +44,14 @@ describe("beat_this BPM (roadmap #2)", () => {
       const p = `${DIR}/bpm-t.mp3`;
       await $`mkdir -p ${DIR}`.quiet();
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "sine=frequency=220:duration=30" -af "tremolo=f=2:d=0.9" ${p}`.quiet();
-      const r = await enrichTrack(
-        { path: p },
-        { only: ["bpm"], artworkQueue: null },
-      );
+      const r = await enrichTrack({ path: p }, { only: ["bpm"], artworkQueue: null });
       const note = r.notes.find((n) => n.startsWith("bpm:"));
       expect(note).toBeTruthy();
       expect(note).not.toContain("SKIP");
       expect(r.notes.some((n) => n.includes("→120"))).toBe(true);
       const { groundTruth } = await import("../write/readers");
       expect(groundTruth(p).bpm).toBe(120);
-      const r2 = await enrichTrack(
-        { path: p },
-        { only: ["bpm"], artworkQueue: null },
-      );
+      const r2 = await enrichTrack({ path: p }, { only: ["bpm"], artworkQueue: null });
       expect(r2.notes).toEqual([]); // TBPM present → skip, no rewrite
     },
     { timeout: 240_000 },
@@ -113,15 +87,10 @@ describe("beat_this BPM (roadmap #2)", () => {
       expect(res).toBeTruthy();
       expect(res!.bpm).toBeGreaterThan(0);
       // no temp wav beside the source — then or ever
-      expect(existsSync(`${DIR}/.bpm-c.m4a.beats-${process.pid}.wav`)).toBe(
-        false,
-      );
+      expect(existsSync(`${DIR}/.bpm-c.m4a.beats-${process.pid}.wav`)).toBe(false);
       expect(existsSync(`${p}.beats-${process.pid}.wav`)).toBe(false);
       // pipeline stage end-to-end on the same file
-      const r = await enrichTrack(
-        { path: p },
-        { only: ["bpm"], artworkQueue: null },
-      );
+      const r = await enrichTrack({ path: p }, { only: ["bpm"], artworkQueue: null });
       expect(r.notes.some((n) => n.startsWith("bpm:"))).toBe(true);
     },
     240_000,
@@ -152,10 +121,7 @@ describe("beat_this BPM (roadmap #2)", () => {
     240_000,
   );
 
-  test.skipIf(hasBeatThis)(
-    "missing env → analyzeBeats null (no throw)",
-    async () => {
-      expect(await analyzeBeats("/definitely/not/a/file.mp3")).toBeNull();
-    },
-  );
+  test.skipIf(hasBeatThis)("missing env → analyzeBeats null (no throw)", async () => {
+    expect(await analyzeBeats("/definitely/not/a/file.mp3")).toBeNull();
+  });
 });

@@ -23,12 +23,7 @@
  * module answers "will it PLAY"; convert.ts answers "will it SHOW".
  */
 import type { Probe } from "../utils/media-probe";
-import {
-  DEFAULT_FLEET,
-  fleetFloor,
-  resolveFleet,
-  type FleetProfile,
-} from "./fleet";
+import { DEFAULT_FLEET, fleetFloor, resolveFleet, type FleetProfile } from "./fleet";
 /** The configured booth fleet (player ids) — set once by the entrypoint
  *  from config.toml [booth].fleet; defaults to the three always-on
  *  players. Both gates (playerCompat + boothTextCompat) read this, so
@@ -101,9 +96,7 @@ export function playerCompat(probe: Probe): CompatResult {
   // 3000 + NXS2) hi-res stays "partial"; add CDJ-2000 and FLAC/hi-res
   // become hard fails; drop the XZ and 96 kHz passes everywhere.
   const floor = fleetFloor(boothFleetProfiles());
-  const reasons = [
-    ...codecReasons(probe.codec ?? null, probe.sampleRate, floor),
-  ];
+  const reasons = [...codecReasons(probe.codec ?? null, probe.sampleRate, floor)];
   return verdict(probe, reasons);
 }
 
@@ -119,8 +112,7 @@ function codecReasons(
   const fleetRates = fleetSampleRates(floor.maxSampleRate);
   if (codec === "mp3") return filterNulls([mp3Reason(rate)]);
   if (codec === "aac") return aacReasons(rate, fleetRates);
-  if (codec && PCM_CODECS.has(codec))
-    return pcmReasons(codec, rate, fleetRates);
+  if (codec && PCM_CODECS.has(codec)) return pcmReasons(codec, rate, fleetRates);
   if (codec === "flac") return flacReasons(rate, fleetRates, floor.flac);
   if (codec === "alac") return floor.alac ? [] : ["alac-not-universal"];
   if (codec && (codec.startsWith("adpcm") || codec.includes("_at3")))
@@ -153,22 +145,12 @@ function aacReasons(rate: number | null, fleetRates: Set<number>): string[] {
   return [];
 }
 
-function pcmReasons(
-  codec: string,
-  rate: number | null,
-  fleetRates: Set<number>,
-): string[] {
-  if (codec.includes("f32") || codec.includes("f64"))
-    return ["float-pcm-unsupported"];
-  if (codec.includes("s32") || codec === "pcm_u8")
-    return ["bit-depth-unsupported"];
+function pcmReasons(codec: string, rate: number | null, fleetRates: Set<number>): string[] {
+  if (codec.includes("f32") || codec.includes("f64")) return ["float-pcm-unsupported"];
+  if (codec.includes("s32") || codec === "pcm_u8") return ["bit-depth-unsupported"];
   if (rate !== null && !fleetRates.has(rate)) {
     // 16/24-bit PCM at 88.2/96 — plays on the hi-res players only.
-    return [
-      HIRES_SAMPLE_RATES.has(rate)
-        ? "sample-rate-hires"
-        : "sample-rate-unsupported",
-    ];
+    return [HIRES_SAMPLE_RATES.has(rate) ? "sample-rate-hires" : "sample-rate-unsupported"];
   }
   return [];
 }
@@ -180,11 +162,7 @@ function flacReasons(
 ): string[] {
   const reasons: string[] = [];
   if (rate !== null && !fleetRates.has(rate)) {
-    reasons.push(
-      HIRES_SAMPLE_RATES.has(rate)
-        ? "sample-rate-hires"
-        : "sample-rate-unsupported",
-    );
+    reasons.push(HIRES_SAMPLE_RATES.has(rate) ? "sample-rate-hires" : "sample-rate-unsupported");
   }
   // FLAC is only universal when EVERY selected player takes it
   // (the plain CDJ-2000 never does).
@@ -196,11 +174,7 @@ function verdict(probe: Probe, reasons: string[]): CompatResult {
   const partial =
     reasons.length > 0 &&
     reasons.every((r) =>
-      [
-        "sample-rate-hires",
-        "flac-not-universal",
-        "alac-not-universal",
-      ].includes(r),
+      ["sample-rate-hires", "flac-not-universal", "alac-not-universal"].includes(r),
     );
 
   return {

@@ -12,11 +12,7 @@
  * 4. Rank L3 subgenres within elected family
  * 5. Gate: only write if calibrated confidence ≥ τ threshold
  */
-import {
-  dawidSkene,
-  type Annotation,
-  type DawidSkeneResult,
-} from "./dawid-skene";
+import { dawidSkene, type Annotation, type DawidSkeneResult } from "./dawid-skene";
 import { calibrateL2, type GenrePosterior } from "./calibration";
 import { rankL3, type L3Evidence, type L3Ranked } from "./l3-rank";
 import { GENRE_FAMILIES, type GenreFamily } from "./taxonomy-v3";
@@ -104,9 +100,7 @@ export function estimateGenres(
   let ungatedCount = 0;
 
   for (const input of inputs) {
-    const posterior = dsResult.posteriors.find(
-      (p) => p.trackId === input.trackId,
-    );
+    const posterior = dsResult.posteriors.find((p) => p.trackId === input.trackId);
     if (!posterior) {
       outputs.set(input.trackId, {
         family: null,
@@ -125,10 +119,7 @@ export function estimateGenres(
     const family = gated ? (posterior.family as GenreFamily) : null;
 
     // L3 ranking
-    const l3 =
-      family !== null
-        ? rankL3(family, posterior.probability, input.l3Evidence)
-        : [];
+    const l3 = family !== null ? rankL3(family, posterior.probability, input.l3Evidence) : [];
 
     outputs.set(input.trackId, {
       family,

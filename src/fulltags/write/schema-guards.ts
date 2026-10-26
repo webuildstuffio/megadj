@@ -17,9 +17,7 @@ export function validatePatch(vals: TagPatch): void {
  * as what they are (unknown runtime data), never smuggled past the
  * compiler with `as unknown as` casts. Returns the input unchanged, typed
  * as TagPatch after validation held. */
-export function validatePatchUntrusted(
-  vals: Record<string, unknown>,
-): TagPatch {
+export function validatePatchUntrusted(vals: Record<string, unknown>): TagPatch {
   validatePatchObject(vals);
   return vals as TagPatch;
 }
@@ -38,13 +36,7 @@ const NUMERIC_SPECS: Record<string, NumericSpec> = {
   year: { lo: 1900, hi: 2100, integer: true, expect: "an integer 1900–2100" },
   // bpm is EXCLUSIVE at zero (original: `v <= 0` rejected — 0 BPM is
   // "unknown", not a tempo), inclusive at the top.
-  bpm: {
-    lo: 0,
-    hi: 400,
-    integer: false,
-    minExclusive: true,
-    expect: "a number 0–400",
-  },
+  bpm: { lo: 0, hi: 400, integer: false, minExclusive: true, expect: "a number 0–400" },
   energy: { lo: 1, hi: 10, integer: false, expect: "a number 1–10" },
 };
 
@@ -62,24 +54,20 @@ function numericField(k: string, v: unknown, spec: NumericSpec): void {
 
 /** chromaprint base64 — long but bounded; non-empty is the gate. */
 function fingerprintField(k: string, v: unknown): void {
-  if (typeof v !== "string" || !v.trim())
-    throw new TypeError(`${k} must be a non-empty string`);
+  if (typeof v !== "string" || !v.trim()) throw new TypeError(`${k} must be a non-empty string`);
 }
 
 /** Camelot ("9A"/"12B") or traditional ("E min", "C maj", "F# minor"). */
 const KEY_RE = /^\d{1,2}[AB]$|^[A-G][#♯b♭]?\s?(maj(or)?|min(or)?|m)?$/iu;
 function keyField(k: string, v: unknown): void {
   if (typeof v !== "string" || !KEY_RE.test(v.trim()))
-    throw new TypeError(
-      `${k} must be Camelot ("9A") or traditional ("E min"), got ${v}`,
-    );
+    throw new TypeError(`${k} must be Camelot ("9A") or traditional ("E min"), got ${v}`);
 }
 
 /** "k=v; k=v" pairs; numeric values 0–1 or valence/arousal 1–9. */
 const MOOD_PAIR_RE = /^[a-zA-Z]+=[\d.]+$/u;
 function moodField(_k: string, v: unknown): void {
-  if (typeof v !== "string" || !v.trim())
-    throw new TypeError("mood must be a non-empty string");
+  if (typeof v !== "string" || !v.trim()) throw new TypeError("mood must be a non-empty string");
   if (v.length > 500) throw new TypeError(`mood too long (${v.length})`);
   if (!v.split(";").every((p) => MOOD_PAIR_RE.test(p.trim())))
     throw new TypeError(`mood must be "k=v; k=v" numeric pairs, got ${v}`);
@@ -112,17 +100,12 @@ function validatePatchObject(vals: Record<string, unknown>): void {
 
 /** Every other TagPatch field is a bounded non-empty string. */
 function validateGenericString(k: string, v: unknown): void {
-  if (typeof v !== "string")
-    throw new TypeError(`${k} must be a string, got ${typeof v}`);
-  if (k !== "comment" && !v.trim())
-    throw new TypeError(`${k} must be non-empty`);
-  if (v.length > 500)
-    throw new TypeError(`${k} too long (${v.length} chars, max 500)`);
+  if (typeof v !== "string") throw new TypeError(`${k} must be a string, got ${typeof v}`);
+  if (k !== "comment" && !v.trim()) throw new TypeError(`${k} must be non-empty`);
+  if (v.length > 500) throw new TypeError(`${k} too long (${v.length} chars, max 500)`);
   // AI provenance stamps carry "value|confidence" — sanity-check the shape
   if (k === "aiGenre" || k === "aiYear") {
     if (typeof v !== "string" || !AI_STAMP_RE.test(v))
-      throw new TypeError(
-        `${k} must be "value|confidence" (e.g. "Techno|0.92"), got ${v}`,
-      );
+      throw new TypeError(`${k} must be "value|confidence" (e.g. "Techno|0.92"), got ${v}`);
   }
 }

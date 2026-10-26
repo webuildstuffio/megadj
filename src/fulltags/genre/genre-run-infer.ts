@@ -55,8 +55,7 @@ export async function runGenreInference(
     });
   }
 
-  const sectionPct =
-    queryCount > 0 ? ((sectionWins / queryCount) * 100).toFixed(0) : "0";
+  const sectionPct = queryCount > 0 ? ((sectionWins / queryCount) * 100).toFixed(0) : "0";
   log(
     `genre: ${inferred} inferred, ${split} split-vote (left untouched), from ${seeds.length} seeds — ${opts.apply ? "WRITTEN" : "proposals only (use --apply to write)"}`,
   );

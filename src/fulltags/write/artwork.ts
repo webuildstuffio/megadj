@@ -33,19 +33,12 @@ export interface QueueEntry {
   sourceUrl?: string | null;
 }
 
-export async function appendQueueEntries(
-  dbDir: string,
-  entries: QueueEntry[],
-): Promise<string> {
+export async function appendQueueEntries(dbDir: string, entries: QueueEntry[]): Promise<string> {
   const fs = await import("node:fs/promises");
   const { join: pjoin } = await import("node:path");
   await fs.mkdir(dbDir, { recursive: true });
   const queuePath = pjoin(dbDir, "artwork-queue.jsonl");
-  await fs.appendFile(
-    queuePath,
-    `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`,
-    "utf8",
-  );
+  await fs.appendFile(queuePath, `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`, "utf8");
   return queuePath;
 }
 
@@ -82,10 +75,7 @@ const DONE_PATH = () => `${QUEUE_PATH()}.done`;
  * reported a non-empty queue as "queue is empty" (exit 0, nothing done).
  * Exported for tests. Returns null when the file is missing/unreadable.
  */
-export function parseQueue(raw: string): {
-  entries: QueueEntry[];
-  badLines: number;
-} {
+export function parseQueue(raw: string): { entries: QueueEntry[]; badLines: number } {
   let badLines = 0;
   const entries = raw
     .split("\n")
@@ -125,10 +115,7 @@ export function buildPrompt(entry: QueueEntry): string {
  * local file through it failed every embed (Sep 10 2026: a generated
  * cover sat unread while the queue reported "embed FAILED"). HTTP URLs
  * still go through fetchImage (mp3-twin art, future remote sources). */
-async function embedArtwork(
-  filePath: string,
-  artPath: string,
-): Promise<boolean> {
+async function embedArtwork(filePath: string, artPath: string): Promise<boolean> {
   const bytes = /^https?:\/\//i.test(artPath)
     ? await fetchImage(artPath)
     : await readFile(artPath).then(
@@ -145,9 +132,7 @@ interface ArtworkCounters {
 
 /** Load + validate the artwork queue. Returns null (after logging) when
  *  there is nothing to do or the environment can't generate. */
-async function loadQueue(
-  log: (msg: string) => void,
-): Promise<QueueEntry[] | null> {
+async function loadQueue(log: (msg: string) => void): Promise<QueueEntry[] | null> {
   let entries: QueueEntry[] = [];
   try {
     const raw = await readFile(QUEUE_PATH(), "utf8");
@@ -159,9 +144,7 @@ async function loadQueue(
       );
     }
   } catch {
-    log(
-      "queue is empty — nothing to do (entries appear after `megadj ingest`)",
-    );
+    log("queue is empty — nothing to do (entries appear after `megadj ingest`)");
     return null;
   }
   if (entries.length === 0) {
@@ -197,10 +180,7 @@ async function processEntry(
     return "skipped-ext";
   }
   const prompt = buildPrompt(entry);
-  const coverPath = join(
-    coverDir,
-    `${basename(entry.path).replace(/\.[^.]+$/, "")}.png`,
-  );
+  const coverPath = join(coverDir, `${basename(entry.path).replace(/\.[^.]+$/, "")}.png`);
   log(`  ~ ${entry.title}${entry.artist ? ` — ${entry.artist}` : ""}`);
   log(`    prompt: ${prompt.slice(0, 110)}…`);
   if (dryRun) return "pending";
@@ -221,9 +201,7 @@ async function processEntry(
     if (await embedArtwork(entry.path, coverPath)) {
       log("    embedded ✓");
       counters.done++;
-      doneLines.push(
-        JSON.stringify({ ...entry, result: "embedded", model, coverPath }),
-      );
+      doneLines.push(JSON.stringify({ ...entry, result: "embedded", model, coverPath }));
       return "embedded";
     } else {
       log("    embed FAILED — entry stays in queue");
@@ -243,9 +221,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   // env parse at the boundary: MEGADJ_ART_MAX="" parses to NaN and
   // slice(0, NaN) would process NOTHING while reporting success.
   const envMax = Number(nonEmptyEnv("MEGADJ_ART_MAX") ?? "");
-  const max =
-    opts.maxImages ??
-    (Number.isFinite(envMax) && envMax > 0 ? Math.floor(envMax) : 20);
+  const max = opts.maxImages ?? (Number.isFinite(envMax) && envMax > 0 ? Math.floor(envMax) : 20);
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   const entries = await loadQueue(log);
@@ -261,9 +237,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   const batch = entries.slice(0, max);
   log(
     `${entries.length} queued entr(ies), processing ${batch.length}${
-      entries.length > batch.length
-        ? ` (${entries.length - batch.length} left for next run)`
-        : ""
+      entries.length > batch.length ? ` (${entries.length - batch.length} left for next run)` : ""
     } with ${model}${opts.dryRun ? " (dry run)" : ""}`,
   );
 
@@ -307,8 +281,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
       counters,
       doneLines,
     );
-    if (outcome === "embedded" || outcome === "skipped-ext")
-      processedIdx.add(i);
+    if (outcome === "embedded" || outcome === "skipped-ext") processedIdx.add(i);
   }
 
   if (!opts.dryRun && doneLines.length > 0) {
@@ -316,13 +289,10 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
     // Rewrite the queue keeping only entries that neither embedded nor were
     // skipped as unsupported — failed generations stay queued for retry
     // (the slice-by-batch-size rewrite used to drop them forever).
-    const remaining = entries.filter(
-      (e) => !processedIdx.has(entries.indexOf(e)),
-    );
+    const remaining = entries.filter((e) => !processedIdx.has(entries.indexOf(e)));
     await Bun.write(
       QUEUE_PATH(),
-      remaining.map((e) => JSON.stringify(e)).join("\n") +
-        (remaining.length ? "\n" : ""),
+      remaining.map((e) => JSON.stringify(e)).join("\n") + (remaining.length ? "\n" : ""),
     );
   }
 

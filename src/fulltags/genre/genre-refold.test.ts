@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { refoldDetail, refoldLabel, scoringFamily } from "./genre-refold";
-import {
-  familyOf as genreFamily,
-  isUmbrellaLabel,
-  repairEscapes,
-} from "./genre-vocab";
+import { familyOf as genreFamily, isUmbrellaLabel, repairEscapes } from "./genre-vocab";
 
 describe("repairEscapes", () => {
   test("decodes \\uXXXX artifacts", () => {
@@ -38,20 +34,15 @@ describe("refoldLabel (data half)", () => {
     ["Electronic/Tech House", "Tech House"],
     // both tokens umbrella → the stored first token stays (deterministic)
     ["Dance & EDM", "Dance"],
-  ])(
-    "specific labels outrank umbrella parents in splits: %s → %s",
-    (input, expected) => {
-      expect(refoldLabel(input)).toBe(expected);
-    },
-  );
+  ])("specific labels outrank umbrella parents in splits: %s → %s", (input, expected) => {
+    expect(refoldLabel(input)).toBe(expected);
+  });
 
   test("protects established &-compounds from splitting", () => {
     expect(refoldLabel("R&B")).toBe("R&B");
     expect(refoldLabel("R&B/Soul")).toBe("R&B");
     expect(refoldLabel("Drum & Bass")).toBe("Drum & Bass");
-    expect(refoldLabel("Melodic House & Techno")).toBe(
-      "Melodic House & Techno",
-    );
+    expect(refoldLabel("Melodic House & Techno")).toBe("Melodic House & Techno");
     expect(refoldLabel("Hip-Hop & Rap")).toBe("Hip-Hop & Rap");
   });
 
@@ -84,13 +75,9 @@ describe("refoldLabel (data half)", () => {
     expect(refoldLabel("fixme")).toBeNull();
     expect(refoldLabel("https://djsoundtop.com")).toBeNull();
     expect(refoldLabel("djsoundtop.com Top 100")).toBeNull();
+    expect(refoldLabel("House electronic swedish european edm trance")).toBeNull();
     expect(
-      refoldLabel("House electronic swedish european edm trance"),
-    ).toBeNull();
-    expect(
-      refoldLabel(
-        "Electronic uk garage edm future garage dance garage stutter house downtempo",
-      ),
+      refoldLabel("Electronic uk garage edm future garage dance garage stutter house downtempo"),
     ).toBeNull();
   });
 

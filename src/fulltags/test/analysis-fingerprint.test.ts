@@ -9,18 +9,13 @@
  */
 import { describe, test, expect } from "bun:test";
 import { $ } from "bun";
-import {
-  fingerprintFile,
-  fingerprintWithDuration,
-  parseFpcalcJson,
-} from "../analysis/fingerprint";
+import { fingerprintFile, fingerprintWithDuration, parseFpcalcJson } from "../analysis/fingerprint";
 import { foldTempo } from "../analysis/beats-analysis";
 import { readStampGuard } from "./stamp";
 import { enrichTrack } from "../pipeline/pipeline";
 import { DIR, makeFile } from "./analysis";
 
-const hasFpcalc =
-  Bun.spawnSync({ cmd: ["fpcalc", "-version"], stdout: "pipe" }).exitCode === 0;
+const hasFpcalc = Bun.spawnSync({ cmd: ["fpcalc", "-version"], stdout: "pipe" }).exitCode === 0;
 
 describe("foldTempo (DJ window folding)", () => {
   test("keeps in-window tempos, folds double/half", () => {
@@ -38,41 +33,36 @@ describe("chromaprint fingerprints (roadmap #1)", () => {
       fingerprint: "AQID",
       durationS: null,
     });
-    expect(
-      parseFpcalcJson('{"fingerprint":"AQID","duration":"Infinity"}'),
-    ).toEqual({ fingerprint: "AQID", durationS: null });
+    expect(parseFpcalcJson('{"fingerprint":"AQID","duration":"Infinity"}')).toEqual({
+      fingerprint: "AQID",
+      durationS: null,
+    });
   });
 
-  test.skipIf(!hasFpcalc)(
-    "same content different containers → identical fingerprint",
-    async () => {
-      const a = await makeFile("fp-a.mp3");
-      const b = `${DIR}/fp-b.wav`;
-      await $`ffmpeg -y -hide_banner -loglevel error -i ${a} ${b}`.quiet();
-      const fa = fingerprintFile(a);
-      const fb = fingerprintFile(b);
-      expect(fa).toBeTruthy();
-      expect(fb).toBeTruthy();
-      expect(fa).toBe(fb); // content identity, format-blind
-    },
-  );
+  test.skipIf(!hasFpcalc)("same content different containers → identical fingerprint", async () => {
+    const a = await makeFile("fp-a.mp3");
+    const b = `${DIR}/fp-b.wav`;
+    await $`ffmpeg -y -hide_banner -loglevel error -i ${a} ${b}`.quiet();
+    const fa = fingerprintFile(a);
+    const fb = fingerprintFile(b);
+    expect(fa).toBeTruthy();
+    expect(fb).toBeTruthy();
+    expect(fa).toBe(fb); // content identity, format-blind
+  });
 
-  test.skipIf(!hasFpcalc)(
-    "different audio → different fingerprint",
-    async () => {
-      // Pure 440 vs 880 Hz sines hash identically (chromaprint's chroma
-      // filter is octave-invariant — both are one flat tone). Use noise vs
-      // tone for a real chroma difference.
-      const a = await makeFile("fp-x.mp3");
-      const b = `${DIR}/fp-y.mp3`;
-      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "anoisesrc=d=3:c=pink:a=0.8" ${b}`.quiet();
-      const fa = fingerprintFile(a);
-      const fb = fingerprintFile(b);
-      expect(fa).toBeTruthy();
-      expect(fb).toBeTruthy();
-      expect(fa).not.toBe(fb);
-    },
-  );
+  test.skipIf(!hasFpcalc)("different audio → different fingerprint", async () => {
+    // Pure 440 vs 880 Hz sines hash identically (chromaprint's chroma
+    // filter is octave-invariant — both are one flat tone). Use noise vs
+    // tone for a real chroma difference.
+    const a = await makeFile("fp-x.mp3");
+    const b = `${DIR}/fp-y.mp3`;
+    await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "anoisesrc=d=3:c=pink:a=0.8" ${b}`.quiet();
+    const fa = fingerprintFile(a);
+    const fb = fingerprintFile(b);
+    expect(fa).toBeTruthy();
+    expect(fb).toBeTruthy();
+    expect(fa).not.toBe(fb);
+  });
 
   test.skipIf(!hasFpcalc)("duration companion is sane", async () => {
     const p = await makeFile("fp-dur.mp3", 4);
@@ -82,30 +72,18 @@ describe("chromaprint fingerprints (roadmap #1)", () => {
     expect(durationS).toBeLessThanOrEqual(5);
   });
 
-  test.skipIf(!hasFpcalc)(
-    "pipeline stage writes TXXX:ACOUSTID, idempotent",
-    async () => {
-      const p = await makeFile("fp-stage.mp3");
-      const r = await enrichTrack(
-        { path: p },
-        { only: ["fingerprint"], artworkQueue: null },
-      );
-      expect(r.notes.some((n) => n.startsWith("fingerprint:"))).toBe(true);
-      expect(readStampGuard(p, "ACOUSTID")).toBeTruthy();
-      const r2 = await enrichTrack(
-        { path: p },
-        { only: ["fingerprint"], artworkQueue: null },
-      );
-      expect(r2.notes).toEqual([]);
-    },
-  );
+  test.skipIf(!hasFpcalc)("pipeline stage writes TXXX:ACOUSTID, idempotent", async () => {
+    const p = await makeFile("fp-stage.mp3");
+    const r = await enrichTrack({ path: p }, { only: ["fingerprint"], artworkQueue: null });
+    expect(r.notes.some((n) => n.startsWith("fingerprint:"))).toBe(true);
+    expect(readStampGuard(p, "ACOUSTID")).toBeTruthy();
+    const r2 = await enrichTrack({ path: p }, { only: ["fingerprint"], artworkQueue: null });
+    expect(r2.notes).toEqual([]);
+  });
 
-  test.skipIf(hasFpcalc)(
-    "missing fpcalc → probe returns null (no throw)",
-    () => {
-      expect(fingerprintFile("/definitely/not/a/file.mp3")).toBeNull();
-    },
-  );
+  test.skipIf(hasFpcalc)("missing fpcalc → probe returns null (no throw)", () => {
+    expect(fingerprintFile("/definitely/not/a/file.mp3")).toBeNull();
+  });
 
   test.skipIf(!hasFpcalc)(
     "missing fpcalc from PATH → null, never ENOENT throw (regression)",

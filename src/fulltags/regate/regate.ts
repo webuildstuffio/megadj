@@ -2,11 +2,7 @@ import type { ArchiveState } from "../../core/state";
 import { round3 } from "../../shared/leaf/fmt";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 import { goldDir, loadGoldSet, type GoldAnnotation } from "../analysis/gold";
-import {
-  evalLeaveOneOut,
-  genreFamily,
-  parseEmbeddingVector,
-} from "../../core/similar";
+import { evalLeaveOneOut, genreFamily, parseEmbeddingVector } from "../../core/similar";
 import { runRegate, type GateObservation, type GateResult } from "../cli/gates";
 
 // ---- the genre/effnet re-gates (#169, folded from regate-genre.ts —
@@ -60,9 +56,7 @@ export function genreEvalSeeds(state: ArchiveState): {
  * the population. */
 export function regateGenre(state: ArchiveState): GenreRegateResult {
   const { seeds, durations } = genreEvalSeeds(state);
-  const familyEvaluable = seeds.filter(
-    (s) => genreFamily(s.genre) !== null,
-  ).length;
+  const familyEvaluable = seeds.filter((s) => genreFamily(s.genre) !== null).length;
   if (familyEvaluable === 0) {
     return {
       command: "regate",
@@ -169,28 +163,14 @@ export function bpmObservations(
   return annotations.flatMap((annotation) => {
     const row = byHash.get(annotation.hash);
     const actual = row?.bpmFitted ?? row?.bpmRaw ?? null;
-    return actual === null
-      ? []
-      : [{ id: annotation.hash, expected: annotation.bpm, actual }];
+    return actual === null ? [] : [{ id: annotation.hash, expected: annotation.bpm, actual }];
   });
 }
 
-export function regateBpm(
-  state: ArchiveState,
-  dir: string,
-  detector = "ledger",
-): RegateResult {
+export function regateBpm(state: ArchiveState, dir: string, detector = "ledger"): RegateResult {
   const set = loadGoldSet(dir);
-  const observations = bpmObservations(
-    set.annotations,
-    state.beatAnalyzedTracks(),
-  );
-  const gate = runRegate({
-    dimension: "bpm",
-    observations,
-    tolerancePercent: 2,
-    passPercent: 80,
-  });
+  const observations = bpmObservations(set.annotations, state.beatAnalyzedTracks());
+  const gate = runRegate({ dimension: "bpm", observations, tolerancePercent: 2, passPercent: 80 });
   return {
     command: "regate",
     detector,
@@ -199,9 +179,7 @@ export function regateBpm(
     gate,
     ok: gate.passed && set.issues.length === 0,
     ...(set.issues.length > 0
-      ? {
-          error: `invalid gold annotations: ${set.issues.map((i) => i.file).join(", ")}`,
-        }
+      ? { error: `invalid gold annotations: ${set.issues.map((i) => i.file).join(", ")}` }
       : {}),
   };
 }
@@ -222,10 +200,7 @@ export function regate(
   dir?: string,
 ): RegateReport {
   if (dimension !== "bpm" && dimension !== "genre" && dimension !== "effnet") {
-    const gate = runRegate({
-      dimension: "bpm",
-      observations: [],
-    });
+    const gate = runRegate({ dimension: "bpm", observations: [] });
     return {
       command: "regate",
       detector,
@@ -280,9 +255,5 @@ export function regate(
       dimension: "effnet",
     };
   }
-  return regateBpm(
-    state,
-    dir ?? goldDir(nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? ""),
-    detector,
-  );
+  return regateBpm(state, dir ?? goldDir(nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? ""), detector);
 }

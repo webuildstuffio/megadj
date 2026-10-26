@@ -56,20 +56,13 @@ describe("dawidSkene", () => {
     const anns: Annotation[] = [];
     for (let i = 0; i < 30; i++) {
       const trueLabel = i < 15 ? "house" : "techno";
-      anns.push({
-        trackId: `t${i}`,
-        annotatorId: "reliable",
-        label: trueLabel,
-      });
+      anns.push({ trackId: `t${i}`, annotatorId: "reliable", label: trueLabel });
       // Noisy: 50% accuracy — every other one flipped
-      const noisyLabel =
-        i % 2 === 0 ? trueLabel : trueLabel === "house" ? "techno" : "house";
+      const noisyLabel = i % 2 === 0 ? trueLabel : trueLabel === "house" ? "techno" : "house";
       anns.push({ trackId: `t${i}`, annotatorId: "noisy", label: noisyLabel });
     }
     const result = dawidSkene(anns, CLASSES);
-    const reliable = result.annotators.find(
-      (a) => a.annotatorId === "reliable",
-    );
+    const reliable = result.annotators.find((a) => a.annotatorId === "reliable");
     const noisy = result.annotators.find((a) => a.annotatorId === "noisy");
     expect(reliable).toBeDefined();
     expect(noisy).toBeDefined();

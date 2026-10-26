@@ -30,11 +30,7 @@ export interface FetchTaskDoneEvent {
   name: string;
   notes: string[];
   votes: FetchVoteEvent[];
-  elected: {
-    genre: string;
-    weight: number;
-    winnerRungs: string[];
-  } | null;
+  elected: { genre: string; weight: number; winnerRungs: string[] } | null;
 }
 
 interface FetchStartEvent {
@@ -74,22 +70,14 @@ export function taskDoneEvent(input: {
   name: string;
   notes: string[];
   votes: GenreVote[];
-  elected: {
-    genre: string;
-    weight: number;
-    winnerRungs: string[];
-  } | null;
+  elected: { genre: string; weight: number; winnerRungs: string[] } | null;
 }): FetchTaskDoneEvent {
   return {
     done: input.done,
     total: input.total,
     name: input.name,
     notes: input.notes,
-    votes: input.votes.map((v) => ({
-      rung: v.rung,
-      genre: v.genre,
-      weight: v.weight,
-    })),
+    votes: input.votes.map((v) => ({ rung: v.rung, genre: v.genre, weight: v.weight })),
     elected: input.elected,
   };
 }

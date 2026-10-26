@@ -39,18 +39,8 @@ describe("genre command JSON boundary", () => {
       genreSeeds: () => ({
         seeds: [{ video_id: "seed", genre: "House", vec_json: "[1,0]" }],
         queries: [
-          {
-            video_id: "would-write",
-            title: "First",
-            vec_json: "[1,0]",
-            section_vecs: [],
-          },
-          {
-            video_id: "corrupt",
-            title: "Second",
-            vec_json: "not-json",
-            section_vecs: [],
-          },
+          { video_id: "would-write", title: "First", vec_json: "[1,0]", section_vecs: [] },
+          { video_id: "corrupt", title: "Second", vec_json: "not-json", section_vecs: [] },
         ],
       }),
       updateGenre: (videoId: string) => updates.push(videoId),
@@ -114,15 +104,10 @@ describe("genre command JSON boundary", () => {
         genreEvalRow("c", "House", "[1,0]", { artist: "Z" }),
       ],
     } as unknown as ArchiveState;
-    const parsed = await captureGenreJson(state, {
-      eval: true,
-      artistDisjoint: true,
-    });
+    const parsed = await captureGenreJson(state, { eval: true, artistDisjoint: true });
     expect(parsed.command).toBe("genre");
     expect(parsed.artist_disjoint).toBeDefined();
-    expect((parsed.artist_disjoint as Record<string, unknown>).evaluated).toBe(
-      3,
-    );
+    expect((parsed.artist_disjoint as Record<string, unknown>).evaluated).toBe(3);
   });
 
   test("--eval --probe adds the probe block with delta vs kNN", async () => {
@@ -144,27 +129,9 @@ describe("genre command JSON boundary", () => {
   test("--eval --diagnostics adds the Tier-0 block", async () => {
     const state = {
       evalPopulation: () => [
-        {
-          video_id: "a",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-          artist: "X",
-        },
-        {
-          video_id: "b",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-          artist: "X",
-        },
-        {
-          video_id: "c",
-          genre: "Bass",
-          vec_json: "[0,1]",
-          duration_s: 300,
-          artist: "Y",
-        },
+        { video_id: "a", genre: "House", vec_json: "[1,0]", duration_s: 300, artist: "X" },
+        { video_id: "b", genre: "House", vec_json: "[1,0]", duration_s: 300, artist: "X" },
+        { video_id: "c", genre: "Bass", vec_json: "[0,1]", duration_s: 300, artist: "Y" },
       ],
     } as unknown as ArchiveState;
     const logged: string[] = [];
@@ -215,8 +182,7 @@ describe("genre command JSON boundary", () => {
         { video_id: "umbrella", genre: "EDM" },
         { video_id: "junk", genre: "Music" },
       ],
-      updateGenre: (videoId: string, to: string) =>
-        updates.push({ videoId, to }),
+      updateGenre: (videoId: string, to: string) => updates.push({ videoId, to }),
     } as unknown as ArchiveState;
     const parsed = await captureGenreJson(state, { refold: true });
     expect(parsed.mode).toBe("refold");
@@ -237,10 +203,7 @@ describe("genre command JSON boundary", () => {
       ],
       updates,
     );
-    const parsed = await captureGenreJson(state, {
-      refold: true,
-      apply: true,
-    });
+    const parsed = await captureGenreJson(state, { refold: true, apply: true });
     expect(updates).toEqual([
       { videoId: "lower", to: "EDM" },
       { videoId: "screaming", to: "Dance" },
@@ -262,10 +225,7 @@ describe("genre command JSON boundary", () => {
       ],
       updates,
     );
-    const parsed = await captureGenreJson(state, {
-      refold: true,
-      apply: true,
-    });
+    const parsed = await captureGenreJson(state, { refold: true, apply: true });
     expect(updates).toEqual([
       { videoId: "twin-a", to: "Dance" },
       { videoId: "twin-b", to: "Dance" },
@@ -282,46 +242,15 @@ describe("genre command JSON boundary", () => {
     // the EDM row's 2 nearest are both house (agreement 1.0).
     const state = {
       evalPopulation: () => [
-        {
-          video_id: "bad",
-          genre: "EDM",
-          vec_json: "[1,0]",
-          duration_s: 300,
-        },
-        {
-          video_id: "h1",
-          genre: "House",
-          vec_json: "[1,0.01]",
-          duration_s: 300,
-        },
-        {
-          video_id: "h2",
-          genre: "House",
-          vec_json: "[1,0.02]",
-          duration_s: 300,
-        },
-        {
-          video_id: "h3",
-          genre: "House",
-          vec_json: "[0.99,0.03]",
-          duration_s: 300,
-        },
+        { video_id: "bad", genre: "EDM", vec_json: "[1,0]", duration_s: 300 },
+        { video_id: "h1", genre: "House", vec_json: "[1,0.01]", duration_s: 300 },
+        { video_id: "h2", genre: "House", vec_json: "[1,0.02]", duration_s: 300 },
+        { video_id: "h3", genre: "House", vec_json: "[0.99,0.03]", duration_s: 300 },
         // far corner: split neighbourhood, no quorum
-        {
-          video_id: "mixed",
-          genre: "Bass",
-          vec_json: "[0,1]",
-          duration_s: 300,
-        },
-        {
-          video_id: "mixed2",
-          genre: "Techno",
-          vec_json: "[0,0.9]",
-          duration_s: 300,
-        },
+        { video_id: "mixed", genre: "Bass", vec_json: "[0,1]", duration_s: 300 },
+        { video_id: "mixed2", genre: "Techno", vec_json: "[0,0.9]", duration_s: 300 },
       ],
-      setGenreFlag: (videoId: string, flag: "disputed" | null) =>
-        flags.set(videoId, flag),
+      setGenreFlag: (videoId: string, flag: "disputed" | null) => flags.set(videoId, flag),
     } as unknown as ArchiveState;
 
     // dry: nothing written
@@ -394,8 +323,7 @@ describe("genre command JSON boundary", () => {
         { video_id: "split-me", genre: "R&B/Soul" },
         { video_id: "umbrella", genre: "edm" },
       ],
-      updateGenre: (videoId: string, to: string) =>
-        updates.push({ videoId, to }),
+      updateGenre: (videoId: string, to: string) => updates.push({ videoId, to }),
     } as unknown as ArchiveState;
     const orig = console.log;
     console.log = () => {};

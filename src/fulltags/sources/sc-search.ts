@@ -69,14 +69,7 @@ function parseColLine(line: string): ColLine | null {
     string | undefined,
   ];
   if (!url?.includes("soundcloud.com")) return null;
-  return {
-    title: t ?? "",
-    url,
-    uploader: uploader || null,
-    thumbsRaw,
-    genre,
-    timestamp: tsRaw,
-  };
+  return { title: t ?? "", url, uploader: uploader || null, thumbsRaw, genre, timestamp: tsRaw };
 }
 
 /** SC upload year from the unix timestamp = the remix/edit's year (not
@@ -111,9 +104,8 @@ function scoreColLine(
     title: line.title,
     uploader: line.uploader,
     thumb:
-      line.thumbsRaw?.match(
-        /https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/,
-      )?.[0] ?? null,
+      line.thumbsRaw?.match(/https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/)?.[0] ??
+      null,
     // SC flat-search `genre` is a numeric SoundCloud genre ID, not a name
     // (when present at all). Numeric junk must never leave this function —
     // Sep 11: numeric "genres" got written to files + DBs and took hours

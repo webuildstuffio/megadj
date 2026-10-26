@@ -13,21 +13,11 @@ describe("genre --disputes (#64 review surface)", () => {
     // unanimously, one whose neighbourhood is split (no consensus)
     const state = {
       disputedRows: () => [
-        {
-          video_id: "bad",
-          title: "Track A",
-          artist: "Artist A",
-          genre: "EDM",
-        },
+        { video_id: "bad", title: "Track A", artist: "Artist A", genre: "EDM" },
         // far corner: split neighbourhood, no quorum — k=2 sees one house
         // (the mislabeled row is ex-flagged in disputeVoteInputs' seeds)
         // and one techno → refused vote
-        {
-          video_id: "split",
-          title: "Track B",
-          artist: "Artist B",
-          genre: "Bass",
-        },
+        { video_id: "split", title: "Track B", artist: "Artist B", genre: "Bass" },
       ],
       disputeVoteInputs: () => ({
         flagged: [
@@ -73,21 +63,9 @@ describe("genre --disputes (#64 review surface)", () => {
   test("keep clears the flag, label untouched; re-keep refuses", () => {
     let cleared: string | null = null;
     const state = {
-      disputedRows: (): {
-        video_id: string;
-        title: string;
-        artist: string;
-        genre: string;
-      }[] =>
+      disputedRows: (): { video_id: string; title: string; artist: string; genre: string }[] =>
         cleared === null
-          ? [
-              {
-                video_id: "rb-1",
-                title: "T",
-                artist: "A",
-                genre: "Electronic",
-              },
-            ]
+          ? [{ video_id: "rb-1", title: "T", artist: "A", genre: "Electronic" }]
           : [],
       setGenreFlag: (videoId: string, flag: "disputed" | null) => {
         cleared = flag === null ? videoId : null;
@@ -95,18 +73,11 @@ describe("genre --disputes (#64 review surface)", () => {
       setGenreFlagNote: (_videoId: string, _note: string) => {},
     } as unknown as ArchiveState;
 
-    const res = resolveDispute(state, {
-      videoId: "rb-1",
-      verb: "keep",
-      note: "source is right",
-    });
+    const res = resolveDispute(state, { videoId: "rb-1", verb: "keep", note: "source is right" });
     expect(res.ok).toBe(true);
     expect(cleared === "rb-1").toBe(true);
     // second keep: row is no longer flagged → refuses
-    const again = resolveDispute(state, {
-      videoId: "rb-1",
-      verb: "keep",
-    });
+    const again = resolveDispute(state, { videoId: "rb-1", verb: "keep" });
     expect(again.ok).toBe(false);
   });
 
@@ -114,17 +85,9 @@ describe("genre --disputes (#64 review surface)", () => {
     let written: { videoId: string; genre: string } | null = null;
     let flagCleared = false;
     const state = {
-      disputedRows: () => [
-        { video_id: "rb-2", title: "T", artist: "A", genre: "Dance" },
-      ],
+      disputedRows: () => [{ video_id: "rb-2", title: "T", artist: "A", genre: "Dance" }],
       disputeVoteInputs: () => ({
-        flagged: [
-          {
-            video_id: "rb-2",
-            vec_json: "[1,0]",
-            analyzed_at: new Date().toISOString(),
-          },
-        ],
+        flagged: [{ video_id: "rb-2", vec_json: "[1,0]", analyzed_at: new Date().toISOString() }],
         seeds: [
           { video_id: "h1", genre: "House", vec_json: "[1,0.01]" },
           { video_id: "h2", genre: "House", vec_json: "[1,0.02]" },
@@ -139,14 +102,9 @@ describe("genre --disputes (#64 review surface)", () => {
       },
     } as unknown as ArchiveState;
 
-    const res = resolveDispute(state, {
-      videoId: "rb-2",
-      verb: "agree",
-    });
+    const res = resolveDispute(state, { videoId: "rb-2", verb: "agree" });
     expect(res.ok).toBe(true);
-    expect(
-      (written as { videoId: string; genre: string } | null) ?? null,
-    ).toEqual({
+    expect((written as { videoId: string; genre: string } | null) ?? null).toEqual({
       videoId: "rb-2",
       genre: "house",
     });
@@ -155,17 +113,9 @@ describe("genre --disputes (#64 review surface)", () => {
 
   test("agree with no live consensus refuses (never writes an arbitrary label)", () => {
     const state = {
-      disputedRows: () => [
-        { video_id: "rb-3", title: "T", artist: "A", genre: "EDM" },
-      ],
+      disputedRows: () => [{ video_id: "rb-3", title: "T", artist: "A", genre: "EDM" }],
       disputeVoteInputs: () => ({
-        flagged: [
-          {
-            video_id: "rb-3",
-            vec_json: "[1,0]",
-            analyzed_at: new Date().toISOString(),
-          },
-        ],
+        flagged: [{ video_id: "rb-3", vec_json: "[1,0]", analyzed_at: new Date().toISOString() }],
         seeds: [
           // split neighbourhood: house vs techno → no quorum
           { video_id: "h1", genre: "House", vec_json: "[1,0.01]" },
@@ -194,17 +144,9 @@ describe("genre --disputes (#64 review surface)", () => {
 });
 
 const SPLIT_ROW_STATE = {
-  disputedRows: () => [
-    { video_id: "rb-4", title: "T", artist: "A", genre: "EDM" },
-  ],
+  disputedRows: () => [{ video_id: "rb-4", title: "T", artist: "A", genre: "EDM" }],
   disputeVoteInputs: () => ({
-    flagged: [
-      {
-        video_id: "rb-4",
-        vec_json: "[0.9,0.1]",
-        analyzed_at: new Date().toISOString(),
-      },
-    ],
+    flagged: [{ video_id: "rb-4", vec_json: "[0.9,0.1]", analyzed_at: new Date().toISOString() }],
     seeds: [
       { video_id: "h1", genre: "House", vec_json: "[1,0]" },
       { video_id: "h2", genre: "House", vec_json: "[0.95,0.05]" },

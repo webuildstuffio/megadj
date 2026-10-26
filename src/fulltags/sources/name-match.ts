@@ -81,9 +81,7 @@ export function artistGate(
 ): 0 | 4 | 6 {
   const a = primaryArtist(queryArtist);
   if (a.length < ARTIST_MIN_LEN) return 0;
-  const hit = candidates
-    .map((c) => c.toLowerCase())
-    .find((c) => c === a || c.includes(a));
+  const hit = candidates.map((c) => c.toLowerCase()).find((c) => c === a || c.includes(a));
   if (!hit) return 0;
   return hit === a ? 6 : 4;
 }
@@ -102,11 +100,7 @@ export function artistGateFails(
 // ---- Version-aware evidence scope (B3.3, §4.2) ----
 
 import type { EvidenceScope } from "../evidence/evidence-store";
-import {
-  parseVersion,
-  versionCompatible,
-  type VersionMatch,
-} from "../identity/version";
+import { parseVersion, versionCompatible, type VersionMatch } from "../identity/version";
 
 /**
  * Classify the evidence scope between a query (library track) and a
@@ -121,21 +115,16 @@ export function classifyEvidenceScope(
   queryArtist: string | null | undefined,
   candidateTitle: string,
   candidateArtists: string[],
-): {
-  scope: EvidenceScope;
-  versionMatch: VersionMatch;
-} | null {
+): { scope: EvidenceScope; versionMatch: VersionMatch } | null {
   const gate = artistGate(queryArtist, candidateArtists);
-  if (gate === 0 && primaryArtist(queryArtist).length >= ARTIST_MIN_LEN)
-    return null;
+  if (gate === 0 && primaryArtist(queryArtist).length >= ARTIST_MIN_LEN) return null;
 
   const qv = parseVersion(queryTitle, queryArtist ?? "");
   const cv = parseVersion(candidateTitle, candidateArtists.join(", "));
   const match = versionCompatible(qv, cv);
 
   if (match === "reject") return null;
-  if (match === "exact")
-    return { scope: "exact_recording", versionMatch: match };
+  if (match === "exact") return { scope: "exact_recording", versionMatch: match };
   return { scope: "same_song_other_version", versionMatch: match };
 }
 
@@ -148,12 +137,8 @@ export interface SearchQueryParts {
 }
 
 /** Remove placeholder metadata before scoring or building a catalog query. */
-export function cleanSearchParts(
-  artist: string | null,
-  title: string,
-): SearchQueryParts {
-  const junk =
-    /UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*|Unknown\s*Artist\s*[-–—]\s*/giu;
+export function cleanSearchParts(artist: string | null, title: string): SearchQueryParts {
+  const junk = /UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*|Unknown\s*Artist\s*[-–—]\s*/giu;
   return {
     artist: artist?.replace(junk, "").trim() || null,
     title: title.replace(junk, "").trim(),
@@ -167,18 +152,11 @@ export function cleanSearchQuery(row: SearchQueryParts): string {
   const cleanedTitle = title
     .replace(/\[[^\]]*\]/g, " ")
     .replace(/\([^)]*\)/g, " ")
-    .replace(
-      /\b(final|mstr|master|vip|full|cdq|extended|radio edit|feat\.?|ft\.?)\b/gi,
-      " ",
-    )
+    .replace(/\b(final|mstr|master|vip|full|cdq|extended|radio edit|feat\.?|ft\.?)\b/gi, " ")
     .replace(/\b\d+(\.\d+)+\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return `${artist0} ${cleanedTitle}`
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 8)
-    .join(" ");
+  return `${artist0} ${cleanedTitle}`.split(" ").filter(Boolean).slice(0, 8).join(" ");
 }
 
 /** THE shared-token name similarity (issue #85): lowercase, strip the

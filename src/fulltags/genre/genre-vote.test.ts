@@ -40,9 +40,7 @@ describe("GENRE_VOTE_WEIGHTS (the doc's W-table, versioned in code)", () => {
     expect(GENRE_VOTE_WEIGHTS.lastfm).toBeDefined();
     expect(GENRE_VOTE_WEIGHTS.lastfm).toBe(0.3);
     expect(GENRE_VOTE_WEIGHTS.lastfm).toBeLessThan(GENRE_VOTE_WEIGHTS.sc);
-    expect(GENRE_VOTE_WEIGHTS.lastfm).toBeGreaterThan(
-      GENRE_VOTE_WEIGHTS.imprint,
-    );
+    expect(GENRE_VOTE_WEIGHTS.lastfm).toBeGreaterThan(GENRE_VOTE_WEIGHTS.imprint);
   });
 });
 
@@ -64,17 +62,10 @@ describe("electGenre", () => {
   });
 
   test("agreement stacks: sc + bc beat bp alone", () => {
-    const r = electGenre([
-      v("sc", "Techno"),
-      v("bc", "Techno"),
-      v("bp", "House"),
-    ]);
+    const r = electGenre([v("sc", "Techno"), v("bc", "Techno"), v("bp", "House")]);
     expect(r.genre).toBe("Techno");
     expect(r.winnerRungs).toEqual(["sc", "bc"]);
-    expect(r.weight).toBeCloseTo(
-      GENRE_VOTE_WEIGHTS.sc + GENRE_VOTE_WEIGHTS.bc,
-      10,
-    );
+    expect(r.weight).toBeCloseTo(GENRE_VOTE_WEIGHTS.sc + GENRE_VOTE_WEIGHTS.bc, 10);
   });
 
   test("exact tie breaks toward the higher single weight (the harder gate)", () => {
@@ -85,11 +76,7 @@ describe("electGenre", () => {
     const a = electGenre([v("mb", "Techno")]);
     const b = electGenre([v("sync", "House"), v("sync", "House")]);
     expect(a.weight).toBe(b.weight); // bit-identical totals
-    const tied = electGenre([
-      v("mb", "Techno"),
-      v("sync", "House"),
-      v("sync", "House"),
-    ]);
+    const tied = electGenre([v("mb", "Techno"), v("sync", "House"), v("sync", "House")]);
     expect(tied.genre).toBe("Techno");
     expect(tied.winnerRungs).toEqual(["mb"]);
   });
@@ -98,11 +85,7 @@ describe("electGenre", () => {
     // 0.4 + 0.2 is represented as 0.6000000000000001, but it carries the
     // same intended vote mass as bp's 0.6. Compare normalized tally units
     // before applying the higher-single-rung tie-break.
-    const tied = electGenre([
-      v("bp", "Techno"),
-      v("mb", "House"),
-      v("sync", "House"),
-    ]);
+    const tied = electGenre([v("bp", "Techno"), v("mb", "House"), v("sync", "House")]);
     expect(tied.genre).toBe("Techno");
     expect(tied.winnerRungs).toEqual(["bp"]);
   });
@@ -138,10 +121,7 @@ describe("electGenre", () => {
     const r = electGenre([v("lastfm", "Techno"), v("sc", "Techno")]);
     expect(r.genre).toBe("Techno");
     expect(r.winnerRungs).toContain("lastfm");
-    expect(r.weight).toBeCloseTo(
-      GENRE_VOTE_WEIGHTS.lastfm + GENRE_VOTE_WEIGHTS.sc,
-      10,
-    );
+    expect(r.weight).toBeCloseTo(GENRE_VOTE_WEIGHTS.lastfm + GENRE_VOTE_WEIGHTS.sc, 10);
   });
 
   test("lastfm alone loses to bp (catalog wins)", () => {
@@ -152,16 +132,9 @@ describe("electGenre", () => {
 
   test("lastfm + mb agreement beats sc alone", () => {
     // lastfm 0.30 + mb 0.40 = 0.70 > sc 0.35
-    const r = electGenre([
-      v("lastfm", "Techno"),
-      v("mb", "Techno"),
-      v("sc", "House"),
-    ]);
+    const r = electGenre([v("lastfm", "Techno"), v("mb", "Techno"), v("sc", "House")]);
     expect(r.genre).toBe("Techno");
-    expect(r.weight).toBeCloseTo(
-      GENRE_VOTE_WEIGHTS.lastfm + GENRE_VOTE_WEIGHTS.mb,
-      10,
-    );
+    expect(r.weight).toBeCloseTo(GENRE_VOTE_WEIGHTS.lastfm + GENRE_VOTE_WEIGHTS.mb, 10);
   });
 
   test("runner-up from lastfm shows as secondaryGenre", () => {
@@ -173,18 +146,13 @@ describe("electGenre", () => {
 
 describe("serializeVotes / parseVotes round-trip", () => {
   test("breakdown survives the ledger column", () => {
-    const votes = [
-      v("bp", "Techno"),
-      v("imprint", "techno", undefined, "Drumcode"),
-    ];
+    const votes = [v("bp", "Techno"), v("imprint", "techno", undefined, "Drumcode")];
     const back = parseVotes(serializeVotes(votes));
     expect(back).toEqual(votes);
   });
 
   test("lastfm vote round-trips through serialize/parse", () => {
-    const votes = [
-      v("lastfm", "House", undefined, "lastfm:house(100),deep house(50)"),
-    ];
+    const votes = [v("lastfm", "House", undefined, "lastfm:house(100),deep house(50)")];
     const back = parseVotes(serializeVotes(votes));
     expect(back).toEqual(votes);
   });
@@ -201,17 +169,10 @@ describe("serializeVotes / parseVotes round-trip", () => {
 
   test("non-array or malformed entries are dropped, not thrown", () => {
     expect(parseVotes(JSON.stringify({ rung: "bp" }))).toEqual([]);
-    expect(
-      parseVotes(JSON.stringify([{ rung: "nope", genre: "X", weight: 1 }])),
-    ).toEqual([]); // unknown rung
-    expect(
-      parseVotes(JSON.stringify([{ rung: "bp", genre: 5, weight: 0.6 }])),
-    ).toEqual([]); // non-string genre
+    expect(parseVotes(JSON.stringify([{ rung: "nope", genre: "X", weight: 1 }]))).toEqual([]); // unknown rung
+    expect(parseVotes(JSON.stringify([{ rung: "bp", genre: 5, weight: 0.6 }]))).toEqual([]); // non-string genre
     const partial = parseVotes(
-      JSON.stringify([
-        { garbage: true },
-        { rung: "bp", genre: "Techno", weight: 0.6 },
-      ]),
+      JSON.stringify([{ garbage: true }, { rung: "bp", genre: "Techno", weight: 0.6 }]),
     );
     expect(partial).toEqual([v("bp", "Techno")]);
   });
@@ -220,10 +181,7 @@ describe("serializeVotes / parseVotes round-trip", () => {
 // ---- umbrella demotion ----
 describe("electGenre umbrella demotion", () => {
   test("EDM is demoted when a specific genre exists", () => {
-    const result = electGenre([
-      v("bp", "EDM", 0.6),
-      v("sc", "Tech House", 0.35),
-    ]);
+    const result = electGenre([v("bp", "EDM", 0.6), v("sc", "Tech House", 0.35)]);
     expect(result.genre).toBe("Tech House");
   });
 
@@ -241,10 +199,7 @@ describe("electGenre umbrella demotion", () => {
   });
 
   test("case-insensitive umbrella matching", () => {
-    const result = electGenre([
-      v("bp", "edm", 0.6),
-      v("sc", "Deep House", 0.35),
-    ]);
+    const result = electGenre([v("bp", "edm", 0.6), v("sc", "Deep House", 0.35)]);
     expect(result.genre).toBe("Deep House");
   });
 });

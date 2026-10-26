@@ -44,8 +44,7 @@ import {
  * and no user interaction). Overridable via MEGADJ_BP_CLIENT_ID / _SECRET
  * so a Beatport-side rotation is a config change, never a code change. */
 const BP_CLIENT_ID =
-  nonEmptyEnv("MEGADJ_BP_CLIENT_ID") ??
-  "2tiTbKxmQFwnbFjMONU4k7njMRZmV3ZMwRBndiZs";
+  nonEmptyEnv("MEGADJ_BP_CLIENT_ID") ?? "2tiTbKxmQFwnbFjMONU4k7njMRZmV3ZMwRBndiZs";
 const BP_CLIENT_SECRET =
   nonEmptyEnv("MEGADJ_BP_CLIENT_SECRET") ??
   "RDUJyAk4zFEGtQ8rsTmylDSfxmALRNBn3D1BsRr7MKi3oa1TL9Mq9QxqUPK7loiumXolEWbJcWa4IGAhtwnTz1cSXClGJ1tkkNCNWwRwjxIKTZJKOJxbwaNt0Rm3WG0v";
@@ -91,8 +90,7 @@ export async function beatportToken(): Promise<string | null> {
     }
     cachedToken = data.access_token;
     // Refresh 60 s before expiry (the embed player's own skew).
-    tokenExpiresAt =
-      Date.now() + Math.max(30, (data.expires_in ?? 3600) - 60) * 1000;
+    tokenExpiresAt = Date.now() + Math.max(30, (data.expires_in ?? 3600) - 60) * 1000;
     return cachedToken;
   } catch (e) {
     console.error("beatport token failed", e);
@@ -172,12 +170,7 @@ function artUrlFrom(
   img: BpImage | null | undefined,
   releaseImg: BpImage | null | undefined,
 ): string | null {
-  const raw =
-    img?.dynamic_uri ??
-    img?.uri ??
-    releaseImg?.dynamic_uri ??
-    releaseImg?.uri ??
-    null;
+  const raw = img?.dynamic_uri ?? img?.uri ?? releaseImg?.dynamic_uri ?? releaseImg?.uri ?? null;
   if (!raw) return null;
   if (raw.includes("{w}x{h}")) return raw.replace("{w}x{h}", "1500x1500");
   return raw.replace(/\/image_size\/\d+x\d+\//, "/image_size/1500x1500/");
@@ -190,22 +183,16 @@ const artistNames = (list?: BpArtist[]): string[] =>
 /** Key vote: `camelot_number`+`camelot_letter` → "5A" form (both must be
  *  present and valid); keyName prefers the store's full name, else
  *  "Letter ChordType" composed. Undefined holes → null (scoring decides). */
-function parseKey(kn: BpRaw["key"]): {
-  camelot: string | null;
-  keyName: string | null;
-} {
+function parseKey(kn: BpRaw["key"]): { camelot: string | null; keyName: string | null } {
   const camelotNum = kn?.camelot_number;
   const camelotLetter = kn?.camelot_letter;
   const camelot =
-    typeof camelotNum === "number" &&
-    (camelotLetter === "A" || camelotLetter === "B")
+    typeof camelotNum === "number" && (camelotLetter === "A" || camelotLetter === "B")
       ? `${camelotNum}${camelotLetter}`
       : null;
   const keyName =
     kn?.name ??
-    (kn?.letter && kn?.chord_type?.name
-      ? `${kn.letter} ${kn.chord_type.name}`
-      : undefined);
+    (kn?.letter && kn?.chord_type?.name ? `${kn.letter} ${kn.chord_type.name}` : undefined);
   return { camelot, keyName: keyName ?? null };
 }
 
@@ -213,9 +200,7 @@ function parseKey(kn: BpRaw["key"]): {
  *  formats, out-of-window junk) is null, never a guess. */
 function parseYear(publishDate: BpRaw["publish_date"]): number | null {
   const yearNum = publishDate ? Number(publishDate.match(/\d{4}/)?.[0]) : NaN;
-  return Number.isInteger(yearNum) && yearNum > 1900 && yearNum < 2100
-    ? yearNum
-    : null;
+  return Number.isInteger(yearNum) && yearNum > 1900 && yearNum < 2100 ? yearNum : null;
 }
 
 /** Canonical track URL — slug form when present, id-form fallback. */
@@ -259,10 +244,7 @@ function parseTrack(raw: BpRaw): BpTrack | null {
  * THROWS on transport failure (non-OK status, network error) so the cache
  * layer can distinguish "no such track" from "catalog unreachable" —
  * only the former is memoized. */
-async function searchViaApi(
-  query: string,
-  perPage: number,
-): Promise<BpTrack[]> {
+async function searchViaApi(query: string, perPage: number): Promise<BpTrack[]> {
   const token = await beatportToken();
   if (!token) throw new Error("beatport: no token (auth flow failed)");
   const res = await fetch(
@@ -293,10 +275,7 @@ async function realSearch(query: string, perPage: number): Promise<BpTrack[]> {
 }
 
 /** Test seam: the search implementation (offline tests swap this). */
-export let beatportSearchImpl: (
-  query: string,
-  perPage: number,
-) => Promise<BpTrack[]> = realSearch;
+export let beatportSearchImpl: (query: string, perPage: number) => Promise<BpTrack[]> = realSearch;
 
 /** Install a test search impl; returns the restore function. */
 export function setBeatportSearchImpl(
@@ -343,11 +322,7 @@ export function scoreBpHit(t: BpTrack, q: BpQuery): number {
     score += hitArtist === artist0 ? 6 : 4;
   }
   score += titleOverlap(q.title, t.name) * 4;
-  if (
-    t.mixName &&
-    words(q.title).some((w) => t.mixName!.toLowerCase().includes(w))
-  )
-    score += 2;
+  if (t.mixName && words(q.title).some((w) => t.mixName!.toLowerCase().includes(w))) score += 2;
   if (
     q.durationS !== undefined &&
     t.lengthMs !== null &&
@@ -434,9 +409,7 @@ export const BP_STAMP_MAX = 500;
  * mirrors the AI "value|confidence" discipline: a Beatport-filled value is
  * always identifiable. Returns the TXXX value or null when nothing to
  * record (null fields never stamp). */
-export function bpStamp(
-  fields: [string, string | number | null][],
-): string | null {
+export function bpStamp(fields: [string, string | number | null][]): string | null {
   const parts = fields
     .filter((pair): pair is [string, string | number] => {
       const v = pair[1];

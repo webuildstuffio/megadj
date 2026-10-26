@@ -35,19 +35,13 @@ describe("buildPrompt", () => {
 });
 
 describe("parseQueue (corrupt-line resilience)", () => {
-  const good = JSON.stringify({
-    path: "/music/x.mp3",
-    title: "X",
-    reason: "no-source-found",
-  });
+  const good = JSON.stringify({ path: "/music/x.mp3", title: "X", reason: "no-source-found" });
 
   test("one corrupt line no longer voids the whole queue", () => {
     // Regression: the old map(JSON.parse) threw on the FIRST bad line, the
     // catch reported "queue is empty", and the command exited 0 having done
     // nothing — one partial write bricked every queued entry forever.
-    const { entries, badLines } = parseQueue(
-      [good, "{corrupt", good.replace("X", "Y")].join("\n"),
-    );
+    const { entries, badLines } = parseQueue([good, "{corrupt", good.replace("X", "Y")].join("\n"));
     expect(badLines).toBe(1);
     expect(entries.length).toBe(2);
     expect(entries[0]?.title).toBe("X");

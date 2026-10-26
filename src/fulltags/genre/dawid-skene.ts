@@ -88,13 +88,7 @@ export function dawidSkene(
   const K = classes.length;
 
   if (annotations.length === 0 || K === 0) {
-    return {
-      posteriors: [],
-      annotators: [],
-      priors: new Map(),
-      iterations: 0,
-      converged: true,
-    };
+    return { posteriors: [], annotators: [], priors: new Map(), iterations: 0, converged: true };
   }
 
   // Index annotations by track and annotator
@@ -137,8 +131,7 @@ export function dawidSkene(
     }
     if (total > 0) {
       for (let k = 0; k < K; k++) {
-        posteriors[ti]![k] =
-          (posteriors[ti]![k]! + smoothing) / (total + smoothing * K);
+        posteriors[ti]![k] = (posteriors[ti]![k]! + smoothing) / (total + smoothing * K);
       }
     }
   }
@@ -172,9 +165,7 @@ export function dawidSkene(
 
     // Update error rates
     const newPi: number[][][] = Array.from({ length: J }, () =>
-      Array.from({ length: K }, () =>
-        Array.from({ length: K }, () => smoothing),
-      ),
+      Array.from({ length: K }, () => Array.from({ length: K }, () => smoothing)),
     );
 
     for (const [trackId, anns] of trackAnnotations) {
@@ -209,9 +200,7 @@ export function dawidSkene(
     for (const [trackId, anns] of trackAnnotations) {
       const ti = trackIdx.get(trackId);
       if (ti === undefined) continue;
-      const logPost = Array.from({ length: K }, (_, k) =>
-        Math.log(Math.max(priors[k]!, 1e-30)),
-      );
+      const logPost = Array.from({ length: K }, (_, k) => Math.log(Math.max(priors[k]!, 1e-30)));
 
       for (const a of anns) {
         const ji = annotatorIds.indexOf(a.annotatorId);
@@ -274,30 +263,24 @@ export function dawidSkene(
   });
 
   // Build annotator reliability
-  const annotatorReliability: AnnotatorReliability[] = annotatorIds.map(
-    (aid, j) => {
-      const confusion = new Map<string, Map<string, number>>();
-      let diagSum = 0;
-      let total = 0;
+  const annotatorReliability: AnnotatorReliability[] = annotatorIds.map((aid, j) => {
+    const confusion = new Map<string, Map<string, number>>();
+    let diagSum = 0;
+    let total = 0;
 
-      for (let k = 0; k < K; k++) {
-        const row = new Map<string, number>();
-        for (let l = 0; l < K; l++) {
-          const val = pi[j]![k]![l]!;
-          row.set(classes[l]!, val);
-          total += val;
-          if (k === l) diagSum += val;
-        }
-        confusion.set(classes[k]!, row);
+    for (let k = 0; k < K; k++) {
+      const row = new Map<string, number>();
+      for (let l = 0; l < K; l++) {
+        const val = pi[j]![k]![l]!;
+        row.set(classes[l]!, val);
+        total += val;
+        if (k === l) diagSum += val;
       }
+      confusion.set(classes[k]!, row);
+    }
 
-      return {
-        annotatorId: aid,
-        confusion,
-        accuracy: total > 0 ? diagSum / total : 0,
-      };
-    },
-  );
+    return { annotatorId: aid, confusion, accuracy: total > 0 ? diagSum / total : 0 };
+  });
 
   const priorMap = new Map<string, number>();
   for (let k = 0; k < K; k++) {

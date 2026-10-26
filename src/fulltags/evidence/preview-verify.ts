@@ -67,10 +67,7 @@ export function scoreVerification(correlation: number): {
  * @param fpB - Fingerprint of track B (array of uint32)
  * @returns Correlation score (0–1)
  */
-export function crossCorrelateFingerprints(
-  fpA: readonly number[],
-  fpB: readonly number[],
-): number {
+export function crossCorrelateFingerprints(fpA: readonly number[], fpB: readonly number[]): number {
   if (fpA.length === 0 || fpB.length === 0) return 0;
 
   const minLen = Math.min(fpA.length, fpB.length);
@@ -98,16 +95,14 @@ export function crossCorrelateFingerprints(
  * Given a set of (correlation, isMatch) pairs, find the threshold
  * that maximizes F1 score.
  */
-export function calibrateThreshold(
-  data: readonly { correlation: number; isMatch: boolean }[],
-): { threshold: number; f1: number; precision: number; recall: number } {
+export function calibrateThreshold(data: readonly { correlation: number; isMatch: boolean }[]): {
+  threshold: number;
+  f1: number;
+  precision: number;
+  recall: number;
+} {
   if (data.length === 0) {
-    return {
-      threshold: PREVIEW_THRESHOLDS.EXACT,
-      f1: 0,
-      precision: 0,
-      recall: 0,
-    };
+    return { threshold: PREVIEW_THRESHOLDS.EXACT, f1: 0, precision: 0, recall: 0 };
   }
 
   let bestThreshold = 0.5;
@@ -129,10 +124,7 @@ export function calibrateThreshold(
 
     const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
     const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
-    const f1 =
-      precision + recall > 0
-        ? (2 * precision * recall) / (precision + recall)
-        : 0;
+    const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
 
     if (f1 > bestF1) {
       bestF1 = f1;

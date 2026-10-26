@@ -176,12 +176,7 @@ export function sanitizeScTags(rawTags: readonly string[]): SanitizeResult {
       continue;
     }
     if (isScene(trimmed)) {
-      moodTags.push({
-        raw: trimmed,
-        kind: "scene",
-        genre: null,
-        family: null,
-      });
+      moodTags.push({ raw: trimmed, kind: "scene", genre: null, family: null });
       continue;
     }
 

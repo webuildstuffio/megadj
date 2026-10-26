@@ -31,33 +31,25 @@ describe("name-match: primaryArtist", () => {
 
 describe("name-match: nameTokens", () => {
   test("folds case + separators, drops ≤2-char tokens", () => {
-    expect(nameTokens("Depths of Consciousness (Mix)")).toEqual([
-      "depths",
-      "consciousness",
-      "mix",
-    ]);
+    expect(nameTokens("Depths of Consciousness (Mix)")).toEqual(["depths", "consciousness", "mix"]);
     expect(nameTokens("ANOTR x 54")).toEqual(["anotr"]); // "x","54" dropped
   });
 });
 
 describe("name-match: titleOverlap", () => {
   test("identical token sets → 1.0 regardless of order/separators", () => {
-    expect(
-      titleOverlap("Depths of Consciousness", "consciousness depths"),
-    ).toBe(1);
+    expect(titleOverlap("Depths of Consciousness", "consciousness depths")).toBe(1);
   });
 
   test("disjoint names → 0", () => {
-    expect(titleOverlap("Astral Projection", "Depths of Consciousness")).toBe(
-      0,
-    );
+    expect(titleOverlap("Astral Projection", "Depths of Consciousness")).toBe(0);
   });
 
   test("partial overlap → shared/max ratio", () => {
     // {depths, consciousness, mix} vs {depths, consciousness} → 2/3
-    expect(
-      titleOverlap("Depths of Consciousness (Mix)", "Depths Consciousness"),
-    ).toBeCloseTo(2 / 3);
+    expect(titleOverlap("Depths of Consciousness (Mix)", "Depths Consciousness")).toBeCloseTo(
+      2 / 3,
+    );
   });
 });
 
@@ -68,9 +60,7 @@ describe("name-match: artistGate (the hard gate all three sources share)", () =>
   });
 
   test("known artist absent → 0 (the Taylor Swift class)", () => {
-    expect(artistGate("Taylor Swift", ["Dubspeed Compilation Channel"])).toBe(
-      0,
-    );
+    expect(artistGate("Taylor Swift", ["Dubspeed Compilation Channel"])).toBe(0);
   });
 
   test("sub-ARTIST_MIN_LEN artist doesn't gate (can't separate)", () => {
@@ -95,9 +85,7 @@ describe("name-match: hasTitleTokenOverlap", () => {
     expect(hasTitleTokenOverlap("Depths Mix", "Mix by Someone")).toBe(true);
   });
   test("false on disjoint", () => {
-    expect(hasTitleTokenOverlap("Astral Projection", "Neon Heights")).toBe(
-      false,
-    );
+    expect(hasTitleTokenOverlap("Astral Projection", "Neon Heights")).toBe(false);
   });
 });
 
@@ -134,27 +122,18 @@ describe("name-match: classifyEvidenceScope (B3.3)", () => {
   });
 
   test("null for completely different title", () => {
-    const result = classifyEvidenceScope(
-      "Song Alpha",
-      "Artist A",
-      "Song Beta",
-      ["Artist A"],
-    );
+    const result = classifyEvidenceScope("Song Alpha", "Artist A", "Song Beta", ["Artist A"]);
     expect(result).toBeNull();
   });
 
   test("exact for plain titles with matching artist", () => {
-    const result = classifyEvidenceScope("Midnight", "Sasha", "Midnight", [
-      "Sasha",
-    ]);
+    const result = classifyEvidenceScope("Midnight", "Sasha", "Midnight", ["Sasha"]);
     expect(result).not.toBeNull();
     expect(result!.scope).toBe("exact_recording");
   });
 
   test("works when query artist is short (< ARTIST_MIN_LEN)", () => {
-    const result = classifyEvidenceScope("Track One", "DJ", "Track One", [
-      "DJ Something",
-    ]);
+    const result = classifyEvidenceScope("Track One", "DJ", "Track One", ["DJ Something"]);
     expect(result).not.toBeNull();
     expect(result!.scope).toBe("exact_recording");
   });

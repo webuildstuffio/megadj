@@ -15,19 +15,13 @@ describe("routeArtistForGenre", () => {
   });
 
   it("routes to remixer for a named remix", () => {
-    const r = routeArtistForGenre(
-      "Peggy Gou",
-      "Starry Night (Mall Grab Remix)",
-    );
+    const r = routeArtistForGenre("Peggy Gou", "Starry Night (Mall Grab Remix)");
     expect(r.isRemix).toBe(true);
     expect(r.artist).toBe("Mall Grab");
   });
 
   it("routes to editor for a named edit", () => {
-    const r = routeArtistForGenre(
-      "Donna Summer",
-      "I Feel Love (Patrick Cowley Edit)",
-    );
+    const r = routeArtistForGenre("Donna Summer", "I Feel Love (Patrick Cowley Edit)");
     expect(r.isRemix).toBe(true);
     expect(r.artist).toBe("Patrick Cowley");
   });
@@ -62,10 +56,7 @@ describe("routeArtistForGenre", () => {
   });
 
   it("includes version identity in the result", () => {
-    const r = routeArtistForGenre(
-      "Peggy Gou",
-      "Starry Night (Mall Grab Remix)",
-    );
+    const r = routeArtistForGenre("Peggy Gou", "Starry Night (Mall Grab Remix)");
     expect(r.version).toBeDefined();
     expect(r.version.versionType).toBeTruthy();
     expect(r.version.confidence).toBeGreaterThan(0);

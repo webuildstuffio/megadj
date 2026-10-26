@@ -27,11 +27,7 @@
  * gates identically.
  */
 import { groundTruth } from "./readers";
-import {
-  boothTextCompat,
-  hasControlChars,
-  isMojibake,
-} from "../booth/booth-text";
+import { boothTextCompat, hasControlChars, isMojibake } from "../booth/booth-text";
 
 export interface TagHealth {
   ok: boolean;

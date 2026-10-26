@@ -33,13 +33,7 @@ const looRow = (
   family: string,
   predicted: string | null,
   top2: string[],
-): LoORowOutcome => ({
-  videoId,
-  family,
-  predicted,
-  agreement: predicted === family ? 1 : 0,
-  top2,
-});
+): LoORowOutcome => ({ videoId, family, predicted, agreement: predicted === family ? 1 : 0, top2 });
 
 /** L2 normalize (module scope — oxlint consistent-function-scoping). */
 const n3 = (v: number[]): number[] => {
@@ -63,9 +57,7 @@ const mk = (
 describe("tier-0 genre diagnostics (research review 0.1–0.4)", () => {
   test("clean LOO: verdict random, low hubness, no triangle confusion", () => {
     const pop = basePop();
-    const loo = pop.map((p) =>
-      looRow(p.videoId, p.family, p.family, [p.family]),
-    );
+    const loo = pop.map((p) => looRow(p.videoId, p.family, p.family, [p.family]));
     const d = tier0Diagnostics(pop, loo);
     expect(d.labelErrors.top10Share).toBe(0);
     expect(d.labelErrors.verdict).toBe("random");
@@ -90,11 +82,7 @@ describe("tier-0 genre diagnostics (research review 0.1–0.4)", () => {
     expect(d.labelErrors.artists).toBe(2);
     expect(d.labelErrors.top10Share).toBe(1); // only 2 artists → both in top-10
     expect(d.labelErrors.verdict).toBe("systematic");
-    expect(d.labelErrors.top[0]).toEqual({
-      artist: "Alice",
-      disagreements: 3,
-      share: 0.75,
-    });
+    expect(d.labelErrors.top[0]).toEqual({ artist: "Alice", disagreements: 3, share: 0.75 });
   });
 
   test("confusion matrix counts truth→predicted and triangle share", () => {
@@ -125,9 +113,7 @@ describe("tier-0 genre diagnostics (research review 0.1–0.4)", () => {
       mk("r2", "house", "Alice", n3([1, 0, 1])),
       mk("r3", "house", "Alice", n3([1, 0, -1])),
     ];
-    const loo = pop.map((p) =>
-      looRow(p.videoId, p.family, p.family, [p.family]),
-    );
+    const loo = pop.map((p) => looRow(p.videoId, p.family, p.family, [p.family]));
     const d = tier0Diagnostics(pop, loo, 2);
     expect(d.hubness.maxOccurrence).toBe(3); // hub in all three top-2 lists
     expect(d.hubness.tracks).toBe(3); // rows appearing in someone's top-2

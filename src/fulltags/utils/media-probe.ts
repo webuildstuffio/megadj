@@ -13,17 +13,11 @@ function finiteNumber(raw: string | undefined): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-function stringField(
-  record: Record<string, unknown>,
-  field: string,
-): string | undefined {
+function stringField(record: Record<string, unknown>, field: string): string | undefined {
   return typeof record[field] === "string" ? record[field] : undefined;
 }
 
-function hasOptionalString(
-  record: Record<string, unknown>,
-  field: string,
-): boolean {
+function hasOptionalString(record: Record<string, unknown>, field: string): boolean {
   return record[field] === undefined || typeof record[field] === "string";
 }
 
@@ -73,9 +67,7 @@ export function parseFfprobeJson(stdout: string): FfprobeJson | null {
   const tagsRaw = formatRaw.tags;
   if (
     (tagsRaw !== undefined && !isRecord(tagsRaw)) ||
-    !["duration", "bit_rate", "format_name"].every((field) =>
-      hasOptionalString(formatRaw, field),
-    )
+    !["duration", "bit_rate", "format_name"].every((field) => hasOptionalString(formatRaw, field))
   )
     return null;
   const format: FfprobeJson["format"] = {
@@ -98,10 +90,7 @@ export function parseFfprobeJson(stdout: string): FfprobeJson | null {
     sampleRate: stringField(stream, "sample_rate"),
   }));
   if (!streams.some((stream) => stream.codecType === "audio")) return null;
-  return {
-    format,
-    streams,
-  };
+  return { format, streams };
 }
 
 function failedProbe(): Probe {
@@ -173,8 +162,7 @@ export function parseFilename(basename: string): ParsedName {
   const parts = rest.split(/\s+-\s+/);
   if (parts.length >= 2) {
     const artistPart = parts[0]?.trim() ?? "";
-    const artistOk =
-      artistPart !== "" && !/^unknown(\s*artist)?$/iu.test(artistPart);
+    const artistOk = artistPart !== "" && !/^unknown(\s*artist)?$/iu.test(artistPart);
     return {
       trackNo,
       artist: artistOk ? artistPart : null,
@@ -186,15 +174,13 @@ export function parseFilename(basename: string): ParsedName {
 
 /** ffprobe a file: duration, bitrate, codec, art presence, lowercase tags. */
 export async function probeFile(path: string): Promise<Probe> {
-  const proc =
-    await $`ffprobe -v error -print_format json -show_format -show_streams ${path}`
-      .quiet()
-      .nothrow();
+  const proc = await $`ffprobe -v error -print_format json -show_format -show_streams ${path}`
+    .quiet()
+    .nothrow();
   if (proc.exitCode !== 0) {
     return failedProbe();
   }
-  const stdout =
-    typeof proc.stdout === "string" ? proc.stdout : proc.stdout.toString();
+  const stdout = typeof proc.stdout === "string" ? proc.stdout : proc.stdout.toString();
   const data = parseFfprobeJson(stdout);
   if (!data) return failedProbe();
   const formatTags = data.format?.tags ?? {};
@@ -260,10 +246,7 @@ export function qualityScore(p: Probe): number {
   return lossless + (p.bitrateKbps ?? 0) * 1e3 + (p.durationS ?? 0);
 }
 
-export function firstTag(
-  tags: Record<string, string>,
-  keys: string[],
-): string | null {
+export function firstTag(tags: Record<string, string>, keys: string[]): string | null {
   for (const k of keys) {
     const v = tags[k];
     if (v) return v;
@@ -292,8 +275,7 @@ export function probeMediaSync(
     { stdout: "pipe", stderr: "ignore", timeout: timeoutMs },
   );
   if (proc.exitCode !== 0) return null;
-  const stdout =
-    typeof proc.stdout === "string" ? proc.stdout : proc.stdout.toString();
+  const stdout = typeof proc.stdout === "string" ? proc.stdout : proc.stdout.toString();
   const data = parseFfprobeJson(stdout);
   if (!data) return null;
   const durationS = finiteNumber(data.format?.duration);

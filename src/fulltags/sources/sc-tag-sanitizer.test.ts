@@ -37,14 +37,7 @@ describe("sanitizeScTags", () => {
   });
 
   it("handles mixed input with genres, moods, and junk", () => {
-    const result = sanitizeScTags([
-      "techno",
-      "dark",
-      "freedownload",
-      "berlin",
-      "house",
-      "promo",
-    ]);
+    const result = sanitizeScTags(["techno", "dark", "freedownload", "berlin", "house", "promo"]);
     expect(result.genreTags.length).toBeGreaterThanOrEqual(1);
     expect(result.moodTags.length).toBeGreaterThan(0);
     expect(result.junkTags.length).toBeGreaterThan(0);
@@ -70,13 +63,7 @@ describe("sanitizeScTags", () => {
   });
 
   it("rejects platform noise tags", () => {
-    const result = sanitizeScTags([
-      "soundcloud",
-      "spotify",
-      "music",
-      "dj",
-      "producer",
-    ]);
+    const result = sanitizeScTags(["soundcloud", "spotify", "music", "dj", "producer"]);
     expect(result.genreTags).toHaveLength(0);
   });
 

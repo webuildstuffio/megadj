@@ -37,8 +37,7 @@ async function sourcePcmCodec(wavPath: string): Promise<string | null> {
       .nothrow();
   if (pr.exitCode !== 0) return null;
   const codec = pr.stdout.toString().trim();
-  if (codec === "pcm_s24le" || codec === "pcm_s32le" || codec === "pcm_f32le")
-    return "pcm_s24be";
+  if (codec === "pcm_s24le" || codec === "pcm_s32le" || codec === "pcm_f32le") return "pcm_s24be";
   return "pcm_s16be";
 }
 
@@ -95,9 +94,7 @@ export async function wavToAiff(wavPath: string): Promise<string | null> {
     "dst.save(v2_version=3)",
     'print("ok")',
   ].join("\n");
-  const py = await $`uv run --with mutagen python -c ${script}`
-    .quiet()
-    .nothrow();
+  const py = await $`uv run --with mutagen python -c ${script}`.quiet().nothrow();
   if (py.exitCode !== 0 || !py.stdout.toString().trim().includes("ok")) {
     await $`rm -f ${aiffPath}`.quiet().nothrow();
     return null;
@@ -107,18 +104,14 @@ export async function wavToAiff(wavPath: string): Promise<string | null> {
   // ALSO: the output must ffprobe as VALID — this is the gate that would
   // have caught the malformed AIFC-COMM output (see header) had it existed
   // when the converter was written.
-  const [w, a] = await Promise.all([
-    Bun.file(wavPath).stat(),
-    Bun.file(aiffPath).stat(),
-  ]);
+  const [w, a] = await Promise.all([Bun.file(wavPath).stat(), Bun.file(aiffPath).stat()]);
   if (!a || !w || a.size < w.size * 0.5) {
     await $`rm -f ${aiffPath}`.quiet().nothrow();
     return null;
   }
-  const check =
-    await $`ffprobe -v error -show_entries format=duration -of csv=p=0 ${aiffPath}`
-      .quiet()
-      .nothrow();
+  const check = await $`ffprobe -v error -show_entries format=duration -of csv=p=0 ${aiffPath}`
+    .quiet()
+    .nothrow();
   if (check.exitCode !== 0 || !check.stdout.toString().trim()) {
     await $`rm -f ${aiffPath}`.quiet().nothrow();
     return null;

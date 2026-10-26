@@ -91,13 +91,10 @@ export function migrateVersionLlmCache(db: Database): void {
 }
 
 /** Look up a cached LLM response. */
-export function lookupVersionCache(
-  db: Database,
-  key: string,
-): VersionIdentity | null {
-  const row = db
-    .query("SELECT response FROM version_llm_cache WHERE cache_key = ?")
-    .get(key) as { response: string } | null;
+export function lookupVersionCache(db: Database, key: string): VersionIdentity | null {
+  const row = db.query("SELECT response FROM version_llm_cache WHERE cache_key = ?").get(key) as {
+    response: string;
+  } | null;
   if (row === null) return null;
   return validateLlmResponse(row.response);
 }
@@ -149,9 +146,7 @@ export function validateLlmResponse(json: string): VersionIdentity | null {
     originalArtists: (obj.originalArtists as unknown[]).filter(
       (a): a is string => typeof a === "string",
     ),
-    featured: (obj.featured as unknown[]).filter(
-      (a): a is string => typeof a === "string",
-    ),
+    featured: (obj.featured as unknown[]).filter((a): a is string => typeof a === "string"),
     versionType: obj.versionType as VersionType,
     versionArtists: (obj.versionArtists as unknown[]).filter(
       (a): a is string => typeof a === "string",
@@ -209,41 +204,26 @@ export async function parseVersionLlm(
   const model = opts.model ?? "openrouter/auto";
 
   try {
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${opts.apiKey}`,
-          "Content-Type": "application/json",
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "version_identity", strict: true, schema: VERSION_SCHEMA },
         },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "version_identity",
-              strict: true,
-              schema: VERSION_SCHEMA,
-            },
-          },
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: `Title: ${title}\nArtist: ${artist}`,
-            },
-          ],
-        }),
-      },
-    );
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `Title: ${title}\nArtist: ${artist}` },
+        ],
+      }),
+    });
 
     if (!response.ok) return unknownFallback(title, artist);
 
-    const data = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     const content = data.choices?.[0]?.message?.content;
     if (typeof content !== "string") return unknownFallback(title, artist);
 

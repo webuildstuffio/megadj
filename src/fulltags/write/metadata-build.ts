@@ -65,18 +65,13 @@ export function splitArtistFromTitle(
  *  title with no split keeps uploader→artist (single-artist channels
  *  naming tracks plainly still resolve). */
 export function scInfoToYtdlpInfo(info: YtdlpInfo): YtdlpInfo {
-  if (
-    info.artist === undefined &&
-    typeof info.uploader === "string" &&
-    info.uploader.length > 0
-  ) {
+  if (info.artist === undefined && typeof info.uploader === "string" && info.uploader.length > 0) {
     const split = splitArtistFromTitle(info.title);
     const uploader = info.uploader.toLowerCase();
     const titleArtist = split?.artist.toLowerCase() ?? null;
     // Trust the title's artist unless the uploader IS that artist (the
     // common self-upload case) — then uploader→artist is already right.
-    const artist =
-      split && titleArtist !== uploader ? split.artist : info.uploader;
+    const artist = split && titleArtist !== uploader ? split.artist : info.uploader;
     info = { ...info, artist };
   }
   if (
@@ -94,9 +89,7 @@ export function scInfoToYtdlpInfo(info: YtdlpInfo): YtdlpInfo {
 }
 
 /** Extract "Producer: X" style credits from a YouTube description. */
-export function extractComposer(
-  description: string | null | undefined,
-): string | null {
+export function extractComposer(description: string | null | undefined): string | null {
   if (!description) return null;
   const lines = description.split(/\r?\n/).map((l) => l.trim());
   const producers: string[] = [];
@@ -110,19 +103,11 @@ export function extractComposer(
 }
 
 /** Clean a YouTube video title into a plausible track title. */
-export function cleanYouTubeTitle(
-  raw: string | null | undefined,
-): string | null {
+export function cleanYouTubeTitle(raw: string | null | undefined): string | null {
   if (!raw) return null;
   return raw
-    .replace(
-      /\(Official (?:Audio|Video|Music Video|Lyric Video|Visualizer)\)/gi,
-      "",
-    )
-    .replace(
-      /\[Official (?:Audio|Video|Music Video|Lyric Video|Visualizer)\]/gi,
-      "",
-    )
+    .replace(/\(Official (?:Audio|Video|Music Video|Lyric Video|Visualizer)\)/gi, "")
+    .replace(/\[Official (?:Audio|Video|Music Video|Lyric Video|Visualizer)\]/gi, "")
     .replace(/\(Official\)/gi, "")
     .replace(/\((?:Lyric[s]?|Audio|Video)\)/gi, "")
     .replace(/\[(?:Lyric[s]?|Audio|Video)\]/gi, "")
@@ -164,8 +149,7 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   // minted when album was unknown — an honest unknown beats a lying
   // placeholder (repo rule). Strip the pattern wherever it rode in.
   const rawAlbum = info.album?.trim() || null;
-  const album =
-    rawAlbum !== null && /- Unknown Album$/i.test(rawAlbum) ? null : rawAlbum;
+  const album = rawAlbum !== null && /- Unknown Album$/i.test(rawAlbum) ? null : rawAlbum;
   const date =
     info.release_date ||
     (info.release_year ? String(info.release_year) : null) ||
@@ -181,17 +165,13 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   // in front: URLs / JSON blobs / control-byte soup are NOT genres —
   // they minted garbage genre FOLDERS on organize; null is honest.
   const rawGenre =
-    info.genre &&
-    info.genre.toLowerCase() !== "music" &&
-    plausibleGenre(info.genre)
+    info.genre && info.genre.toLowerCase() !== "music" && plausibleGenre(info.genre)
       ? info.genre
       : null;
   // A junk `genre` is also poisoned as an INFERENCE INPUT (the \u0000 blob
   // still regex-matched "house" and minted a folder via the guess path) —
   // only plausible genre text may feed the guesser.
-  const genre =
-    guessFromFreeText([rawGenre, info.artist, info.album, info.title]) ??
-    rawGenre;
+  const genre = guessFromFreeText([rawGenre, info.artist, info.album, info.title]) ?? rawGenre;
   // #275: SC descriptions name the real album surprisingly often
   // ("from the upcoming album "Buds" by …" — measured on Surf Curse).
   // A quoted album mention recovers what yt-dlp leaves absent; the
@@ -216,9 +196,7 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
  *  quoted-or-… album-style mention of form: [album|ep|lp|single]
  *  ["Name"] (case-insensitive). Null when nothing matches; the caller
  *  keeps null as the honest unknown. */
-export function descriptionAlbum(
-  description: string | null | undefined,
-): string | null {
+export function descriptionAlbum(description: string | null | undefined): string | null {
   if (typeof description !== "string" || description.length === 0) return null;
   const m = description.match(/(?:album|ep|lp)\s*[“"']([^“”"']{2,60})[”"']/i);
   return m?.[1]?.trim() ?? null;

@@ -102,10 +102,7 @@ function decodeXmlEntities(s: string): string {
 }
 
 /** Insert one release and its relations into the DB. */
-function insertRelease(
-  stmts: ReturnType<typeof prepareStatements>,
-  rel: DiscogsRelease,
-): void {
+function insertRelease(stmts: ReturnType<typeof prepareStatements>, rel: DiscogsRelease): void {
   stmts.insertRelease.run(rel.releaseId, rel.title, rel.year, rel.country);
   for (const a of rel.artists) {
     stmts.insertArtist.run(rel.releaseId, a, nameKey(a));
@@ -126,12 +123,8 @@ function prepareStatements(db: Database) {
     insertArtist: db.prepare(
       "INSERT INTO discogs_release_artists (release_id, artist, name_key) VALUES (?, ?, ?)",
     ),
-    insertGenre: db.prepare(
-      "INSERT INTO discogs_release_genres (release_id, genre) VALUES (?, ?)",
-    ),
-    insertStyle: db.prepare(
-      "INSERT INTO discogs_release_styles (release_id, style) VALUES (?, ?)",
-    ),
+    insertGenre: db.prepare("INSERT INTO discogs_release_genres (release_id, genre) VALUES (?, ?)"),
+    insertStyle: db.prepare("INSERT INTO discogs_release_styles (release_id, style) VALUES (?, ?)"),
   };
 }
 
@@ -216,15 +209,7 @@ export async function ingestDiscogsXml(
       if (opts?.electronicOnly && !genres.some((g) => /electronic/i.test(g))) {
         skipped++;
       } else if (title && artists.length > 0) {
-        batch.push({
-          releaseId,
-          title,
-          artists,
-          genres,
-          styles,
-          year,
-          country,
-        });
+        batch.push({ releaseId, title, artists, genres, styles, year, country });
         releases++;
         if (batch.length >= BATCH_SIZE) {
           insertBatch(batch.splice(0));
@@ -320,12 +305,8 @@ function getLookupStmts(db: Database) {
          WHERE a.name_key = ? AND LOWER(r.title) = ?
          LIMIT 5`,
       ),
-      findGenres: db.prepare(
-        "SELECT genre FROM discogs_release_genres WHERE release_id = ?",
-      ),
-      findStyles: db.prepare(
-        "SELECT style FROM discogs_release_styles WHERE release_id = ?",
-      ),
+      findGenres: db.prepare("SELECT genre FROM discogs_release_genres WHERE release_id = ?"),
+      findStyles: db.prepare("SELECT style FROM discogs_release_styles WHERE release_id = ?"),
     };
     lookupStmts.set(db, s);
   }
@@ -353,12 +334,8 @@ export function discogsLookup(
   const best = rows[0];
   if (best === undefined) return null;
 
-  const genreRows = stmts.findGenres.all(best.release_id) as {
-    genre: string;
-  }[];
-  const styleRows = stmts.findStyles.all(best.release_id) as {
-    style: string;
-  }[];
+  const genreRows = stmts.findGenres.all(best.release_id) as { genre: string }[];
+  const styleRows = stmts.findStyles.all(best.release_id) as { style: string }[];
 
   const release: DiscogsRelease = {
     releaseId: best.release_id,

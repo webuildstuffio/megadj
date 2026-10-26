@@ -71,9 +71,7 @@ describe("moodStamp / parseMoodStamp (pure, always run)", () => {
       context: "fulltags mood worker",
     });
     expect(
-      parseMoodWorkerLine(
-        '{"path":"track.wav","mood":{"danceability":"high"}}',
-      ),
+      parseMoodWorkerLine('{"path":"track.wav","mood":{"danceability":"high"}}'),
     ).toMatchObject({ ok: false, context: "fulltags mood worker" });
     for (const [field, value] of [
       ["danceability", 999],
@@ -94,9 +92,7 @@ describe("moodStamp / parseMoodStamp (pure, always run)", () => {
         arousal: 5,
         [field]: value,
       };
-      const result = parseMoodWorkerLine(
-        JSON.stringify({ path: "track.wav", mood }),
-      );
+      const result = parseMoodWorkerLine(JSON.stringify({ path: "track.wav", mood }));
       expect(result.ok, `${field}=${value}`).toBe(false);
       if (result.ok) throw new Error(`expected ${field}=${value} to fail`);
       expect(result.detail).toContain("invalid");
@@ -112,30 +108,21 @@ describe("moodStamp / parseMoodStamp (pure, always run)", () => {
     };
     for (const embedding of [[], Array(1279).fill(0), Array(1281).fill(0)]) {
       const result = parseMoodWorkerLine(
-        JSON.stringify({
-          path: "track.wav",
-          mood: { ...validMood, embedding },
-        }),
+        JSON.stringify({ path: "track.wav", mood: { ...validMood, embedding } }),
       );
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected invalid embedding to fail");
       expect(result.detail).toContain("embedding");
     }
     const validResult = parseMoodWorkerLine(
-      JSON.stringify({
-        path: "track.wav",
-        mood: { ...validMood, embedding: Array(1280).fill(0) },
-      }),
+      JSON.stringify({ path: "track.wav", mood: { ...validMood, embedding: Array(1280).fill(0) } }),
     );
     expect(validResult.ok).toBe(true);
 
     const nonFiniteEmbedding = Array(1280).fill(0);
     nonFiniteEmbedding[777] = null;
     const nonFiniteResult = parseMoodWorkerLine(
-      JSON.stringify({
-        path: "track.wav",
-        mood: { ...validMood, embedding: nonFiniteEmbedding },
-      }),
+      JSON.stringify({ path: "track.wav", mood: { ...validMood, embedding: nonFiniteEmbedding } }),
     );
     expect(nonFiniteResult.ok).toBe(false);
     if (nonFiniteResult.ok) {
@@ -168,12 +155,7 @@ describe("ONNX mood pipeline (roadmap #4)", () => {
       expect(m).toBeDefined();
       expect(m!.danceability).toBeGreaterThanOrEqual(0);
       expect(m!.danceability).toBeLessThanOrEqual(1);
-      for (const v of [
-        m!.moodAggressive,
-        m!.moodHappy,
-        m!.moodElectronic,
-        m!.moodParty,
-      ]) {
+      for (const v of [m!.moodAggressive, m!.moodHappy, m!.moodElectronic, m!.moodParty]) {
         expect(v).toBeGreaterThanOrEqual(0);
         expect(v).toBeLessThanOrEqual(1);
       }
@@ -190,32 +172,23 @@ describe("ONNX mood pipeline (roadmap #4)", () => {
     "enrichTrack --mood writes a MOOD stamp; second pass is a no-op",
     async () => {
       const p = await makeFile("mood-idem.mp3");
-      const r1 = await enrichTrack(
-        { path: p },
-        { only: ["mood"], artworkQueue: null },
-      );
+      const r1 = await enrichTrack({ path: p }, { only: ["mood"], artworkQueue: null });
       expect(r1.notes.some((n) => n.startsWith("mood:"))).toBe(true);
       const stamp = readStampGuard(p, "MOOD");
       expect(stamp).not.toBeNull();
       expect(parseMoodStamp(stamp!)).not.toBeNull();
-      const r2 = await enrichTrack(
-        { path: p },
-        { only: ["mood"], artworkQueue: null },
-      );
+      const r2 = await enrichTrack({ path: p }, { only: ["mood"], artworkQueue: null });
       expect(r2.notes.length).toBe(0); // idempotent
     },
     120_000, // same cold-uv-env allowance as above
   );
-  test.skipIf(!hasModels)(
-    "MOOD stamp round-trips on wav + m4a (writer surface)",
-    async () => {
-      const wav = await makeFile("mood.wav");
-      const s =
-        "dance=0.500; aggressive=0.100; happy=0.200; electronic=0.300; party=0.400; valence=5.00; arousal=5.00";
-      expect(writePatchSync(wav, { mood: s })).toBe(true);
-      expect(readStampGuard(wav, "MOOD")).toBe(s);
-    },
-  );
+  test.skipIf(!hasModels)("MOOD stamp round-trips on wav + m4a (writer surface)", async () => {
+    const wav = await makeFile("mood.wav");
+    const s =
+      "dance=0.500; aggressive=0.100; happy=0.200; electronic=0.300; party=0.400; valence=5.00; arousal=5.00";
+    expect(writePatchSync(wav, { mood: s })).toBe(true);
+    expect(readStampGuard(wav, "MOOD")).toBe(s);
+  });
   test.skipIf(!hasModels)(
     "label order: positive class FIRST on every head except mood_party (regression — the first archive pass inverted dance/party/happy/aggressive/electronic)",
     async () => {

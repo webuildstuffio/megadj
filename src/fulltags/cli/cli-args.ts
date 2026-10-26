@@ -20,11 +20,7 @@ export interface CliArgs {
   archiveDir: string | null;
   artworkQueue: string | null;
   json: boolean;
-  hints: {
-    title?: string | undefined;
-    artist?: string | undefined;
-    album?: string | undefined;
-  };
+  hints: { title?: string | undefined; artist?: string | undefined; album?: string | undefined };
 }
 
 /** Shared arm context: the parsed args plus raw argv (some verbs own
@@ -51,8 +47,7 @@ export function parseArgs(argv: string[]): CliArgs {
   // `audit`, `single`, and `verify-key` are subcommands, not targets —
   // skip them during target pickup (`single` is the documented per-file
   // hint entrypoint; verify-key consumes its own argv via parseVerifyKeyArgs).
-  const skipFirst =
-    argv[0] === "audit" || argv[0] === "single" || argv[0] === "verify-key";
+  const skipFirst = argv[0] === "audit" || argv[0] === "single" || argv[0] === "verify-key";
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a) continue;
@@ -88,10 +83,7 @@ function parseFlagOpt(args: CliArgs, a: string): boolean {
 
 /** Options with a separate value: `--flag` → args field to set from the
  *  next argv slot (hint fields go under `hints`). */
-const VALUE_OPTS: Record<
-  string,
-  "archiveDir" | "artworkQueue" | "title" | "artist" | "album"
-> = {
+const VALUE_OPTS: Record<string, "archiveDir" | "artworkQueue" | "title" | "artist" | "album"> = {
   "--archive-dir": "archiveDir",
   "--artwork-queue": "artworkQueue",
   "--title": "title",
@@ -139,12 +131,7 @@ function parseOneArg(
 
 /** `--jobs N` / `--jobs=N` — validated via nonNegOpt; bad input flags the
  *  run invalid (exit 2), zero is rejected with usage guidance. */
-function parseJobsArg(
-  args: CliArgs,
-  argv: string[],
-  i: number,
-  a: string,
-): number {
+function parseJobsArg(args: CliArgs, argv: string[], i: number, a: string): number {
   const raw = a === "--jobs" ? argv[i + 1] : a.slice("--jobs=".length);
   const consumed = a === "--jobs" ? i + 1 : i;
   const flags = parseFlags([`--jobs=${raw ?? ""}`], ["jobs"], []);

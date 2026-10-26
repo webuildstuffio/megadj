@@ -24,8 +24,7 @@ export function collectFiles(target: string): string[] {
 /** `ensure-models` — pre-download the ONNX mood models so a later --mood
  *  run never stalls on a 320 MB fetch mid-batch. */
 export async function cmdEnsureModels(): Promise<void> {
-  const { modelsEnsure, moodModelsPresent, modelDir } =
-    await import("../analysis/models");
+  const { modelsEnsure, moodModelsPresent, modelDir } = await import("../analysis/models");
   try {
     const got = modelsEnsure();
     console.log(
@@ -60,11 +59,7 @@ export async function cmdVerifyKey({ argv }: CliCtx): Promise<void> {
   }
   let summary: Awaited<ReturnType<typeof runVerifyKey>> | null = null;
   try {
-    summary = await runVerifyKey({
-      targets: vk.targets,
-      limit: vk.limit,
-      refsPath: vk.refsPath,
-    });
+    summary = await runVerifyKey({ targets: vk.targets, limit: vk.limit, refsPath: vk.refsPath });
     if (vk.json) await writeJson(summary);
     else printVerifyKeyReport(console.log, summary);
   } catch (e) {
@@ -102,13 +97,7 @@ export async function cmdAudit({ args }: CliCtx): Promise<void> {
       ai.aiGenre ? `genre←AI(${ai.aiGenre.split("|")[1] ?? "?"})` : null,
       ai.aiYear ? `year←AI(${ai.aiYear.split("|")[1] ?? "?"})` : null,
     ].filter((x): x is string => x !== null);
-    return {
-      file: basename(f),
-      missing,
-      identity,
-      aiFilled,
-      complete,
-    };
+    return { file: basename(f), missing, identity, aiFilled, complete };
   });
   const complete = rows.filter((r) => r.complete).length;
   const aiCount = rows.filter((r) => r.aiFilled.length).length;
@@ -118,12 +107,7 @@ export async function cmdAudit({ args }: CliCtx): Promise<void> {
   // modes. Agents/CI consume --json and rely on the exit code as the gate.
   if (gaps.length) setExit(1);
   if (args.json) {
-    await writeJson({
-      ok: gaps.length === 0,
-      total: rows.length,
-      complete,
-      rows,
-    });
+    await writeJson({ ok: gaps.length === 0, total: rows.length, complete, rows });
   } else {
     console.log(
       `audit: ${complete}/${rows.length} complete (art + title + artist + album + genre + year + mood + energy)`,
@@ -165,9 +149,7 @@ export async function cmdEnrich({ args }: CliCtx): Promise<void> {
   // Hints (--title/--artist/--album) only make sense for a single file —
   // they pre-seed the MB lookup / SC search when the filename is garbage.
   const hintFiles =
-    (args.hints.title ?? args.hints.artist ?? args.hints.album)
-      ? files.slice(0, 1)
-      : files;
+    (args.hints.title ?? args.hints.artist ?? args.hints.album) ? files.slice(0, 1) : files;
   if (hintFiles.length < files.length) {
     console.log(
       "fulltags: note — hints apply to the first file only; run `fulltags single <file>` per file for the rest",
@@ -177,19 +159,14 @@ export async function cmdEnrich({ args }: CliCtx): Promise<void> {
   // explicit up front rather than a mid-batch stall, then reuse.
   const moodWanted = !args.stages || args.stages.includes("mood");
   if (moodWanted && !args.dryRun) {
-    const { moodModelsPresent, modelsEnsure, modelDir } =
-      await import("../analysis/models");
+    const { moodModelsPresent, modelsEnsure, modelDir } = await import("../analysis/models");
     if (!moodModelsPresent()) {
-      console.log(
-        `fulltags: mood models missing — downloading to ${modelDir()} (~320 MB, once)…`,
-      );
+      console.log(`fulltags: mood models missing — downloading to ${modelDir()} (~320 MB, once)…`);
       try {
         modelsEnsure();
         console.log("fulltags: mood models ready");
       } catch (e) {
-        console.log(
-          `fulltags: model download failed (${(e as Error).message}) — mood will SKIP`,
-        );
+        console.log(`fulltags: model download failed (${(e as Error).message}) — mood will SKIP`);
       }
     }
   }

@@ -64,10 +64,10 @@ describe("megadj megaset CLI step rendering", () => {
     }
     db.close();
 
-    const run = await runCli(
-      ["megaset", "--preset", "warmup", "--minutes", "5"],
-      { ...cliEnv(dir), MEGADJ_DB: dbPath },
-    );
+    const run = await runCli(["megaset", "--preset", "warmup", "--minutes", "5"], {
+      ...cliEnv(dir),
+      MEGADJ_DB: dbPath,
+    });
     const out = `${run.stdout}\n${run.stderr}`;
     // the cued track's line carries the derived windows (45 s target →
     // bar 25 @ 45.1); the cueless track is honestly marked
@@ -81,9 +81,7 @@ describe("megadj megaset CLI step rendering", () => {
     // This fixture's two tracks share the head credit "DJ", so the B6
     // penalty path is exercised too (the −3+1 suffix explains the 0.01
     // blend a bare sum would not).
-    expect(out).toMatch(
-      /\[t 0\.\d{2} · k 0\.\d{2} · arc 0\.\d{2} · anch 0\.\d{2} · B6 −3\+1\]/,
-    );
+    expect(out).toMatch(/\[t 0\.\d{2} · k 0\.\d{2} · arc 0\.\d{2} · anch 0\.\d{2} · B6 −3\+1\]/);
     // #291: the exclusion status line — budget-fill named as a status,
     // quality exclusions separate. This fixture's pool is fully consumed
     // (stopCause exhausted → nothing excluded), so assert the wire field

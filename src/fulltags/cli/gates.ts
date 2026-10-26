@@ -60,9 +60,7 @@ export class GateSaturationError extends Error {
 
 const finitePercent = (value: number, name: string): number => {
   if (!Number.isFinite(value) || value < 0 || value > 100)
-    throw new RangeError(
-      `${name} must be a finite percentage between 0 and 100`,
-    );
+    throw new RangeError(`${name} must be a finite percentage between 0 and 100`);
   return value;
 };
 
@@ -85,20 +83,13 @@ function assertNotSaturated<T>(
   const actual = observations
     .map((observation) => observation.actual)
     .filter((value): value is T => value !== null);
-  if (actual.length >= 2 && new Set(actual).size === 1)
-    throw new GateSaturationError(dimension);
+  if (actual.length >= 2 && new Set(actual).size === 1) throw new GateSaturationError(dimension);
 }
 
 /** Score one detector output set. Missing outputs are misses, never skips. */
 export function runRegate<T>(options: RegateOptions<T>): GateResult {
-  const tolerancePercent = finitePercent(
-    options.tolerancePercent ?? 2,
-    "tolerancePercent",
-  );
-  const requiredPercent = finitePercent(
-    options.passPercent ?? 80,
-    "passPercent",
-  );
+  const tolerancePercent = finitePercent(options.tolerancePercent ?? 2, "tolerancePercent");
+  const requiredPercent = finitePercent(options.passPercent ?? 80, "passPercent");
   assertNotSaturated(options.dimension, options.observations);
   const equals = options.equals ?? Object.is;
   const tracks = options.observations.map((observation) => {
@@ -117,8 +108,7 @@ export function runRegate<T>(options: RegateOptions<T>): GateResult {
     } satisfies GateTrackResult;
   });
   const passedCount = tracks.filter((track) => track.pass).length;
-  const passPercent =
-    tracks.length === 0 ? 0 : round1((passedCount / tracks.length) * 100);
+  const passPercent = tracks.length === 0 ? 0 : round1((passedCount / tracks.length) * 100);
   return {
     dimension: options.dimension,
     tolerancePercent,

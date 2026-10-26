@@ -13,8 +13,7 @@ import { basename, join } from "node:path";
 export { cleanSearchParts } from "./name-match";
 
 const UA = {
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
+  "User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
 };
 
 export interface ArtRow {
@@ -26,10 +25,7 @@ export interface ArtRow {
 
 export async function fetchImage(url: string): Promise<Uint8Array | null> {
   try {
-    const res = await fetch(url, {
-      headers: UA,
-      signal: AbortSignal.timeout(12000),
-    });
+    const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(12000) });
     if (!res.ok) {
       console.error(`art fetch ${url} → HTTP ${res.status}`);
       return null;
@@ -48,10 +44,7 @@ export async function fetchImage(url: string): Promise<Uint8Array | null> {
 
 export async function pageOgImage(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, {
-      headers: UA,
-      signal: AbortSignal.timeout(10000),
-    });
+    const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.error(`og:image fetch ${url} → HTTP ${res.status}`);
       return null;
@@ -70,9 +63,7 @@ export async function pageOgImage(url: string): Promise<string | null> {
 }
 
 /** SC CDN: prefer -original, fall back to the given URL. */
-export async function fetchBestScArt(
-  ogUrl: string,
-): Promise<Uint8Array | null> {
+export async function fetchBestScArt(ogUrl: string): Promise<Uint8Array | null> {
   const orig = ogUrl
     .replace(/-t500x500\.jpg/, "-original.jpg")
     .replace(/-large\.jpg/, "-original.jpg")
@@ -85,9 +76,7 @@ export async function fetchBestScArt(
 }
 
 /** A SoundCloud permalink found in any tag value (usually comment). */
-export function soundcloudUrlInTags(
-  tags: Record<string, string>,
-): string | null {
+export function soundcloudUrlInTags(tags: Record<string, string>): string | null {
   for (const v of Object.values(tags)) {
     const m = /https?:\/\/(www\.)?soundcloud\.com\/[^\s"'<>]+/.exec(v);
     if (m?.[0]) return m[0];
@@ -96,9 +85,7 @@ export function soundcloudUrlInTags(
 }
 
 /** Biggest artwork from a SoundCloud track/playlist page (oembed → og:image). */
-export async function soundcloudArtwork(
-  pageUrl: string,
-): Promise<string | null> {
+export async function soundcloudArtwork(pageUrl: string): Promise<string | null> {
   try {
     const oembed = await fetch(
       `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(pageUrl)}`,
@@ -129,23 +116,17 @@ export async function soundcloudArtwork(
   return null;
 }
 
-export async function itunesArtwork(
-  artist: string,
-  titleOrAlbum: string,
-): Promise<string | null> {
+export async function itunesArtwork(artist: string, titleOrAlbum: string): Promise<string | null> {
   const term = encodeURIComponent(`${artist} ${titleOrAlbum}`.slice(0, 120));
   try {
-    const res = await fetch(
-      `https://itunes.apple.com/search?term=${term}&entity=song&limit=1`,
-      { signal: AbortSignal.timeout(12000) },
-    );
+    const res = await fetch(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`, {
+      signal: AbortSignal.timeout(12000),
+    });
     if (!res.ok) {
       console.error(`itunes search → HTTP ${res.status}`);
       return null;
     }
-    const data = (await res.json()) as {
-      results?: { artworkUrl100?: string }[];
-    };
+    const data = (await res.json()) as { results?: { artworkUrl100?: string }[] };
     const url = data.results?.[0]?.artworkUrl100;
     if (!url) console.error(`itunes search → no artwork result`);
     return url ? url.replace("/100x100", "/600x600") : null;
@@ -163,40 +144,29 @@ export async function deezerArt(r: ArtRow): Promise<Uint8Array | null> {
         headers: UA,
         signal: AbortSignal.timeout(12000),
       })
-    ).json()) as {
-      data?: {
-        album?: { cover_xl?: string; cover_big?: string };
-      }[];
-    };
+    ).json()) as { data?: { album?: { cover_xl?: string; cover_big?: string } }[] };
     for (const hit of d.data ?? []) {
       const url = hit.album?.cover_xl ?? hit.album?.cover_big;
       if (!url) continue;
       const bytes = await fetchImage(url);
       if (bytes) return bytes;
     }
-    console.error(
-      `deezer search → no usable cover for "${r.artist} - ${r.title}"`,
-    );
+    console.error(`deezer search → no usable cover for "${r.artist} - ${r.title}"`);
   } catch (e) {
     console.error(`deezer search failed`, e);
   }
   return null;
 }
 
-export async function gatewayArt(
-  r: ArtRow,
-): Promise<{ bytes: Uint8Array; note: string } | null> {
-  const q = encodeURIComponent(
-    `${r.artist ?? ""} ${r.title} hypeddit OR hyperfollow`,
-  );
+export async function gatewayArt(r: ArtRow): Promise<{ bytes: Uint8Array; note: string } | null> {
+  const q = encodeURIComponent(`${r.artist ?? ""} ${r.title} hypeddit OR hyperfollow`);
   try {
     const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, {
       headers: UA,
       signal: AbortSignal.timeout(10000),
     });
     const html = await res.text();
-    const re =
-      /href="[^"]*(https?:\/\/(?:www\.)?(?:hypeddit|hyperfollow|fruitbat)\.com\/[^"&]+)/g;
+    const re = /href="[^"]*(https?:\/\/(?:www\.)?(?:hypeddit|hyperfollow|fruitbat)\.com\/[^"&]+)/g;
     for (const link of [...html.matchAll(re)].map((m) => m[1]).slice(0, 3)) {
       if (!link) continue;
       const og = await pageOgImage(link);
@@ -204,9 +174,7 @@ export async function gatewayArt(
       const bytes = await fetchImage(og);
       if (bytes) return { bytes, note: link };
     }
-    console.error(
-      `gateway search → no hype-gateway art for "${r.artist} - ${r.title}"`,
-    );
+    console.error(`gateway search → no hype-gateway art for "${r.artist} - ${r.title}"`);
   } catch (e) {
     console.error(`gateway search failed`, e);
   }

@@ -23,9 +23,7 @@ describe("boothTextCompat — clean text passes", () => {
   });
 
   test("latin-1 accented text is ok (Beyoncé, Mø, Sigur Rós)", () => {
-    const r = boothTextCompat(
-      safe({ artist: "Beyoncé", title: "Mønergy — Rós" }),
-    );
+    const r = boothTextCompat(safe({ artist: "Beyoncé", title: "Mønergy — Rós" }));
     expect(r.ok).toBe(true);
   });
 });
@@ -88,9 +86,7 @@ describe("boothTextCompat — mojibake", () => {
 
 describe("boothTextCompat — path shape", () => {
   test("semicolon in filename flags path-illegal-character", () => {
-    const r = boothTextCompat(
-      safe({ filename: "Awell; Ingrosso - Remix.mp3" }),
-    );
+    const r = boothTextCompat(safe({ filename: "Awell; Ingrosso - Remix.mp3" }));
     expect(r.ok).toBe(false);
     expect(r.reasons).toContain("path-illegal-character");
     expect(r.offenders.filename).toBe(";");
@@ -111,10 +107,7 @@ describe("boothTextCompat — path shape", () => {
 
   test("relPath 8+ folders deep flags path-too-deep (XDJ-XZ limit)", () => {
     const r = boothTextCompat(safe({ filename: "t.mp3" }));
-    const deep = boothTextCompat({
-      ...safe(),
-      relPath: "a/b/c/d/e/f/g/h/t.mp3",
-    });
+    const deep = boothTextCompat({ ...safe(), relPath: "a/b/c/d/e/f/g/h/t.mp3" });
     expect(r.ok).toBe(true); // 0 folders fine
     expect(deep.ok).toBe(false);
     expect(deep.reasons).toContain("path-too-deep");

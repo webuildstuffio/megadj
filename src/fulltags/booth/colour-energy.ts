@@ -43,10 +43,7 @@ export function colourName(colorId: number): string {
  * Format: "L2 / L3" when L3 is available, just "L2" otherwise.
  * This fits in rekordbox's My Tag field for grid browsing by genre.
  */
-export function buildMyTag(
-  family: string | null,
-  l3Subgenre: string | null,
-): string {
+export function buildMyTag(family: string | null, l3Subgenre: string | null): string {
   if (family === null) return "";
   if (l3Subgenre !== null && l3Subgenre !== family) {
     return `${family} / ${l3Subgenre}`;

@@ -36,15 +36,12 @@ describe("playerCompat — fleet-floor pass cases", () => {
     expect(playerCompat(probe({ sampleRate: 48000 })).ok).toBe(true);
   });
   test("320kbps MPEG-1 MP3 plays everywhere", () => {
-    expect(
-      playerCompat(probe({ codec: "mp3", sampleRate: 44100, bitrateKbps: 320 }))
-        .ok,
-    ).toBe(true);
-  });
-  test("MP3 at 32kHz (MPEG-1 floor) plays everywhere", () => {
-    expect(playerCompat(probe({ codec: "mp3", sampleRate: 32000 })).ok).toBe(
+    expect(playerCompat(probe({ codec: "mp3", sampleRate: 44100, bitrateKbps: 320 })).ok).toBe(
       true,
     );
+  });
+  test("MP3 at 32kHz (MPEG-1 floor) plays everywhere", () => {
+    expect(playerCompat(probe({ codec: "mp3", sampleRate: 32000 })).ok).toBe(true);
   });
   test("AAC LC in m4a at 44.1k plays everywhere", () => {
     expect(playerCompat(probe({ codec: "aac" })).ok).toBe(true);
@@ -53,16 +50,8 @@ describe("playerCompat — fleet-floor pass cases", () => {
 
 describe("playerCompat — hard rejects (no fleet member plays these)", () => {
   test.each([
-    [
-      "32-bit float WAV — the DAW bounce trap",
-      { codec: "pcm_f32le" },
-      "float-pcm-unsupported",
-    ],
-    [
-      "32-bit int WAV also rejected",
-      { codec: "pcm_s32le" },
-      "bit-depth-unsupported",
-    ],
+    ["32-bit float WAV — the DAW bounce trap", { codec: "pcm_f32le" }, "float-pcm-unsupported"],
+    ["32-bit int WAV also rejected", { codec: "pcm_s32le" }, "bit-depth-unsupported"],
     ["ADPCM WAV rejected", { codec: "adpcm_ms" }, "compressed-wav-unsupported"],
     [
       "MP3 at 22.05kHz (MPEG-2 rip) rejected",
@@ -80,16 +69,8 @@ describe("playerCompat — hard rejects (no fleet member plays these)", () => {
       { sampleRate: 192000 },
       "sample-rate-unsupported",
     ],
-    [
-      "ALAC rejected (XDJ-XZ + CDJ-2000)",
-      { codec: "alac" },
-      "alac-not-universal",
-    ],
-    [
-      "FLAC rejected on the floor (plain CDJ-2000)",
-      { codec: "flac" },
-      "flac-not-universal",
-    ],
+    ["ALAC rejected (XDJ-XZ + CDJ-2000)", { codec: "alac" }, "alac-not-universal"],
+    ["FLAC rejected on the floor (plain CDJ-2000)", { codec: "flac" }, "flac-not-universal"],
   ] as [string, Partial<Probe>, string][])("%s", (_label, over, reason) => {
     const r = playerCompat(probe(over));
     expect(r.ok).toBe(false);
@@ -107,9 +88,7 @@ describe("playerCompat — partial tiers", () => {
     expect(isHiresOnly(playerCompat(probe({ sampleRate: 96000 })))).toBe(true);
   });
   test("float PCM is NOT partial — it is a hard reject", () => {
-    expect(isHiresOnly(playerCompat(probe({ codec: "pcm_f32le" })))).toBe(
-      false,
-    );
+    expect(isHiresOnly(playerCompat(probe({ codec: "pcm_f32le" })))).toBe(false);
   });
 });
 
@@ -128,9 +107,7 @@ describe("playerCompat — degradation honesty", () => {
 describe("playerCompat — fleet selection", () => {
   test("default trio: FLAC passes outright (3000+NXS2+XZ all take it)", () => {
     setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2"]);
-    const r = playerCompat(
-      probe({ codec: "flac", sampleRate: 44100, bitrateKbps: 900 }),
-    );
+    const r = playerCompat(probe({ codec: "flac", sampleRate: 44100, bitrateKbps: 900 }));
     expect(r.ok).toBe(true);
     expect(r.reasons).toEqual([]);
   });

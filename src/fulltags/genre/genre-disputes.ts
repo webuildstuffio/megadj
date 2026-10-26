@@ -26,11 +26,7 @@
 //
 // Rekordbox is untouched: the archive ledger is the only surface. Pure
 // decision logic here; state owns the writes; genre.ts wires the CLI.
-import {
-  genreFamily,
-  inferGenre,
-  parseEmbeddingVector,
-} from "../../core/similar";
+import { genreFamily, inferGenre, parseEmbeddingVector } from "../../core/similar";
 import type { ArchiveState } from "../../core/state";
 
 /** One disputed row with the evidence a decision needs. */
@@ -86,12 +82,8 @@ export function collectDisputes(
     genre: s.genre,
     vec: parseEmbeddingVector(s.vec_json, `dispute seed ${s.video_id}`),
   }));
-  const vecById = new Map(
-    voteRows.map((r) => [r.video_id, r.vec_json] as const),
-  );
-  const ageById = new Map(
-    voteRows.map((r) => [r.video_id, r.analyzed_at] as const),
-  );
+  const vecById = new Map(voteRows.map((r) => [r.video_id, r.vec_json] as const));
+  const ageById = new Map(voteRows.map((r) => [r.video_id, r.analyzed_at] as const));
 
   const rows: DisputeRow[] = flagged.map((r) => {
     const vecJson = vecById.get(r.video_id);
@@ -114,16 +106,13 @@ export function collectDisputes(
       family: genreFamily(r.genre),
       consensus,
       agreement,
-      embedAgeDays: analyzedAt
-        ? Math.round((Date.now() - Date.parse(analyzedAt)) / DAY_MS)
-        : null,
+      embedAgeDays: analyzedAt ? Math.round((Date.now() - Date.parse(analyzedAt)) / DAY_MS) : null,
     };
   });
   const alreadyAgree = rows.filter(
     (r) =>
       r.consensus !== null &&
-      (r.family === r.consensus ||
-        r.genre.toLowerCase() === r.consensus.toLowerCase()),
+      (r.family === r.consensus || r.genre.toLowerCase() === r.consensus.toLowerCase()),
   ).length;
   return { flagged: rows.length, alreadyAgree, rows };
 }
@@ -156,10 +145,7 @@ export function resolveDispute(
   if (res.verb === "keep") {
     state.setGenreFlag(res.videoId, null);
     if (res.note) state.setGenreFlagNote(res.videoId, res.note);
-    return {
-      ok: true,
-      message: `kept "${row.genre}" — flag cleared (source vouched)`,
-    };
+    return { ok: true, message: `kept "${row.genre}" — flag cleared (source vouched)` };
   }
 
   // verb === "agree": the audio wins, but only with live evidence.
@@ -192,12 +178,7 @@ function collectDisputesRow(
     vec: parseEmbeddingVector(s.vec_json, `dispute seed ${s.video_id}`),
   }));
   const vec = parseEmbeddingVector(vecJson, `dispute query ${videoId}`);
-  const vote = inferGenre(
-    seedVecs,
-    vec,
-    DEFAULT_CONSENSUS_K,
-    CONSENSUS_MIN_AGREEMENT,
-  );
+  const vote = inferGenre(seedVecs, vec, DEFAULT_CONSENSUS_K, CONSENSUS_MIN_AGREEMENT);
   return vote.inferred !== null
     ? { consensus: vote.inferred, agreement: vote.agreement }
     : { consensus: null, agreement: null };

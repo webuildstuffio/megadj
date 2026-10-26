@@ -30,11 +30,7 @@
 // The shared vocabulary lives in genre-vocab.ts (#187): escape repair,
 // umbrella labels, and the family map are owned there — this file keeps
 // only the DATA canonicalization + the SCORING arbitration policy.
-import {
-  familyOf as genreFamily,
-  isUmbrellaLabel,
-  repairEscapes,
-} from "./genre-vocab";
+import { familyOf as genreFamily, isUmbrellaLabel, repairEscapes } from "./genre-vocab";
 
 /** Established compound labels containing the `&` separator. Protected
  *  BEFORE splitting so "R&B" does not become "R" + "B". Measured against
@@ -99,8 +95,7 @@ const titleCase = (label: string): string =>
  *  never canonicalized — it would only launder spam into a display
  *  label. Returns null so the refold proposes NOTHING for it. */
 const isUrlJunk = (label: string): boolean =>
-  /https?:\/\//.test(label) ||
-  /\b[\w-]+\.(com|net|org|io|co|ru|xyz|top)\b/i.test(label);
+  /https?:\/\//.test(label) || /\b[\w-]+\.(com|net|org|io|co|ru|xyz|top)\b/i.test(label);
 
 /** Word-soup guard: sentences (5+ words) are YouTube description residue,
  *  not a genre label — canonicalizing them would manufacture a fake
@@ -111,8 +106,7 @@ const isWordSoup = (label: string): boolean => label.split(" ").length >= 5;
  *  ampersand/hyphen/apostrophe separators. Anything else (trailing
  *  backslashes, brackets, punctuation soup) is corrupted metadata —
  *  title-casing it would just launder the corruption. */
-const isSaneLabel = (label: string): boolean =>
-  /^[a-z0-9][a-z0-9 &'-]*$/.test(label.toLowerCase());
+const isSaneLabel = (label: string): boolean => /^[a-z0-9][a-z0-9 &'-]*$/.test(label.toLowerCase());
 
 export interface RefoldOutcome {
   /** Canonical primary label, or null when the refold proposes nothing
@@ -141,8 +135,7 @@ export function refoldDetail(genre: string): RefoldOutcome {
   const escaped = /\\u[0-9a-fA-F]{4}/.test(trimmed);
   // URL junk dies on the WHOLE string before splitting: "https://x.com"
   // splits into "https:" + domain, and the scheme alone would survive.
-  if (isUrlJunk(trimmed))
-    return { label: null, escaped, split: false, aliased: false };
+  if (isUrlJunk(trimmed)) return { label: null, escaped, split: false, aliased: false };
   // parenthetical qualifiers are stripped BEFORE splitting so
   // "Techno (Peak Time / Driving)" stays ONE token (its slash is inside
   // parens); matches normalizeGenre's paren-stripping semantics.
@@ -165,8 +158,7 @@ export function refoldDetail(genre: string): RefoldOutcome {
     .split(/[/,&]/)
     .map((t) => t.replace(/\s+/g, " ").trim())
     .filter((t) => t.length > 0);
-  if (tokens.length === 0)
-    return { label: null, escaped, split: false, aliased: false };
+  if (tokens.length === 0) return { label: null, escaped, split: false, aliased: false };
 
   // Rank multi-label tokens: the SPECIFIC label outranks a bare parent
   // (archived ideas #94 (docs/archive/ideas-2026-09-15.md): "Electronic/House" must refold to House, not stay the
@@ -174,9 +166,7 @@ export function refoldDetail(genre: string): RefoldOutcome {
   // is a parent-only label; among the rest, order is the stored rank.
   const isUmbrella = (token: string): boolean => {
     const canonicalToken = IRREGULARS[token];
-    return isUmbrellaLabel(
-      canonicalToken === undefined ? token : canonicalToken.toLowerCase(),
-    );
+    return isUmbrellaLabel(canonicalToken === undefined ? token : canonicalToken.toLowerCase());
   };
   const ranked = [...tokens].toSorted((a, b) => {
     const au = isUmbrella(a) ? 1 : 0;
@@ -205,12 +195,7 @@ export function refoldDetail(genre: string): RefoldOutcome {
     return { label: null, escaped, split, aliased: false };
 
   const canonical = IRREGULARS[primary] ?? titleCase(primary);
-  return {
-    label: canonical,
-    escaped,
-    split,
-    aliased: canonical !== primary,
-  };
+  return { label: canonical, escaped, split, aliased: canonical !== primary };
 }
 
 /** Convenience wrapper — just the canonical label. */

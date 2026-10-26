@@ -5,21 +5,11 @@
 // function per stage, so each stays under the #198 census ceiling on its
 // own. Behavior-preserving: the stage order and note strings are pinned
 // by the pipeline tests.
-import type {
-  BpLookupFn,
-  PipelineOptions,
-  Stage,
-  TrackInput,
-} from "./pipeline-types";
+import type { BpLookupFn, PipelineOptions, Stage, TrackInput } from "./pipeline-types";
 import { scSearch } from "../sources/sc-search";
 import { canonGenre, type TagPatch } from "../write/schema";
 import { detectRemix } from "../sources/remix";
-import {
-  beatportLookup,
-  bpGenre,
-  bpStamp,
-  type BpTrack,
-} from "../sources/beatport";
+import { beatportLookup, bpGenre, bpStamp, type BpTrack } from "../sources/beatport";
 import { appendQueue, artLadder, scArt } from "./pipeline-art";
 import { parseMoodStamp, readEnergyStamp, readStamp } from "./pipeline-stamps";
 import { energyFromLufs, measureRms } from "../utils/media-probe";
@@ -56,9 +46,7 @@ export const want = (opts: PipelineOptions, s: Stage): boolean =>
 /** Effective title/artist used for every online lookup (patch wins over
  *  file truth over CLI hints over filename). */
 export function effTitleOf(ctx: TrackCtx): string {
-  return (
-    ctx.patch.title ?? ctx.truth.title ?? ctx.t.title ?? basename(ctx.t.path)
-  );
+  return ctx.patch.title ?? ctx.truth.title ?? ctx.t.title ?? basename(ctx.t.path);
 }
 
 export function effArtistOf(ctx: TrackCtx): string | null {
@@ -86,17 +74,12 @@ export async function stageTagsMb(ctx: TrackCtx): Promise<void> {
     (!truth.title || Boolean(opts.hints?.title)) &&
     (!truth.artist || Boolean(opts.hints?.artist)) &&
     (!truth.album || Boolean(opts.hints?.album));
-  if (!(want(opts, "tags") && (!truth.title || !truth.artist || !truth.album)))
-    return;
+  if (!(want(opts, "tags") && (!truth.title || !truth.artist || !truth.album))) return;
   if (!truth.title && opts.hints?.title) patch.title = opts.hints.title;
   if (!truth.artist && opts.hints?.artist) patch.artist = opts.hints.artist;
   if (!truth.album && opts.hints?.album) patch.album = opts.hints.album;
-  const artist0 =
-    (truth.artist ?? t.artist ?? patch.artist ?? "").split(/[,&]/)[0]?.trim() ||
-    null;
-  const rec = hinted
-    ? null
-    : await mbLookupCached(artist0, ctx.titleGuess ?? basename(t.path));
+  const artist0 = (truth.artist ?? t.artist ?? patch.artist ?? "").split(/[,&]/)[0]?.trim() || null;
+  const rec = hinted ? null : await mbLookupCached(artist0, ctx.titleGuess ?? basename(t.path));
   if (rec) {
     if (!truth.title && !patch.title && rec.title) patch.title = rec.title;
     if (!truth.artist && !patch.artist && rec.artist) patch.artist = rec.artist;
@@ -117,9 +100,7 @@ export function scNeedsOf(ctx: TrackCtx): {
   return {
     needGenre: want(opts, "genre") && !genreOk,
     needYear: want(opts, "year") && !truth.year && !patch.year,
-    needArt:
-      (want(opts, "art") && !truth.art) ||
-      (want(opts, "art") && Boolean(opts.upgradeScArt)),
+    needArt: (want(opts, "art") && !truth.art) || (want(opts, "art") && Boolean(opts.upgradeScArt)),
   };
 }
 
@@ -129,11 +110,8 @@ export function stageSoundcloudSearch(ctx: TrackCtx): void {
   const wantsSc = needGenre || needYear || needArt;
   if (!(wantsSc && !opts.dryRun)) return;
   ctx.scBest =
-    scSearch({
-      artist: effArtistOf(ctx),
-      title: effTitleOf(ctx),
-      file_path: ctx.t.path,
-    })[0] ?? null;
+    scSearch({ artist: effArtistOf(ctx), title: effTitleOf(ctx), file_path: ctx.t.path })[0] ??
+    null;
 }
 
 // ---------- Beatport vote (second in every ladder, behind SC) ----------
@@ -325,9 +303,7 @@ export async function stageBpm(ctx: TrackCtx): Promise<void> {
     patch.bpm = Math.round(foldTempo(beats.bpm));
     ctx.notes.push(`bpm:${beats.bpm.toFixed(1)}→${patch.bpm}`);
   } else {
-    ctx.notes.push(
-      "bpm:SKIP (beat_this env missing — uv run --with beat-this)",
-    );
+    ctx.notes.push("bpm:SKIP (beat_this env missing — uv run --with beat-this)");
   }
 }
 
@@ -346,9 +322,7 @@ export async function stageKey(ctx: TrackCtx): Promise<void> {
     patch.camelot = k.camelot; // TXXX:CAMELOT — container-independent
     ctx.notes.push(`key:${k.camelot} (${k.key})`);
   } else {
-    ctx.notes.push(
-      "key:SKIP (analyzer missing — clone openkeyscan-analyzer to ~/.local/share)",
-    );
+    ctx.notes.push("key:SKIP (analyzer missing — clone openkeyscan-analyzer to ~/.local/share)");
   }
 }
 

@@ -56,17 +56,13 @@ describe("bridgeVotesToEvidence", () => {
   });
 
   it("skips votes with unmappable genres", () => {
-    const votes: GenreVote[] = [
-      { rung: "sc", genre: "Not A Real Genre XYZZY", weight: 0.35 },
-    ];
+    const votes: GenreVote[] = [{ rung: "sc", genre: "Not A Real Genre XYZZY", weight: 0.35 }];
     const count = bridgeVotesToEvidence(db, "track-4", votes);
     expect(count).toBe(0);
   });
 
   it("stores subgenre when genre differs from family", () => {
-    const votes: GenreVote[] = [
-      { rung: "discogs", genre: "Acid House", weight: 0.55 },
-    ];
+    const votes: GenreVote[] = [{ rung: "discogs", genre: "Acid House", weight: 0.55 }];
     bridgeVotesToEvidence(db, "track-5", votes);
     const rows = loadEvidence(db, "track-5");
     const dg = rows.find((r) => r.annotatorId === "vote:discogs");
@@ -126,13 +122,9 @@ describe("bridgeVotesToEvidence", () => {
 
   it("WeakSet cache prevents repeated migration", () => {
     // First call migrates
-    bridgeVotesToEvidence(db, "track-8", [
-      { rung: "bp", genre: "Techno", weight: 0.6 },
-    ]);
+    bridgeVotesToEvidence(db, "track-8", [{ rung: "bp", genre: "Techno", weight: 0.6 }]);
     // Second call should not throw even though the table exists
-    bridgeVotesToEvidence(db, "track-9", [
-      { rung: "sc", genre: "House", weight: 0.35 },
-    ]);
+    bridgeVotesToEvidence(db, "track-9", [{ rung: "sc", genre: "House", weight: 0.35 }]);
     const r8 = loadEvidence(db, "track-8");
     const r9 = loadEvidence(db, "track-9");
     expect(r8.length).toBe(1);

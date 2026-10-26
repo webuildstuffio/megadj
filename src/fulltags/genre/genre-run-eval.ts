@@ -1,8 +1,4 @@
-import {
-  evalLeaveOneOut,
-  evalLeaveOneOutArtistDisjoint,
-  type GenreSeed,
-} from "../../core/similar";
+import { evalLeaveOneOut, evalLeaveOneOutArtistDisjoint, type GenreSeed } from "../../core/similar";
 import { setExit, writeJson } from "../../shared/cli-output";
 import { tier0Diagnostics } from "./genre-diagnostics";
 import { probeLeaveOneOut, type ProbeRow } from "../analysis/linear-probe";
@@ -40,13 +36,7 @@ function runRefoldReadout(
   log: CommandLog,
 ): RefoldEvalBlock | undefined {
   if (!enabled) return undefined;
-  const result = evalLeaveOneOut(
-    seeds,
-    k,
-    minAgreement,
-    durations,
-    scoringFamily,
-  );
+  const result = evalLeaveOneOut(seeds, k, minAgreement, durations, scoringFamily);
   const refold = {
     evaluated: result.evaluated,
     abstained: summary.evaluated - result.evaluated,
@@ -113,13 +103,7 @@ function runArtistDisjointReadout(
   log: CommandLog,
 ): ArtistDisjointBlock | undefined {
   if (!enabled) return undefined;
-  const result = evalLeaveOneOutArtistDisjoint(
-    seeds,
-    artists,
-    k,
-    minAgreement,
-    durations,
-  );
+  const result = evalLeaveOneOutArtistDisjoint(seeds, artists, k, minAgreement, durations);
   const block = {
     evaluated: result.evaluated,
     agreement: round3(result.agreement),
@@ -160,9 +144,7 @@ function optionalBlocks(
 ): Record<string, unknown> {
   return {
     ...(diagnostics !== undefined ? { diagnostics } : {}),
-    ...(artistDisjoint !== undefined
-      ? { artist_disjoint: artistDisjoint }
-      : {}),
+    ...(artistDisjoint !== undefined ? { artist_disjoint: artistDisjoint } : {}),
     ...(probe !== undefined ? { probe } : {}),
     ...(refold !== undefined ? { refold } : {}),
   };
@@ -174,10 +156,7 @@ export async function runGenreEval(
   k: number,
   minAgreement: number,
 ): Promise<void> {
-  const { seeds, durations, artists, probeRows } = parseEvalPopulation(
-    opts.state,
-    "eval",
-  );
+  const { seeds, durations, artists, probeRows } = parseEvalPopulation(opts.state, "eval");
   const guardedDurations = opts.durationGuard === false ? [] : durations;
   const summary = evalLeaveOneOut(seeds, k, minAgreement, guardedDurations);
   log(
@@ -211,12 +190,7 @@ export async function runGenreEval(
     minAgreement,
     log,
   );
-  const probe = runProbeReadout(
-    opts.probe === true,
-    probeRows,
-    summary.agreement,
-    log,
-  );
+  const probe = runProbeReadout(opts.probe === true, probeRows, summary.agreement, log);
   await writeJson({
     command: "genre",
     mode: "eval",

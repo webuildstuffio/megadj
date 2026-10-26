@@ -77,8 +77,7 @@ export async function cues(opts: CuesOptions): Promise<void> {
   const rows = opts.state.beatAnalyzedTracks();
   // limit is a hard cap: 0 = derive nothing (0 is falsy — never treat it
   // as "unlimited"; undefined is the only "all rows" spelling).
-  const todo =
-    opts.limit === undefined ? rows : rows.slice(0, Math.max(0, opts.limit));
+  const todo = opts.limit === undefined ? rows : rows.slice(0, Math.max(0, opts.limit));
 
   let derived = 0;
   let skipped = 0;

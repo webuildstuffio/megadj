@@ -11,11 +11,7 @@ import { describe, test, expect } from "bun:test";
 import { $ } from "bun";
 import { existsSync } from "node:fs";
 import { keyscanDir } from "../analysis/fingerprint";
-import {
-  analyzeKey,
-  analyzeKeys,
-  parseKeyServerLine,
-} from "../analysis/key-analysis";
+import { analyzeKey, analyzeKeys, parseKeyServerLine } from "../analysis/key-analysis";
 import { writePatchSync } from "../write/writer";
 import { readStampGuard } from "./stamp";
 import { enrichTrack } from "../pipeline/pipeline";
@@ -26,13 +22,9 @@ const hasKeyscan = existsSync(`${keyscanDir()}/openkeyscan_analyzer_server.py`);
 describe("OpenKeyScan key (roadmap #3)", () => {
   test("key-server protocol parsing rejects malformed and unkeyed JSON", () => {
     expect(parseKeyServerLine("{not-json")).toBeNull();
+    expect(parseKeyServerLine('{"status":"success","camelot":"8A"}')).toBeNull();
     expect(
-      parseKeyServerLine('{"status":"success","camelot":"8A"}'),
-    ).toBeNull();
-    expect(
-      parseKeyServerLine(
-        '{"id":"track.wav","status":"success","camelot":"8A"}',
-      ),
+      parseKeyServerLine('{"id":"track.wav","status":"success","camelot":"8A"}'),
     ).toMatchObject({ id: "track.wav", status: "success", camelot: "8A" });
   });
 
@@ -40,19 +32,13 @@ describe("OpenKeyScan key (roadmap #3)", () => {
     "pipeline stage writes TKEY+TXXX:CAMELOT, idempotent",
     async () => {
       const p = await makeFile("key-t.mp3");
-      const r = await enrichTrack(
-        { path: p },
-        { only: ["key"], artworkQueue: null },
-      );
+      const r = await enrichTrack({ path: p }, { only: ["key"], artworkQueue: null });
       const note = r.notes.find((n) => n.startsWith("key:"));
       expect(note).toBeTruthy();
       expect(note).toMatch(/key:\d{1,2}[AB]/);
       // Stamp round-trip: TXXX:CAMELOT readable in the container
       expect(readStampGuard(p, "CAMELOT")).toMatch(/^\d{1,2}[AB]$/);
-      const r2 = await enrichTrack(
-        { path: p },
-        { only: ["key"], artworkQueue: null },
-      );
+      const r2 = await enrichTrack({ path: p }, { only: ["key"], artworkQueue: null });
       expect(r2.notes).toEqual([]); // stamp present → skip
     },
     { timeout: 180_000 },
@@ -85,19 +71,14 @@ describe("OpenKeyScan key (roadmap #3)", () => {
       expect(m.get(p)).toBeTruthy(); // keyed by original path
       expect(m.get(p)!.camelot).toMatch(/^\d{1,2}[AB]$/);
       // no temp wav beside the source — then or ever
-      expect(existsSync(`${DIR}/.key-c.m4a.key-${process.pid}.wav`)).toBe(
-        false,
-      );
+      expect(existsSync(`${DIR}/.key-c.m4a.key-${process.pid}.wav`)).toBe(false);
     },
     180_000,
   );
 
-  test.skipIf(hasKeyscan)(
-    "missing analyzer → analyzeKey null (no throw)",
-    async () => {
-      expect(await analyzeKey("/definitely/not/a/file.mp3")).toBeNull();
-    },
-  );
+  test.skipIf(hasKeyscan)("missing analyzer → analyzeKey null (no throw)", async () => {
+    expect(await analyzeKey("/definitely/not/a/file.mp3")).toBeNull();
+  });
 });
 
 describe("stamp plumbing for analysis stages", () => {

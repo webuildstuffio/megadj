@@ -35,12 +35,9 @@ describe("vibeFromMood", () => {
     [0.0, 0.0, 4.2, "Smooth"], // boundary: exactly 4.2 is NOT Deep
   ];
 
-  test.each(cases)(
-    "aggro=%f happy=%f val=%f → %s",
-    (agg, hap, val, expected) => {
-      expect(vibeFromMood(agg, hap, val)).toBe(expected);
-    },
-  );
+  test.each(cases)("aggro=%f happy=%f val=%f → %s", (agg, hap, val, expected) => {
+    expect(vibeFromMood(agg, hap, val)).toBe(expected);
+  });
 
   test("boundary: aggressive exactly 0.7 is Driving not Hard", () => {
     expect(vibeFromMood(0.7, 0.0, 5.0)).toBe("Driving");
@@ -397,9 +394,7 @@ describe("parseCommentV3", () => {
   });
 
   test("round-trip: Tier 3 with placement", () => {
-    const parsed = parseCommentV3(
-      "E6·Driving·A46·H27·Tech House-Progressive·Build",
-    );
+    const parsed = parseCommentV3("E6·Driving·A46·H27·Tech House-Progressive·Build");
     expect(parsed.energy).toBe(6);
     expect(parsed.vibe).toBe("Driving");
     expect(parsed.aggressive).toBe(46);
@@ -425,15 +420,7 @@ describe("parseCommentV3", () => {
   });
 
   test("all seven vibes parse correctly", () => {
-    for (const v of [
-      "Hard",
-      "Driving",
-      "Groovy",
-      "Medium",
-      "Bright",
-      "Deep",
-      "Smooth",
-    ]) {
+    for (const v of ["Hard", "Driving", "Groovy", "Medium", "Bright", "Deep", "Smooth"]) {
       const parsed = parseCommentV3(`E5·${v}`);
       expect(parsed.vibe).toBe(v);
     }

@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  GateSaturationError,
-  applyGateWritesSync,
-  runRegate,
-  type GateObservation,
-} from "./gates";
+import { GateSaturationError, applyGateWritesSync, runRegate, type GateObservation } from "./gates";
 
 describe("re-gate harness", () => {
   const observations: GateObservation<number>[] = [
@@ -21,11 +16,7 @@ describe("re-gate harness", () => {
       passPercent: 80,
     });
     expect(result.tracks).toHaveLength(3);
-    expect(result.tracks[0]).toMatchObject({
-      id: "good",
-      offsetPercent: 0.42,
-      pass: true,
-    });
+    expect(result.tracks[0]).toMatchObject({ id: "good", offsetPercent: 0.42, pass: true });
     expect(result.passPercent).toBe(33.3);
     expect(result.passed).toBe(false);
   });

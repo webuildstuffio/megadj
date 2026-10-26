@@ -89,20 +89,9 @@ describe("formatGenreWhyV2", () => {
           ["trance", 0.03],
         ]),
       },
-      l3Ranked: [
-        {
-          subgenre: "deep house",
-          family: "house",
-          probability: 0.65,
-          voteCount: 3,
-        },
-      ],
+      l3Ranked: [{ subgenre: "deep house", family: "house", probability: 0.65, voteCount: 3 }],
       annotators: [
-        {
-          annotatorId: "beatport:exact_recording",
-          confusion: new Map(),
-          accuracy: 0.95,
-        },
+        { annotatorId: "beatport:exact_recording", confusion: new Map(), accuracy: 0.95 },
       ],
       versionType: null,
       posteriorMatchesDb: true,

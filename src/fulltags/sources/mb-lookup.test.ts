@@ -4,12 +4,7 @@
 // ONE fetch/UA/timeout/not-ok/parse block, per-caller logging policy,
 // malformed JSON throws (never a silent false answer).
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  mbLookupCached,
-  mbRecording,
-  mbGenreForRecording,
-  mbGenreCacheReset,
-} from "./mb-lookup";
+import { mbLookupCached, mbRecording, mbGenreForRecording, mbGenreCacheReset } from "./mb-lookup";
 
 interface FetchCall {
   url: string;
@@ -21,10 +16,7 @@ let calls: FetchCall[] = [];
 let responder: (url: string) => Response | Promise<Response>;
 
 function okJson(body: unknown): Response {
-  return Response.json(body, {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return Response.json(body, { status: 200, headers: { "content-type": "application/json" } });
 }
 
 beforeEach(() => {
@@ -32,10 +24,7 @@ beforeEach(() => {
   responder = () => okJson({ recordings: [] });
   globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === "string" ? input : String(input);
-    calls.push({
-      url,
-      signal: (init?.signal as AbortSignal | undefined) ?? null,
-    });
+    calls.push({ url, signal: (init?.signal as AbortSignal | undefined) ?? null });
     return Promise.resolve(responder(url));
   }) as typeof fetch;
 });
@@ -141,12 +130,7 @@ describe("mbGenreForRecording (recording-level tags)", () => {
               title: "Acid Rain",
               id: "rec-123",
               "artist-credit": [
-                {
-                  artist: {
-                    name: "DJ Pierre",
-                    tags: [{ name: "acid house", count: 5 }],
-                  },
-                },
+                { artist: { name: "DJ Pierre", tags: [{ name: "acid house", count: 5 }] } },
               ],
               releases: [{ title: "Acid Tracks", date: "1987-01-01" }],
             },
@@ -161,11 +145,7 @@ describe("mbGenreForRecording (recording-level tags)", () => {
           { name: "house", count: 8 },
         ],
         "release-groups": [
-          {
-            id: "rg-1",
-            "primary-type": "Single",
-            tags: [{ name: "electronic", count: 15 }],
-          },
+          { id: "rg-1", "primary-type": "Single", tags: [{ name: "electronic", count: 15 }] },
         ],
       });
     };
@@ -231,12 +211,7 @@ describe("mbGenreForRecording (recording-level tags)", () => {
               title: "Credit Merge",
               id: "rec-789",
               "artist-credit": [
-                {
-                  artist: {
-                    name: "GenreArtist",
-                    tags: [{ name: "techno", count: 100 }],
-                  },
-                },
+                { artist: { name: "GenreArtist", tags: [{ name: "techno", count: 100 }] } },
               ],
               releases: [{ title: "Album", date: "2024-01-01" }],
             },
@@ -244,11 +219,7 @@ describe("mbGenreForRecording (recording-level tags)", () => {
         });
       }
       // Recording detail with no tags — credit tags are the only signal
-      return okJson({
-        id: "rec-789",
-        tags: [],
-        "release-groups": [],
-      });
+      return okJson({ id: "rec-789", tags: [], "release-groups": [] });
     };
 
     const result = await mbGenreForRecording("GenreArtist", "Credit Merge");

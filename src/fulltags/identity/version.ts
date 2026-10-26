@@ -71,11 +71,7 @@ function vpa(inner: string, flags = "iu"): RegExp {
 const VERSION_PATTERNS: readonly VersionPattern[] = [
   // Remix variants
   { pattern: vpa("(?:re-?mix|rmx)"), type: "remix", hasArtist: true },
-  {
-    pattern: /\s+-\s+(.+?)\s+(?:re-?mix|rmx)\s*$/iu,
-    type: "remix",
-    hasArtist: true,
-  },
+  { pattern: /\s+-\s+(.+?)\s+(?:re-?mix|rmx)\s*$/iu, type: "remix", hasArtist: true },
   // Radio edit must come before generic edit — "Radio Edit" is not an artist
   { pattern: vp("radio\\s+edit"), type: "radio", hasArtist: false },
   // Edit variants
@@ -99,11 +95,7 @@ const VERSION_PATTERNS: readonly VersionPattern[] = [
   { pattern: vp("club\\s+mix"), type: "extended", hasArtist: false },
   // Performance/production variants — no version artist
   { pattern: vp("acoustic"), type: "acoustic", hasArtist: false },
-  {
-    pattern: new RegExp(`${OB}\\s*live\\b[^)\\]]*${CB}`, "iu"),
-    type: "live",
-    hasArtist: false,
-  },
+  { pattern: new RegExp(`${OB}\\s*live\\b[^)\\]]*${CB}`, "iu"), type: "live", hasArtist: false },
   { pattern: vp("instrumental"), type: "instrumental", hasArtist: false },
   { pattern: vp("acapella"), type: "acapella", hasArtist: false },
   { pattern: vp("a\\s*cappella"), type: "acapella", hasArtist: false },
@@ -126,10 +118,7 @@ function splitArtists(raw: string): string[] {
 function extractFeatured(
   title: string,
   artist: string,
-): {
-  cleanTitle: string;
-  featured: string[];
-} {
+): { cleanTitle: string; featured: string[] } {
   const featured: string[] = [];
 
   // From title
@@ -164,10 +153,7 @@ function normalizeTitle(raw: string): string {
  * brackets pick the most specific bracket. Artist field containing the
  * remixer with title "(X Remix)" → X moves to versionArtists.
  */
-export function parseVersion(
-  title: string,
-  artistField: string,
-): VersionIdentity {
+export function parseVersion(title: string, artistField: string): VersionIdentity {
   const normTitle = normalizeTitle(title);
   const { cleanTitle, featured } = extractFeatured(normTitle, artistField);
 
@@ -181,9 +167,7 @@ export function parseVersion(
       .slice(0, m.index)
       .trim()
       .replace(/\s*[-–—]\s*$/u, "");
-    const originalArtists = splitArtists(
-      artistField.replace(FEAT_PATTERN, "").trim(),
-    ).filter(
+    const originalArtists = splitArtists(artistField.replace(FEAT_PATTERN, "").trim()).filter(
       (a) => !versionArtists.some((v) => v.toLowerCase() === a.toLowerCase()),
     );
 
@@ -201,9 +185,7 @@ export function parseVersion(
 
   // No version bracket found — it's an original
   const baseTitle = cleanTitle.replace(/\s*[-–—]\s*$/u, "").trim();
-  const originalArtists = splitArtists(
-    artistField.replace(FEAT_PATTERN, "").trim(),
-  );
+  const originalArtists = splitArtists(artistField.replace(FEAT_PATTERN, "").trim());
 
   return {
     baseTitle: baseTitle.toLowerCase(),
@@ -231,21 +213,15 @@ export type VersionMatch = "exact" | "sibling" | "reject";
  * - sibling: same baseTitle + originalArtists, different version
  * - reject: anything else
  */
-export function versionCompatible(
-  q: VersionIdentity,
-  c: VersionIdentity,
-): VersionMatch {
+export function versionCompatible(q: VersionIdentity, c: VersionIdentity): VersionMatch {
   if (q.baseTitle !== c.baseTitle) return "reject";
   // Same base title — check version compatibility
   const sameType = q.versionType === c.versionType;
-  const bothNoArtist =
-    q.versionArtists.length === 0 && c.versionArtists.length === 0;
+  const bothNoArtist = q.versionArtists.length === 0 && c.versionArtists.length === 0;
   const overlappingArtists =
     q.versionArtists.length > 0 &&
     c.versionArtists.length > 0 &&
-    q.versionArtists.some((a) =>
-      c.versionArtists.some((b) => a.toLowerCase() === b.toLowerCase()),
-    );
+    q.versionArtists.some((a) => c.versionArtists.some((b) => a.toLowerCase() === b.toLowerCase()));
   if (sameType && (bothNoArtist || overlappingArtists)) return "exact";
   return "sibling";
 }

@@ -18,17 +18,14 @@ import type { TagPatch } from "../write/schema";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 
 const home = nonEmptyEnv("HOME");
-if (home === undefined)
-  throw new Error("HOME is unset or empty — cannot resolve archive paths");
+if (home === undefined) throw new Error("HOME is unset or empty — cannot resolve archive paths");
 
-export const ARCH =
-  nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${home}/Music/DJ-Imports`;
+export const ARCH = nonEmptyEnv("MEGADJ_MUSIC_DIR") ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
 /** cli-env.ts is the SSOT for the DB path (MEGADJ_DB) — these tools used to
  * hardcode the default, so a `MEGADJ_DB`-scoped run (tests, a second
  * library) silently enriched the REAL archive. Same resolution, one rule. */
-export const DB_PATH =
-  nonEmptyEnv("MEGADJ_DB") ?? `${home}/.local/state/megadj/archive.db`;
+export const DB_PATH = nonEmptyEnv("MEGADJ_DB") ?? `${home}/.local/state/megadj/archive.db`;
 export const db = new Database(DB_PATH);
 
 /** Audio files under the archive, recursively (batch subfolders included —
@@ -64,10 +61,7 @@ export function cleanArtist(raw: string | null | undefined): string | null {
   let a = raw.trim();
   if (!a) return null;
   // strip composed junk prefixes wherever they appear in the string
-  a = a.replace(
-    /(?:^|\s*·\s*)UnknownArtist(?:\s*·\s*UnknownAlbum)?(?:\s*·\s*|$)/giu,
-    " ",
-  );
+  a = a.replace(/(?:^|\s*·\s*)UnknownArtist(?:\s*·\s*UnknownAlbum)?(?:\s*·\s*|$)/giu, " ");
   a = a.replace(/^\s*Unknown\s+Artist\s*[-–—]\s*/iu, "");
   a = a.replace(/\s+/gu, " ").trim();
   if (!a) return null;
@@ -154,13 +148,7 @@ export { scSearch } from "../sources/sc-search";
 export { canonicalizeClaim as canonGenre } from "../genre/genre-vocab";
 
 // ---------- Beatport (second source, behind SC — beatport.ts) ----------
-export {
-  beatportArt,
-  beatportLookup,
-  bpGenre,
-  bpStamp,
-  type BpTrack,
-} from "../sources/beatport";
+export { beatportArt, beatportLookup, bpGenre, bpStamp, type BpTrack } from "../sources/beatport";
 
 // ---------- Bandcamp (third source, behind SC + BP — bandcamp.ts) ----------
 export {

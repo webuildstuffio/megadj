@@ -21,25 +21,14 @@ export interface RoutedArtist {
 }
 
 /** Version types where the remixer IS the genre-defining artist. */
-const REMIX_TYPES = new Set([
-  "remix",
-  "edit",
-  "bootleg",
-  "flip",
-  "vip",
-  "rework",
-  "dub",
-]);
+const REMIX_TYPES = new Set(["remix", "edit", "bootleg", "flip", "vip", "rework", "dub"]);
 
 /**
  * Determine the correct artist for genre lookups. If the track is a
  * remix/edit/etc., returns the remixer (when available and confident).
  * Falls back to the original artist otherwise.
  */
-export function routeArtistForGenre(
-  artist: string,
-  title: string,
-): RoutedArtist {
+export function routeArtistForGenre(artist: string, title: string): RoutedArtist {
   const version = parseVersion(title, artist);
 
   if (
@@ -47,16 +36,8 @@ export function routeArtistForGenre(
     version.versionArtists.length > 0 &&
     version.confidence >= 0.7
   ) {
-    return {
-      artist: version.versionArtists[0]!,
-      isRemix: true,
-      version,
-    };
+    return { artist: version.versionArtists[0]!, isRemix: true, version };
   }
 
-  return {
-    artist,
-    isRemix: false,
-    version,
-  };
+  return { artist, isRemix: false, version };
 }

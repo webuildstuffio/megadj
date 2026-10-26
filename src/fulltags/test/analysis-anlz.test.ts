@@ -6,12 +6,7 @@
  * exercise real container walking, not hand-mocked parse results.
  */
 import { describe, expect, test } from "bun:test";
-import {
-  buildAnlz,
-  parseAnlzGrid,
-  parseAnlzInventory,
-  type AnlzBeat,
-} from "../analysis/anlz";
+import { buildAnlz, parseAnlzGrid, parseAnlzInventory, type AnlzBeat } from "../analysis/anlz";
 import { gridAuditFull } from "../analysis/grid-audit";
 
 /** A clean 128 BPM grid: beats every 468.75 ms, downbeat first. */
@@ -30,10 +25,7 @@ const ledgerGrid = (n: number, bpm = 128, startS = 0): number[] =>
 
 describe("parseAnlzGrid", () => {
   test("round-trips a built container", () => {
-    const bytes = buildAnlz({
-      path: "/Contents/Artist/track.aiff",
-      beats: grid(8),
-    });
+    const bytes = buildAnlz({ path: "/Contents/Artist/track.aiff", beats: grid(8) });
     const g = parseAnlzGrid(bytes);
     expect(g).not.toBeNull();
     expect(g!.path).toBe("/Contents/Artist/track.aiff");
@@ -78,14 +70,9 @@ describe("parseAnlzGrid", () => {
   });
 
   test("no PQTZ → null grid (waveform-only sidecar), but inventory works", () => {
-    const bytes = buildAnlz({
-      path: "/x",
-      extraSections: [{ tag: "PWAV", bytes: 420 }],
-    });
+    const bytes = buildAnlz({ path: "/x", extraSections: [{ tag: "PWAV", bytes: 420 }] });
     expect(parseAnlzGrid(bytes)).toBeNull();
-    expect(parseAnlzInventory(bytes)!.sections.map((s) => s.tag)).toEqual([
-      "PWAV",
-    ]);
+    expect(parseAnlzInventory(bytes)!.sections.map((s) => s.tag)).toEqual(["PWAV"]);
   });
 });
 

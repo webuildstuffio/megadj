@@ -116,33 +116,16 @@ export const FAMILY_SUBGENRES: Readonly<Record<string, readonly string[]>> = {
   ],
   dubstep: ["dubstep", "riddim", "melodic dubstep", "deep dubstep", "brostep"],
   garage: ["uk garage", "2-step", "speed garage", "bassline"],
-  breakbeat: [
-    "breaks",
-    "nu-breaks",
-    "big beat",
-    "broken beat",
-    "electro breaks",
-  ],
+  breakbeat: ["breaks", "nu-breaks", "big beat", "broken beat", "electro breaks"],
   electro: ["electro", "electroclash", "synth-pop"],
   ambient: ["ambient", "dark ambient", "drone", "new age", "space music"],
   downtempo: ["downtempo", "chillout", "trip hop", "lo-fi", "balearic"],
-  "hip hop": [
-    "hip hop",
-    "trap",
-    "boom bap",
-    "lo-fi hip hop",
-    "conscious",
-    "grime",
-  ],
+  "hip hop": ["hip hop", "trap", "boom bap", "lo-fi hip hop", "conscious", "grime"],
   disco: ["nu-disco", "italo disco", "space disco", "boogie", "cosmic disco"],
   hardstyle: ["hardstyle", "rawstyle", "euphoric hardstyle"],
   hardcore: ["gabber", "happy hardcore", "frenchcore", "speedcore"],
   minimal: ["minimal", "microhouse", "glitch"],
-  progressive: [
-    "progressive house",
-    "progressive techno",
-    "progressive breaks",
-  ],
+  progressive: ["progressive house", "progressive techno", "progressive breaks"],
 };
 
 /**

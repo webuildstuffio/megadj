@@ -56,11 +56,7 @@ export interface PipelineOptions {
   /** CLI-provided hints (fulltags single <file> --title/--artist/--album):
    * fill in what the filename can't say. Only consulted when the file
    * itself lacks the field. */
-  hints?: {
-    title?: string | undefined;
-    artist?: string | undefined;
-    album?: string | undefined;
-  };
+  hints?: { title?: string | undefined; artist?: string | undefined; album?: string | undefined };
   onProgress?: (msg: string) => void;
 }
 

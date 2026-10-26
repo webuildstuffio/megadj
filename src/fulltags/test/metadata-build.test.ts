@@ -21,9 +21,7 @@ describe("cleanYouTubeTitle", () => {
   });
 
   test("keeps feat. formatting normalized", () => {
-    expect(cleanYouTubeTitle("Go Dumb (feat. blackbear)")).toBe(
-      "Go Dumb (ft. blackbear)",
-    );
+    expect(cleanYouTubeTitle("Go Dumb (feat. blackbear)")).toBe("Go Dumb (ft. blackbear)");
   });
 
   test("handles null", () => {
@@ -41,9 +39,7 @@ describe("guessFromFreeText (the free-text regex guess)", () => {
   });
   test("word-boundary match ignores substrings", () => {
     // "Soulji" must NOT match the soul pattern.
-    expect(
-      guessFromFreeText(["Karma Fields - You and Me (Soulji Remix) [House]"]),
-    ).toBe("House");
+    expect(guessFromFreeText(["Karma Fields - You and Me (Soulji Remix) [House]"])).toBe("House");
     // "Sunset" must not match "set"-based mix heuristics — no Mix genre now.
     expect(guessFromFreeText(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
   });
@@ -58,13 +54,10 @@ describe("extractComposer", () => {
     expect(extractComposer(desc)).toBe("Heavy Keyzz, SEVEN");
   });
   test("handles 'Produced by' variant", () => {
-    expect(extractComposer("Produced by John Cunningham")).toBe(
-      "John Cunningham",
-    );
+    expect(extractComposer("Produced by John Cunningham")).toBe("John Cunningham");
   });
   test("dedupes and caps at 3", () => {
-    const desc =
-      "Producer: A\nProducer: A\nProducer: B\nProducer: C\nProducer: D";
+    const desc = "Producer: A\nProducer: A\nProducer: B\nProducer: C\nProducer: D";
     expect(extractComposer(desc)).toBe("A, B, C");
   });
   test("null when no credits", () => {
@@ -147,9 +140,7 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
   test("missing/bad timestamp leaves upload_date undefined", () => {
     const mapped = scInfoToYtdlpInfo({ title: "X" });
     expect(mapped.upload_date).toBeUndefined();
-    expect(
-      scInfoToYtdlpInfo({ title: "X", timestamp: 0 }).upload_date,
-    ).toBeUndefined();
+    expect(scInfoToYtdlpInfo({ title: "X", timestamp: 0 }).upload_date).toBeUndefined();
   });
 
   test("the mapped info builds real tags (artist + date land)", () => {
@@ -171,10 +162,7 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
     // The paro incident live shape: Big Joy Records (label channel)
     // uploaded Surf Curse's track; the rip previously tagged
     // "Big Joy Records" as artist and every BP identity gate refused.
-    const mapped = scInfoToYtdlpInfo({
-      title: 'Surf Curse "Freaks"',
-      uploader: "Big Joy Records",
-    });
+    const mapped = scInfoToYtdlpInfo({ title: 'Surf Curse "Freaks"', uploader: "Big Joy Records" });
     // No " - " split in this title: uploader→artist is the only option
     // (honest, and fetch's BP self-heal corrects it later).
     expect(mapped.artist).toBe("Big Joy Records");
@@ -187,38 +175,25 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
   });
 
   test("#275: self-uploads keep uploader→artist (split artist == uploader)", () => {
-    const mapped = scInfoToYtdlpInfo({
-      title: "Mau P - TESLA",
-      uploader: "Mau P",
-    });
+    const mapped = scInfoToYtdlpInfo({ title: "Mau P - TESLA", uploader: "Mau P" });
     expect(mapped.artist).toBe("Mau P");
   });
 
   test("#275: description album mention is recovered (Surf Curse live shape)", () => {
     const meta = buildMetadata({
       title: "Surf Curse - Freaks",
-      description:
-        '"Freaks" from the upcoming album "Buds" by Reno, Nevada\'s Surf Curse.',
+      description: '"Freaks" from the upcoming album "Buds" by Reno, Nevada\'s Surf Curse.',
     });
     expect(meta.album).toBe("Buds");
   });
 
   test("#275: 'X - Unknown Album' placeholders dissolve to honest null", () => {
-    expect(
-      buildMetadata({ title: "T", album: "Experts Only - Unknown Album" })
-        .album,
-    ).toBeNull();
-    expect(buildMetadata({ title: "T", album: "Real Album" }).album).toBe(
-      "Real Album",
-    );
+    expect(buildMetadata({ title: "T", album: "Experts Only - Unknown Album" }).album).toBeNull();
+    expect(buildMetadata({ title: "T", album: "Real Album" }).album).toBe("Real Album");
   });
 
   test("idempotent — mapping twice changes nothing", () => {
-    const once = scInfoToYtdlpInfo({
-      title: "X",
-      uploader: "A",
-      timestamp: 1470950832,
-    });
+    const once = scInfoToYtdlpInfo({ title: "X", uploader: "A", timestamp: 1470950832 });
     const twice = scInfoToYtdlpInfo(once);
     expect(twice).toStrictEqual(once);
   });
@@ -227,15 +202,11 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
 describe("junk-genre guard (Sep 19 organize audit)", () => {
   test("URL-shaped 'genres' are honest nulls — they minted garbage folders", () => {
     expect(buildMetadata({ genre: "https://djsoundtop.com" }).genre).toBeNull();
-    expect(
-      buildMetadata({ genre: "http://electronicfresh.com" }).genre,
-    ).toBeNull();
+    expect(buildMetadata({ genre: "http://electronicfresh.com" }).genre).toBeNull();
   });
 
   test("JSON-blob genres (the thumbnails-array row) are nulls", () => {
-    expect(
-      buildMetadata({ genre: "[{'id': 'mini', 'url': 'https://…'}]" }).genre,
-    ).toBeNull();
+    expect(buildMetadata({ genre: "[{'id': 'mini', 'url': 'https://…'}]" }).genre).toBeNull();
     expect(buildMetadata({ genre: '{"a":1}' }).genre).toBeNull();
   });
 
@@ -254,35 +225,23 @@ describe("junk-genre guard (Sep 19 organize audit)", () => {
 
 describe("artist-prefix stripping (#321 title contamination)", () => {
   test("SC-style 'Artist - Track' title strips when artist matches", () => {
-    const meta = buildMetadata({
-      title: "Skrillex - Bangarang",
-      artist: "Skrillex",
-    });
+    const meta = buildMetadata({ title: "Skrillex - Bangarang", artist: "Skrillex" });
     expect(meta.title).toBe("Bangarang");
     expect(meta.artist).toBe("Skrillex");
   });
 
   test("case-insensitive artist match strips prefix", () => {
-    const meta = buildMetadata({
-      title: "DJ SNAKE - Corona Remix",
-      artist: "DJ Snake",
-    });
+    const meta = buildMetadata({ title: "DJ SNAKE - Corona Remix", artist: "DJ Snake" });
     expect(meta.title).toBe("Corona Remix");
   });
 
   test("does NOT strip when artist is a substring (not a prefix)", () => {
-    const meta = buildMetadata({
-      title: "Gabss - She Freaks (Original Mix)",
-      artist: "Gabss",
-    });
+    const meta = buildMetadata({ title: "Gabss - She Freaks (Original Mix)", artist: "Gabss" });
     expect(meta.title).toBe("She Freaks (Original Mix)");
   });
 
   test("does NOT strip when artist doesn't match", () => {
-    const meta = buildMetadata({
-      title: "Skrillex - Bangarang",
-      artist: "Diplo",
-    });
+    const meta = buildMetadata({ title: "Skrillex - Bangarang", artist: "Diplo" });
     expect(meta.title).toBe("Skrillex - Bangarang");
   });
 
@@ -300,18 +259,12 @@ describe("artist-prefix stripping (#321 title contamination)", () => {
   });
 
   test("plain title without dash stays unchanged", () => {
-    const meta = buildMetadata({
-      title: "Bangarang",
-      artist: "Skrillex",
-    });
+    const meta = buildMetadata({ title: "Bangarang", artist: "Skrillex" });
     expect(meta.title).toBe("Bangarang");
   });
 
   test("SC pipeline end-to-end: title + artist separate cleanly", () => {
-    const mapped = scInfoToYtdlpInfo({
-      title: "Mau P - TESLA",
-      uploader: "Mau P",
-    });
+    const mapped = scInfoToYtdlpInfo({ title: "Mau P - TESLA", uploader: "Mau P" });
     const meta = buildMetadata(mapped);
     expect(meta.artist).toBe("Mau P");
     expect(meta.title).toBe("TESLA");

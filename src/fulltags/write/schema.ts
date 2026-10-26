@@ -75,14 +75,10 @@ const COMPLETENESS_FIELDS = [
  * gate never blesses legacy junk. THE completeness gate: `fulltags audit`
  * and megadj's `auditArchive` both derive their dim lists from here, so
  * a dim added to COMPLETENESS_FIELDS lights up in both gates at once. */
-export function completeness(tag: Partial<FullTag>): {
-  complete: boolean;
-  missing: string[];
-} {
+export function completeness(tag: Partial<FullTag>): { complete: boolean; missing: string[] } {
   const missing = COMPLETENESS_FIELDS.filter((f) => {
     const v = tag[f];
-    if (f === "genre")
-      return v === undefined || v === null || v === false || v === "Music";
+    if (f === "genre") return v === undefined || v === null || v === false || v === "Music";
     return v === undefined || v === null || v === false;
   });
   return { complete: missing.length === 0, missing };
@@ -166,8 +162,7 @@ export function sanitizeGenreFolder(genre: string | null): string {
     .replace(/[\\/:*?"<>|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!cleaned || /^\d+$/.test(cleaned) || /^music$/i.test(cleaned))
-    return "Unknown Genre";
+  if (!cleaned || /^\d+$/.test(cleaned) || /^music$/i.test(cleaned)) return "Unknown Genre";
   // Case-fold canon lookup (Sep 19): "house"/"House"/"HOUSE" are ONE
   // folder — a raw lowercase tag must not mint a case-twin directory
   // beside the canonical one (the techhouse incident).
@@ -183,10 +178,7 @@ export function sanitizeGenreFolder(genre: string | null): string {
  *  below are a package-internal convenience for beatport.ts (whose #181
  *  refactor landed importing from here); the bridge exports the
  *  canonical names. No new external consumers. */
-export {
-  canonicalizeClaim as canonGenre,
-  SC_GENRE_CANON,
-} from "../genre/genre-vocab";
+export { canonicalizeClaim as canonGenre, SC_GENRE_CANON } from "../genre/genre-vocab";
 // Value import (same module as the re-exports): sanitizeGenreFolder's
 // case-fold canon lookup reads the map directly (Sep 19 techhouse
 // case-twin folder incident).

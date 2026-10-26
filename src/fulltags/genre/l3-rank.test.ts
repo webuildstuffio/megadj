@@ -19,9 +19,7 @@ describe("rankL3", () => {
   });
 
   test("probabilities scale with family posterior", () => {
-    const evidence: L3Evidence[] = [
-      { rawGenre: "deep house", family: "house", weight: 5 },
-    ];
+    const evidence: L3Evidence[] = [{ rawGenre: "deep house", family: "house", weight: 5 }];
     const ranked = rankL3("house", 0.9, evidence);
     expect(ranked[0]!.probability).toBe(0.9);
   });

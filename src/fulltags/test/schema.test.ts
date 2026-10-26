@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  completeness,
-  sanitizeGenreFolder,
-  SC_GENRE_CANON,
-  type FullTag,
-} from "../write/schema";
+import { completeness, sanitizeGenreFolder, SC_GENRE_CANON, type FullTag } from "../write/schema";
 import { guessFromFreeText } from "../genre/genre-vocab";
 import { validatePatch } from "../write/schema-guards";
 import { runCanonGenreCases, runValidatePatchCases } from "./patchCases";
@@ -19,9 +14,7 @@ describe("schema: genre canon", () => {
 
 describe("schema: guessFromFreeText + sanitize", () => {
   test("word-boundary match ignores substrings", () => {
-    expect(
-      guessFromFreeText(["Karma Fields - You and Me (Soulji Remix) [House]"]),
-    ).toBe("House");
+    expect(guessFromFreeText(["Karma Fields - You and Me (Soulji Remix) [House]"])).toBe("House");
     expect(guessFromFreeText(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
     expect(guessFromFreeText(["something random"])).toBeNull();
   });
@@ -43,18 +36,9 @@ describe("schema: completeness", () => {
     expect(r.missing).toContain("year");
   });
   test("mood + energy are required fields (rev 6.1: analysis stages feed the gate)", () => {
-    const full = {
-      art: true,
-      title: "T",
-      artist: "A",
-      album: "Al",
-      genre: "House",
-      year: "2024",
-    };
+    const full = { art: true, title: "T", artist: "A", album: "Al", genre: "House", year: "2024" };
     expect(completeness(full).missing).toEqual(["mood", "energy"]);
-    expect(
-      completeness({ ...full, mood: "dance=0.5", energy: 7 }).complete,
-    ).toBe(true);
+    expect(completeness({ ...full, mood: "dance=0.5", energy: 7 }).complete).toBe(true);
   });
   test("complete when all fields present", () => {
     const r = completeness({
@@ -132,12 +116,8 @@ describe("schema-guards: validatePatch", () => {
   test("AI provenance stamps must be value|confidence", () => {
     expect(() => validatePatch({ aiGenre: "Techno|0.92" })).not.toThrow();
     expect(() => validatePatch({ aiYear: "2019|0.7" })).not.toThrow();
-    expect(() => validatePatch({ aiGenre: "Techno" })).toThrow(
-      /value\|confidence/,
-    );
-    expect(() => validatePatch({ aiYear: "2019|" })).toThrow(
-      /value\|confidence/,
-    );
+    expect(() => validatePatch({ aiGenre: "Techno" })).toThrow(/value\|confidence/);
+    expect(() => validatePatch({ aiYear: "2019|" })).toThrow(/value\|confidence/);
     expect(() => validatePatch({ aiGenre: "" })).toThrow(/non-empty/);
   });
 

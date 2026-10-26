@@ -64,8 +64,7 @@ export function buildCommentV2(input: CommentV2Input): string {
     if (!fired) continue;
     const rate = input.headFireRates.get(head) ?? 1;
     if (rate > maxRate) continue;
-    const label =
-      MOOD_HEAD_LABELS.get(head) ?? head.replace("mood_", "").toUpperCase();
+    const label = MOOD_HEAD_LABELS.get(head) ?? head.replace("mood_", "").toUpperCase();
     parts.push(label);
     break; // at most one
   }
@@ -99,11 +98,7 @@ export function parseCommentV2(comment: string): {
       key = part;
     } else if (/^E\d{1,2}$/i.test(part)) {
       energy = Number(part.slice(1));
-    } else if (
-      [...MOOD_HEAD_LABELS.values()].some(
-        (l) => l.toUpperCase() === part.toUpperCase(),
-      )
-    ) {
+    } else if ([...MOOD_HEAD_LABELS.values()].some((l) => l.toUpperCase() === part.toUpperCase())) {
       mood = part;
     } else if (part.length > 0) {
       genre = part;
