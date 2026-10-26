@@ -111,6 +111,7 @@ jobs:
         env:
           OPENROUTER__KEY: ${{ secrets.QODO_OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          config.global_settings_repo: "pr-agent-settings"
           config.model: "openrouter/google/gemma-4-31b-it:free"
           config.fallback_models: >-
             ["openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
