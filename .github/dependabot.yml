@@ -49,11 +49,13 @@ updates:
       default-days: 5
     rebase-strategy: "auto"
     open-pull-requests-limit: 10
-    # Ignore the metrics-reusable pin: it points at PRIVATE repo-review, which
-    # Dependabot cannot read (403 -> git_dependencies_not_reachable, failing the
-    # whole github-actions update job). The pin is bumped manually via chore commits.
+    # Ignore the repo-review reusable pins: they point at PRIVATE repo-review,
+    # which Dependabot cannot read (403 -> git_dependencies_not_reachable,
+    # failing the whole github-actions update job). The pins are bumped
+    # manually via chore commits.
     ignore:
       - dependency-name: "webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml"
+      - dependency-name: "webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml"
     groups:
       all-actions:
         patterns:
