@@ -6,13 +6,7 @@
 // This is the tripwire for both regression directions: a marker the
 // renderer doesn't know, and a hand-rolled spawn reverting to `-c`.
 import { describe, expect, test } from "bun:test";
-import {
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-  mkdirSync,
-  rmSync,
-} from "node:fs";
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -22,9 +16,7 @@ const SCRIPTS_DIR = join(import.meta.dir, "rb-scripts");
 
 describe("rb-scripts corpus (#194)", () => {
   test("corpus exists and every file renders through the kit seam", () => {
-    const files: string[] = readdirSync(SCRIPTS_DIR).filter((f) =>
-      f.endsWith(".py"),
-    );
+    const files: string[] = readdirSync(SCRIPTS_DIR).filter((f) => f.endsWith(".py"));
     expect(files.length).toBeGreaterThan(10);
     const tmpDir = join(tmpdir(), `rbscripts-census-${process.pid}`);
     mkdirSync(tmpDir, { recursive: true });

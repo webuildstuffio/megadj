@@ -38,11 +38,7 @@ export const RB_CLOSED_PY_GUARD =
  *  `--with` package defaults to plain "pyrekordbox"; the pinned PYRK_TAG
  *  fork spec rides as an explicit `withPkg`. A pyrekordbox API change is
  *  a one-line edit, not a seven-site hunt. */
-export function pyUvArgv(opts: {
-  script: string;
-  args?: string[];
-  withPkg?: string;
-}): string[] {
+export function pyUvArgv(opts: { script: string; args?: string[]; withPkg?: string }): string[] {
   return [
     "run",
     "--with",
@@ -57,11 +53,7 @@ export function pyUvArgv(opts: {
 /** DI-runtime variant of rbPythonFile (#194): renders a corpus file's
  *  kit markers and returns the same argv shape pyUvArgv produces, so
  *  deps.spawn sites run the corpus without a second spawn contract. */
-export function pyUvFileArgv(opts: {
-  file: string;
-  args?: string[];
-  withPkg?: string;
-}): string[] {
+export function pyUvFileArgv(opts: { file: string; args?: string[]; withPkg?: string }): string[] {
   const script = renderKitMarkers(
     readFileSync(join(import.meta.dir, "rb-scripts", opts.file), "utf8"),
   );
@@ -88,35 +80,24 @@ export function renderKitMarkers(source: string): string {
   const out: string[] = [];
   for (const line of source.split("\n")) {
     const match =
-      /^[ \t]*#[ \t]*[@]kit[(](\w+)(?:[ \t]+([^)]*))?(?:;([ \t]*\d+[ \t]*))?[)][ \t]*$/u.exec(
-        line,
-      );
+      /^[ \t]*#[ \t]*[@]kit[(](\w+)(?:[ \t]+([^)]*))?(?:;([ \t]*\d+[ \t]*))?[)][ \t]*$/u.exec(line);
     if (!match) {
       out.push(line);
       continue;
     }
     const name: string = match[1] ?? "";
     const arg = match[2]?.trim() ?? "";
-    const indent = match[3]
-      ? " ".repeat(Math.max(0, parseInt(match[3], 10) || 0))
-      : "";
+    const indent = match[3] ? " ".repeat(Math.max(0, parseInt(match[3], 10) || 0)) : "";
     const rendered = renderKitFragment(name, arg);
-    if (rendered === null)
-      throw new Error(`rb-scripts: unknown #@kit(${name}) marker`);
+    if (rendered === null) throw new Error(`rb-scripts: unknown #@kit(${name}) marker`);
     const body = rendered.replace(/^\n+|\n+$/g, "");
     // Preserve the fragment's INTERNAL relative indentation: every line
     // shifts by the marker's indent, keeping intra-fragment offsets.
     const bodyLines = body.split("\n");
     const base = Math.min(
-      ...bodyLines
-        .filter((l) => l.trim() !== "")
-        .map((l) => l.length - l.trimStart().length),
+      ...bodyLines.filter((l) => l.trim() !== "").map((l) => l.length - l.trimStart().length),
     );
-    out.push(
-      bodyLines
-        .map((l) => (l.trim() === "" ? l : indent + l.slice(base)))
-        .join("\n"),
-    );
+    out.push(bodyLines.map((l) => (l.trim() === "" ? l : indent + l.slice(base))).join("\n"));
   }
   return out.join("\n");
 }
@@ -153,10 +134,7 @@ function renderKitFragment(name: string, arg: string): string | null {
       if (group === undefined || existing === undefined) return null;
       if (group !== "true" && group !== "false") return null;
       if (existing !== "refuse" && existing !== "reuse") return null;
-      return pyEnsurePlaylistLadder({
-        createMissingGroup: group === "true",
-        onExisting: existing,
-      });
+      return pyEnsurePlaylistLadder({ createMissingGroup: group === "true", onExisting: existing });
     }
     case "pyAddSongPlaylist":
       return pyAddSongPlaylist("sp", "pl.ID", "cid", "track_no + 1");
@@ -182,15 +160,7 @@ export function rbPythonFile(opts: {
   const script = renderKitMarkers(readFileSync(file, "utf8"));
   const result = spawnSync(
     "uv",
-    [
-      "run",
-      "--with",
-      opts.withPkg ?? "pyrekordbox",
-      "python",
-      "-c",
-      script,
-      ...(opts.args ?? []),
-    ],
+    ["run", "--with", opts.withPkg ?? "pyrekordbox", "python", "-c", script, ...(opts.args ?? [])],
     {
       encoding: "utf8",
       timeout: opts.timeoutMs,
@@ -198,9 +168,5 @@ export function rbPythonFile(opts: {
       ...(opts.input === undefined ? {} : { input: opts.input }),
     },
   );
-  return {
-    status: result.status,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
-  };
+  return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }

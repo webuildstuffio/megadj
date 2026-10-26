@@ -41,11 +41,7 @@ import {
 import { clampMegasetPool } from "../deck/shared/types";
 import { DB_PATH } from "../cli-env";
 import { rbPythonFile } from "./rb-python-file.js";
-import {
-  applyConfirmationRefusal,
-  lastJsonLine,
-  printResult,
-} from "./rb-command-kit.js";
+import { applyConfirmationRefusal, lastJsonLine, printResult } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 import { commandLog } from "../shared/progress";
@@ -57,16 +53,8 @@ import {
   PYRK_TAG,
   type MatchPrediction,
 } from "./rb-playlist-scripts.js";
-import {
-  rbPlaylistApplyLeg,
-  unmatchedRows,
-  type ChainTrack,
-} from "./rb-playlist-apply";
-import {
-  gateFail,
-  type RbPlaylistOptions,
-  type RbPlaylistResult,
-} from "./rb-playlist-types";
+import { rbPlaylistApplyLeg, unmatchedRows, type ChainTrack } from "./rb-playlist-apply";
+import { gateFail, type RbPlaylistOptions, type RbPlaylistResult } from "./rb-playlist-types";
 
 export type { RbPlaylistOptions, RbPlaylistResult } from "./rb-playlist-types";
 
@@ -81,8 +69,7 @@ function todayStamp(): string {
 function buildChain(
   opts: RbPlaylistOptions,
   parsed: { preset: MegasetPresetId; minutes: number },
-):
-  { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
+): { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
   const cfg = loadConfig(crateDeckRoot());
   const archive = new ArchiveReader(
     DB_PATH,
@@ -108,9 +95,7 @@ function buildChain(
       openerId: opts.opener,
       searchOverride: opts.search,
     });
-    const byId = new Map(
-      candidates.map((c) => [c.videoId, c.filePath] as const),
-    );
+    const byId = new Map(candidates.map((c) => [c.videoId, c.filePath] as const));
     return {
       chain: built.steps.map((s) => {
         const fp = byId.get(s.videoId);
@@ -182,9 +167,7 @@ function rbPlaylistDryRunLeg(
 }
 
 /** The handoff evidence string for one window ("45s @ bar 25"), or null. */
-const cueWindowLabel = (
-  cue: { bar: number; position: number } | null,
-): string | null =>
+const cueWindowLabel = (cue: { bar: number; position: number } | null): string | null =>
   cue === null ? null : `${Math.round(cue.position)}s @ bar ${cue.bar}`;
 
 /** Dry-run honesty: predict the matches READ-ONLY so the report shows
@@ -208,9 +191,7 @@ function predictUnmatched(
   }
 }
 
-export async function rbPlaylist(
-  opts: RbPlaylistOptions,
-): Promise<RbPlaylistResult> {
+export async function rbPlaylist(opts: RbPlaylistOptions): Promise<RbPlaylistResult> {
   const log = opts.log ?? commandLog({});
   const dbPath = masterDbPath(opts.mount);
   const group = opts.group ?? "DJ-Imports";
@@ -221,16 +202,12 @@ export async function rbPlaylist(
 
   // gate 2 — validate the shared set-builder inputs without touching either
   // database. Invalid presets must still beat a missing-drive error.
-  const parsed = parseMegasetQuery({
-    preset: opts.preset ?? null,
-    minutes: opts.minutes ?? null,
-  });
+  const parsed = parseMegasetQuery({ preset: opts.preset ?? null, minutes: opts.minutes ?? null });
   if ("error" in parsed) return gateFail(opts, dbPath, group, parsed.error);
 
   // gate 3 — reject an absent master before scanning/probing every archive
   // file. This is both the cheap failure path and a hardware safety boundary.
-  if (!existsSync(dbPath))
-    return gateFail(opts, dbPath, group, `no master DB at ${dbPath}`);
+  if (!existsSync(dbPath)) return gateFail(opts, dbPath, group, `no master DB at ${dbPath}`);
 
   // gate 4 — the chain (same engine as megaset CLI/web)
   const built = buildChain(opts, parsed);
@@ -238,11 +215,8 @@ export async function rbPlaylist(
   const { chain, preset, minutes } = built;
   const noFile = chain.filter((c) => c.base === null).length;
   if (noFile > 0)
-    log(
-      `rb-playlist: ${noFile} chain tracks have no local file path — reported as unmatched`,
-    );
-  const playlistName =
-    opts.playlist ?? `megaset ${preset} ${minutes}min ${todayStamp()}`;
+    log(`rb-playlist: ${noFile} chain tracks have no local file path — reported as unmatched`);
+  const playlistName = opts.playlist ?? `megaset ${preset} ${minutes}min ${todayStamp()}`;
   log(
     `rb-playlist: chain of ${chain.length} (${preset}, ${minutes} min) → "${playlistName}" in "${group}" on ${dbPath}`,
   );
@@ -257,30 +231,12 @@ export async function rbPlaylist(
     );
 
   if (opts.apply && opts.yes) {
-    return rbPlaylistApplyLeg(
-      opts,
-      dbPath,
-      group,
-      playlistName,
-      chain,
-      preset,
-      minutes,
-      log,
-    );
+    return rbPlaylistApplyLeg(opts, dbPath, group, playlistName, chain, preset, minutes, log);
   }
 
   // dry-run honesty: predict the matches READ-ONLY so the report shows
   // real numbers, never a fake "0 linked"
-  return rbPlaylistDryRunLeg(
-    opts,
-    dbPath,
-    group,
-    playlistName,
-    chain,
-    preset,
-    minutes,
-    log,
-  );
+  return rbPlaylistDryRunLeg(opts, dbPath, group, playlistName, chain, preset, minutes, log);
 }
 
 /** Dry-run prediction: read-only probe of the master (no writes). */
@@ -293,11 +249,7 @@ function predictMatches(
     args: [
       dbPath,
       JSON.stringify({
-        chain: chain.map((c) => ({
-          path: c.path ?? "",
-          base: c.base ?? "",
-          title: c.title,
-        })),
+        chain: chain.map((c) => ({ path: c.path ?? "", base: c.base ?? "", title: c.title })),
       }),
     ],
     timeoutMs: 120_000,
@@ -319,10 +271,9 @@ function parsePredictionProcess(result: {
   try {
     return parseMatchPrediction(lastJsonLine(result.stdout));
   } catch (error) {
-    throw new Error(
-      `rb-playlist match probe returned an invalid result: ${errorText(error)}`,
-      { cause: error },
-    );
+    throw new Error(`rb-playlist match probe returned an invalid result: ${errorText(error)}`, {
+      cause: error,
+    });
   }
 }
 
@@ -333,18 +284,13 @@ export const __test = {
   parseMatchPrediction,
 };
 
-export function printRbPlaylistReport(
-  r: RbPlaylistResult,
-  log: (s: string) => void,
-): void {
+export function printRbPlaylistReport(r: RbPlaylistResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     log(
       `chain ${body.chain} → linked ${body.linked} · playlist "${body.playlist}" (in "${body.group}") on ${body.db}`,
     );
-    for (const u of body.unmatched.slice(0, 10))
-      log(`  ? ${u.title} — ${u.reason}`);
-    if (body.unmatched.length > 10)
-      log(`  … and ${body.unmatched.length - 10} more unmatched`);
+    for (const u of body.unmatched.slice(0, 10)) log(`  ? ${u.title} — ${u.reason}`);
+    if (body.unmatched.length > 10) log(`  … and ${body.unmatched.length - 10} more unmatched`);
     for (const e of body.errors.slice(0, 10)) log(`  ✗ ${e}`);
     if (body.appliedMode) {
       log(

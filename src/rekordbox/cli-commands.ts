@@ -4,20 +4,8 @@
 // finally have a home file; flag parsing stays on the sanctioned
 // cli-flags seam, all logic in the ../rekordbox/* modules).
 import type { CliCommandHandler } from "../cli-dispatch";
-import {
-  manyOf,
-  nonNegOpt,
-  nonNegOptInvalid,
-  parseFlags,
-  positionalArgs,
-} from "../cli-flags";
-import {
-  emitResult,
-  finishCommandError,
-  jsonFlag,
-  jsonOpts,
-  setExit,
-} from "../shared/cli-output";
+import { manyOf, nonNegOpt, nonNegOptInvalid, parseFlags, positionalArgs } from "../cli-flags";
+import { emitResult, finishCommandError, jsonFlag, jsonOpts, setExit } from "../shared/cli-output";
 import { configuredMasterDrive, mountFrom } from "../shared/volume";
 import { DB_PATH } from "../cli-env";
 import { ArchiveState } from "../core/state";
@@ -31,8 +19,7 @@ const parseMegasetSearchOverride = (
   raw: string | undefined,
 ): ReturnType<typeof isMegasetSearchOverride> extends true
   ? never
-  : "greedy" | "beam" | undefined =>
-  isMegasetSearchOverride(raw) ? raw : undefined;
+  : "greedy" | "beam" | undefined => (isMegasetSearchOverride(raw) ? raw : undefined);
 
 const rbFixPathsCmd: CliCommandHandler = async (rest) => {
   // rekordbox library repair: stale djmdContent.FolderPath rows after
@@ -59,8 +46,7 @@ const rbUnmatchedCmd: CliCommandHandler = async (rest) => {
   // while rekordbox runs — only row-less files move.
   const flags = parseFlags(rest, ["ext"], ["json", "quarantine", "yes"]);
   const mount = mountFrom(positionalArgs(rest, ["ext"])[0]);
-  const { rbUnmatched, printRbUnmatchedReport } =
-    await import("./rb-unmatched");
+  const { rbUnmatched, printRbUnmatchedReport } = await import("./rb-unmatched");
   const json = jsonFlag(flags);
   const r = await rbUnmatched({
     mount,
@@ -95,8 +81,7 @@ const rbAdoptCmd: CliCommandHandler = async (rest) => {
       ...jsonOpts(json),
     });
     await emitResult(json, result, printRbAdoptReport);
-    if (!result.ok || (!result.appliedMode && result.missingFiles > 0))
-      setExit(1);
+    if (!result.ok || (!result.appliedMode && result.missingFiles > 0)) setExit(1);
   } finally {
     state.close();
   }
@@ -129,11 +114,7 @@ const rbImportCmd: CliCommandHandler = async (rest) => {
   // parent group; dated backup + rekordbox-quit gate + whole-table
   // verify. F11 dupe gate on by default; --allow-dupe escapes it.
   // Dry-run by default; --apply --yes writes.
-  const flags = parseFlags(
-    rest,
-    ["playlist", "group"],
-    ["apply", "yes", "json", "allow-dupe"],
-  );
+  const flags = parseFlags(rest, ["playlist", "group"], ["apply", "yes", "json", "allow-dupe"]);
   const args = positionalArgs(rest, ["playlist", "group"]);
   const mount = mountFrom(args[0]);
   const folder = args[1];
@@ -166,11 +147,7 @@ const rbCuesCmd: CliCommandHandler = async (rest) => {
   // F1/F3 seam (docs/fulltags/intake-cue-postmortem.md): the ONLY writer of
   // djmdCue rows. Default: census of the provenance-pinned Sep 12
   // incident rows; legitimate Kind=0 memory cues are never restamped.
-  const flags = parseFlags(
-    rest,
-    [],
-    ["restamp", "ledger", "force", "apply", "yes", "json"],
-  );
+  const flags = parseFlags(rest, [], ["restamp", "ledger", "force", "apply", "yes", "json"]);
   const args = positionalArgs(rest, []);
   const mount = mountFrom(args[0]);
   const { rbCues, printRbCuesReport } = await import("./rb-cues");
@@ -214,8 +191,7 @@ const rbCommentSyncCmd: CliCommandHandler = async (rest) => {
   const flags = parseFlags(rest, ["batch"], ["apply", "yes", "json"]);
   const args = positionalArgs(rest, ["batch"]);
   const mount = mountFrom(args[0]);
-  const { rbCommentSync, printRbCommentSyncReport } =
-    await import("./rb-comment-sync");
+  const { rbCommentSync, printRbCommentSyncReport } = await import("./rb-comment-sync");
   const json = jsonFlag(flags);
   const r = await rbCommentSync({
     mount,
@@ -233,8 +209,7 @@ const rbTitleRepairCmd: CliCommandHandler = async (rest) => {
   const args = positionalArgs(rest, []);
   const mount = mountFrom(args[0]);
   const json = jsonFlag(flags);
-  const { rbTitleRepair, printRbTitleRepairReport } =
-    await import("./rb-title-repair");
+  const { rbTitleRepair, printRbTitleRepairReport } = await import("./rb-title-repair");
   const r = await rbTitleRepair({
     mount,
     apply: flags.bools.has("apply"),
@@ -254,15 +229,10 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
     // #282: default scope is the agent-managed subtrees (DJ-Imports,
     // MegaSets + --group extras); --all opts into the legacy whole-DB diff
     // (the mode that false-flagged ~180 RB-managed playlists).
-    const flags = parseFlags(
-      restArgs,
-      ["group"],
-      ["apply", "yes", "json", "all"],
-    );
+    const flags = parseFlags(restArgs, ["group"], ["apply", "yes", "json", "all"]);
     const args = positionalArgs(restArgs, ["group"]);
     const mount = mountFrom(args[0]);
-    const { rbPlaylistReconcile, printReconcileReport } =
-      await import("./rb-playlist-reconcile");
+    const { rbPlaylistReconcile, printReconcileReport } = await import("./rb-playlist-reconcile");
     const json = jsonFlag(flags);
     const r = await rbPlaylistReconcile({
       mount,
@@ -283,16 +253,7 @@ const rbPlaylistCmd: CliCommandHandler = async (rest) => {
   // dry-run default, post-verify.
   const flags = parseFlags(
     rest,
-    [
-      "playlist",
-      "group",
-      "preset",
-      "minutes",
-      "opener",
-      "limit",
-      "genre",
-      "search",
-    ],
+    ["playlist", "group", "preset", "minutes", "opener", "limit", "genre", "search"],
     ["apply", "yes", "json"],
   );
   const args = positionalArgs(rest, [
@@ -357,35 +318,15 @@ const rbAnlzSpikeCmd: CliCommandHandler = async (rest) => {
   // Q4's direct PQTZ rewrite (dry-run by default; --apply --yes writes
   // with an automatic pre-edit backup + whole-file re-verify). The
   // baseline lives in ~/.local/state/megadj/spike/.
-  const flags = parseFlags(
-    rest,
-    ["tag", "file", "beats"],
-    ["json", "apply", "yes"],
-  );
+  const flags = parseFlags(rest, ["tag", "file", "beats"], ["json", "apply", "yes"]);
   // Two positionals: mount (first) + mode word (snapshot|compare|set-grid).
   // Order-free per usage: `[drive] snapshot|compare|set-grid`.
   const args = positionalArgs(rest, ["tag", "file", "beats"]);
-  const modeWord = args.find(
-    (a) => a === "snapshot" || a === "compare" || a === "set-grid",
-  );
-  const mountPos = args.find(
-    (a) => a !== "snapshot" && a !== "compare" && a !== "set-grid",
-  );
+  const modeWord = args.find((a) => a === "snapshot" || a === "compare" || a === "set-grid");
+  const mountPos = args.find((a) => a !== "snapshot" && a !== "compare" && a !== "set-grid");
   const mode: AnlzSpikeMode =
-    modeWord === "compare"
-      ? "compare"
-      : modeWord === "set-grid"
-        ? "set-grid"
-        : "snapshot";
-  if (
-    args.some(
-      (a) =>
-        a !== "snapshot" &&
-        a !== "compare" &&
-        a !== "set-grid" &&
-        a !== mountPos,
-    )
-  ) {
+    modeWord === "compare" ? "compare" : modeWord === "set-grid" ? "set-grid" : "snapshot";
+  if (args.some((a) => a !== "snapshot" && a !== "compare" && a !== "set-grid" && a !== mountPos)) {
     await finishCommandError({
       command: "rb-anlz-spike",
       error: "too many arguments (usage: [drive] snapshot|compare|set-grid)",
@@ -431,16 +372,10 @@ const rbAnlzSpikeCmd: CliCommandHandler = async (rest) => {
       console.error(`rb-anlz-spike: malformed --beats JSON: ${errorText(e)}`);
       parseFailed = true;
     }
-    if (
-      parseFailed ||
-      !Array.isArray(parsed) ||
-      parsed.length === 0 ||
-      !parsed.every(isBeatRow)
-    ) {
+    if (parseFailed || !Array.isArray(parsed) || parsed.length === 0 || !parsed.every(isBeatRow)) {
       await finishCommandError({
         command: "rb-anlz-spike",
-        error:
-          "--beats must be a JSON array of {num:1..4, bpmx100:int, timeMs:int} rows",
+        error: "--beats must be a JSON array of {num:1..4, bpmx100:int, timeMs:int} rows",
         exitCode: 2,
       });
       return;
@@ -493,21 +428,13 @@ const rbGridTriageCmd: CliCommandHandler = async (rest) => {
         ? configuredMasterDrive()
         : undefined;
   const mount = mountFrom(
-    positionalArgs(rest, ["limit", "compare"]).find(
-      (a) => a !== "snapshot" && a !== "compare",
-    ),
+    positionalArgs(rest, ["limit", "compare"]).find((a) => a !== "snapshot" && a !== "compare"),
   );
   const json = jsonFlag(flags);
   const state = new ArchiveState(DB_PATH);
   try {
     const { gridTriage, printGridTriageReport } = await import("./grid-triage");
-    const r = await gridTriage({
-      mount,
-      state,
-      limit,
-      compareDrive,
-      ...jsonOpts(json),
-    });
+    const r = await gridTriage({ mount, state, limit, compareDrive, ...jsonOpts(json) });
     await emitResult(json, r, printGridTriageReport);
     if (!r.ok) setExit(1);
   } finally {
@@ -522,8 +449,7 @@ const rbPlayHistoryCmd: CliCommandHandler = async (rest) => {
   if (flags.strings.has("limit") && limit === undefined) return;
   const mount = mountFrom(positionalArgs(rest, ["limit"])[0]);
   const json = jsonFlag(flags);
-  const { minePlayHistory, printPlayHistoryReport } =
-    await import("./play-history");
+  const { minePlayHistory, printPlayHistoryReport } = await import("./play-history");
   const r = minePlayHistory(
     (await import("./master-path")).masterDbPath(mount),
     limit !== undefined ? { limit } : undefined,

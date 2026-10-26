@@ -83,12 +83,8 @@ const playHistoryFailure = (error: string): PlayHistoryResult => ({
   error,
 });
 
-export function minePlayHistory(
-  dbPath: string,
-  opts?: { limit?: number },
-): PlayHistoryResult {
-  if (!existsSync(dbPath))
-    return playHistoryFailure(`no master DB at ${dbPath}`);
+export function minePlayHistory(dbPath: string, opts?: { limit?: number }): PlayHistoryResult {
+  if (!existsSync(dbPath)) return playHistoryFailure(`no master DB at ${dbPath}`);
 
   const db = new Database(dbPath, { readonly: true });
   try {
@@ -112,8 +108,7 @@ export function minePlayHistory(
       .all() as HistoryRow[];
 
     const totalPlays = rows.length;
-    if (totalPlays === 0)
-      return playHistoryFailure("no play history in master.db");
+    if (totalPlays === 0) return playHistoryFailure("no play history in master.db");
 
     const pairs: TransitionPair[] = [];
     const trackIds = new Set<string>();
@@ -146,8 +141,7 @@ export function minePlayHistory(
         artistB: b.Artist,
         bpmA,
         bpmB,
-        bpmDelta:
-          bpmA !== null && bpmB !== null ? round1(Math.abs(bpmA - bpmB)) : null,
+        bpmDelta: bpmA !== null && bpmB !== null ? round1(Math.abs(bpmA - bpmB)) : null,
         keyA: a.ScaleName ?? null,
         keyB: b.ScaleName ?? null,
         genreA: a.GenreName ?? null,
@@ -160,13 +154,10 @@ export function minePlayHistory(
     }
 
     const limit = opts?.limit;
-    const limitedPairs =
-      limit !== undefined && limit > 0 ? pairs.slice(0, limit) : pairs;
+    const limitedPairs = limit !== undefined && limit > 0 ? pairs.slice(0, limit) : pairs;
 
     const genreMatches = pairs.filter((p) => p.genreMatch).length;
-    const bpmDeltas = pairs
-      .map((p) => p.bpmDelta)
-      .filter((d): d is number => d !== null);
+    const bpmDeltas = pairs.map((p) => p.bpmDelta).filter((d): d is number => d !== null);
 
     return {
       command: "rb-play-history",
@@ -174,8 +165,7 @@ export function minePlayHistory(
       totalPlays,
       transitions: pairs.length,
       uniqueTracks: trackIds.size,
-      genreMatchRate:
-        pairs.length > 0 ? round2(genreMatches / pairs.length) : null,
+      genreMatchRate: pairs.length > 0 ? round2(genreMatches / pairs.length) : null,
       avgBpmDelta:
         bpmDeltas.length > 0
           ? round1(bpmDeltas.reduce((a, b) => a + b, 0) / bpmDeltas.length)
@@ -206,12 +196,9 @@ export function printPlayHistoryReport(r: PlayHistoryResult): string {
         : p.genreA !== null && p.genreB !== null
           ? ` [${p.genreA}→${p.genreB}]`
           : "";
-      lines.push(
-        `  ${p.artistA} - ${p.titleA}  →  ${p.artistB} - ${p.titleB}${bpm}${genre}`,
-      );
+      lines.push(`  ${p.artistA} - ${p.titleA}  →  ${p.artistB} - ${p.titleB}${bpm}${genre}`);
     }
-    if (r.pairs.length > 20)
-      lines.push(`  ... and ${r.pairs.length - 20} more`);
+    if (r.pairs.length > 20) lines.push(`  ... and ${r.pairs.length - 20} more`);
   }
   return lines.join("\n");
 }

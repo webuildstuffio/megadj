@@ -42,11 +42,7 @@ export interface RekordboxContentRowRef {
  *  a missing depth stays null (honest gap), never a guess. Filled the
  *  Codecs card's 3,133 "unknown" (the whole rb-adopt mirror cohort never
  *  wrote codec — Sep 19). */
-const RB_FILETYPE_CODEC: Record<number, string> = {
-  1: "mp3",
-  4: "aac",
-  5: "flac",
-};
+const RB_FILETYPE_CODEC: Record<number, string> = { 1: "mp3", 4: "aac", 5: "flac" };
 
 const RB_PCM_CODEC: Record<string, string> = {
   "11/16": "pcm_s16le",
@@ -57,9 +53,7 @@ const RB_PCM_CODEC: Record<string, string> = {
 };
 
 /** Derive the archive `codec` column from a Content row's own metadata. */
-export function rekordboxCodec(
-  metadata: Record<string, unknown>,
-): string | null {
+export function rekordboxCodec(metadata: Record<string, unknown>): string | null {
   const fileType = metadata["FileType"];
   const depth = metadata["BitDepth"];
   const ft = typeof fileType === "number" ? fileType : NaN;
@@ -99,9 +93,7 @@ function finiteOrNull(value: number | null): number | null {
 function tableExists(state: ArchiveState, name: string): boolean {
   return (
     state.db
-      .query(
-        "SELECT 1 AS yes FROM sqlite_master WHERE type = 'table' AND name = ?",
-      )
+      .query("SELECT 1 AS yes FROM sqlite_master WHERE type = 'table' AND name = ?")
       .get(name) !== null
   );
 }
@@ -113,10 +105,7 @@ function identityRank(row: TrackIdentityRow): string {
 }
 
 function generatedId(contentId: string, folderPath: string): string {
-  const suffix = createHash("sha256")
-    .update(folderPath.normalize("NFC"))
-    .digest("hex")
-    .slice(0, 8);
+  const suffix = createHash("sha256").update(folderPath.normalize("NFC")).digest("hex").slice(0, 8);
   return `rb-${contentId}-${suffix}`;
 }
 
@@ -173,9 +162,7 @@ function loadIdentityIndexes(
         )
         .all(sourceDb) as ExistingLinkRow[])
     : [];
-  const linkByContent = new Map(
-    existingLinks.map((row) => [row.content_id, row.video_id]),
-  );
+  const linkByContent = new Map(existingLinks.map((row) => [row.content_id, row.video_id]));
   return { byId, byPath, linkByContent };
 }
 
@@ -205,9 +192,7 @@ function resolveVideoId(
   let matchedExisting = false;
   if (videoId === undefined) {
     const direct = `rb-${row.contentId}`;
-    videoId = reservedIds.has(direct)
-      ? generatedId(row.contentId, row.folderPath)
-      : direct;
+    videoId = reservedIds.has(direct) ? generatedId(row.contentId, row.folderPath) : direct;
     while (reservedIds.has(videoId)) videoId = `${videoId}-x`;
     reservedIds.add(videoId);
     createsTrack = true;
@@ -267,18 +252,13 @@ export interface ReconcileRekordboxResultShape {
 }
 
 export function insertedCount(plan: PlanRow[]): number {
-  return new Set(
-    plan.filter((item) => item.createsTrack).map((item) => item.videoId),
-  ).size;
+  return new Set(plan.filter((item) => item.createsTrack).map((item) => item.videoId)).size;
 }
 
 /** The zeroed rb-adopt envelope for an early gate refusal (#316: the
  *  three gate returns in `reconcileRekordboxRows` each rebuilt these 16
  *  lines inline). `error` is required — a gate return always has one. */
-function gateResult(
-  opts: ReconcileOptionsShape,
-  error: string,
-): ReconcileRekordboxResultShape {
+function gateResult(opts: ReconcileOptionsShape, error: string): ReconcileRekordboxResultShape {
   return {
     command: "rb-adopt",
     sourceDb: opts.sourceDb,
@@ -309,14 +289,9 @@ export interface ReconcileOptionsShape {
 /** Reconcile the read content rows INTO archive.db (transactional): the
  *  one archive-ledger mutation rb-adopt owns. Dry-run returns the base
  *  shape without touching the ledger. */
-export function reconcileRekordboxRows(
-  opts: ReconcileOptionsShape,
-): ReconcileRekordboxResultShape {
+export function reconcileRekordboxRows(opts: ReconcileOptionsShape): ReconcileRekordboxResultShape {
   if (opts.rows.length === 0)
-    return gateResult(
-      opts,
-      "master Content census is empty; refusing to prune",
-    );
+    return gateResult(opts, "master Content census is empty; refusing to prune");
   const duplicateIds = new Set<string>();
   const seenIds = new Set<string>();
   for (const row of opts.rows) {
@@ -332,14 +307,8 @@ export function reconcileRekordboxRows(
       `master contains duplicate Content IDs: ${[...duplicateIds].slice(0, 5).join(", ")}`,
     );
 
-  const { plan, matchedExisting, uniqueFiles } = buildPlan(
-    opts.state,
-    opts.sourceDb,
-    opts.rows,
-  );
-  const creates = new Set(
-    plan.filter((item) => item.createsTrack).map((item) => item.videoId),
-  );
+  const { plan, matchedExisting, uniqueFiles } = buildPlan(opts.state, opts.sourceDb, opts.rows);
+  const creates = new Set(plan.filter((item) => item.createsTrack).map((item) => item.videoId));
   const base: ReconcileRekordboxResultShape = {
     command: "rb-adopt",
     sourceDb: opts.sourceDb,

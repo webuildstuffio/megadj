@@ -15,13 +15,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import {
-  copyFileSync,
-  existsSync,
-  renameSync,
-  rmSync,
-  statSync,
-} from "node:fs";
+import { copyFileSync, existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { rbPythonFile } from "./rb-python-file.js";
 
 /** True while the rekordbox app is running (its live WAL silently
@@ -79,14 +73,12 @@ export function restoreMasterBackup(
   assertClosed: (what: string) => void = assertRbClosed,
 ): void {
   assertClosed(what);
-  if (!existsSync(backupPath))
-    throw new Error(`master DB backup not found at ${backupPath}`);
+  if (!existsSync(backupPath)) throw new Error(`master DB backup not found at ${backupPath}`);
   restoreFileAtomic(backupPath, dbPath);
   for (const side of ["-wal", "-shm"]) {
     const destination = dbPath + side;
     rmSync(destination, { force: true });
-    if (existsSync(backupPath + side))
-      restoreFileAtomic(backupPath + side, destination);
+    if (existsSync(backupPath + side)) restoreFileAtomic(backupPath + side, destination);
   }
 }
 
@@ -110,11 +102,7 @@ export function verifyReRead(
   predicate: string,
   timeoutMs = 120_000,
 ): ReReadVerify {
-  const r = rbPythonFile({
-    file: "verify-reread.py",
-    args: [dbPath, table, predicate],
-    timeoutMs,
-  });
+  const r = rbPythonFile({ file: "verify-reread.py", args: [dbPath, table, predicate], timeoutMs });
   if (r.status !== 0 || !r.stdout)
     throw new Error(
       `re-read verify failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(-300)}`,

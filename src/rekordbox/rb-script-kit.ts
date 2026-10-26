@@ -103,9 +103,7 @@ if group_name:
     if parent is None:
         ${pyNewPlaylist("parent", "group_name", "1", "0", "db.query(DjmdPlaylist).count() + 1").replaceAll("\n", "\n        ")}
     out["parentId"] = str(parent.ID)`;
-  const parentExpr = opts.createMissingGroup
-    ? "parent.ID"
-    : "parent.ID if parent else 0";
+  const parentExpr = opts.createMissingGroup ? "parent.ID" : "parent.ID if parent else 0";
   const existing =
     opts.onExisting === "refuse"
       ? `if find_playlist(playlist_name, 0, parent.ID) is not None:

@@ -54,12 +54,7 @@ export function inspectMutationPaths(
       }
       resolvedPaths.set(role, resolved);
       const rel = relative(contentsRoot, resolved);
-      if (
-        rel === "" ||
-        rel === ".." ||
-        rel.startsWith(`..${sep}`) ||
-        isAbsolute(rel)
-      ) {
+      if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
         errors.push(
           `${role} ${pair[role === "keeper" ? "keepId" : "loseId"]} is outside selected Contents root: ${resolved}`,
         );
@@ -70,9 +65,7 @@ export function inspectMutationPaths(
     if (
       keeperResolved !== undefined &&
       loserResolved !== undefined &&
-      (pair.basis === "same-path" ||
-        pair.basis === "path-twin" ||
-        keeperResolved === loserResolved)
+      (pair.basis === "same-path" || pair.basis === "path-twin" || keeperResolved === loserResolved)
     ) {
       sharedLoserIds.add(pair.loseId);
     }
@@ -91,14 +84,9 @@ interface DedupReport {
   backedUpTo: string | null;
 }
 
-export function printRbDedupReport(
-  result: DedupReport,
-  log: (message: string) => void,
-): void {
+export function printRbDedupReport(result: DedupReport, log: (message: string) => void): void {
   printResult(log, result, (body) => {
-    log(
-      `${body.scanned} content rows scanned · ${body.pairs.length} dupe pair(s)`,
-    );
+    log(`${body.scanned} content rows scanned · ${body.pairs.length} dupe pair(s)`);
     for (const pair of body.pairs.slice(0, 20)) {
       log(
         `  ♊ "${pair.title}" (${pair.basis}, Δ${pair.durDelta.toFixed(1)}s)\n     keep ${pair.keepPath}\n     lose ${pair.losePath}`,

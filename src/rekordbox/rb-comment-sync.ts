@@ -94,21 +94,12 @@ type SyncCommandResult = RbCommandResult;
 
 interface RbCommentSyncRuntime extends RbCommandRuntime {
   exists: (path: string) => boolean;
-  spawn: (
-    command: string[],
-    timeoutMs: number,
-    input?: string,
-  ) => SyncCommandResult;
+  spawn: (command: string[], timeoutMs: number, input?: string) => SyncCommandResult;
 }
 
-const runtime: RbCommentSyncRuntime = {
-  exists: existsSync,
-  ...rbCommandRuntime,
-};
+const runtime: RbCommentSyncRuntime = { exists: existsSync, ...rbCommandRuntime };
 
-export async function rbCommentSync(
-  opts: RbCommentSyncOptions,
-): Promise<RbCommentSyncResult> {
+export async function rbCommentSync(opts: RbCommentSyncOptions): Promise<RbCommentSyncResult> {
   return rbCommentSyncWithRuntime(opts, runtime);
 }
 
@@ -119,10 +110,7 @@ async function rbCommentSyncWithRuntime(
   const dbPath = masterDbPath(opts.mount);
   const apply = applyConfirmed(opts);
   const ledger = DB_PATH;
-  const mk = (
-    msg: string,
-    details: Partial<RbCommentSyncResult> = {},
-  ): RbCommentSyncResult => ({
+  const mk = (msg: string, details: Partial<RbCommentSyncResult> = {}): RbCommentSyncResult => ({
     command: "rb-comment-sync",
     db: dbPath,
     scanned: 0,
@@ -131,9 +119,7 @@ async function rbCommentSyncWithRuntime(
     enriched: 0,
     skipped: [],
     alreadyHad: 0,
-    freshness: deps.exists(ledger)
-      ? ledgerFreshnessOf(ledger)
-      : { beatsAt: null, moodAt: null },
+    freshness: deps.exists(ledger) ? ledgerFreshnessOf(ledger) : { beatsAt: null, moodAt: null },
     genreWritten: 0,
     genreSkipped: 0,
     colorWritten: 0,
@@ -164,9 +150,7 @@ async function rbCommentSyncWithRuntime(
     enriched: out.enriched,
     skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
     alreadyHad: out.alreadyHad,
-    freshness: deps.exists(ledger)
-      ? ledgerFreshnessOf(ledger)
-      : { beatsAt: null, moodAt: null },
+    freshness: deps.exists(ledger) ? ledgerFreshnessOf(ledger) : { beatsAt: null, moodAt: null },
     genreWritten: out.genreWritten,
     genreSkipped: out.genreSkipped,
     colorWritten: out.colorWritten,
@@ -206,10 +190,7 @@ async function rbCommentSyncWithRuntime(
       const reason = kitErrorReason(r.stdout) ?? r.stderr.slice(-300);
       throw new Error(`sync failed (exit ${String(r.status)}): ${reason}`);
     }
-    return parseSyncOutput(
-      r.stdout.trim().split("\n").pop() ?? "",
-      mode === "apply",
-    );
+    return parseSyncOutput(r.stdout.trim().split("\n").pop() ?? "", mode === "apply");
   };
 
   if (apply) {
@@ -258,10 +239,7 @@ function syncApplyLeg(
 
   const compensate = (error: unknown): RbCommentSyncResult => {
     const detail = compensateRestore(deps, dbPath, backedUpTo, error);
-    return mk(detail, {
-      backedUpTo,
-      verify: { ok: false, detail },
-    });
+    return mk(detail, { backedUpTo, verify: { ok: false, detail } });
   };
 
   try {
@@ -278,9 +256,7 @@ function syncApplyLeg(
       throw new Error(
         `comment verification failed (exit ${String(checked.status)}): ${checked.stderr.slice(-300)}`,
       );
-    const verified = parseVerifyOutput(
-      checked.stdout.trim().split("\n").pop() ?? "",
-    );
+    const verified = parseVerifyOutput(checked.stdout.trim().split("\n").pop() ?? "");
     validateVerification(out.writes, verified);
     return synced(out, {
       appliedMode: true,
@@ -303,10 +279,7 @@ export const __test = {
   ledgerFreshnessOf,
 };
 
-export function printRbCommentSyncReport(
-  r: RbCommentSyncResult,
-  log: (s: string) => void,
-): void {
+export function printRbCommentSyncReport(r: RbCommentSyncResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     log(
       `${body.scanned} rows scanned · ${body.eligible} eligible · ${body.enriched} enriched (partial → full) · ${body.alreadyHad} complete · ${body.skipped.length} skipped`,
@@ -318,10 +291,7 @@ export function printRbCommentSyncReport(
     ].map((a) => ({ ...a, f: ledgerFreshness(a.at) }));
     log(
       `ledger freshness — ${bands
-        .map(
-          (b) =>
-            `${b.name}: ${b.f.ageHours === null ? "no analysis yet" : formatAge(b.f)}`,
-        )
+        .map((b) => `${b.name}: ${b.f.ageHours === null ? "no analysis yet" : formatAge(b.f)}`)
         .join(" · ")}`,
     );
     if (body.genreWritten > 0 || body.genreSkipped > 0) {

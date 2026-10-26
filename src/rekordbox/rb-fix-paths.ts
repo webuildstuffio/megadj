@@ -30,12 +30,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { commandLog } from "../shared/progress";
 import { isUnknownArray } from "../shared/leaf/guards";
-import {
-  assertRbClosed,
-  backupMaster,
-  restoreMasterBackup,
-  sleepSync,
-} from "./guard.js";
+import { assertRbClosed, backupMaster, restoreMasterBackup, sleepSync } from "./guard.js";
 import { rbPythonFile } from "./rb-python-file.js";
 import {
   applyConfirmationRefusal,
@@ -47,18 +42,8 @@ import {
 } from "./rb-command-kit.js";
 import { masterDbPath, normalizeMount } from "./master-path.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
-import {
-  buildIndex,
-  matchLadder,
-  stripCopySuffix,
-  emptyIndex,
-} from "./rb-fix-paths-index.js";
-import {
-  applyRewrites,
-  fixResultOf,
-  verifyRewrite,
-  type FixCtx,
-} from "./rb-fix-paths-apply";
+import { buildIndex, matchLadder, stripCopySuffix, emptyIndex } from "./rb-fix-paths-index.js";
+import { applyRewrites, fixResultOf, verifyRewrite, type FixCtx } from "./rb-fix-paths-apply";
 import type {
   RbFixPathsOptions,
   RbFixPathsRuntime,
@@ -93,9 +78,7 @@ function parseReadRows(raw: string): [string, string][] {
         typeof row[1] === "string",
     )
   ) {
-    throw new Error(
-      "pyrekordbox read returned invalid rows: expected [decimal string id, path][]",
-    );
+    throw new Error("pyrekordbox read returned invalid rows: expected [decimal string id, path][]");
   }
   return value;
 }
@@ -121,11 +104,7 @@ function parseRewriteResult(raw: string): number {
 /** Read (ID, FolderPath) for every content row via pyrekordbox. Shared
  *  with rb-unmatched (read-only reuse — one DB reader, two consumers). */
 export function readRows(dbPath: string): [string, string][] {
-  const r = rbPythonFile({
-    file: "fix-paths-read.py",
-    args: [dbPath],
-    timeoutMs: 120_000,
-  });
+  const r = rbPythonFile({ file: "fix-paths-read.py", args: [dbPath], timeoutMs: 120_000 });
   if (r.status !== 0 || !r.stdout) {
     throw new Error(
       `pyrekordbox read failed (exit ${String(r.status)}): ${r.stderr.slice(0, 300)}`,
@@ -172,9 +151,7 @@ function preflightAndScan(
     return { ok: false, error: errorText(e) };
   }
   const idx = runtime.buildIndex(normalizeMount(opts.mount));
-  log(
-    `rb-fix-paths: ${rows.length} content rows · ${idx.byNorm.size} live audio files indexed`,
-  );
+  log(`rb-fix-paths: ${rows.length} content rows · ${idx.byNorm.size} live audio files indexed`);
 
   const brokenRows: RbFixRow[] = [];
   for (const [id, p] of rows) {
@@ -278,9 +255,7 @@ async function rewriteRows(
   if (r.status !== 0) {
     const detail = r.stderr.slice(0, 300);
     log(`rb-fix-paths: rewrite failed: ${detail}`);
-    throw new Error(
-      `pyrekordbox rewrite failed (exit ${String(r.status)}): ${detail}`,
-    );
+    throw new Error(`pyrekordbox rewrite failed (exit ${String(r.status)}): ${detail}`);
   }
   const line = lastJsonLine(r.stdout ?? "", "{}");
   return parseRewriteResult(line);
@@ -288,31 +263,23 @@ async function rewriteRows(
 
 /** Test seam: the matching ladder against a live index (no DB needed). */
 export const __test = {
-  matchLadder: (broken: string, mount: string): RbFixRow =>
-    matchLadder(broken, buildIndex(mount)),
+  matchLadder: (broken: string, mount: string): RbFixRow => matchLadder(broken, buildIndex(mount)),
   stripCopySuffix,
   parseReadRows,
   parseRewriteResult,
   readScriptFile: "rb-scripts/fix-paths-read.py",
   rewriteScript: (): string =>
-    readFileSync(
-      join(import.meta.dir, "rb-scripts", "fix-paths-rewrite.py"),
-      "utf8",
-    ),
+    readFileSync(join(import.meta.dir, "rb-scripts", "fix-paths-rewrite.py"), "utf8"),
   emptyIndex,
 };
 /** Emit the human report (non-json mode). */
-export function printRbFixReport(
-  r: RbFixResult,
-  log: (s: string) => void,
-): void {
+export function printRbFixReport(r: RbFixResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     log(
       `${body.total} content rows · ${body.broken} broken · ${body.fixable} fixable · ${body.dead} dead (truly gone)`,
     );
     for (const f of body.appliedList) log(`  fixed: ${f}`);
-    for (const d of body.deadList)
-      log(`  dead (use Missing File Manager to remove): ${d}`);
+    for (const d of body.deadList) log(`  dead (use Missing File Manager to remove): ${d}`);
     if (body.appliedMode)
       log(
         body.stillBroken === body.dead
@@ -320,8 +287,6 @@ export function printRbFixReport(
           : `post-verify: ${body.stillBroken - body.dead} UNEXPECTED still-broken rows — investigate`,
       );
     else
-      log(
-        `dry-run — re-run with --apply --yes (rekordbox quit) to rewrite ${body.fixable} rows`,
-      );
+      log(`dry-run — re-run with --apply --yes (rekordbox quit) to rewrite ${body.fixable} rows`);
   });
 }

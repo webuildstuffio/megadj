@@ -105,10 +105,7 @@ export interface RbImportResult {
 /** Gate 1–4 of rb-import (issue #181 phase split): the hard pre-flight
  *  refusals, in order — flags, DB present, folder present, rekordbox
  *  quit. Each is a failure with its own message; null = all clear. */
-function importGateRefusal(
-  opts: RbImportOptions,
-  dbPath: string,
-): string | null {
+function importGateRefusal(opts: RbImportOptions, dbPath: string): string | null {
   // gate 1 — flags before any I/O
   const flagRefusal = applyConfirmationRefusal(opts);
   if (flagRefusal !== null) return flagRefusal;
@@ -117,13 +114,11 @@ function importGateRefusal(
   // gate 3 — folder present
   if (!existsSync(folderArg(opts))) return `no such folder: ${opts.folder}`;
   // gate 4 — rekordbox quit
-  if (rekordboxRunning())
-    return "rekordbox is running — quit it (live WAL) before rb-import";
+  if (rekordboxRunning()) return "rekordbox is running — quit it (live WAL) before rb-import";
   return null;
 }
 
-const folderArg = (opts: RbImportOptions): string =>
-  opts.folder.replace(/\/+$/u, "");
+const folderArg = (opts: RbImportOptions): string => opts.folder.replace(/\/+$/u, "");
 
 export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   const log = opts.log ?? commandLog({ json: opts.json });
@@ -164,10 +159,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   // under the archive, so the parent is the archive for exactly the
   // layouts rb-import is for.
   const archiveDir =
-    opts.archiveDir ??
-    (/^\d{4}-\d{2}-\d{2} /.test(basename(folder))
-      ? dirname(folder)
-      : undefined);
+    opts.archiveDir ?? (/^\d{4}-\d{2}-\d{2} /.test(basename(folder)) ? dirname(folder) : undefined);
 
   // phase 2 — folder scan + ffprobe payload build (extracted, #181)
   const payloadFiles = probePayloadFiles(
@@ -213,18 +205,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   };
   if (opts.apply && opts.yes) {
     try {
-      applyImport(
-        {
-          dbPath,
-          folder,
-          playlist,
-          group,
-          payloadFiles,
-          gatedPaths,
-          log,
-        },
-        counters,
-      );
+      applyImport({ dbPath, folder, playlist, group, payloadFiles, gatedPaths, log }, counters);
     } catch (error) {
       const message = errorText(error);
       const { py, backedUpTo, verified, stillBroken } = counters;
@@ -237,10 +218,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
         stillBroken,
         playlistId: py.playlistId,
         backedUpTo,
-        errors: [
-          ...py.errors.map(([file, detail]) => `${file}: ${detail}`),
-          message,
-        ],
+        errors: [...py.errors.map(([file, detail]) => `${file}: ${detail}`), message],
       };
     }
   }
@@ -256,11 +234,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
     already: counters.py.already,
     dupes: opts.allowDupe
       ? []
-      : dupeGate.refused.map((d) => ({
-          file: d.file,
-          matchedBy: d.matchedBy,
-          rowId: d.rowId,
-        })),
+      : dupeGate.refused.map((d) => ({ file: d.file, matchedBy: d.matchedBy, rowId: d.rowId })),
     verified: counters.verified,
     stillBroken: counters.stillBroken,
     appliedMode: Boolean(opts.apply),
@@ -274,16 +248,10 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
 export const __test = {
   writeScript: (): string =>
     renderKitMarkers(
-      readFileSync(
-        join(import.meta.dir, "rb-scripts", "import-write.kit.py"),
-        "utf8",
-      ),
+      readFileSync(join(import.meta.dir, "rb-scripts", "import-write.kit.py"), "utf8"),
     ),
   gateScanScript: (): string =>
-    readFileSync(
-      join(import.meta.dir, "rb-scripts", "import-gate-scan.py"),
-      "utf8",
-    ),
+    readFileSync(join(import.meta.dir, "rb-scripts", "import-gate-scan.py"), "utf8"),
   parseWriteOutput,
   parseVerifyOutput,
   verificationError,
@@ -293,10 +261,7 @@ export const __test = {
   AUDIO_EXTS,
 };
 
-export function printRbImportReport(
-  r: RbImportResult,
-  log: (s: string) => void,
-): void {
+export function printRbImportReport(r: RbImportResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     log(
       `${body.found} audio files · playlist "${body.playlist}"${body.group ? ` (in "${body.group}")` : ""} · ${body.inserted} inserted, ${body.already} already imported, ${body.dupes.length} dupe-gated, ${body.errors.length} errors`,
@@ -311,9 +276,7 @@ export function printRbImportReport(
         `post-verify: ${body.verified}/${body.found} files referenced · whole-table missing rows: ${body.stillBroken}`,
       );
     } else {
-      log(
-        `dry-run — re-run with --apply --yes (rekordbox quit) to insert ${body.found} rows`,
-      );
+      log(`dry-run — re-run with --apply --yes (rekordbox quit) to insert ${body.found} rows`);
     }
   });
 }

@@ -36,8 +36,7 @@ import { lastJsonLine, makeFail, printResult } from "./rb-command-kit.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
-export type BucketName =
-  "A-OK" | "SHIFT" | "PHASE" | "TEMPO" | "DRIFT" | "CHAOS";
+export type BucketName = "A-OK" | "SHIFT" | "PHASE" | "TEMPO" | "DRIFT" | "CHAOS";
 
 export interface GridTriageOptions {
   /** Shelf mount (master DB at <mount>/PIONEER/Master/master.db, or
@@ -66,8 +65,7 @@ export interface MasterRow {
   hashDir: string;
 }
 
-export type TriageCls =
-  BucketName | "SYNC" | "DRIVE-MISSING" | "NO-ANLZ" | "NO-LEDGER" | "NO-GRID";
+export type TriageCls = BucketName | "SYNC" | "DRIVE-MISSING" | "NO-ANLZ" | "NO-LEDGER" | "NO-GRID";
 
 export interface TriageRow {
   id: number;
@@ -100,14 +98,7 @@ export interface GridTriageResult {
   error?: string;
 }
 
-const BUCKETS: BucketName[] = [
-  "A-OK",
-  "SHIFT",
-  "PHASE",
-  "TEMPO",
-  "DRIFT",
-  "CHAOS",
-];
+const BUCKETS: BucketName[] = ["A-OK", "SHIFT", "PHASE", "TEMPO", "DRIFT", "CHAOS"];
 
 /** A zeroed bucket census (derive from BUCKETS — never hand-copy keys). */
 const emptyBuckets = (): Record<BucketName, number> =>
@@ -117,16 +108,12 @@ const emptyBuckets = (): Record<BucketName, number> =>
  *  mounted. Returns the failure message, or null when clear to proceed. */
 function preflight(dbPath: string, stickMount: string | null): string | null {
   if (!existsSync(dbPath)) return `no master DB at ${dbPath}`;
-  if (stickMount && !existsSync(stickMount))
-    return `compare drive not mounted: ${stickMount}`;
+  if (stickMount && !existsSync(stickMount)) return `compare drive not mounted: ${stickMount}`;
   return null;
 }
 
 /** Read every content row + its hash path (the python SSOT seam). */
-export function readMasterRows(
-  dbPath: string,
-  scriptsDir: string,
-): MasterRow[] {
+export function readMasterRows(dbPath: string, scriptsDir: string): MasterRow[] {
   const r = rbPythonFile({
     file: "grid-triage-rows.py",
     args: [dbPath, scriptsDir],
@@ -150,24 +137,13 @@ const norm = (s: string): string => nameKey(s);
  * `/Contents/share/ANLZ/ANLZ0000.DAT` while the shelf stores the file
  * at `PIONEER/Master/share/ANLZ/` — without the fallback every
  * absolute-shaped row read as NO-ANLZ (super-sure pass, Sep 10). */
-export function resolveCollectionAnlz(
-  mount: string,
-  anlzValue: string,
-): string | null {
+export function resolveCollectionAnlz(mount: string, anlzValue: string): string | null {
   if (!anlzValue) return null;
   const dbRoot = join(mount, "PIONEER", "Master");
   const base = basename(anlzValue);
   const candidates = anlzValue.startsWith("/")
-    ? [
-        mount + anlzValue,
-        join(dbRoot, anlzValue),
-        join(dbRoot, "share", "ANLZ", base),
-      ]
-    : [
-        join(dbRoot, anlzValue),
-        join(dbRoot, "share", "ANLZ", base),
-        join(mount, anlzValue),
-      ];
+    ? [mount + anlzValue, join(dbRoot, anlzValue), join(dbRoot, "share", "ANLZ", base)]
+    : [join(dbRoot, anlzValue), join(dbRoot, "share", "ANLZ", base), join(mount, anlzValue)];
   return candidates.find((c) => existsSync(c)) ?? null;
 }
 
@@ -211,10 +187,7 @@ export function anlzBpm(beats: { bpmx100: number }[]): number | null {
   if (beats.length === 0) return null;
   const xs = beats.map((b) => b.bpmx100).toSorted((a, b) => a - b);
   const mid = Math.floor(xs.length / 2);
-  const med =
-    xs.length % 2
-      ? xs[mid]!
-      : Math.round(((xs[mid - 1]! + xs[mid]!) as number) / 2);
+  const med = xs.length % 2 ? xs[mid]! : Math.round(((xs[mid - 1]! + xs[mid]!) as number) / 2);
   return med / 100;
 }
 
@@ -226,23 +199,19 @@ export function triageRow(input: {
   compareActive: boolean;
   ledgerBeats: number[] | null;
 }): TriageRow {
-  const { row, shelfAnlzBytes, stickAnlzBytes, compareActive, ledgerBeats } =
-    input;
-  if (shelfAnlzBytes === null)
-    return { id: row.id, path: row.path, cls: "NO-ANLZ" };
+  const { row, shelfAnlzBytes, stickAnlzBytes, compareActive, ledgerBeats } = input;
+  if (shelfAnlzBytes === null) return { id: row.id, path: row.path, cls: "NO-ANLZ" };
   // GA-03 priority 1: sync-vs-analysis. A differing sidecar is a SYNC
   // issue regardless of grid content — the fix is a re-export, and
   // auditing it would mislabel the problem class.
   if (compareActive) {
-    if (stickAnlzBytes === null)
-      return { id: row.id, path: row.path, cls: "DRIVE-MISSING" };
+    if (stickAnlzBytes === null) return { id: row.id, path: row.path, cls: "DRIVE-MISSING" };
     if (!bytesEqual(shelfAnlzBytes, stickAnlzBytes))
       return {
         id: row.id,
         path: row.path,
         cls: "SYNC",
-        detail:
-          "drive sidecar differs from the collection — re-export, don't re-analyze",
+        detail: "drive sidecar differs from the collection — re-export, don't re-analyze",
       };
   }
   const grid = parseAnlzGrid(shelfAnlzBytes);
@@ -256,13 +225,7 @@ export function triageRow(input: {
   if (!ledgerBeats) return { id: row.id, path: row.path, cls: "NO-LEDGER" };
   const rbBpm = anlzBpm(grid.beats);
   const v = rbBpm ? gridAuditFull(ledgerBeats, grid.beats, rbBpm) : null;
-  if (!v)
-    return {
-      id: row.id,
-      path: row.path,
-      cls: "NO-GRID",
-      detail: "grid too short to audit",
-    };
+  if (!v) return { id: row.id, path: row.path, cls: "NO-GRID", detail: "grid too short to audit" };
   return {
     id: row.id,
     path: row.path,
@@ -292,13 +255,7 @@ function triageRowWithBytes(
   const shelfBytes = shelfAnlz ? new Uint8Array(readFileSync(shelfAnlz)) : null;
   let stickBytes: Uint8Array | null = null;
   if (stickMount) {
-    const p = join(
-      stickMount,
-      "PIONEER",
-      "USBANLZ",
-      row.hashDir,
-      "ANLZ0000.DAT",
-    );
+    const p = join(stickMount, "PIONEER", "USBANLZ", row.hashDir, "ANLZ0000.DAT");
     stickBytes = existsSync(p) ? new Uint8Array(readFileSync(p)) : null;
   }
   return triageRow({
@@ -312,11 +269,7 @@ function triageRowWithBytes(
 
 /** Fold one triage row into the running result accumulator. One branch
  *  chain per row class — the only place verdicts touch counters. */
-function absorbTriageRow(
-  result: GridTriageResult,
-  offenderRows: TriageRow[],
-  t: TriageRow,
-): void {
+function absorbTriageRow(result: GridTriageResult, offenderRows: TriageRow[], t: TriageRow): void {
   if (t.cls in result.buckets) {
     result.buckets[t.cls as BucketName]++;
     result.audited++;
@@ -332,9 +285,7 @@ function absorbTriageRow(
   if (t.cls === "NO-GRID") result.noGrid++;
 }
 
-export async function gridTriage(
-  opts: GridTriageOptions,
-): Promise<GridTriageResult> {
+export async function gridTriage(opts: GridTriageOptions): Promise<GridTriageResult> {
   const log = opts.log ?? commandLog(opts);
   const mount = normalizeMount(opts.mount);
   const dbPath = masterDbPath(opts.mount);
@@ -382,8 +333,7 @@ export async function gridTriage(
     log(r.error ?? "unknown failure");
     return r;
   }
-  const todo =
-    opts.limit === undefined ? rows : rows.slice(0, Math.max(0, opts.limit));
+  const todo = opts.limit === undefined ? rows : rows.slice(0, Math.max(0, opts.limit));
   const idx = buildLedgerIndex(opts.state);
   log(
     `rb-grid-triage: ${todo.length} rows · ${idx.byRel.size} ledger entries · compare=${compareDrive ?? "off"}`,
@@ -398,11 +348,7 @@ export async function gridTriage(
 
   const offenderRows: TriageRow[] = [];
   for (const row of todo) {
-    absorbTriageRow(
-      result,
-      offenderRows,
-      triageRowWithBytes(row, mount, stickMount, idx),
-    );
+    absorbTriageRow(result, offenderRows, triageRowWithBytes(row, mount, stickMount, idx));
   }
 
   // Worst-first sample: SYNC issues, then non-A-OK buckets; cap 50.
@@ -411,22 +357,11 @@ export async function gridTriage(
 }
 
 function skillScriptsDir(): string {
-  return join(
-    import.meta.dir,
-    "..",
-    "..",
-    ".claude",
-    "skills",
-    "rekordbox-usb-sync",
-    "scripts",
-  );
+  return join(import.meta.dir, "..", "..", ".claude", "skills", "rekordbox-usb-sync", "scripts");
 }
 
 /** Emit the human report (non-json mode). */
-export function printGridTriageReport(
-  r: GridTriageResult,
-  log: (s: string) => void,
-): void {
+export function printGridTriageReport(r: GridTriageResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     const b = body.buckets;
     log(
@@ -453,8 +388,6 @@ export function printGridTriageReport(
       log(`  ${o.cls}: ${o.path}${nums}`);
     }
     if (body.offenders.length > 10)
-      log(
-        `  … and ${body.offenders.length - 10} more (--json for the full sample)`,
-      );
+      log(`  … and ${body.offenders.length - 10} more (--json for the full sample)`);
   });
 }

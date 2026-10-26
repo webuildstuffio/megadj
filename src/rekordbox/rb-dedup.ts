@@ -11,13 +11,7 @@
  * move to <mount>/Quarantine/rb-dedup-<date>/ with a receipt.
  */
 
-import {
-  mkdirSync,
-  realpathSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { buildDupePairs, type DupePair } from "./rb-dedup-graph.js";
 import { parseScanResult, type ScanResult } from "./rb-dedup-parse.js";
@@ -40,12 +34,7 @@ import {
   compensate,
   type ApplyPhase,
 } from "./rb-dedup-apply";
-import {
-  assertRbClosed,
-  backupMaster,
-  fileExistsSafe,
-  restoreMasterBackup,
-} from "./guard.js";
+import { assertRbClosed, backupMaster, fileExistsSafe, restoreMasterBackup } from "./guard.js";
 import { errMessage as errorText } from "../shared/leaf/fmt";
 
 export interface RbDedupOptions {
@@ -119,11 +108,7 @@ export interface RbDedupResult {
 }
 
 export { buildDupePairs, type DupePair } from "./rb-dedup-graph.js";
-export {
-  parseDeleteResult,
-  parseScanResult,
-  type ScanPair,
-} from "./rb-dedup-parse.js";
+export { parseDeleteResult, parseScanResult, type ScanPair } from "./rb-dedup-parse.js";
 
 export async function rbDedup(
   opts: RbDedupOptions,
@@ -155,15 +140,12 @@ export async function rbDedup(
     return fail((e as Error).message);
   }
 
-  const r = deps.spawn(
-    "uv",
-    pyUvFileArgv({ file: "dedup-scan.py", args: [dbPath] }),
-    { encoding: "utf8", timeout: 300_000 },
-  );
+  const r = deps.spawn("uv", pyUvFileArgv({ file: "dedup-scan.py", args: [dbPath] }), {
+    encoding: "utf8",
+    timeout: 300_000,
+  });
   if (r.status !== 0 || !r.stdout)
-    return fail(
-      `scan failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(-300)}`,
-    );
+    return fail(`scan failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(-300)}`);
   let out: ScanResult;
   try {
     out = parseScanResult(r.stdout.trim().split("\n").pop() ?? "");
@@ -181,11 +163,7 @@ export async function rbDedup(
     errors: [],
   };
   if (apply && unique.length) {
-    const pathInspection = inspectMutationPaths(
-      opts.mount,
-      unique,
-      deps.realpath,
-    );
+    const pathInspection = inspectMutationPaths(opts.mount, unique, deps.realpath);
     if (pathInspection.errors.length)
       return fail(`unsafe mutation paths: ${pathInspection.errors.join("; ")}`);
     try {
@@ -228,18 +206,10 @@ export async function rbDedup(
       // pyrekordbox process and compare the complete requested loser/keeper
       // set against disk reality.
       await deps.sleep(250);
-      const verifyRows = verifyRowsFresh(
-        deps,
-        dbPath,
-        unique,
-        del,
-        mutationErrors,
-      );
+      const verifyRows = verifyRowsFresh(deps, dbPath, unique, del, mutationErrors);
       if (verifyRows) {
         const rowById = new Map(verifyRows.map((row) => [row.id, row]));
-        applyPhase.removed = unique.filter(
-          (pair) => !rowById.has(pair.loseId),
-        ).length;
+        applyPhase.removed = unique.filter((pair) => !rowById.has(pair.loseId)).length;
       }
 
       // 4. receipt — part of the successful mutation contract.

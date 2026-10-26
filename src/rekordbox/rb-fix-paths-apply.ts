@@ -31,10 +31,7 @@ export interface FixCtx {
   stillBroken: number;
 }
 
-function sameRows(
-  expected: [string, string][],
-  actual: [string, string][],
-): boolean {
+function sameRows(expected: [string, string][], actual: [string, string][]): boolean {
   if (actual.length !== expected.length) return false;
   const actualById = new Map(actual);
   return expected.every(([id, path]) => actualById.get(id) === path);
@@ -143,12 +140,7 @@ export function applyRewrites(ctx: FixCtx): Promise<RbFixResult | null> {
   } catch (error) {
     const detail = errorText(error);
     return Promise.resolve(
-      restoreAfterFailure(
-        ctx,
-        `rewrite failed: ${detail}`,
-        ctx.applied,
-        ctx.brokenRows.length,
-      ),
+      restoreAfterFailure(ctx, `rewrite failed: ${detail}`, ctx.applied, ctx.brokenRows.length),
     );
   }
 }
@@ -172,10 +164,7 @@ function verifyRowIntegrity(
   const unexpectedBroken = reread.filter(
     ([id, path]) => path && !ctx.runtime.fileExists(path) && !deadIds.has(id),
   );
-  return {
-    targetFailures: targetFailures.length,
-    unexpectedBroken: unexpectedBroken.length,
-  };
+  return { targetFailures: targetFailures.length, unexpectedBroken: unexpectedBroken.length };
 }
 
 /** FULL-TABLE delayed re-read in a fresh process — every row, not just
@@ -200,8 +189,7 @@ export function verifyRewrite(ctx: FixCtx): RbFixResult | null {
   }
 
   ctx.stillBroken = reread.reduce(
-    (count, [, path]) =>
-      path && !ctx.runtime.fileExists(path) ? count + 1 : count,
+    (count, [, path]) => (path && !ctx.runtime.fileExists(path) ? count + 1 : count),
     0,
   );
   const failures = verifyRowIntegrity(ctx, reread);
@@ -217,8 +205,7 @@ export function verifyRewrite(ctx: FixCtx): RbFixResult | null {
       ctx.stillBroken,
     );
   }
-  for (const row of ctx.fixable)
-    ctx.appliedList.push(`${row.brokenPath} → ${row.fixPath}`);
+  for (const row of ctx.fixable) ctx.appliedList.push(`${row.brokenPath} → ${row.fixPath}`);
   return null;
 }
 

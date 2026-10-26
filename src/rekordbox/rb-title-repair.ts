@@ -60,10 +60,7 @@ export async function rbTitleRepair(
   const dbPath = masterDbPath(opts.mount);
   const log = opts.log ?? console.log;
 
-  const mk = (
-    msg: string,
-    partial: Partial<RbTitleRepairResult> = {},
-  ): RbTitleRepairResult => ({
+  const mk = (msg: string, partial: Partial<RbTitleRepairResult> = {}): RbTitleRepairResult => ({
     command: "rb-title-repair",
     db: dbPath,
     scanned: 0,
@@ -109,12 +106,10 @@ export async function rbTitleRepair(
     );
 
     if (result.status !== 0) {
-      if (backedUpTo)
-        compensateRestore(deps, dbPath, backedUpTo, result.stderr);
+      if (backedUpTo) compensateRestore(deps, dbPath, backedUpTo, result.stderr);
       // the guard's refusal reason rides stdout as {"error": ...} JSON;
       // stderr alone would report an empty `title-repair failed (exit 1):`
-      const reason =
-        kitErrorReason(result.stdout) ?? result.stderr.slice(0, 300);
+      const reason = kitErrorReason(result.stdout) ?? result.stderr.slice(0, 300);
       return mk(`title-repair failed (exit ${result.status}): ${reason}`);
     }
 

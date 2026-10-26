@@ -10,11 +10,7 @@ import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import type { ScanPair, ScanRow } from "./rb-dedup-parse.js";
 import { pickKeeper } from "./rb-dedup-support.js";
 
-export function connectGraph(
-  graph: Map<string, Set<string>>,
-  first: string,
-  second: string,
-): void {
+export function connectGraph(graph: Map<string, Set<string>>, first: string, second: string): void {
   const firstEdges = graph.get(first) ?? new Set<string>();
   firstEdges.add(second);
   graph.set(first, firstEdges);
@@ -23,10 +19,7 @@ export function connectGraph(
   graph.set(second, secondEdges);
 }
 
-export function graphComponentIds(
-  graph: Map<string, Set<string>>,
-  start: string,
-): Set<string> {
+export function graphComponentIds(graph: Map<string, Set<string>>, start: string): Set<string> {
   const found = new Set<string>();
   const pending = [start];
   while (pending.length > 0) {
@@ -57,8 +50,7 @@ export function buildDupePairs(
 ): DupePair[] {
   const fingerprintCache = new Map<string, string | null>();
   const getFingerprint = (path: string): string | null => {
-    if (!fingerprintCache.has(path))
-      fingerprintCache.set(path, fingerprint(path));
+    if (!fingerprintCache.has(path)) fingerprintCache.set(path, fingerprint(path));
     return fingerprintCache.get(path) ?? null;
   };
   const rows = new Map<string, ScanRow>();
@@ -73,10 +65,7 @@ export function buildDupePairs(
       if (second === null || second !== first) continue;
     }
     rows.set(candidate.id, rows.get(candidate.id) ?? candidate);
-    rows.set(
-      candidate.other.id,
-      rows.get(candidate.other.id) ?? candidate.other,
-    );
+    rows.set(candidate.other.id, rows.get(candidate.other.id) ?? candidate.other);
     connectGraph(graph, candidate.id, candidate.other.id);
     if (candidate.basis !== "candidate" && candidate.basis !== "stem-twin")
       connectGraph(pathGraph, candidate.id, candidate.other.id);
@@ -104,11 +93,7 @@ export function buildDupePairs(
     const [first, ...rest] = componentRows;
     if (first === undefined) continue;
     const keep = rest.reduce((current, row) => {
-      if (
-        current.path === row.path &&
-        current.bitrate === row.bitrate &&
-        current.size === row.size
-      )
+      if (current.path === row.path && current.bitrate === row.bitrate && current.size === row.size)
         return compareStableIds(current.id, row.id) <= 0 ? current : row;
       return pickKeeper(current, row) === "a" ? current : row;
     }, first);

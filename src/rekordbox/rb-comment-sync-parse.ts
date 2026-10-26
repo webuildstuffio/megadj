@@ -5,11 +5,7 @@
 // keeps the option/result shapes, the runtime, the gates, and the
 // rbCommentSync sequencer + apply leg.
 import { existsSync } from "node:fs";
-import {
-  isNonNegativeInteger,
-  isRecord,
-  isUnknownArray,
-} from "../shared/leaf/guards";
+import { isNonNegativeInteger, isRecord, isUnknownArray } from "../shared/leaf/guards";
 import {
   DECIMAL_ID_RE,
   isStringPair,
@@ -22,8 +18,7 @@ import { openLedger } from "../shared/sqlite-ledger";
 /** The `T | null` narrows a stamp column value: string-and-non-empty
  *  passes, everything else (absent table, wrong type) degrades to null.
  *  Module-level so `ledgerFreshnessOf` doesn't rebuild it per call. */
-const stampOf = (v: unknown): string | null =>
-  typeof v === "string" && v ? v : null;
+const stampOf = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
 
 /** Ledger freshness for the sync result (#174): MAX(analyzed_at) per
  *  analysis ledger, straight from the archive DB — never file mtimes.
@@ -46,10 +41,7 @@ export function ledgerFreshnessOf(ledgerPath: string): {
              (SELECT MAX(analyzed_at) FROM mood) AS mood_at`,
         )
         .get();
-      return {
-        beatsAt: stampOf(row?.beats_at),
-        moodAt: stampOf(row?.mood_at),
-      };
+      return { beatsAt: stampOf(row?.beats_at), moodAt: stampOf(row?.mood_at) };
     } finally {
       db.close();
     }
@@ -131,10 +123,7 @@ function requireSyncShape(value: Record<string, unknown>): SyncOutput {
 
 /** Decimal ids, unique — the write-acknowledgement rule. */
 function isUniqueDecimalIdList(ids: string[]): boolean {
-  return (
-    ids.every((id) => DECIMAL_ID_RE.test(id)) &&
-    new Set(ids).size === ids.length
-  );
+  return ids.every((id) => DECIMAL_ID_RE.test(id)) && new Set(ids).size === ids.length;
 }
 
 /** Cross-field consistency checks over a shape-valid payload — the first
@@ -144,17 +133,14 @@ function syncConsistencyError(out: SyncOutput, apply: boolean): string | null {
   if (out.scanned !== out.eligible + out.alreadyHad + out.skipped.length)
     return "rb-comment-sync returned inconsistent scan counters";
   if (out.errors.length > 0) {
-    const joined = out.errors
-      .map(([id, detail]) => `${id}: ${detail}`)
-      .join("; ");
+    const joined = out.errors.map(([id, detail]) => `${id}: ${detail}`).join("; ");
     return `rb-comment-sync transaction failed: ${joined}`;
   }
   if (apply && out.written !== out.eligible)
     return `rb-comment-sync wrote ${out.written}/${out.eligible} eligible rows`;
   if (out.writes.length !== out.written)
     return "rb-comment-sync write acknowledgements are incomplete";
-  if (!apply && out.written !== 0)
-    return "rb-comment-sync report mode unexpectedly wrote rows";
+  if (!apply && out.written !== 0) return "rb-comment-sync report mode unexpectedly wrote rows";
   if (!isUniqueDecimalIdList(out.writes.map(([id]) => id)))
     return "rb-comment-sync returned invalid or duplicate content ids";
   return null;
@@ -197,13 +183,9 @@ export function validateVerification(
   result: CommentVerifyOutput,
 ): void {
   if (result.total !== expected.length)
-    throw new Error(
-      `comment verification read ${result.total}/${expected.length} intended rows`,
-    );
+    throw new Error(`comment verification read ${result.total}/${expected.length} intended rows`);
   if (result.missing.length > 0)
-    throw new Error(
-      `comment verification missing ids: ${result.missing.join(", ")}`,
-    );
+    throw new Error(`comment verification missing ids: ${result.missing.join(", ")}`);
   if (result.mismatched.length > 0)
     throw new Error(
       `comment verification mismatched ids: ${result.mismatched.map(([id]) => id).join(", ")}`,

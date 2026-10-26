@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  inAgentScope,
-  nodeLine,
-  parseXmlNodes,
-} from "./rb-playlist-reconcile.js";
+import { inAgentScope, nodeLine, parseXmlNodes } from "./rb-playlist-reconcile.js";
 
 const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
 <MASTER_PLAYLIST Version="3.0.0">
@@ -33,22 +29,12 @@ describe("rb-playlist-reconcile XML parsing (RB7 hex-id format)", () => {
   });
 
   test("nodeLine emits hex Id + RB7 attrs and escapes XML-special names", () => {
-    const line = nodeLine({
-      name: "Dub & Bass <remix>",
-      id: "123",
-      parentId: "0",
-      attribute: 0,
-    });
+    const line = nodeLine({ name: "Dub & Bass <remix>", id: "123", parentId: "0", attribute: 0 });
     expect(line).toContain('Id="7B"'); // 123 → 7B hex
     expect(line).toContain("Dub &amp; Bass &lt;remix&gt;");
     expect(line).toContain('Lib_Type="0"');
     // parent hex too
-    const nested = nodeLine({
-      name: "x",
-      id: "200",
-      parentId: "123",
-      attribute: 0,
-    });
+    const nested = nodeLine({ name: "x", id: "200", parentId: "123", attribute: 0 });
     expect(nested).toContain('ParentId="7B"');
     expect(nested).toContain('Id="C8"');
   });

@@ -13,10 +13,7 @@ afterAll(() => t.rippleAll());
  *  pyUvFileArgv does at spawn time (#194 corpus extraction). */
 const commentSyncScript = () =>
   renderKitMarkers(
-    readFileSync(
-      join(import.meta.dir, "rb-scripts", "comment-sync.kit.py"),
-      "utf8",
-    ),
+    readFileSync(join(import.meta.dir, "rb-scripts", "comment-sync.kit.py"), "utf8"),
   );
 
 describe("rb-comment-sync", () => {
@@ -51,10 +48,7 @@ describe("rb-comment-sync", () => {
     const db = new Database(p);
     db.exec("CREATE TABLE other (x TEXT);");
     db.close();
-    expect(__test.ledgerFreshnessOf(p)).toEqual({
-      beatsAt: null,
-      moodAt: null,
-    });
+    expect(__test.ledgerFreshnessOf(p)).toEqual({ beatsAt: null, moodAt: null });
   });
   test("script never clobbers non-empty comments and reads TXXX only", () => {
     const s = commentSyncScript();
@@ -84,9 +78,7 @@ describe("rb-comment-sync", () => {
   });
 
   test("rejects malformed and partial apply summaries", () => {
-    expect(() => __test.parseSyncOutput("not json", true)).toThrow(
-      /malformed JSON/u,
-    );
+    expect(() => __test.parseSyncOutput("not json", true)).toThrow(/malformed JSON/u);
     expect(() =>
       __test.parseSyncOutput(
         JSON.stringify({
@@ -226,12 +218,7 @@ describe("rb-comment-sync", () => {
               }
             : {
                 status: 0,
-                stdout: JSON.stringify({
-                  total: 1,
-                  matched: 1,
-                  missing: [],
-                  mismatched: [],
-                }),
+                stdout: JSON.stringify({ total: 1, matched: 1, missing: [], mismatched: [] }),
                 stderr: "",
               };
         },
@@ -290,9 +277,7 @@ describe("rb-comment-sync", () => {
     expect(result.ok).toBe(false);
     expect(result.error).toContain("mismatched ids: 42");
     expect(result.error).toContain("restored backup");
-    expect(restores).toEqual([
-      ["/Volumes/TEST/PIONEER/Master/master.db", "/tmp/master.db.bak"],
-    ]);
+    expect(restores).toEqual([["/Volumes/TEST/PIONEER/Master/master.db", "/tmp/master.db.bak"]]);
   });
 
   test("surfaces both the original failure and a failed restore", async () => {
@@ -327,9 +312,7 @@ describe("rb-comment-sync", () => {
         sleep: () => {},
         spawn: () => ({
           status: 1,
-          stdout: JSON.stringify({
-            error: "rekordbox is running — refusing write",
-          }),
+          stdout: JSON.stringify({ error: "rekordbox is running — refusing write" }),
           stderr: "",
         }),
       },

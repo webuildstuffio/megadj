@@ -41,20 +41,9 @@ export function applyPlaylist(
   playlist: string,
   chain: ChainTrack[],
   log: (s: string) => void,
-): {
-  py: PyOut;
-  backedUpTo: string | null;
-  verified: number;
-  error?: string;
-} {
+): { py: PyOut; backedUpTo: string | null; verified: number; error?: string } {
   let backedUpTo: string | null = null;
-  const py: PyOut = {
-    linked: 0,
-    unmatched: [],
-    playlistId: null,
-    parentId: null,
-    errors: [],
-  };
+  const py: PyOut = { linked: 0, unmatched: [], playlistId: null, parentId: null, errors: [] };
   let verified = 0;
   try {
     const mutation = applyPlaylistTwinMutation({
@@ -83,14 +72,9 @@ export function applyPlaylist(
           withPkg: PYRK_TAG,
         });
         const value = parseWriteOutput(lastJsonLine(result.stdout));
-        if (
-          value.playlistId === null ||
-          value.parentId === null ||
-          value.errors.length > 0
-        )
+        if (value.playlistId === null || value.parentId === null || value.errors.length > 0)
           throw new Error(
-            value.errors[0] ??
-              "pyrekordbox playlist write returned incomplete playlist ids",
+            value.errors[0] ?? "pyrekordbox playlist write returned incomplete playlist ids",
           );
         return value;
       },
@@ -99,17 +83,11 @@ export function applyPlaylist(
           throw new Error("playlist mutation returned incomplete ids");
         return [
           { id: value.parentId, name: group, parentId: "0", attribute: 1 },
-          {
-            id: value.playlistId,
-            name: playlist,
-            parentId: value.parentId,
-            attribute: 0,
-          },
+          { id: value.playlistId, name: playlist, parentId: value.parentId, attribute: 0 },
         ];
       },
       verifyDb: (value) => {
-        if (value.playlistId === null)
-          throw new Error("playlist mutation returned no playlist id");
+        if (value.playlistId === null) throw new Error("playlist mutation returned no playlist id");
         const result = rbPythonFile({
           file: "playlist-verify.py",
           args: [dbPath, value.playlistId],
@@ -133,10 +111,7 @@ export function applyPlaylist(
 }
 
 /** Unmatched chain titles → report rows (the reason is uniform). */
-export function unmatchedRows(titles: string[]): {
-  title: string;
-  reason: string;
-}[] {
+export function unmatchedRows(titles: string[]): { title: string; reason: string }[] {
   return titles.map((t) => ({
     title: t,
     reason: "no content row in master — run the fullpush import for it first",

@@ -37,11 +37,7 @@ export interface RbCommandRuntime {
   backup: (path: string) => string;
   restore: (dbPath: string, backupPath: string) => void;
   sleep: (ms: number) => void;
-  spawn: (
-    command: string[],
-    timeoutMs: number,
-    input?: string,
-  ) => RbCommandResult;
+  spawn: (command: string[], timeoutMs: number, input?: string) => RbCommandResult;
 }
 
 /** The production runtime: guard.ts seams + one spawnSync body. */
@@ -53,16 +49,8 @@ export const rbCommandRuntime: RbCommandRuntime = {
   sleep: sleepSync,
   spawn(command, timeoutMs, input) {
     if (command.length === 0) throw new Error("empty subprocess command");
-    const result = spawnSync("uv", command, {
-      encoding: "utf8",
-      timeout: timeoutMs,
-      input,
-    });
-    return {
-      status: result.status,
-      stdout: result.stdout ?? "",
-      stderr: result.stderr ?? "",
-    };
+    const result = spawnSync("uv", command, { encoding: "utf8", timeout: timeoutMs, input });
+    return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
   },
 };
 
@@ -113,8 +101,7 @@ export function makePayloadParser<T extends object>(
     const value: unknown = parseJsonBoundary(raw, context);
     if (!isRecord(value)) throw new Error(invalidMessage);
     for (const [field, guard] of Object.entries(guards)) {
-      if (!(guard as (v: unknown) => boolean)(value[field]))
-        throw new Error(invalidMessage);
+      if (!(guard as (v: unknown) => boolean)(value[field])) throw new Error(invalidMessage);
     }
     return value as T;
   };
@@ -124,9 +111,7 @@ export function makePayloadParser<T extends object>(
  *  decimal STRING (64-bit ids would lose precision as JS numbers). Null is
  *  the script's "absent" value, not a parse failure. */
 export function isDecimalIdOrNull(value: unknown): value is string | null {
-  return (
-    value === null || (typeof value === "string" && DECIMAL_ID_RE.test(value))
-  );
+  return value === null || (typeof value === "string" && DECIMAL_ID_RE.test(value));
 }
 
 /** /^(?:0|[1-9]\d*)$/u — shared by every rb-* writer's id fields. */
@@ -135,20 +120,14 @@ export const DECIMAL_ID_RE = /^(?:0|[1-9]\d*)$/u;
 /** [string, string] pair guard (error/skip/write rows). */
 export function isStringPair(value: unknown): value is [string, string] {
   return (
-    isUnknownArray(value) &&
-    value.length === 2 &&
-    value.every((part) => typeof part === "string")
+    isUnknownArray(value) && value.length === 2 && value.every((part) => typeof part === "string")
   );
 }
 
 /** [string, string, string] triple guard (mismatch rows). */
-export function isStringTriple(
-  value: unknown,
-): value is [string, string, string] {
+export function isStringTriple(value: unknown): value is [string, string, string] {
   return (
-    isUnknownArray(value) &&
-    value.length === 3 &&
-    value.every((part) => typeof part === "string")
+    isUnknownArray(value) && value.length === 3 && value.every((part) => typeof part === "string")
   );
 }
 
@@ -207,10 +186,7 @@ export function runPyScript(opts: {
     args: [opts.dbPath, ...(opts.args ?? [])].map((a) => a ?? ""),
     ...(opts.tag === undefined ? {} : { withPkg: opts.tag }),
   });
-  const raw = spawnSync("uv", argv, {
-    encoding: "utf8",
-    timeout: opts.timeoutMs,
-  });
+  const raw = spawnSync("uv", argv, { encoding: "utf8", timeout: opts.timeoutMs });
   const result: RbCommandResult = {
     status: raw.status,
     stdout: raw.stdout ?? "",
@@ -221,9 +197,7 @@ export function runPyScript(opts: {
       opts.stderrHead !== undefined
         ? result.stderr.slice(0, opts.stderrHead)
         : result.stderr.slice(opts.stderrTail ?? -400);
-    throw new Error(
-      `${opts.label} failed (exit ${String(result.status)}): ${detail}`,
-    );
+    throw new Error(`${opts.label} failed (exit ${String(result.status)}): ${detail}`);
   }
   return result;
 }

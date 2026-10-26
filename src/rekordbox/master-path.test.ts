@@ -32,16 +32,12 @@ describe("masterDbPath: env override (the #66 contract)", () => {
 
   test("no env: bare volume name resolves to the standard layout", () => {
     delete process.env[ENV];
-    expect(masterDbPath("SHELF1")).toBe(
-      "/Volumes/SHELF1/PIONEER/Master/master.db",
-    );
+    expect(masterDbPath("SHELF1")).toBe("/Volumes/SHELF1/PIONEER/Master/master.db");
   });
 
   test("no env: drive root, PIONEER dir, Master dir all resolve", () => {
     delete process.env[ENV];
-    expect(masterDbPath("/Volumes/SHELF1")).toBe(
-      "/Volumes/SHELF1/PIONEER/Master/master.db",
-    );
+    expect(masterDbPath("/Volumes/SHELF1")).toBe("/Volumes/SHELF1/PIONEER/Master/master.db");
     expect(masterDbPath("/Volumes/SHELF1/PIONEER")).toBe(
       "/Volumes/SHELF1/PIONEER/Master/master.db",
     );
@@ -52,9 +48,7 @@ describe("masterDbPath: env override (the #66 contract)", () => {
 
   test("an explicit .db path passes through untouched", () => {
     delete process.env[ENV];
-    expect(masterDbPath("/tmp/scratch-master.db")).toBe(
-      "/tmp/scratch-master.db",
-    );
+    expect(masterDbPath("/tmp/scratch-master.db")).toBe("/tmp/scratch-master.db");
   });
 });
 

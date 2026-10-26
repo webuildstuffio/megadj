@@ -26,9 +26,7 @@ describe("rb-title-repair failure diagnostics", () => {
       { mount: "/Volumes/TEST", apply: true, yes: true, log: () => {} },
       fakeDeps(() => ({
         status: 1,
-        stdout: JSON.stringify({
-          error: "rekordbox is running — refusing write",
-        }),
+        stdout: JSON.stringify({ error: "rekordbox is running — refusing write" }),
         stderr: "",
       })),
     );
@@ -39,11 +37,7 @@ describe("rb-title-repair failure diagnostics", () => {
   test("without a stdout error record the stderr tail still reports", async () => {
     const result = await rbTitleRepair(
       { mount: "/Volumes/TEST", apply: true, yes: true, log: () => {} },
-      fakeDeps(() => ({
-        status: 2,
-        stdout: "",
-        stderr: "uv: package resolution failed",
-      })),
+      fakeDeps(() => ({ status: 2, stdout: "", stderr: "uv: package resolution failed" })),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("uv: package resolution failed");

@@ -51,8 +51,7 @@ export interface DeleteResult {
 export const finiteNonNegative = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value >= 0;
 
-export const isUnknownArray = (value: unknown): value is unknown[] =>
-  Array.isArray(value);
+export const isUnknownArray = (value: unknown): value is unknown[] => Array.isArray(value);
 
 /** Non-empty string. The every wire id must be one. */
 const isNonEmptyString = (value: unknown): value is string =>
@@ -72,13 +71,10 @@ const isMembership = (value: unknown): value is [string, number] =>
   Number.isInteger(value[1]);
 
 /** A non-empty cue signature string. */
-const isCueSignature = (value: unknown): value is string =>
-  isNonEmptyString(value);
+const isCueSignature = (value: unknown): value is string => isNonEmptyString(value);
 
 /** A wire association proof: keeper id + playlists + cue signatures. */
-const isAssociationWire = (
-  value: unknown,
-): value is AssociationExpectationWire =>
+const isAssociationWire = (value: unknown): value is AssociationExpectationWire =>
   typeof value === "object" &&
   value !== null &&
   "keep_id" in value &&
@@ -159,14 +155,8 @@ export function parseScanResult(raw: string): ScanResult {
   return { scanned: value.scanned, pairs: value.pairs };
 }
 
-export function parseDeleteResult(
-  raw: string,
-  expectedIds?: readonly string[],
-): DeleteResult {
-  const value = parseJsonBoundary(raw, "rb-dedup delete") as Record<
-    string,
-    unknown
-  > | null;
+export function parseDeleteResult(raw: string, expectedIds?: readonly string[]): DeleteResult {
+  const value = parseJsonBoundary(raw, "rb-dedup delete") as Record<string, unknown> | null;
 
   if (
     typeof value !== "object" ||
@@ -182,13 +172,11 @@ export function parseDeleteResult(
   const result: DeleteResult = {
     removedIds: value.removed_ids,
     errors: value.errors,
-    associations: (value.associations as AssociationExpectationWire[]).map(
-      (association) => ({
-        keepId: association.keep_id,
-        playlists: association.playlists,
-        cueSignatures: association.cue_signatures,
-      }),
-    ),
+    associations: (value.associations as AssociationExpectationWire[]).map((association) => ({
+      keepId: association.keep_id,
+      playlists: association.playlists,
+      cueSignatures: association.cue_signatures,
+    })),
   };
   // One keeper can absorb multiple losers from the same duplicate cluster,
   // so keeper ids may repeat. The subprocess emits one proof per removed row
@@ -200,10 +188,7 @@ export function parseDeleteResult(
   }
   if (expectedIds) {
     const expected = new Set(expectedIds);
-    const acknowledged = [
-      ...result.removedIds,
-      ...result.errors.map(([id]) => id),
-    ];
+    const acknowledged = [...result.removedIds, ...result.errors.map(([id]) => id)];
     if (
       acknowledged.length !== expected.size ||
       new Set(acknowledged).size !== acknowledged.length ||
@@ -256,19 +241,10 @@ const isVerifyRowsWire = (v: unknown): v is VerifyRowWire[] => {
 };
 
 export function parseVerifyRows(raw: string): VerifyRow[] {
-  const value = parseJsonBoundary(raw, "rb-dedup verification") as Record<
-    string,
-    unknown
-  > | null;
+  const value = parseJsonBoundary(raw, "rb-dedup verification") as Record<string, unknown> | null;
   const value2 = value;
-  if (
-    typeof value2 !== "object" ||
-    value2 === null ||
-    !isVerifyRowsWire(value2.rows)
-  ) {
-    throw new Error(
-      "rb-dedup verification returned invalid JSON: expected unique id/path rows",
-    );
+  if (typeof value2 !== "object" || value2 === null || !isVerifyRowsWire(value2.rows)) {
+    throw new Error("rb-dedup verification returned invalid JSON: expected unique id/path rows");
   }
   return value2.rows.map((row) => ({
     id: row.id,
