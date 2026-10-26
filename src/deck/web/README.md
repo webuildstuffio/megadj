@@ -23,5 +23,5 @@ only. If the web app ever imports server runtime code, revisit this.
 
 ## Formatting
 
-`prettier --check src/deck/web` from the root gate covers this tree,
-including `styles/*.css` (prettier's directory walk includes CSS).
+`oxfmt --check` from the root gate covers this tree,
+including `styles/*.css` (oxfmt's directory walk includes CSS).
