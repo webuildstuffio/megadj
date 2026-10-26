@@ -14,10 +14,7 @@ export interface CliContext {
   cookiesFile: string | null;
 }
 
-export type CliCommandHandler = (
-  rest: string[],
-  context: CliContext,
-) => Promise<void>;
+export type CliCommandHandler = (rest: string[], context: CliContext) => Promise<void>;
 
 import { GETDAT_COMMANDS } from "./getdat/cli-commands";
 import { SHELF_COMMANDS } from "./shelf/cli-commands";

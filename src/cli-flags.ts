@@ -11,11 +11,7 @@ export interface ParsedFlags {
   bools: Set<string>;
 }
 
-export function parseFlags(
-  args: string[],
-  stringOpts: string[],
-  boolOpts: string[],
-): ParsedFlags {
+export function parseFlags(args: string[], stringOpts: string[], boolOpts: string[]): ParsedFlags {
   const strings = new Map<string, string>();
   const bools = new Set<string>();
   for (let i = 0; i < args.length; i++) {
@@ -130,15 +126,8 @@ export function nonNegOpt(
  *  `if (v === undefined && flags.strings.get(k) !== undefined) return;`
  *  — repeated at every numeric-flag call site — has one home. `json`
  *  forwards into the epilogue so --json runs keep a clean stdout. */
-export function nonNegOptInvalid(
-  flags: ParsedFlags,
-  key: string,
-  cmd = "",
-  json = false,
-): boolean {
-  return (
-    flags.strings.has(key) && nonNegOpt(flags, key, cmd, json) === undefined
-  );
+export function nonNegOptInvalid(flags: ParsedFlags, key: string, cmd = "", json = false): boolean {
+  return flags.strings.has(key) && nonNegOpt(flags, key, cmd, json) === undefined;
 }
 /** Repeatable `--key=value` string options (shelf-hygiene's
  *  confirm/dismiss lists, rb-unmatched's --ext list). #235: rehomed

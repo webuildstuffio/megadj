@@ -26,10 +26,7 @@ afterAll(() => fixtures.rippleAll());
  *  sits after the help short-circuit, so an unknown command reaches it
  *  and the post-guard epilogue (exit 1, "unknown command") proves the
  *  hatch opened without touching any real command. */
-function runCliWithAllowLinux(value: string | undefined): {
-  code: number;
-  stderr: string;
-} {
+function runCliWithAllowLinux(value: string | undefined): { code: number; stderr: string } {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
     if (v !== undefined && k !== "MEGADJ_ALLOW_LINUX") env[k] = v;

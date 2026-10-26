@@ -13,19 +13,10 @@ import type { CommandDocEntry, CommandGroup } from "./command-doc-types";
 
 export type { CommandDocEntry, CommandGroup } from "./command-doc-types";
 
-export const COMMAND_GROUPS: readonly {
-  group: CommandGroup;
-  tagline: string;
-}[] = [
+export const COMMAND_GROUPS: readonly { group: CommandGroup; tagline: string }[] = [
   { group: "getdat", tagline: "pull every track from everywhere" },
-  {
-    group: "fulltags",
-    tagline: "100% accuracy, 100% coverage, zero manual labour",
-  },
-  {
-    group: "cratedeck",
-    tagline: "the Crate: organize, sync & verify every DJ USB",
-  },
+  { group: "fulltags", tagline: "100% accuracy, 100% coverage, zero manual labour" },
+  { group: "cratedeck", tagline: "the Crate: organize, sync & verify every DJ USB" },
 ];
 
 export const COMMAND_DOCS: readonly CommandDocEntry[] = [
