@@ -44,12 +44,9 @@ export function scoreGoldTrack(
   },
 ): GoldTrackScore {
   const anchorDeltaMs =
-    pred.firstDownbeatS === null
-      ? null
-      : round1(pred.firstDownbeatS * 1000 - gold.firstDownbeatMs);
+    pred.firstDownbeatS === null ? null : round1(pred.firstDownbeatS * 1000 - gold.firstDownbeatMs);
   const bpmDelta = pred.bpm === null ? null : round2(pred.bpm - gold.bpm);
-  const bpmRatio =
-    pred.bpm === null || !(gold.bpm > 0) ? null : round3(pred.bpm / gold.bpm);
+  const bpmRatio = pred.bpm === null || !(gold.bpm > 0) ? null : round3(pred.bpm / gold.bpm);
 
   // Phrase alignment: nearest-predicted-within-window per truth bar.
   let phraseAligned: number | null = null;
@@ -108,8 +105,7 @@ const BPM_TOLERANCE = 0.05;
 
 /** Percentage with 1 decimal (null when the denominator is 0). Pure —
  *  module-level, not re-created per `aggregateScores` call. */
-const pct = (hit: number, n: number): number | null =>
-  n === 0 ? null : round1((hit / n) * 100);
+const pct = (hit: number, n: number): number | null => (n === 0 ? null : round1((hit / n) * 100));
 
 /** Aggregate per-track scores into the §0.2 metrics row. Pure. */
 export function aggregateScores(scores: GoldTrackScore[]): GoldMetrics {
@@ -120,31 +116,20 @@ export function aggregateScores(scores: GoldTrackScore[]): GoldMetrics {
   return {
     tracks: scores.length,
     anchorPct: pct(
-      anchor.filter(
-        (s) => Math.abs(s.anchorDeltaMs ?? 1e9) <= ANCHOR_TOLERANCE_MS,
-      ).length,
+      anchor.filter((s) => Math.abs(s.anchorDeltaMs ?? 1e9) <= ANCHOR_TOLERANCE_MS).length,
       anchor.length,
     ),
     anchorScored: anchor.length,
-    bpmPct: pct(
-      bpm.filter((s) => Math.abs(s.bpmDelta ?? 1e9) <= BPM_TOLERANCE).length,
-      bpm.length,
-    ),
+    bpmPct: pct(bpm.filter((s) => Math.abs(s.bpmDelta ?? 1e9) <= BPM_TOLERANCE).length, bpm.length),
     bpmScored: bpm.length,
     octaveOff: bpm.filter(
       (s) =>
         s.bpmRatio !== null &&
         (Math.abs(s.bpmRatio - 2) < 0.06 || Math.abs(s.bpmRatio - 0.5) < 0.03),
     ).length,
-    phrasePct: pct(
-      phrase.filter((s) => (s.phraseAligned ?? 0) >= 0.85).length,
-      phrase.length,
-    ),
+    phrasePct: pct(phrase.filter((s) => (s.phraseAligned ?? 0) >= 0.85).length, phrase.length),
     phraseScored: phrase.length,
-    cuePct: pct(
-      cue.filter((s) => (s.cueAccepted ?? 0) >= 0.8).length,
-      cue.length,
-    ),
+    cuePct: pct(cue.filter((s) => (s.cueAccepted ?? 0) >= 0.8).length, cue.length),
     cueScored: cue.length,
   };
 }

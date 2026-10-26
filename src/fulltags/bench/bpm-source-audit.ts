@@ -14,8 +14,7 @@
 import { round3 } from "../../shared/leaf/fmt";
 
 /** Known BPM sources. */
-export type BpmSource =
-  "beat_this" | "rekordbox" | "essentia" | "tag" | "manual" | "unknown";
+export type BpmSource = "beat_this" | "rekordbox" | "essentia" | "tag" | "manual" | "unknown";
 
 /** A track's BPM with source provenance. */
 export interface BpmProvenance {
@@ -83,8 +82,7 @@ export function auditBpmSources(
         const doubled = Math.abs(t.bpm - expected * 2);
         const halved = Math.abs(t.bpm - expected / 2);
         if (
-          (doubled / (expected * 2) <= 0.01 ||
-            halved / (expected / 2) <= 0.01) &&
+          (doubled / (expected * 2) <= 0.01 || halved / (expected / 2) <= 0.01) &&
           err / expected > 0.01
         ) {
           octaveCount++;
@@ -96,18 +94,10 @@ export function auditBpmSources(
       octaveRate = round3(octaveCount / withAK.length);
     }
 
-    sourceBreakdown.push({
-      source,
-      count: tracks.length,
-      mae,
-      accuracy,
-      octaveRate,
-    });
+    sourceBreakdown.push({ source, count: tracks.length, mae, accuracy, octaveRate });
   }
 
-  const missingSource = provenances.filter(
-    (p) => p.source === "unknown",
-  ).length;
+  const missingSource = provenances.filter((p) => p.source === "unknown").length;
 
   return {
     totalTracks: provenances.length,

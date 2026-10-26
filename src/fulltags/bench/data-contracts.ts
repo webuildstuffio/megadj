@@ -32,17 +32,10 @@ export interface ContractResult {
 /**
  * BPM range contract: >90% of BPM values in 60–200.
  */
-export function checkBpmRange(
-  values: readonly (string | number)[],
-): ContractResult {
+export function checkBpmRange(values: readonly (string | number)[]): ContractResult {
   const nums = values.map(Number).filter(Number.isFinite);
   if (nums.length === 0) {
-    return {
-      passed: false,
-      message: "no BPM values",
-      measured: 0,
-      threshold: 0.9,
-    };
+    return { passed: false, message: "no BPM values", measured: 0, threshold: 0.9 };
   }
   const inRange = nums.filter((v) => v >= 60 && v <= 200).length;
   const ratio = round3(inRange / nums.length);
@@ -57,9 +50,7 @@ export function checkBpmRange(
 /**
  * Key coverage contract: all 24 Camelot keys present.
  */
-export function checkKeyCoverage(
-  values: readonly (string | number)[],
-): ContractResult {
+export function checkKeyCoverage(values: readonly (string | number)[]): ContractResult {
   const keys = new Set(values.map(String).filter((k) => k.length > 0));
   const unique = keys.size;
   return {
@@ -73,9 +64,7 @@ export function checkKeyCoverage(
 /**
  * Genre family coverage: ≥10 distinct families.
  */
-export function checkGenreCoverage(
-  values: readonly (string | number)[],
-): ContractResult {
+export function checkGenreCoverage(values: readonly (string | number)[]): ContractResult {
   const families = new Set(values.map(String).filter((g) => g.length > 0));
   const unique = families.size;
   return {
@@ -89,9 +78,7 @@ export function checkGenreCoverage(
 /**
  * Energy band coverage: all 10 bands (1–10) populated.
  */
-export function checkEnergyBands(
-  values: readonly (string | number)[],
-): ContractResult {
+export function checkEnergyBands(values: readonly (string | number)[]): ContractResult {
   const bands = new Set(values.map(Number).filter((n) => n >= 1 && n <= 10));
   const unique = bands.size;
   return {
@@ -104,24 +91,8 @@ export function checkEnergyBands(
 
 /** All standard data contracts. */
 export const DATA_CONTRACTS: readonly DataContract[] = [
-  {
-    name: "bpm-range",
-    description: ">90% of BPM values in 60–200",
-    check: checkBpmRange,
-  },
-  {
-    name: "key-coverage",
-    description: "all 24 Camelot keys present",
-    check: checkKeyCoverage,
-  },
-  {
-    name: "genre-coverage",
-    description: "≥10 genre families",
-    check: checkGenreCoverage,
-  },
-  {
-    name: "energy-bands",
-    description: "all 10 energy bands populated",
-    check: checkEnergyBands,
-  },
+  { name: "bpm-range", description: ">90% of BPM values in 60–200", check: checkBpmRange },
+  { name: "key-coverage", description: "all 24 Camelot keys present", check: checkKeyCoverage },
+  { name: "genre-coverage", description: "≥10 genre families", check: checkGenreCoverage },
+  { name: "energy-bands", description: "all 10 energy bands populated", check: checkEnergyBands },
 ];

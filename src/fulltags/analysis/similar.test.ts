@@ -59,10 +59,7 @@ describe("similarTracks (pure kNN)", () => {
     expect(hits[0]!.score).toBeGreaterThan(hits[1]!.score);
   });
   test("dimension-mismatched rows are skipped, not crashed", () => {
-    const weird = [
-      ...corpus,
-      { videoId: "z", title: "Z", artist: null, vec: [1, 2, 3, 4, 5] },
-    ];
+    const weird = [...corpus, { videoId: "z", title: "Z", artist: null, vec: [1, 2, 3, 4, 5] }];
     const hits = similarTracks(weird, "a", [1, 0], 10);
     expect(hits.map((h) => h.videoId)).not.toContain("z");
   });
@@ -114,9 +111,7 @@ describe("embeddings ledger round-trip", () => {
     raw.close();
     expect(state.embeddingRecord("bad")).toBeNull();
     // and the corpus skips it too
-    expect(state.embeddingCorpus().some((c) => c.videoId === "bad")).toBe(
-      false,
-    );
+    expect(state.embeddingCorpus().some((c) => c.videoId === "bad")).toBe(false);
   });
   test("structurally invalid vectors are rejected with the row id", () => {
     track("bad-shape", "Bad shape");
@@ -132,16 +127,12 @@ describe("embeddings ledger round-trip", () => {
     console.error = (...args: unknown[]) => diagnostics.push(args.join(" "));
     try {
       expect(state.embeddingRecord("bad-shape")).toBeNull();
-      expect(
-        state.embeddingCorpus().some((c) => c.videoId === "bad-shape"),
-      ).toBe(false);
+      expect(state.embeddingCorpus().some((c) => c.videoId === "bad-shape")).toBe(false);
     } finally {
       console.error = previous;
     }
     expect(diagnostics.some((line) => line.includes("bad-shape"))).toBe(true);
-    expect(diagnostics.some((line) => line.includes("finite numbers"))).toBe(
-      true,
-    );
+    expect(diagnostics.some((line) => line.includes("finite numbers"))).toBe(true);
   });
   test("non-downloaded tracks stay out of the corpus", () => {
     state.upsertTrackFromPlaylist("gone", 0, "Gone", "test");
@@ -151,8 +142,6 @@ describe("embeddings ledger round-trip", () => {
       sourcePath: "/tmp/gone.mp3",
       model: "effnet-test",
     });
-    expect(state.embeddingCorpus().some((c) => c.videoId === "gone")).toBe(
-      false,
-    );
+    expect(state.embeddingCorpus().some((c) => c.videoId === "gone")).toBe(false);
   });
 });

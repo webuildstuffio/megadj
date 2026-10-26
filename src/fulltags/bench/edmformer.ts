@@ -72,33 +72,23 @@ export function compareSections(
 
   const precision = predBoundaries.length > 0 ? tp / predBoundaries.length : 0;
   const recall = truthBoundaries.length > 0 ? tp / truthBoundaries.length : 0;
-  const f1 =
-    precision + recall > 0
-      ? (2 * precision * recall) / (precision + recall)
-      : 0;
+  const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
 
   // Label accuracy on matched boundaries
   let labelCorrect = 0;
   let labelTotal = 0;
   for (const p of predicted) {
-    const match = truth.find(
-      (t) => Math.abs(p.startBar - t.startBar) <= tolerance,
-    );
+    const match = truth.find((t) => Math.abs(p.startBar - t.startBar) <= tolerance);
     if (match !== undefined) {
       labelTotal++;
-      if (normalizeLabel(p.label) === normalizeLabel(match.label))
-        labelCorrect++;
+      if (normalizeLabel(p.label) === normalizeLabel(match.label)) labelCorrect++;
     }
   }
 
   const overSeg =
-    predicted.length > truth.length
-      ? round3((predicted.length - truth.length) / truth.length)
-      : 0;
+    predicted.length > truth.length ? round3((predicted.length - truth.length) / truth.length) : 0;
   const underSeg =
-    predicted.length < truth.length
-      ? round3((truth.length - predicted.length) / truth.length)
-      : 0;
+    predicted.length < truth.length ? round3((truth.length - predicted.length) / truth.length) : 0;
 
   return {
     boundaryF1: round3(f1),

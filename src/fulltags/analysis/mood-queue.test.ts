@@ -82,9 +82,7 @@ describe("mood analysis queue (flagless no-op regression)", () => {
     // all 3 unstamped tracks must have REACHED pass 2
     expect(summary.failed).toBe(3);
     expect(summary.analyzed).toBe(0);
-    const rows = state
-      .allTracks()
-      .filter((t) => paths.includes(t.file_path ?? ""));
+    const rows = state.allTracks().filter((t) => paths.includes(t.file_path ?? ""));
     expect(rows.length).toBe(3);
   }, 60000); // the ONNX probe spawn (uv env bootstrap) needs more than bunfig's 15s
 

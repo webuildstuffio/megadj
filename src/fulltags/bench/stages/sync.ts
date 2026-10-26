@@ -23,11 +23,7 @@ interface CommentRow {
 
 const COMMENT_RE = /^[A-G][#b]?[mM]?\s*·\s*E\d+\s*·\s*.+$/;
 
-function runSyncStage(
-  db: Database,
-  _answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runSyncStage(db: Database, _answerKey: string, _split: BenchSplit): StageResult {
   let comments: CommentRow[];
   try {
     comments = db
@@ -70,21 +66,12 @@ function runSyncStage(
     empty: n - complete - partial,
     completion_rate: n > 0 ? round4(complete / n) : null,
     distinct_comments: distinctComments.size,
-    info_ratio:
-      n > 0 && distinctComments.size > 0
-        ? round3(distinctComments.size / n)
-        : null,
+    info_ratio: n > 0 && distinctComments.size > 0 ? round3(distinctComments.size / n) : null,
   };
 
   metrics.gate = n > 0 && complete / n >= 0.99 ? "PASS" : "FAIL";
 
-  return {
-    stage: "sync",
-    answerKey: "internal",
-    rows: benchRows,
-    metrics,
-    configHash: "sync-v1",
-  };
+  return { stage: "sync", answerKey: "internal", rows: benchRows, metrics, configHash: "sync-v1" };
 }
 
 registerStage("sync", runSyncStage);

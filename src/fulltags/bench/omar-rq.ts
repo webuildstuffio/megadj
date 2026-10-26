@@ -104,9 +104,7 @@ export function correlateWithEnergy(
     sumY2 += p.energy * p.energy;
   }
 
-  const denom = Math.sqrt(
-    (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY),
-  );
+  const denom = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
   if (denom === 0) return 0;
   return round3((n * sumXY - sumX * sumY) / denom);
 }

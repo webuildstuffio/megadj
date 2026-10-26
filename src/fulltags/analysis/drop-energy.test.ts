@@ -76,9 +76,7 @@ describe("computeDropEnergy", () => {
   });
 
   test("custom window size", () => {
-    const bars = Array.from({ length: 20 }, (_, i) =>
-      makeBar(i, i >= 10 && i < 18 ? -6 : -18),
-    );
+    const bars = Array.from({ length: 20 }, (_, i) => makeBar(i, i >= 10 && i < 18 ? -6 : -18));
     const result = computeDropEnergy(bars, 8);
     expect(result).not.toBeNull();
     expect(result!.windowSize).toBe(8);

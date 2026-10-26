@@ -31,19 +31,13 @@ export function nameSimilarityTokens(a: string, b: string): number {
   return sharedTokenRatio(a, b);
 }
 
-export async function compareFingerprint(
-  file: string,
-  other: string,
-): Promise<FpVerdict> {
+export async function compareFingerprint(file: string, other: string): Promise<FpVerdict> {
   const fp = fingerprintFile(file);
   if (!fp) return { fp: null, dupe: false, suspicious: false };
   const otherFp = fingerprintFile(other);
   if (!otherFp) return { fp, dupe: false, suspicious: false };
   if (fp !== otherFp) return { fp, dupe: false, suspicious: false };
   const similar =
-    nameSimilarityTokens(
-      file.split("/").pop() ?? "",
-      other.split("/").pop() ?? "",
-    ) >= 0.5;
+    nameSimilarityTokens(file.split("/").pop() ?? "", other.split("/").pop() ?? "") >= 0.5;
   return { fp, dupe: similar, suspicious: !similar };
 }

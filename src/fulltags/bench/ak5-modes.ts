@@ -50,55 +50,29 @@ export interface AK5Session {
 /**
  * Create a new AK5 session.
  */
-export function createAK5Session(
-  mode: "dispute" | "triplet" | "energy-pair",
-): AK5Session {
-  return {
-    mode,
-    disputes: [],
-    triplets: [],
-    energyPairs: [],
-    startedAt: new Date().toISOString(),
-  };
+export function createAK5Session(mode: "dispute" | "triplet" | "energy-pair"): AK5Session {
+  return { mode, disputes: [], triplets: [], energyPairs: [], startedAt: new Date().toISOString() };
 }
 
 /**
  * Add a dispute verdict to the session.
  */
-export function addDispute(
-  session: AK5Session,
-  verdict: DisputeVerdict,
-): AK5Session {
-  return {
-    ...session,
-    disputes: [...session.disputes, verdict],
-  };
+export function addDispute(session: AK5Session, verdict: DisputeVerdict): AK5Session {
+  return { ...session, disputes: [...session.disputes, verdict] };
 }
 
 /**
  * Add a triplet judgment to the session.
  */
-export function addTriplet(
-  session: AK5Session,
-  judgment: TripletJudgment,
-): AK5Session {
-  return {
-    ...session,
-    triplets: [...session.triplets, judgment],
-  };
+export function addTriplet(session: AK5Session, judgment: TripletJudgment): AK5Session {
+  return { ...session, triplets: [...session.triplets, judgment] };
 }
 
 /**
  * Add an energy pair judgment to the session.
  */
-export function addEnergyPair(
-  session: AK5Session,
-  judgment: EnergyPairJudgment,
-): AK5Session {
-  return {
-    ...session,
-    energyPairs: [...session.energyPairs, judgment],
-  };
+export function addEnergyPair(session: AK5Session, judgment: EnergyPairJudgment): AK5Session {
+  return { ...session, energyPairs: [...session.energyPairs, judgment] };
 }
 
 /**
@@ -109,10 +83,7 @@ export function sessionStats(session: AK5Session): {
   overrides: number;
   confirmRate: number;
 } {
-  const total =
-    session.disputes.length +
-    session.triplets.length +
-    session.energyPairs.length;
+  const total = session.disputes.length + session.triplets.length + session.energyPairs.length;
   const overrides = session.disputes.filter((d) => !d.confirmed).length;
   const disputeConfirmRate =
     session.disputes.length > 0

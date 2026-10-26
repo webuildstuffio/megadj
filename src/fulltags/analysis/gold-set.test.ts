@@ -17,11 +17,7 @@ import {
   splitGoldSet,
   type GoldAnnotation,
 } from "../analysis/gold";
-import {
-  aggregateScores,
-  scoreGoldTrack,
-  type GoldTrackScore,
-} from "../analysis/gold-score";
+import { aggregateScores, scoreGoldTrack, type GoldTrackScore } from "../analysis/gold-score";
 
 const valid: GoldAnnotation = {
   hash: "a".repeat(64),
@@ -56,37 +52,23 @@ describe("goldSchemaError", () => {
   test("rejects non-finite bpm and out-of-range values", () => {
     expect(goldSchemaError({ ...valid, bpm: -1 })).toMatch(/bpm/u);
     expect(goldSchemaError({ ...valid, bpm: 401 })).toMatch(/400/u);
-    expect(goldSchemaError({ ...valid, firstDownbeatMs: -5 })).toMatch(
-      /firstDownbeat/u,
-    );
+    expect(goldSchemaError({ ...valid, firstDownbeatMs: -5 })).toMatch(/firstDownbeat/u);
   });
 
   test("phraseBars must be increasing 1-based integers", () => {
-    expect(goldSchemaError({ ...valid, phraseBars: [33, 1] })).toMatch(
-      /increasing/u,
-    );
-    expect(goldSchemaError({ ...valid, phraseBars: [0, 33] })).toMatch(
-      /bar integers/u,
-    );
-    expect(goldSchemaError({ ...valid, phraseBars: [1.5] })).toMatch(
-      /bar integers/u,
-    );
+    expect(goldSchemaError({ ...valid, phraseBars: [33, 1] })).toMatch(/increasing/u);
+    expect(goldSchemaError({ ...valid, phraseBars: [0, 33] })).toMatch(/bar integers/u);
+    expect(goldSchemaError({ ...valid, phraseBars: [1.5] })).toMatch(/bar integers/u);
   });
 
   test("hotCuesMs: ≤ 8, finite, strictly increasing", () => {
-    expect(
-      goldSchemaError({ ...valid, hotCuesMs: Array(9).fill(100) }),
-    ).toMatch(/≤ 8/u);
-    expect(goldSchemaError({ ...valid, hotCuesMs: [200, 100] })).toMatch(
-      /increasing/u,
-    );
+    expect(goldSchemaError({ ...valid, hotCuesMs: Array(9).fill(100) })).toMatch(/≤ 8/u);
+    expect(goldSchemaError({ ...valid, hotCuesMs: [200, 100] })).toMatch(/increasing/u);
     expect(goldSchemaError({ ...valid, hotCuesMs: [-1] })).toMatch(/≥ 0/u);
   });
 
   test("parseGoldAnnotation throws with file name on bad JSON", () => {
-    expect(() => parseGoldAnnotation("{nope", "x.json")).toThrow(
-      /x\.json.*JSON/u,
-    );
+    expect(() => parseGoldAnnotation("{nope", "x.json")).toThrow(/x\.json.*JSON/u);
     expect(() => parseGoldAnnotation("{}", "y.json")).toThrow(/y\.json.*hash/u);
   });
 });
@@ -104,10 +86,7 @@ describe("loadGoldSet", () => {
   });
 
   test("valid files load sorted; corrupt file lands in issues (visible)", () => {
-    writeFileSync(
-      join(dir, "b.json"),
-      JSON.stringify({ ...valid, hash: "b".repeat(64) }),
-    );
+    writeFileSync(join(dir, "b.json"), JSON.stringify({ ...valid, hash: "b".repeat(64) }));
     writeFileSync(join(dir, "a.json"), "not json at all");
     writeFileSync(
       join(dir, "c.json"),
@@ -116,10 +95,7 @@ describe("loadGoldSet", () => {
     const s = loadGoldSet(dir);
     expect(s.annotations.map((a) => a.hash[0])).toEqual(["b"]);
     expect(s.issues).toHaveLength(2);
-    expect(s.issues.map((i) => i.file).toSorted()).toEqual([
-      "a.json",
-      "c.json",
-    ]);
+    expect(s.issues.map((i) => i.file).toSorted()).toEqual(["a.json", "c.json"]);
     expect(s.issues[0]!.error).toBeTruthy();
   });
 
@@ -139,11 +115,7 @@ describe("splitGoldSet (measurement discipline)", () => {
       ...valid,
       hash: c.repeat(64),
     }));
-    const s = splitGoldSet({
-      annotations: anns,
-      issues: [],
-      dir: "/x",
-    });
+    const s = splitGoldSet({ annotations: anns, issues: [], dir: "/x" });
     // 6 tracks → 4 dev / 2 holdout; hash order a..f
     expect(s.dev.map((a) => a.hash[0])).toEqual(["a", "b", "c", "d"]);
     expect(s.holdout.map((a) => a.hash[0])).toEqual(["e", "f"]);
@@ -239,12 +211,7 @@ describe("scoreGoldTrack", () => {
   test("user marked no hot cues → cueAccepted null (not zero)", () => {
     const s = scoreGoldTrack(
       { ...valid, hotCuesMs: [] },
-      {
-        firstDownbeatS: 0.352,
-        bpm: valid.bpm,
-        phraseBars: [],
-        cueTimesMs: [],
-      },
+      { firstDownbeatS: 0.352, bpm: valid.bpm, phraseBars: [], cueTimesMs: [] },
     );
     expect(s.cueAccepted).toBeNull();
   });

@@ -69,10 +69,7 @@ export function migrateBarFeaturesTable(db: Database): void {
  * Insert or replace bar features for a track.
  * Replaces all existing bars for the track in one transaction.
  */
-export function upsertBarFeatures(
-  db: Database,
-  trackFeatures: TrackBarFeatures,
-): number {
+export function upsertBarFeatures(db: Database, trackFeatures: TrackBarFeatures): number {
   const { videoId, pcaVersion, bars } = trackFeatures;
   if (bars.length === 0) return 0;
 
@@ -110,10 +107,7 @@ export function upsertBarFeatures(
 /**
  * Load all bar features for a track.
  */
-export function loadBarFeatures(
-  db: Database,
-  videoId: string,
-): TrackBarFeatures | null {
+export function loadBarFeatures(db: Database, videoId: string): TrackBarFeatures | null {
   const rows = db
     .query(
       `SELECT bar_index, start_time, end_time, embedding,
@@ -145,9 +139,9 @@ export function loadBarFeatures(
  * Count tracks with bar features stored.
  */
 export function barFeatureCount(db: Database): number {
-  const row = db
-    .query("SELECT count(DISTINCT video_id) AS n FROM bar_features")
-    .get() as { n: number } | null;
+  const row = db.query("SELECT count(DISTINCT video_id) AS n FROM bar_features").get() as {
+    n: number;
+  } | null;
   return row?.n ?? 0;
 }
 
@@ -156,9 +150,9 @@ export function barFeatureCount(db: Database): number {
  */
 export function barFeatureTrackIds(db: Database): string[] {
   return (
-    db
-      .query("SELECT DISTINCT video_id FROM bar_features ORDER BY video_id")
-      .all() as { video_id: string }[]
+    db.query("SELECT DISTINCT video_id FROM bar_features ORDER BY video_id").all() as {
+      video_id: string;
+    }[]
   ).map((r) => r.video_id);
 }
 

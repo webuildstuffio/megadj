@@ -17,30 +17,18 @@ const GATES: Record<
 > = {
   bpm: {
     description: "≥95% within 0.1% vs AK2",
-    check: (m) =>
-      typeof m.ak2_within_01pct === "number" && m.ak2_within_01pct >= 0.95,
+    check: (m) => typeof m.ak2_within_01pct === "number" && m.ak2_within_01pct >= 0.95,
   },
-  key: {
-    description: "≥ baseline exact on AK1",
-    check: () => true,
-  },
+  key: { description: "≥ baseline exact on AK1", check: () => true },
   "genre-l2": {
     description: "≥90% precision at ≥80% coverage",
     check: (m) => typeof m.ak3_accuracy === "number" && m.ak3_accuracy >= 0.9,
   },
-  mood: {
-    description: "no head fires >70%",
-    check: (m) => m.gate_pass === "PASS",
-  },
-  energy: {
-    description: "≥75% held-out pair agreement, each decile 8-12%",
-    check: () => true,
-  },
+  mood: { description: "no head fires >70%", check: (m) => m.gate_pass === "PASS" },
+  energy: { description: "≥75% held-out pair agreement, each decile 8-12%", check: () => true },
 };
 
-function formatMetrics(
-  metrics: Record<string, number | string | null>,
-): string {
+function formatMetrics(metrics: Record<string, number | string | null>): string {
   return Object.entries(metrics)
     .filter(([, v]) => v !== null)
     .map(([k, v]) => {

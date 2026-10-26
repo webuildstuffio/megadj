@@ -18,14 +18,7 @@ const row = (
   truth: string,
   pred: string,
   conf: number | null = null,
-): BenchRow => ({
-  runId: "test",
-  trackId,
-  truth,
-  pred,
-  conf,
-  correct: truth === pred ? 1 : 0,
-});
+): BenchRow => ({ runId: "test", trackId, truth, pred, conf, correct: truth === pred ? 1 : 0 });
 
 describe("mulberry32 PRNG", () => {
   test("deterministic — same seed produces same sequence", () => {
@@ -62,9 +55,7 @@ describe("bootstrapAccuracyCI", () => {
   });
 
   test("50% accuracy — CI brackets the true value", () => {
-    const correct: (0 | 1)[] = Array.from({ length: 200 }, (_, i) =>
-      i % 2 === 0 ? 1 : 0,
-    );
+    const correct: (0 | 1)[] = Array.from({ length: 200 }, (_, i) => (i % 2 === 0 ? 1 : 0));
     const ci = bootstrapAccuracyCI(correct, 2000, 42);
     expect(ci.estimate).toBe(0.5);
     expect(ci.lo).toBeLessThan(0.5);
@@ -74,12 +65,8 @@ describe("bootstrapAccuracyCI", () => {
   });
 
   test("known 80% accuracy — CI width narrows with n", () => {
-    const small: (0 | 1)[] = Array.from({ length: 50 }, (_, i) =>
-      i < 40 ? 1 : 0,
-    );
-    const large: (0 | 1)[] = Array.from({ length: 500 }, (_, i) =>
-      i < 400 ? 1 : 0,
-    );
+    const small: (0 | 1)[] = Array.from({ length: 50 }, (_, i) => (i < 40 ? 1 : 0));
+    const large: (0 | 1)[] = Array.from({ length: 500 }, (_, i) => (i < 400 ? 1 : 0));
     const ciSmall = bootstrapAccuracyCI(small, 1000, 7);
     const ciLarge = bootstrapAccuracyCI(large, 1000, 7);
     expect(ciSmall.hi - ciSmall.lo).toBeGreaterThan(ciLarge.hi - ciLarge.lo);
@@ -113,11 +100,7 @@ describe("bootstrapCI (generic)", () => {
 
 describe("mcnemar", () => {
   test("identical runs — no significant difference", () => {
-    const rows = [
-      row("t1", "a", "a"),
-      row("t2", "b", "b"),
-      row("t3", "a", "b"),
-    ];
+    const rows = [row("t1", "a", "a"), row("t2", "b", "b"), row("t3", "a", "b")];
     const result = mcnemar(rows, rows);
     expect(result.b).toBe(0);
     expect(result.c).toBe(0);
@@ -127,12 +110,8 @@ describe("mcnemar", () => {
   });
 
   test("one-sided improvement — A perfect, B all wrong", () => {
-    const rowsA: BenchRow[] = Array.from({ length: 50 }, (_, i) =>
-      row(`t${i}`, "a", "a"),
-    );
-    const rowsB: BenchRow[] = Array.from({ length: 50 }, (_, i) =>
-      row(`t${i}`, "a", "b"),
-    );
+    const rowsA: BenchRow[] = Array.from({ length: 50 }, (_, i) => row(`t${i}`, "a", "a"));
+    const rowsB: BenchRow[] = Array.from({ length: 50 }, (_, i) => row(`t${i}`, "a", "b"));
     const result = mcnemar(rowsA, rowsB);
     expect(result.b).toBe(50);
     expect(result.c).toBe(0);
@@ -178,9 +157,7 @@ describe("riskCoverageCurve", () => {
   });
 
   test("all high-confidence correct", () => {
-    const rows = Array.from({ length: 50 }, (_, i) =>
-      row(`t${i}`, "a", "a", 0.95),
-    );
+    const rows = Array.from({ length: 50 }, (_, i) => row(`t${i}`, "a", "a", 0.95));
     const curve = riskCoverageCurve(rows);
     expect(curve.length).toBe(21);
     const point90 = curve.find((p) => p.threshold === 0.9);
@@ -263,10 +240,7 @@ describe("ece", () => {
     for (let i = 0; i < 100; i++) {
       const conf = 0.8;
       const correct = i < 80 ? 1 : 0;
-      rows.push({
-        ...row(`t${i}`, "a", correct ? "a" : "b", conf),
-        correct: correct as 0 | 1,
-      });
+      rows.push({ ...row(`t${i}`, "a", correct ? "a" : "b", conf), correct: correct as 0 | 1 });
     }
     const e = ece(rows);
     expect(e).toBeLessThan(0.05);
@@ -277,10 +251,7 @@ describe("ece", () => {
     for (let i = 0; i < 100; i++) {
       const conf = 0.95;
       const correct = i < 50 ? 1 : 0;
-      rows.push({
-        ...row(`t${i}`, "a", correct ? "a" : "b", conf),
-        correct: correct as 0 | 1,
-      });
+      rows.push({ ...row(`t${i}`, "a", correct ? "a" : "b", conf), correct: correct as 0 | 1 });
     }
     const e = ece(rows);
     expect(e).toBeGreaterThan(0.3);

@@ -44,12 +44,7 @@ export function fitEnergyModel(
   if (pairs.length === 0) return [];
 
   // Collect all track IDs
-  const trackIds = [
-    ...new Set([
-      ...pairs.map((p) => p.winnerId),
-      ...pairs.map((p) => p.loserId),
-    ]),
-  ];
+  const trackIds = [...new Set([...pairs.map((p) => p.winnerId), ...pairs.map((p) => p.loserId)])];
   const n = trackIds.length;
   const idx = new Map(trackIds.map((id, i) => [id, i]));
 

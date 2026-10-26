@@ -88,11 +88,7 @@ function strictlyIncreasingInts(xs: number[]): boolean {
 }
 
 /** `[string, number]` field: finite number ≥ min. Null when ok. */
-function finiteMinError(
-  a: Record<string, unknown>,
-  k: string,
-  min: number,
-): string | null {
+function finiteMinError(a: Record<string, unknown>, k: string, min: number): string | null {
   const n = a[k];
   if (typeof n !== "number" || !Number.isFinite(n) || n < min)
     return `${k} must be a finite number ≥ ${min}`;
@@ -118,8 +114,7 @@ function intArrayError(
   if (opts.max !== undefined && xs.length > opts.max) return opts.shape;
   const nums = xs.filter(opts.ok);
   if (nums.length !== xs.length) return opts.shape;
-  if (!strictlyIncreasingInts(nums))
-    return `${opts.field} must be strictly increasing`;
+  if (!strictlyIncreasingInts(nums)) return `${opts.field} must be strictly increasing`;
   return null;
 }
 
@@ -144,13 +139,11 @@ function headerError(a: Record<string, unknown>): string | null {
 }
 
 export function goldSchemaError(v: unknown): string | null {
-  if (typeof v !== "object" || v === null)
-    return "annotation must be a JSON object";
+  if (typeof v !== "object" || v === null) return "annotation must be a JSON object";
   const a = v as Record<string, unknown>;
   const header = headerError(a);
   if (header) return header;
-  const numericErr =
-    finiteMinError(a, "firstDownbeatMs", 0) ?? finiteMinError(a, "bpm", 1);
+  const numericErr = finiteMinError(a, "firstDownbeatMs", 0) ?? finiteMinError(a, "bpm", 1);
   if (numericErr) return numericErr;
   if (typeof a.bpm !== "number" || a.bpm > 400) return "bpm must be ≤ 400";
   const barsErr = intArrayError(a.phraseBars, {
@@ -182,9 +175,7 @@ export function parseGoldAnnotation(raw: string, file: string): GoldAnnotation {
   try {
     v = JSON.parse(raw);
   } catch (e) {
-    throw new TypeError(`${file}: not valid JSON (${errorText(e)})`, {
-      cause: e,
-    });
+    throw new TypeError(`${file}: not valid JSON (${errorText(e)})`, { cause: e });
   }
   const err = goldSchemaError(v);
   if (err) throw new TypeError(`${file}: ${err}`);
@@ -208,10 +199,7 @@ export function loadGoldSet(dir: string): GoldSet {
     try {
       out.annotations.push(parseGoldAnnotation(readFileSync(path, "utf8"), f));
     } catch (e) {
-      out.issues.push({
-        file: f,
-        error: errorText(e),
-      });
+      out.issues.push({ file: f, error: errorText(e) });
     }
   }
   out.annotations.sort((x, y) => (x.hash < y.hash ? -1 : 1));
@@ -232,13 +220,8 @@ export function splitGoldSet(set: GoldSet): GoldSplit {
   // Sorts by hash ITSELF: a caller can never reshape the dev/holdout
   // split by passing unsorted input; the same hash always lands on the
   // same side (measurement discipline, plan §0.3).
-  const sorted = [...set.annotations].toSorted((x, y) =>
-    x.hash < y.hash ? -1 : 1,
-  );
+  const sorted = [...set.annotations].toSorted((x, y) => (x.hash < y.hash ? -1 : 1));
   const n = sorted.length;
   const devCount = Math.round((n * 2) / 3);
-  return {
-    dev: sorted.slice(0, devCount),
-    holdout: sorted.slice(devCount),
-  };
+  return { dev: sorted.slice(0, devCount), holdout: sorted.slice(devCount) };
 }

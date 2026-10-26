@@ -2,12 +2,7 @@
  * section-classifier.test.ts — Tests for PSSI section classifier (B8.2).
  */
 import { describe, expect, test } from "bun:test";
-import {
-  classifySections,
-  pssiTypeName,
-  sectionFeatures,
-  PSSI_TYPES,
-} from "./section-classifier";
+import { classifySections, pssiTypeName, sectionFeatures, PSSI_TYPES } from "./section-classifier";
 
 describe("pssiTypeName", () => {
   test("maps known codes", () => {
@@ -79,10 +74,7 @@ describe("sectionFeatures", () => {
       ...Array.from({ length: 4 }, () => PSSI_TYPES.INTRO),
       ...Array.from({ length: 4 }, () => PSSI_TYPES.CHORUS),
     ]).sections;
-    const lufs = [
-      ...Array.from({ length: 4 }, () => -20),
-      ...Array.from({ length: 4 }, () => -8),
-    ];
+    const lufs = [...Array.from({ length: 4 }, () => -20), ...Array.from({ length: 4 }, () => -8)];
     const features = sectionFeatures(sections, lufs);
     expect(features).toHaveLength(2);
     expect(features[0]!.meanLufs).toBe(-20);

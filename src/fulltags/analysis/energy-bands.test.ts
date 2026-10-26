@@ -23,23 +23,17 @@ describe("buildEnergyReference", () => {
 
 describe("bandFromReference", () => {
   test("lowest score → band 1", () => {
-    const ref = buildEnergyReference(
-      Array.from({ length: 100 }, (_, i) => i / 100),
-    );
+    const ref = buildEnergyReference(Array.from({ length: 100 }, (_, i) => i / 100));
     expect(bandFromReference(0.01, ref)).toBe(1);
   });
 
   test("highest score → band 9 (E1–E9 cap)", () => {
-    const ref = buildEnergyReference(
-      Array.from({ length: 100 }, (_, i) => i / 100),
-    );
+    const ref = buildEnergyReference(Array.from({ length: 100 }, (_, i) => i / 100));
     expect(bandFromReference(0.99, ref)).toBe(9);
   });
 
   test("mid score → mid band", () => {
-    const ref = buildEnergyReference(
-      Array.from({ length: 100 }, (_, i) => i / 100),
-    );
+    const ref = buildEnergyReference(Array.from({ length: 100 }, (_, i) => i / 100));
     const band = bandFromReference(0.5, ref);
     expect(band).toBeGreaterThanOrEqual(4);
     expect(band).toBeLessThanOrEqual(6);

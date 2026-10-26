@@ -21,11 +21,7 @@ interface EvalRow {
   duration_s: number | null;
 }
 
-function runGenreLooStage(
-  db: Database,
-  _answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runGenreLooStage(db: Database, _answerKey: string, _split: BenchSplit): StageResult {
   // Pull the eval population: downloaded tracks with genre + embedding
   const pop = db
     .query(
@@ -38,9 +34,7 @@ function runGenreLooStage(
     .all() as EvalRow[];
 
   const rows: BenchRow[] = [];
-  const metrics: Record<string, number | string | null> = {
-    population: pop.length,
-  };
+  const metrics: Record<string, number | string | null> = { population: pop.length };
 
   if (pop.length === 0) {
     return {
@@ -71,21 +65,14 @@ function runGenreLooStage(
     }
   }
 
-  const familyEvaluable = seeds.filter(
-    (s) => genreFamily(s.genre) !== null,
-  ).length;
+  const familyEvaluable = seeds.filter((s) => genreFamily(s.genre) !== null).length;
 
   if (familyEvaluable === 0) {
     return {
       stage: "genre-loo",
       answerKey: "internal",
       rows: [],
-      metrics: {
-        ...metrics,
-        agreement: null,
-        evaluated: 0,
-        parse_errors: parseErrors,
-      },
+      metrics: { ...metrics, agreement: null, evaluated: 0, parse_errors: parseErrors },
       configHash: "genre-loo-v1",
     };
   }
@@ -105,21 +92,14 @@ function runGenreLooStage(
   }
 
   metrics.evaluated = summary.evaluated;
-  metrics.agreement =
-    summary.evaluated > 0 ? round4(summary.agree / summary.evaluated) : null;
+  metrics.agreement = summary.evaluated > 0 ? round4(summary.agree / summary.evaluated) : null;
   metrics.agree = summary.agree;
   metrics.disagree = summary.disagree;
   metrics.refused = summary.refused;
   metrics.parse_errors = parseErrors;
   metrics.family_evaluable = familyEvaluable;
 
-  return {
-    stage: "genre-loo",
-    answerKey: "internal",
-    rows,
-    metrics,
-    configHash: "genre-loo-v1",
-  };
+  return { stage: "genre-loo", answerKey: "internal", rows, metrics, configHash: "genre-loo-v1" };
 }
 
 registerStage("genre-loo", runGenreLooStage);

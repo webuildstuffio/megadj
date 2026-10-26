@@ -13,8 +13,7 @@ import { existsSync } from "node:fs";
 import { nonEmptyEnv } from "../../shared/leaf/guards";
 
 const HOME = nonEmptyEnv("HOME");
-if (HOME === undefined)
-  throw new Error("energy-features: HOME is unset or empty");
+if (HOME === undefined) throw new Error("energy-features: HOME is unset or empty");
 const MODEL_DIR = `${HOME}/.local/share/fulltags-models`;
 
 /** All Tier A + Tier B feature columns for one track. */
@@ -110,10 +109,7 @@ export function migrateEnergyTables(db: Database): void {
 
 // --------------- DB read/write ---------------
 
-export function upsertEnergyFeatures(
-  db: Database,
-  row: EnergyFeatureRow,
-): void {
+export function upsertEnergyFeatures(db: Database, row: EnergyFeatureRow): void {
   db.run(
     `INSERT OR REPLACE INTO energy_features
        (video_id, onsets_per_beat, bpm, hf_energy_re_lufs, low_energy_re_lufs,
@@ -158,9 +154,7 @@ export function loadAllEnergyFeatures(db: Database): EnergyFeatureRow[] {
 }
 
 export function energyFeatureCount(db: Database): number {
-  const r = db.query("SELECT count(*) AS n FROM energy_features").get() as {
-    n: number;
-  } | null;
+  const r = db.query("SELECT count(*) AS n FROM energy_features").get() as { n: number } | null;
   return r?.n ?? 0;
 }
 
@@ -477,8 +471,7 @@ export async function energyModelsEnsure(): Promise<string[]> {
   const heads: Record<string, string> = {
     "discogs-effnet-bsdynamic-1.onnx":
       "feature-extractors/discogs-effnet/discogs-effnet-bsdynamic-1.onnx",
-    "audioset-vggish-3.onnx":
-      "feature-extractors/vggish/audioset-vggish-3.onnx",
+    "audioset-vggish-3.onnx": "feature-extractors/vggish/audioset-vggish-3.onnx",
     "mood_aggressive-discogs-effnet-1.onnx":
       "classification-heads/mood_aggressive/mood_aggressive-discogs-effnet-1.onnx",
     "engagement_regression-discogs-effnet-1.onnx":

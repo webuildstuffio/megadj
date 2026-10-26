@@ -203,9 +203,7 @@ describe("parseExtractLine", () => {
   });
 
   test("features = null → error result", () => {
-    const r = parseExtractLine(
-      JSON.stringify({ path: "/a.mp3", features: null }),
-    );
+    const r = parseExtractLine(JSON.stringify({ path: "/a.mp3", features: null }));
     expect(r).not.toBeNull();
     expect(r!.error).toBe("missing features");
   });

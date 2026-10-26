@@ -53,8 +53,7 @@ export function fitProbe(
   const epochs = opts.epochs ?? 200;
   const lr = opts.lr ?? 0.5;
   const l2 = opts.l2 ?? 1e-4;
-  if (rows.length === 0)
-    return { fit: { classes: [], weights: [], bias: [] }, loss: 0, epochs: 0 };
+  if (rows.length === 0) return { fit: { classes: [], weights: [], bias: [] }, loss: 0, epochs: 0 };
   const classes = [...new Set(rows.map((r) => r.label))].toSorted();
   const classIndex = new Map(classes.map((c, i) => [c, i]));
   const d = rows[0]!.vec.length;
@@ -99,15 +98,10 @@ export function fitProbe(
     }
     // SGD step (mean gradients + L2 on weights only)
     const scale = lr / n;
-    for (let j = 0; j < C * d; j++)
-      W[j] = W[j]! - scale * gradW[j]! + lr * l2 * W[j]!;
+    for (let j = 0; j < C * d; j++) W[j] = W[j]! - scale * gradW[j]! + lr * l2 * W[j]!;
     for (let c = 0; c < C; c++) b[c]! -= scale * gradB[c]!;
   }
-  return {
-    fit: { classes, weights: W, bias: b },
-    loss: round4(loss / n),
-    epochs,
-  };
+  return { fit: { classes, weights: W, bias: b }, loss: round4(loss / n), epochs };
 }
 
 /** Predict the class family for one vector (argmax of the softmax —
@@ -153,11 +147,7 @@ export function probeLeaveOneOut(
   /** "loo" when folds=0, else "5-fold-cv" style label */
   protocol: string;
 } {
-  const predictions: {
-    videoId: string;
-    truth: string;
-    predicted: string | null;
-  }[] = [];
+  const predictions: { videoId: string; truth: string; predicted: string | null }[] = [];
   if (rows.length === 0)
     return {
       evaluated: 0,
@@ -171,11 +161,7 @@ export function probeLeaveOneOut(
    *  prediction and append the per-row record. */
   const record = (held: ProbeRow, predicted: string | null): void => {
     if (predicted === held.label) correct++;
-    predictions.push({
-      videoId: held.videoId,
-      truth: held.label,
-      predicted,
-    });
+    predictions.push({ videoId: held.videoId, truth: held.label, predicted });
   };
   /** The shared result shape (the two return literals below differ only
    *  in protocol label). */
@@ -200,16 +186,14 @@ export function probeLeaveOneOut(
   // every fold sees every class in class proportion
   const byClass = new Map<string, ProbeRow[]>();
   for (const row of [...rows].toSorted(
-    (a, b) =>
-      a.label.localeCompare(b.label) || a.videoId.localeCompare(b.videoId),
+    (a, b) => a.label.localeCompare(b.label) || a.videoId.localeCompare(b.videoId),
   )) {
     const list = byClass.get(row.label) ?? [];
     list.push(row);
     byClass.set(row.label, list);
   }
   const foldOf = new Map<string, number>();
-  for (const list of byClass.values())
-    list.forEach((row, i) => foldOf.set(row.videoId, i % folds));
+  for (const list of byClass.values()) list.forEach((row, i) => foldOf.set(row.videoId, i % folds));
   for (let f = 0; f < folds; f++) {
     const train = rows.filter((r) => foldOf.get(r.videoId) !== f);
     const test = rows.filter((r) => foldOf.get(r.videoId) === f);

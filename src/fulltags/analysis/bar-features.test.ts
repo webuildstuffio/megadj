@@ -23,11 +23,7 @@ afterEach(() => {
   db.close();
 });
 
-function makeTrack(
-  videoId: string,
-  barCount: number,
-  pcaVersion = "v1",
-): TrackBarFeatures {
+function makeTrack(videoId: string, barCount: number, pcaVersion = "v1"): TrackBarFeatures {
   return {
     videoId,
     pcaVersion,
@@ -50,9 +46,7 @@ describe("migrateBarFeaturesTable", () => {
     migrateBarFeaturesTable(db);
     migrateBarFeaturesTable(db);
     const tables = db
-      .query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='bar_features'",
-      )
+      .query("SELECT name FROM sqlite_master WHERE type='table' AND name='bar_features'")
       .all();
     expect(tables).toHaveLength(1);
   });
@@ -75,12 +69,7 @@ describe("upsertBarFeatures", () => {
 
   test("returns 0 for empty bars", () => {
     expect(
-      upsertBarFeatures(db, {
-        videoId: "vid1",
-        pcaVersion: "v1",
-        barCount: 0,
-        bars: [],
-      }),
+      upsertBarFeatures(db, { videoId: "vid1", pcaVersion: "v1", barCount: 0, bars: [] }),
     ).toBe(0);
   });
 });

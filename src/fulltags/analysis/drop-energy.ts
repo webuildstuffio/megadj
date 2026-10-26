@@ -79,27 +79,14 @@ export function computeDropEnergy(
 
   // Extract features from the window
   const window = bars.slice(bestStart, bestStart + windowSize);
-  const windowLufs = window
-    .map((b) => b.lufs)
-    .filter((l): l is number => l !== null);
-  const windowOnset = window
-    .map((b) => b.onsetDensity)
-    .filter((d): d is number => d !== null);
-  const windowLowBand = window
-    .map((b) => b.lowBandShare)
-    .filter((s): s is number => s !== null);
-  const windowFlux = window
-    .map((b) => b.spectralFlux)
-    .filter((f): f is number => f !== null);
+  const windowLufs = window.map((b) => b.lufs).filter((l): l is number => l !== null);
+  const windowOnset = window.map((b) => b.onsetDensity).filter((d): d is number => d !== null);
+  const windowLowBand = window.map((b) => b.lowBandShare).filter((s): s is number => s !== null);
+  const windowFlux = window.map((b) => b.spectralFlux).filter((f): f is number => f !== null);
 
   // Rest-of-track LUFS (everything outside the window)
-  const restBars = [
-    ...bars.slice(0, bestStart),
-    ...bars.slice(bestStart + windowSize),
-  ];
-  const restLufs = restBars
-    .map((b) => b.lufs)
-    .filter((l): l is number => l !== null);
+  const restBars = [...bars.slice(0, bestStart), ...bars.slice(bestStart + windowSize)];
+  const restLufs = restBars.map((b) => b.lufs).filter((l): l is number => l !== null);
 
   const peakLufs = windowLufs.length > 0 ? Math.max(...windowLufs) : null;
   const meanLufsVal = meanArr(windowLufs);
@@ -115,18 +102,14 @@ export function computeDropEnergy(
         : null,
     meanLowBand:
       windowLowBand.length > 0
-        ? round3(
-            windowLowBand.reduce((a, b) => a + b, 0) / windowLowBand.length,
-          )
+        ? round3(windowLowBand.reduce((a, b) => a + b, 0) / windowLowBand.length)
         : null,
     meanFlux:
       windowFlux.length > 0
         ? round3(windowFlux.reduce((a, b) => a + b, 0) / windowFlux.length)
         : null,
     lufsContrast:
-      meanLufsVal !== null && restMeanLufs !== null
-        ? round3(meanLufsVal - restMeanLufs)
-        : null,
+      meanLufsVal !== null && restMeanLufs !== null ? round3(meanLufsVal - restMeanLufs) : null,
     windowSize,
   };
 }

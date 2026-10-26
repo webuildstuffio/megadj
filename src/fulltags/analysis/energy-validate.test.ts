@@ -21,16 +21,11 @@ function makeScoredTrack(
   band: number,
   blocs?: Partial<Record<(typeof BLOC_NAMES)[number], number>>,
 ): ScoredTrack {
-  const defaultBlocs = Object.fromEntries(
-    BLOC_NAMES.map((b) => [b, composite]),
-  ) as Record<(typeof BLOC_NAMES)[number], number>;
-  return {
-    videoId,
-    composite,
-    band,
-    confidence: "high",
-    blocs: { ...defaultBlocs, ...blocs },
-  };
+  const defaultBlocs = Object.fromEntries(BLOC_NAMES.map((b) => [b, composite])) as Record<
+    (typeof BLOC_NAMES)[number],
+    number
+  >;
+  return { videoId, composite, band, confidence: "high", blocs: { ...defaultBlocs, ...blocs } };
 }
 
 // --------------- spearmanRho ---------------
@@ -165,11 +160,7 @@ describe("gateBlocDominance", () => {
 describe("gateNotBpm", () => {
   test("uncorrelated → pass", () => {
     const tracks = Array.from({ length: 20 }, (_, i) =>
-      makeScoredTrack(
-        `t${i}`,
-        ((i * 7 + 3) % 20) / 20,
-        Math.ceil((((i * 7 + 3) % 20) / 20) * 9),
-      ),
+      makeScoredTrack(`t${i}`, ((i * 7 + 3) % 20) / 20, Math.ceil((((i * 7 + 3) % 20) / 20) * 9)),
     );
     const bpms = Array.from({ length: 20 }, (_, i) => 100 + ((i * 13) % 80));
     const gate = gateNotBpm(tracks, bpms);

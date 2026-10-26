@@ -12,18 +12,12 @@ describe("compareSections", () => {
   });
 
   test("predicted but no truth → over-segmentation", () => {
-    const result = compareSections(
-      [{ startBar: 0, endBar: 16, label: "intro" }],
-      [],
-    );
+    const result = compareSections([{ startBar: 0, endBar: 16, label: "intro" }], []);
     expect(result.overSegRate).toBe(1);
   });
 
   test("truth but no predicted → under-segmentation", () => {
-    const result = compareSections(
-      [],
-      [{ startBar: 0, endBar: 16, label: "intro" }],
-    );
+    const result = compareSections([], [{ startBar: 0, endBar: 16, label: "intro" }]);
     expect(result.underSegRate).toBe(1);
   });
 

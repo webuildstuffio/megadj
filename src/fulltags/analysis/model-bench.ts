@@ -15,12 +15,7 @@
  */
 
 import { Database } from "bun:sqlite";
-import {
-  existsSync,
-  writeFileSync,
-  readFileSync,
-  appendFileSync,
-} from "node:fs";
+import { existsSync, writeFileSync, readFileSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { genreFamily } from "../../core/similar";
 import { findDropCandidates } from "./drop-finder";
@@ -28,8 +23,7 @@ import { round2 } from "../../shared/leaf/fmt";
 import { cosineSimilarity } from "../../shared/leaf/vector-space";
 import { normalCdf } from "../../shared/leaf/stats";
 
-const DB_PATH =
-  process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
+const DB_PATH = process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
 
 const CHECKPOINT_PATH = "/tmp/model-bench-checkpoint.jsonl";
 
@@ -108,9 +102,7 @@ function loadSample(db: Database, sampleSize: number): SampleTrack[] {
           if (Array.isArray(votes)) {
             voteCount = votes.filter(
               (v: unknown) =>
-                v !== null &&
-                typeof v === "object" &&
-                "genre" in (v as Record<string, unknown>),
+                v !== null && typeof v === "object" && "genre" in (v as Record<string, unknown>),
             ).length;
           }
         } catch {
@@ -162,9 +154,7 @@ function looKnn(
 
   for (let i = 0; i < tracks.length; i++) {
     const held = tracks[i]!;
-    const heldEmbs = embeddings[i]!.filter(
-      (e): e is number[] => e !== null && !isZeroVec(e),
-    );
+    const heldEmbs = embeddings[i]!.filter((e): e is number[] => e !== null && !isZeroVec(e));
 
     const fam = perFamily.get(held.family) ?? { correct: 0, total: 0 };
     fam.total++;
@@ -184,9 +174,7 @@ function looKnn(
       for (let j = 0; j < tracks.length; j++) {
         if (j === i) continue;
         const other = tracks[j]!;
-        const otherEmbs = embeddings[j]!.filter(
-          (e): e is number[] => e !== null && !isZeroVec(e),
-        );
+        const otherEmbs = embeddings[j]!.filter((e): e is number[] => e !== null && !isZeroVec(e));
         let bestSim = -Infinity;
         for (const otherVec of otherEmbs) {
           const sim = cosineSimilarity(queryVec, otherVec);
@@ -236,18 +224,14 @@ function retrievalPrecision(
 
   for (let i = 0; i < tracks.length; i++) {
     const held = tracks[i]!;
-    const heldEmbs = embeddings[i]!.filter(
-      (e): e is number[] => e !== null && !isZeroVec(e),
-    );
+    const heldEmbs = embeddings[i]!.filter((e): e is number[] => e !== null && !isZeroVec(e));
     if (heldEmbs.length === 0) continue;
 
     const scored: { family: string; sim: number }[] = [];
     for (let j = 0; j < tracks.length; j++) {
       if (j === i) continue;
       const other = tracks[j]!;
-      const otherEmbs = embeddings[j]!.filter(
-        (e): e is number[] => e !== null && !isZeroVec(e),
-      );
+      const otherEmbs = embeddings[j]!.filter((e): e is number[] => e !== null && !isZeroVec(e));
       let bestSim = -Infinity;
       for (const queryVec of heldEmbs) {
         for (const otherVec of otherEmbs) {
@@ -265,9 +249,7 @@ function retrievalPrecision(
     precisions.push(sameFamily / topK.length);
   }
 
-  return precisions.length > 0
-    ? precisions.reduce((s, v) => s + v, 0) / precisions.length
-    : 0;
+  return precisions.length > 0 ? precisions.reduce((s, v) => s + v, 0) / precisions.length : 0;
 }
 
 /** Intra/inter-class cosine gap: mean(intra) - mean(inter).
@@ -280,14 +262,10 @@ function cosineGap(
   const interSims: number[] = [];
 
   for (let i = 0; i < tracks.length; i++) {
-    const eI = embeddings[i]?.find(
-      (e): e is number[] => e !== null && !isZeroVec(e),
-    );
+    const eI = embeddings[i]?.find((e): e is number[] => e !== null && !isZeroVec(e));
     if (!eI) continue;
     for (let j = i + 1; j < tracks.length; j++) {
-      const eJ = embeddings[j]?.find(
-        (e): e is number[] => e !== null && !isZeroVec(e),
-      );
+      const eJ = embeddings[j]?.find((e): e is number[] => e !== null && !isZeroVec(e));
       if (!eJ) continue;
       const sim = cosineSimilarity(eI, eJ);
       if (tracks[i]!.family === tracks[j]!.family) {
@@ -298,32 +276,17 @@ function cosineGap(
     }
   }
 
-  const intra =
-    intraSims.length > 0
-      ? intraSims.reduce((s, v) => s + v, 0) / intraSims.length
-      : 0;
-  const inter =
-    interSims.length > 0
-      ? interSims.reduce((s, v) => s + v, 0) / interSims.length
-      : 0;
-  return {
-    intra: round2(intra),
-    inter: round2(inter),
-    gap: round2(intra - inter),
-  };
+  const intra = intraSims.length > 0 ? intraSims.reduce((s, v) => s + v, 0) / intraSims.length : 0;
+  const inter = interSims.length > 0 ? interSims.reduce((s, v) => s + v, 0) / interSims.length : 0;
+  return { intra: round2(intra), inter: round2(inter), gap: round2(intra - inter) };
 }
 
 // ── Silhouette score ──────────────────────────────────────────────────
 
-function silhouetteScore(
-  tracks: SampleTrack[],
-  embeddings: (number[] | null)[][],
-): number {
+function silhouetteScore(tracks: SampleTrack[], embeddings: (number[] | null)[][]): number {
   const scores: number[] = [];
   for (let i = 0; i < tracks.length; i++) {
-    const emb = embeddings[i]?.find(
-      (e): e is number[] => e !== null && !isZeroVec(e),
-    );
+    const emb = embeddings[i]?.find((e): e is number[] => e !== null && !isZeroVec(e));
     if (!emb) continue;
     const family = tracks[i]!.family;
 
@@ -332,9 +295,7 @@ function silhouetteScore(
 
     for (let j = 0; j < tracks.length; j++) {
       if (j === i) continue;
-      const other = embeddings[j]?.find(
-        (e): e is number[] => e !== null && !isZeroVec(e),
-      );
+      const other = embeddings[j]?.find((e): e is number[] => e !== null && !isZeroVec(e));
       if (!other) continue;
       const dist = 1 - cosineSimilarity(emb, other);
       const otherFamily = tracks[j]!.family;
@@ -357,17 +318,12 @@ function silhouetteScore(
     const s = (minInterMean - a) / Math.max(a, minInterMean);
     scores.push(s);
   }
-  return scores.length > 0
-    ? scores.reduce((s, v) => s + v, 0) / scores.length
-    : 0;
+  return scores.length > 0 ? scores.reduce((s, v) => s + v, 0) / scores.length : 0;
 }
 
 // ── Macro-F1 ──────────────────────────────────────────────────────────
 
-function macroF1(
-  trueFamilies: string[],
-  predictions: (string | null)[],
-): number {
+function macroF1(trueFamilies: string[], predictions: (string | null)[]): number {
   const classes = [...new Set(trueFamilies)];
   let f1Sum = 0;
   for (const cls of classes) {
@@ -381,10 +337,7 @@ function macroF1(
     }
     const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
     const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
-    const f1 =
-      precision + recall > 0
-        ? (2 * precision * recall) / (precision + recall)
-        : 0;
+    const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
     f1Sum += f1;
   }
   return classes.length > 0 ? f1Sum / classes.length : 0;
@@ -392,10 +345,7 @@ function macroF1(
 
 // ── McNemar ────────────────────────────────────────────────────────────
 
-function mcnemar(
-  a: boolean[],
-  b: boolean[],
-): { chi2: number; p: number; sig: boolean } {
+function mcnemar(a: boolean[], b: boolean[]): { chi2: number; p: number; sig: boolean } {
   let bc = 0;
   let cb = 0;
   for (let i = 0; i < a.length; i++) {
@@ -439,11 +389,7 @@ function writeCheckpointEntry(
   model: string,
   embeddings: Record<string, (number[] | null)[]>,
 ): void {
-  const entry: CheckpointEntry = {
-    model,
-    embeddings,
-    timestamp: new Date().toISOString(),
-  };
+  const entry: CheckpointEntry = { model, embeddings, timestamp: new Date().toISOString() };
   appendFileSync(CHECKPOINT_PATH, `${JSON.stringify(entry)}\n`);
 }
 
@@ -477,18 +423,13 @@ async function computeModelEmbeddings(
       const trackEmbs: (number[] | null)[][] = tracks.map((t) => {
         const embs = cached[t.filePath];
         if (!embs) return [null, null, null];
-        return embs.map((e) =>
-          e !== null && !e.every((v) => v === 0) ? e : null,
-        );
+        return embs.map((e) => (e !== null && !e.every((v) => v === 0) ? e : null));
       });
       result.set(model, trackEmbs);
       continue;
     }
 
-    const manifestJson = JSON.stringify({
-      tracks: manifest,
-      models: [model],
-    });
+    const manifestJson = JSON.stringify({ tracks: manifest, models: [model] });
     const tmpManifest = join("/tmp", `model-bench-${model}-${Date.now()}.json`);
     writeFileSync(tmpManifest, manifestJson);
 
@@ -508,30 +449,19 @@ async function computeModelEmbeddings(
         "python",
         "tools/section_model_bench.py",
       ],
-      {
-        stdin: Bun.file(tmpManifest),
-        stdout: "pipe",
-        stderr: "inherit",
-      },
+      { stdin: Bun.file(tmpManifest), stdout: "pipe", stderr: "inherit" },
     );
 
     const output = await new Response(proc.stdout).text();
     const exitCode = await proc.exited;
     if (exitCode !== 0) {
-      process.stderr.write(
-        `  [${model}] FAILED (exit ${exitCode}) — skipping\n`,
-      );
+      process.stderr.write(`  [${model}] FAILED (exit ${exitCode}) — skipping\n`);
       continue;
     }
 
-    process.stderr.write(
-      `  [${model}] done in ${((Date.now() - t0) / 1000).toFixed(0)}s\n`,
-    );
+    process.stderr.write(`  [${model}] done in ${((Date.now() - t0) / 1000).toFixed(0)}s\n`);
 
-    const raw = JSON.parse(output) as Record<
-      string,
-      Record<string, number[][]>
-    >;
+    const raw = JSON.parse(output) as Record<string, Record<string, number[][]>>;
     const modelData = raw[model];
     if (!modelData) continue;
 
@@ -572,16 +502,12 @@ async function main(): Promise<void> {
   }
 
   console.log(`  Sample: ${sample.length} tracks`);
-  console.log(
-    `  Families: ${families.map((f) => `${f}(${familyCounts.get(f)})`).join(", ")}\n`,
-  );
+  console.log(`  Families: ${families.map((f) => `${f}(${familyCounts.get(f)})`).join(", ")}\n`);
 
   const models = [...ALL_MODELS];
   const allEmbs = await computeModelEmbeddings(sample, models);
 
-  console.log(
-    `\n━━ Results: LOO kNN + Retrieval Precision (k=5, best-of-3) ━━\n`,
-  );
+  console.log(`\n━━ Results: LOO kNN + Retrieval Precision (k=5, best-of-3) ━━\n`);
   console.log(
     `  ${"Model".padEnd(22)} ${"kNN".padStart(5)} ${"mF1".padStart(5)} ${"P@5".padStart(5)} ${"Gap".padStart(6)} ${"Silh".padStart(6)} ${"Dim".padStart(5)}`,
   );
@@ -641,14 +567,8 @@ async function main(): Promise<void> {
   // McNemar pairwise vs incumbent (effnet) with Holm correction
   const incumbent = modelResults.find((m) => m.model === "effnet-discogs-1280");
   if (incumbent) {
-    console.log(
-      `\n━━ McNemar vs Incumbent (effnet-discogs-1280) — Holm-corrected ━━\n`,
-    );
-    const pairs: {
-      model: string;
-      mc: ReturnType<typeof mcnemar>;
-      delta: number;
-    }[] = [];
+    console.log(`\n━━ McNemar vs Incumbent (effnet-discogs-1280) — Holm-corrected ━━\n`);
+    const pairs: { model: string; mc: ReturnType<typeof mcnemar>; delta: number }[] = [];
     for (const challenger of modelResults) {
       if (challenger.model === incumbent.model) continue;
       const mc = mcnemar(incumbent.outcomes, challenger.outcomes);
@@ -673,9 +593,7 @@ async function main(): Promise<void> {
 
   // Per-family breakdown for top 3 models
   console.log(`\n━━ Per-Family kNN Accuracy (top 3 models) ━━\n`);
-  const top3 = modelResults
-    .toSorted((a, b) => b.precision - a.precision)
-    .slice(0, 3);
+  const top3 = modelResults.toSorted((a, b) => b.precision - a.precision).slice(0, 3);
   const header = `  ${"Family".padEnd(12)} ${top3.map((m) => m.model.slice(0, 12).padStart(13)).join("")}`;
   console.log(header);
   console.log(`  ${"─".repeat(12 + top3.length * 13)}`);
@@ -687,9 +605,7 @@ async function main(): Promise<void> {
       const acc = (pf.correct / pf.total) * 100;
       return `${acc.toFixed(0)}%`.padStart(13);
     });
-    console.log(
-      `  ${fam.padEnd(12)} ${cells.join("")}  (n=${familyCounts.get(fam) ?? 0})`,
-    );
+    console.log(`  ${fam.padEnd(12)} ${cells.join("")}  (n=${familyCounts.get(fam) ?? 0})`);
   }
 
   // Final ranking by macro-F1 (primary), P@5 (secondary)

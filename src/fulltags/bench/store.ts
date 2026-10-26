@@ -6,13 +6,7 @@
  * Tables: bench_runs, bench_rows, answer_keys (§3.2 of the rebench plan).
  */
 import type { Database } from "bun:sqlite";
-import type {
-  AnswerKeyRow,
-  BenchRow,
-  BenchRun,
-  BenchSplit,
-  BenchStage,
-} from "./types";
+import type { AnswerKeyRow, BenchRow, BenchRun, BenchSplit, BenchStage } from "./types";
 
 /** Run the bench table migrations on an open archive.db connection. */
 export function migrateBenchTables(db: Database): void {
@@ -61,11 +55,7 @@ export function generateRunId(): string {
 }
 
 /** Insert a bench run + its per-track rows in a transaction. */
-export function insertBenchRun(
-  db: Database,
-  run: BenchRun,
-  rows: readonly BenchRow[],
-): void {
+export function insertBenchRun(db: Database, run: BenchRun, rows: readonly BenchRow[]): void {
   const tx = db.transaction(() => {
     db.query(
       `INSERT INTO bench_runs (run_id, stage, answer_key, split, git_sha, config_hash, n, metrics, ci, created_at)
@@ -95,9 +85,7 @@ export function insertBenchRun(
 
 /** Load a bench run by id. */
 export function loadBenchRun(db: Database, runId: string): BenchRun | null {
-  const row = db
-    .query("SELECT * FROM bench_runs WHERE run_id = ?")
-    .get(runId) as {
+  const row = db.query("SELECT * FROM bench_runs WHERE run_id = ?").get(runId) as {
     run_id: string;
     stage: string;
     answer_key: string;
@@ -119,19 +107,14 @@ export function loadBenchRun(db: Database, runId: string): BenchRun | null {
     configHash: row.config_hash,
     n: row.n,
     metrics: JSON.parse(row.metrics) as Record<string, number | string | null>,
-    ci:
-      row.ci !== null
-        ? (JSON.parse(row.ci) as Record<string, [number, number]>)
-        : null,
+    ci: row.ci !== null ? (JSON.parse(row.ci) as Record<string, [number, number]>) : null,
     createdAt: row.created_at,
   };
 }
 
 /** Load per-track rows for a run. */
 export function loadBenchRows(db: Database, runId: string): BenchRow[] {
-  const rows = db
-    .query("SELECT * FROM bench_rows WHERE run_id = ?")
-    .all(runId) as {
+  const rows = db.query("SELECT * FROM bench_rows WHERE run_id = ?").all(runId) as {
     run_id: string;
     track_id: string;
     truth: string;
@@ -150,11 +133,7 @@ export function loadBenchRows(db: Database, runId: string): BenchRow[] {
 }
 
 /** List runs for a stage, newest first. */
-export function listBenchRuns(
-  db: Database,
-  stage?: BenchStage,
-  limit = 20,
-): BenchRun[] {
+export function listBenchRuns(db: Database, stage?: BenchStage, limit = 20): BenchRun[] {
   const query = stage
     ? "SELECT * FROM bench_runs WHERE stage = ? ORDER BY created_at DESC LIMIT ?"
     : "SELECT * FROM bench_runs ORDER BY created_at DESC LIMIT ?";
@@ -180,19 +159,13 @@ export function listBenchRuns(
     configHash: r.config_hash,
     n: r.n,
     metrics: JSON.parse(r.metrics) as Record<string, number | string | null>,
-    ci:
-      r.ci !== null
-        ? (JSON.parse(r.ci) as Record<string, [number, number]>)
-        : null,
+    ci: r.ci !== null ? (JSON.parse(r.ci) as Record<string, [number, number]>) : null,
     createdAt: r.created_at,
   }));
 }
 
 /** Insert or replace answer-key rows. */
-export function upsertAnswerKeys(
-  db: Database,
-  rows: readonly AnswerKeyRow[],
-): void {
+export function upsertAnswerKeys(db: Database, rows: readonly AnswerKeyRow[]): void {
   const stmt = db.query(
     `INSERT OR REPLACE INTO answer_keys (key_id, track_id, field, value, confidence, source_of_truth, split, evidence, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -216,11 +189,7 @@ export function upsertAnswerKeys(
 }
 
 /** Load answer-key rows for a specific key and field. */
-export function loadAnswerKeys(
-  db: Database,
-  keyId: string,
-  field?: string,
-): AnswerKeyRow[] {
+export function loadAnswerKeys(db: Database, keyId: string, field?: string): AnswerKeyRow[] {
   const query = field
     ? "SELECT * FROM answer_keys WHERE key_id = ? AND field = ?"
     : "SELECT * FROM answer_keys WHERE key_id = ?";

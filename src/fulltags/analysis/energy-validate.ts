@@ -21,10 +21,7 @@ export interface GateResult {
 // --------------- correlation helpers ---------------
 
 /** Spearman rank correlation between two number arrays. */
-export function spearmanRho(
-  a: readonly number[],
-  b: readonly number[],
-): number {
+export function spearmanRho(a: readonly number[], b: readonly number[]): number {
   const n = Math.min(a.length, b.length);
   if (n < 3) return 0;
   const rankA = fractionalRanks(a.slice(0, n));
@@ -70,10 +67,7 @@ function fractionalRanks(arr: readonly number[]): number[] {
 }
 
 /** Cohen's d effect size between two groups. */
-export function cohenD(
-  group1: readonly number[],
-  group2: readonly number[],
-): number {
+export function cohenD(group1: readonly number[], group2: readonly number[]): number {
   if (group1.length < 2 || group2.length < 2) return 0;
   const m1 = mean(group1);
   const m2 = mean(group2);
@@ -93,18 +87,13 @@ function mean(arr: readonly number[]): number {
 function stddev(arr: readonly number[]): number {
   if (arr.length < 2) return 0;
   const m = mean(arr);
-  return Math.sqrt(
-    arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1),
-  );
+  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1));
 }
 
 // --------------- gate: no bloc dominates ---------------
 
 /** Check that no single bloc's variance share exceeds the threshold. */
-export function gateBlocDominance(
-  tracks: readonly ScoredTrack[],
-  maxShare = 0.4,
-): GateResult {
+export function gateBlocDominance(tracks: readonly ScoredTrack[], maxShare = 0.4): GateResult {
   if (tracks.length < 10) {
     return {
       name: "bloc-dominance",
@@ -121,12 +110,7 @@ export function gateBlocDominance(
   }
   const totalVar = Object.values(blocVars).reduce((a, b) => a + b, 0);
   if (totalVar < 1e-10) {
-    return {
-      name: "bloc-dominance",
-      pass: true,
-      value: 0,
-      threshold: `≤${maxShare}`,
-    };
+    return { name: "bloc-dominance", pass: true, value: 0, threshold: `≤${maxShare}` };
   }
   let maxBlocShare = 0;
   let maxBloc = "";
@@ -160,37 +144,19 @@ export function gateNotBpm(
 ): GateResult {
   const composites = tracks.map((t) => t.composite);
   const rho = round3(Math.abs(spearmanRho(composites, bpms)));
-  return {
-    name: "not-bpm",
-    pass: rho < maxRho,
-    value: rho,
-    threshold: `|ρ|<${maxRho}`,
-  };
+  return { name: "not-bpm", pass: rho < maxRho, value: rho, threshold: `|ρ|<${maxRho}` };
 }
 
 // --------------- gate: tier agreement ---------------
 
-export function gateTierAgreement(
-  tracks: readonly ScoredTrack[],
-  minRho = 0.4,
-): GateResult {
+export function gateTierAgreement(tracks: readonly ScoredTrack[], minRho = 0.4): GateResult {
   const tierA = tracks.map((t) => {
-    const a = [
-      t.blocs.rhythm,
-      t.blocs.brightness,
-      t.blocs.body,
-      t.blocs.activity,
-    ];
+    const a = [t.blocs.rhythm, t.blocs.brightness, t.blocs.body, t.blocs.activity];
     return a.reduce((s, v) => s + v, 0) / a.length;
   });
   const tierB = tracks.map((t) => t.blocs.perceptual);
   const rho = round3(spearmanRho(tierA, tierB));
-  return {
-    name: "tier-agreement",
-    pass: rho >= minRho,
-    value: rho,
-    threshold: `ρ≥${minRho}`,
-  };
+  return { name: "tier-agreement", pass: rho >= minRho, value: rho, threshold: `ρ≥${minRho}` };
 }
 
 // --------------- gate: genre direction (sanity check ONLY) ---------------
@@ -233,16 +199,10 @@ export function gateGainInvariance(
   }
   let ok = 0;
   for (let i = 0; i < n; i++) {
-    if (Math.abs((originalBands[i] ?? 0) - (gainedBands[i] ?? 0)) <= maxShift)
-      ok++;
+    if (Math.abs((originalBands[i] ?? 0) - (gainedBands[i] ?? 0)) <= maxShift) ok++;
   }
   const pct = round3(ok / n);
-  return {
-    name: "gain-invariance",
-    pass: pct >= minPct,
-    value: pct,
-    threshold: `≥${minPct}`,
-  };
+  return { name: "gain-invariance", pass: pct >= minPct, value: pct, threshold: `≥${minPct}` };
 }
 
 // --------------- gate: duplicate consistency ---------------
@@ -266,12 +226,7 @@ export function gateDuplicateConsistency(
     if (Math.abs(a - b) <= maxDiff) ok++;
   }
   const pct = round3(ok / pairs.length);
-  return {
-    name: "duplicate-consistency",
-    pass: pct >= 0.95,
-    value: pct,
-    threshold: `≥0.95`,
-  };
+  return { name: "duplicate-consistency", pass: pct >= 0.95, value: pct, threshold: `≥0.95` };
 }
 
 // --------------- collect all gates ---------------
@@ -283,10 +238,5 @@ export function collectGates(results: readonly GateResult[]): {
   results: readonly GateResult[];
 } {
   const passed = results.filter((r) => r.pass).length;
-  return {
-    passed,
-    total: results.length,
-    allPass: passed === results.length,
-    results,
-  };
+  return { passed, total: results.length, allPass: passed === results.length, results };
 }

@@ -32,11 +32,7 @@ export interface PcaBasis {
 /**
  * Build a PCA version string.
  */
-export function pcaVersionString(
-  version: number,
-  model: string,
-  dim: number,
-): string {
+export function pcaVersionString(version: number, model: string, dim: number): string {
   return `pca-v${version}-${model}-${dim}`;
 }
 
@@ -59,10 +55,7 @@ export function parsePcaVersion(
 /**
  * Check if a bar_features row's PCA version matches the current basis.
  */
-export function pcaVersionMatches(
-  rowVersion: string | null,
-  currentBasis: PcaBasis,
-): boolean {
+export function pcaVersionMatches(rowVersion: string | null, currentBasis: PcaBasis): boolean {
   if (rowVersion === null) return false;
   return rowVersion === currentBasis.version;
 }
@@ -84,9 +77,5 @@ export function reprojectionNeeded(
     }
   }
   const total = stale + current;
-  return {
-    stale,
-    current,
-    ratio: total > 0 ? round3(stale / total) : 0,
-  };
+  return { stale, current, ratio: total > 0 ? round3(stale / total) : 0 };
 }

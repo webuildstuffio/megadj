@@ -2,13 +2,7 @@
  * ak5-modes.test.ts — Tests for CrateDeck AK5 modes (B6.5).
  */
 import { describe, expect, test } from "bun:test";
-import {
-  createAK5Session,
-  addDispute,
-  addTriplet,
-  addEnergyPair,
-  sessionStats,
-} from "./ak5-modes";
+import { createAK5Session, addDispute, addTriplet, addEnergyPair, sessionStats } from "./ak5-modes";
 
 describe("AK5 session", () => {
   test("creates empty session", () => {

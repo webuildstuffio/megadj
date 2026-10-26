@@ -19,15 +19,7 @@ describe("freezeBaseline", () => {
   test("stores CI bounds when provided", () => {
     const snapshot = freezeBaseline(
       "v3-rc1",
-      [
-        {
-          stage: "bpm",
-          accuracy: 0.92,
-          total: 200,
-          ciLower: 0.88,
-          ciUpper: 0.95,
-        },
-      ],
+      [{ stage: "bpm", accuracy: 0.92, total: 200, ciLower: 0.88, ciUpper: 0.95 }],
       500,
     );
     const bpm = snapshot.stages.get("bpm")!;
@@ -38,60 +30,32 @@ describe("freezeBaseline", () => {
 
 describe("compareToBaseline", () => {
   test("no change → zero delta", () => {
-    const baseline = freezeBaseline(
-      "v2",
-      [{ stage: "key", accuracy: 0.85, total: 100 }],
-      500,
-    );
-    const comparisons = compareToBaseline(
-      [{ stage: "key", accuracy: 0.85 }],
-      baseline,
-    );
+    const baseline = freezeBaseline("v2", [{ stage: "key", accuracy: 0.85, total: 100 }], 500);
+    const comparisons = compareToBaseline([{ stage: "key", accuracy: 0.85 }], baseline);
     expect(comparisons[0]!.delta).toBe(0);
     expect(comparisons[0]!.regression).toBe(false);
   });
 
   test("improvement → positive delta", () => {
-    const baseline = freezeBaseline(
-      "v2",
-      [{ stage: "key", accuracy: 0.8, total: 100 }],
-      500,
-    );
-    const comparisons = compareToBaseline(
-      [{ stage: "key", accuracy: 0.9 }],
-      baseline,
-    );
+    const baseline = freezeBaseline("v2", [{ stage: "key", accuracy: 0.8, total: 100 }], 500);
+    const comparisons = compareToBaseline([{ stage: "key", accuracy: 0.9 }], baseline);
     expect(comparisons[0]!.delta).toBeGreaterThan(0);
   });
 
   test("significant regression detected", () => {
     const baseline = freezeBaseline(
       "v2",
-      [
-        {
-          stage: "key",
-          accuracy: 0.85,
-          total: 100,
-          ciLower: 0.8,
-          ciUpper: 0.9,
-        },
-      ],
+      [{ stage: "key", accuracy: 0.85, total: 100, ciLower: 0.8, ciUpper: 0.9 }],
       500,
     );
-    const comparisons = compareToBaseline(
-      [{ stage: "key", accuracy: 0.7 }],
-      baseline,
-    );
+    const comparisons = compareToBaseline([{ stage: "key", accuracy: 0.7 }], baseline);
     expect(comparisons[0]!.regression).toBe(true);
     expect(comparisons[0]!.significant).toBe(true);
   });
 
   test("new stage not in baseline → no regression", () => {
     const baseline = freezeBaseline("v2", [], 500);
-    const comparisons = compareToBaseline(
-      [{ stage: "new-stage", accuracy: 0.5 }],
-      baseline,
-    );
+    const comparisons = compareToBaseline([{ stage: "new-stage", accuracy: 0.5 }], baseline);
     expect(comparisons[0]!.regression).toBe(false);
     expect(comparisons[0]!.baselineAccuracy).toBe(0);
   });

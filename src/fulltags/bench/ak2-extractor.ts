@@ -29,11 +29,7 @@ interface RbMetadata {
  * Extract AK2 answer keys from the rekordbox_content mirror in archive.db.
  * Returns the count of answer key rows written.
  */
-export function extractAK2(db: Database): {
-  bpmCount: number;
-  keyCount: number;
-  total: number;
-} {
+export function extractAK2(db: Database): { bpmCount: number; keyCount: number; total: number } {
   migrateBenchTables(db);
 
   let mirrors: MirrorRow[];
@@ -81,11 +77,7 @@ export function extractAK2(db: Database): {
       });
     }
 
-    if (
-      meta.KeyName &&
-      typeof meta.KeyName === "string" &&
-      meta.KeyName.trim()
-    ) {
+    if (meta.KeyName && typeof meta.KeyName === "string" && meta.KeyName.trim()) {
       keyRows.push({
         keyId: "AK2",
         trackId: row.video_id,
@@ -103,9 +95,5 @@ export function extractAK2(db: Database): {
   upsertAnswerKeys(db, bpmRows);
   upsertAnswerKeys(db, keyRows);
 
-  return {
-    bpmCount: bpmRows.length,
-    keyCount: keyRows.length,
-    total: mirrors.length,
-  };
+  return { bpmCount: bpmRows.length, keyCount: keyRows.length, total: mirrors.length };
 }

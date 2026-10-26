@@ -46,19 +46,10 @@ export interface AK4EvalResult {
  */
 export function evaluateAK4(
   silverLabels: readonly AK4Evidence[],
-  estimatorResults: ReadonlyMap<
-    string,
-    { family: GenreFamily; subgenre: string | null }
-  >,
+  estimatorResults: ReadonlyMap<string, { family: GenreFamily; subgenre: string | null }>,
 ): AK4EvalResult {
   if (silverLabels.length === 0) {
-    return {
-      totalCases: 0,
-      agreement: 0,
-      l3Enrichment: 0,
-      disputes: 0,
-      meanSilverConfidence: 0,
-    };
+    return { totalCases: 0, agreement: 0, l3Enrichment: 0, disputes: 0, meanSilverConfidence: 0 };
   }
 
   let familyMatch = 0;
@@ -75,11 +66,7 @@ export function evaluateAK4(
 
     if (est.family === s.silverFamily) {
       familyMatch++;
-      if (
-        s.silverSubgenre !== null &&
-        est.subgenre !== null &&
-        est.subgenre === s.silverSubgenre
-      ) {
+      if (s.silverSubgenre !== null && est.subgenre !== null && est.subgenre === s.silverSubgenre) {
         l3Match++;
       }
     } else {
@@ -101,21 +88,13 @@ export function evaluateAK4(
  * Criteria: low confidence + source disagreement.
  */
 export function identifyHardCases(
-  tracks: readonly {
-    trackId: string;
-    confidence: number;
-    sourceAgreement: number;
-  }[],
+  tracks: readonly { trackId: string; confidence: number; sourceAgreement: number }[],
   maxCases = 300,
   confidenceThreshold = 0.6,
   agreementThreshold = 0.5,
 ): string[] {
   return tracks
-    .filter(
-      (t) =>
-        t.confidence < confidenceThreshold ||
-        t.sourceAgreement < agreementThreshold,
-    )
+    .filter((t) => t.confidence < confidenceThreshold || t.sourceAgreement < agreementThreshold)
     .toSorted((a, b) => a.confidence - b.confidence)
     .slice(0, maxCases)
     .map((t) => t.trackId);

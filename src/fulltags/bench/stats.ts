@@ -8,12 +8,7 @@
  * compute but the caller flags them `low-n`.
  */
 import { round3, round4 } from "../../shared/leaf/fmt";
-import type {
-  BenchRow,
-  BootstrapCI,
-  McNemarResult,
-  RiskCoveragePoint,
-} from "./types";
+import type { BenchRow, BootstrapCI, McNemarResult, RiskCoveragePoint } from "./types";
 
 /** Minimum sample size for a confident reported cell. */
 export const MIN_N = 30;
@@ -56,13 +51,7 @@ export function bootstrapAccuracyCI(
   }
   const estimate = correct.reduce<number>((s, v) => s + v, 0) / n;
   if (n < 2) {
-    return {
-      metric: "accuracy",
-      estimate,
-      lo: estimate,
-      hi: estimate,
-      nResamples: 0,
-    };
+    return { metric: "accuracy", estimate, lo: estimate, hi: estimate, nResamples: 0 };
   }
   const rng = mulberry32(seed);
   const means: number[] = [];
@@ -115,13 +104,7 @@ export function bootstrapCI(
   const vsorted = values.toSorted((a, b) => a - b);
   const lo = vsorted[Math.floor(nResamples * 0.025)]!;
   const hi = vsorted[Math.floor(nResamples * 0.975)]!;
-  return {
-    metric,
-    estimate: round4(estimate),
-    lo: round4(lo),
-    hi: round4(hi),
-    nResamples,
-  };
+  return { metric, estimate: round4(estimate), lo: round4(lo), hi: round4(hi), nResamples };
 }
 
 // ---------------------------------------------------------------------------
@@ -136,10 +119,7 @@ export function bootstrapCI(
  * @param rowsB — per-track outcomes from run B (same track set)
  * @returns McNemarResult with chi2, p-value, significance at α=0.05
  */
-export function mcnemar(
-  rowsA: readonly BenchRow[],
-  rowsB: readonly BenchRow[],
-): McNemarResult {
+export function mcnemar(rowsA: readonly BenchRow[], rowsB: readonly BenchRow[]): McNemarResult {
   const mapA = new Map(rowsA.map((r) => [r.trackId, r.correct]));
   const mapB = new Map(rowsB.map((r) => [r.trackId, r.correct]));
   let b = 0; // A correct, B wrong
@@ -181,10 +161,7 @@ function erfc(x: number): number {
   const t = 1 / (1 + 0.3275911 * a);
   const poly =
     t *
-    (0.254829592 +
-      t *
-        (-0.284496736 +
-          t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+    (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
   const v = poly * Math.exp(-a * a);
   return x >= 0 ? v : 2 - v;
 }
@@ -201,10 +178,7 @@ function erfc(x: number): number {
  * @param rows — bench rows with conf (null conf treated as conf=0)
  * @param steps — number of threshold steps (default 20)
  */
-export function riskCoverageCurve(
-  rows: readonly BenchRow[],
-  steps = 20,
-): RiskCoveragePoint[] {
+export function riskCoverageCurve(rows: readonly BenchRow[], steps = 20): RiskCoveragePoint[] {
   if (rows.length === 0) return [];
   const sorted = rows.toSorted((a, b) => (b.conf ?? 0) - (a.conf ?? 0));
   const n = sorted.length;
@@ -248,19 +222,14 @@ export function macroF1(rows: readonly BenchRow[]): number {
     const fn = rows.filter((r) => r.truth === cls && r.pred !== cls).length;
     const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
     const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
-    const f1 =
-      precision + recall > 0
-        ? (2 * precision * recall) / (precision + recall)
-        : 0;
+    const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
     sumF1 += f1;
   }
   return round4(sumF1 / classes.size);
 }
 
 /** Confusion matrix as a Map<truth, Map<pred, count>>. */
-export function confusionMatrix(
-  rows: readonly BenchRow[],
-): Map<string, Map<string, number>> {
+export function confusionMatrix(rows: readonly BenchRow[]): Map<string, Map<string, number>> {
   const mat = new Map<string, Map<string, number>>();
   for (const r of rows) {
     let row = mat.get(r.truth);
@@ -287,8 +256,7 @@ export function ece(rows: readonly BenchRow[], nBins = 10): number {
     const lo = b / nBins;
     const hi = (b + 1) / nBins;
     const bin = withConf.filter(
-      (r) =>
-        (r.conf ?? 0) >= lo && (r.conf ?? 0) < (b === nBins - 1 ? hi + 1 : hi),
+      (r) => (r.conf ?? 0) >= lo && (r.conf ?? 0) < (b === nBins - 1 ? hi + 1 : hi),
     );
     if (bin.length === 0) continue;
     const binAcc = bin.filter((r) => r.correct === 1).length / bin.length;

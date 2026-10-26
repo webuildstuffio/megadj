@@ -36,9 +36,7 @@ describe("buildSilverKeys", () => {
   });
 
   test("only 1 source → dropped", () => {
-    const labels: StoreLabel[] = [
-      { trackId: "t1", source: "beatport", family: "house" },
-    ];
+    const labels: StoreLabel[] = [{ trackId: "t1", source: "beatport", family: "house" }];
     const result = buildSilverKeys(labels);
     expect(result.keys).toHaveLength(0);
     expect(result.dropped).toBe(1);

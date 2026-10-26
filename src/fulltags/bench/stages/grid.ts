@@ -39,15 +39,9 @@ function parseBeats(json: string | null): number[] | null {
   }
 }
 
-function runGridStage(
-  db: Database,
-  answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runGridStage(db: Database, answerKey: string, _split: BenchSplit): StageResult {
   const rows = db
-    .query(
-      `SELECT video_id, beats_json FROM beats WHERE beats_json IS NOT NULL`,
-    )
+    .query(`SELECT video_id, beats_json FROM beats WHERE beats_json IS NOT NULL`)
     .all() as BeatsRow[];
 
   const benchRows: BenchRow[] = [];
@@ -119,13 +113,7 @@ function runGridStage(
     metrics.gate = phaseCorrect / matched >= 0.95 ? "PASS" : "FAIL";
   }
 
-  return {
-    stage: "grid",
-    answerKey,
-    rows: benchRows,
-    metrics,
-    configHash: "grid-v1",
-  };
+  return { stage: "grid", answerKey, rows: benchRows, metrics, configHash: "grid-v1" };
 }
 
 registerStage("grid", runGridStage);

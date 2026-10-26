@@ -48,9 +48,7 @@ export function patchesToBars(
     const end = barBoundaries[bi + 1]!;
 
     // Find patches in this bar
-    const barPatches = patches.filter(
-      (p) => p.timeSeconds >= start && p.timeSeconds < end,
-    );
+    const barPatches = patches.filter((p) => p.timeSeconds >= start && p.timeSeconds < end);
 
     if (barPatches.length === 0) continue;
 
@@ -65,12 +63,7 @@ export function patchesToBars(
       mean[d] = round3((mean[d] ?? 0) / barPatches.length);
     }
 
-    bars.push({
-      barIndex: bi,
-      startTime: start,
-      endTime: end,
-      features: [...mean],
-    });
+    bars.push({ barIndex: bi, startTime: start, endTime: end, features: [...mean] });
   }
 
   return bars;
@@ -83,8 +76,5 @@ export function extractCurve(
   bars: readonly BarFeature[],
   dimension: number,
 ): { barIndex: number; value: number }[] {
-  return bars.map((b) => ({
-    barIndex: b.barIndex,
-    value: b.features[dimension] ?? 0,
-  }));
+  return bars.map((b) => ({ barIndex: b.barIndex, value: b.features[dimension] ?? 0 }));
 }

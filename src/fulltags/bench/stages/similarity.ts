@@ -30,19 +30,14 @@ function parseVec(json: string): number[] | null {
     if (!Array.isArray(arr)) return null;
     const typed = arr as unknown[];
     if (typed.length === 0) return null;
-    if (typed.some((x) => typeof x !== "number" || !Number.isFinite(x)))
-      return null;
+    if (typed.some((x) => typeof x !== "number" || !Number.isFinite(x))) return null;
     return typed as number[];
   } catch {
     return null;
   }
 }
 
-function runSimilarityStage(
-  db: Database,
-  answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runSimilarityStage(db: Database, answerKey: string, _split: BenchSplit): StageResult {
   const embRows = db
     .query(
       `SELECT video_id, vec_json FROM embeddings
@@ -107,8 +102,7 @@ function runSimilarityStage(
     }
   }
 
-  const coherence =
-    intraN > 0 && interN > 0 ? intraSum / intraN - interSum / interN : 0;
+  const coherence = intraN > 0 && interN > 0 ? intraSum / intraN - interSum / interN : 0;
 
   for (const [id] of vecs) {
     benchRows.push({
@@ -142,13 +136,7 @@ function runSimilarityStage(
 
   metrics.gate = coherence > 0.1 ? "PASS" : "FAIL";
 
-  return {
-    stage: "similarity",
-    answerKey,
-    rows: benchRows,
-    metrics,
-    configHash: "similarity-v1",
-  };
+  return { stage: "similarity", answerKey, rows: benchRows, metrics, configHash: "similarity-v1" };
 }
 
 registerStage("similarity", runSimilarityStage);

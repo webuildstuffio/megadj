@@ -14,13 +14,7 @@ import { round3, round4 } from "../../../shared/leaf/fmt";
 import { registerStage } from "../runner";
 import type { BenchRow, BenchSplit, StageResult } from "../types";
 
-const MOOD_HEADS = [
-  "dance",
-  "aggressive",
-  "happy",
-  "electronic",
-  "party",
-] as const;
+const MOOD_HEADS = ["dance", "aggressive", "happy", "electronic", "party"] as const;
 type MoodHead = (typeof MOOD_HEADS)[number];
 
 interface MoodRow {
@@ -55,11 +49,7 @@ function std(values: readonly number[]): number {
   return Math.sqrt(ss / (values.length - 1));
 }
 
-function runMoodStage(
-  db: Database,
-  _answerKey: string,
-  _split: BenchSplit,
-): StageResult {
+function runMoodStage(db: Database, _answerKey: string, _split: BenchSplit): StageResult {
   const rows = db
     .query(
       `SELECT video_id, dance, aggressive, happy, electronic, party, valence, arousal
@@ -67,9 +57,7 @@ function runMoodStage(
     )
     .all() as MoodRow[];
 
-  const metrics: Record<string, number | string | null> = {
-    n_tracks: rows.length,
-  };
+  const metrics: Record<string, number | string | null> = { n_tracks: rows.length };
   const benchRows: BenchRow[] = [];
   let anyOverThreshold = false;
 
@@ -93,13 +81,9 @@ function runMoodStage(
     }
   }
 
-  metrics.valence_mean = round4(
-    rows.reduce((s, r) => s + r.valence, 0) / (rows.length || 1),
-  );
+  metrics.valence_mean = round4(rows.reduce((s, r) => s + r.valence, 0) / (rows.length || 1));
   metrics.valence_std = round4(std(rows.map((r) => r.valence)));
-  metrics.arousal_mean = round4(
-    rows.reduce((s, r) => s + r.arousal, 0) / (rows.length || 1),
-  );
+  metrics.arousal_mean = round4(rows.reduce((s, r) => s + r.arousal, 0) / (rows.length || 1));
   metrics.arousal_std = round4(std(rows.map((r) => r.arousal)));
   metrics.gate_pass = anyOverThreshold ? "FAIL" : "PASS";
 

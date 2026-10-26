@@ -36,12 +36,7 @@ import {
   type GoldMetrics,
   type GoldTrackScore,
 } from "./gold-score";
-import {
-  goldDir,
-  loadGoldSet,
-  splitGoldSet,
-  type GoldAnnotation,
-} from "./gold";
+import { goldDir, loadGoldSet, splitGoldSet, type GoldAnnotation } from "./gold";
 
 /** blake2b256 hex of a file — the same fingerprint the gold set keys
  * annotations by. Null when the file is missing/unreadable (the track
@@ -98,9 +93,7 @@ export interface GoldReportResult {
   error?: string;
 }
 
-export async function goldReport(
-  opts: GoldReportOptions,
-): Promise<GoldReportResult> {
+export async function goldReport(opts: GoldReportOptions): Promise<GoldReportResult> {
   const log = commandLog(opts);
   const dir = opts.dir ?? goldDir(MUSIC_DIR);
   const set = loadGoldSet(dir);
@@ -129,9 +122,7 @@ export async function goldReport(
 
   for (const i of set.issues) log(`gold: BAD ${i.file}: ${i.error}`);
   if (set.annotations.length === 0) {
-    const r = fail(
-      `no gold annotations in ${dir} — annotate 30 tracks first (GA-00)`,
-    );
+    const r = fail(`no gold annotations in ${dir} — annotate 30 tracks first (GA-00)`);
     log(r.error ?? "unknown failure");
     return r;
   }
@@ -158,9 +149,7 @@ export async function goldReport(
       }
     }
     if (missing.length > capped.length)
-      log(
-        `gold: ${missing.length - capped.length} tracks still unhashed — re-run to continue`,
-      );
+      log(`gold: ${missing.length - capped.length} tracks still unhashed — re-run to continue`);
   }
 
   // The beats ledger, indexed by content hash (the join key — filenames
@@ -171,9 +160,7 @@ export async function goldReport(
     if (row.track.content_hash) byHash.set(row.track.content_hash, row);
   }
 
-  const cueRows = new Map(
-    opts.state.cueAnalyzedTracks().map((c) => [c.videoId, c.cues]),
-  );
+  const cueRows = new Map(opts.state.cueAnalyzedTracks().map((c) => [c.videoId, c.cues]));
 
   log(
     `gold: ${set.annotations.length} annotations · ${set.issues.length} bad files · ${byHash.size} analyzed tracks matched by hash`,
@@ -212,18 +199,14 @@ export async function goldReport(
 
 /** Format a nullable percent for the report line (— when unscored).
  *  Pure — module-level, not re-created per `metricsLine` call. */
-const pctOrDash = (v: number | null): string =>
-  v === null ? "—" : `${v.toFixed(1)}%`;
+const pctOrDash = (v: number | null): string => (v === null ? "—" : `${v.toFixed(1)}%`);
 
 function metricsLine(name: string, m: GoldMetrics): string {
   return `${name}: ${m.tracks} tracks · anchor ${pctOrDash(m.anchorPct)} (${m.anchorScored} scored) · bpm ${pctOrDash(m.bpmPct)} (${m.bpmScored}, ${m.octaveOff} octave-off) · phrase ${pctOrDash(m.phrasePct)} · cue ${pctOrDash(m.cuePct)}`;
 }
 
 /** Emit the human report (non-json mode). */
-export function printGoldReport(
-  r: GoldReportResult,
-  log: (s: string) => void,
-): void {
+export function printGoldReport(r: GoldReportResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
     log(metricsLine("dev    ", body.dev));
     log(metricsLine("holdout", body.holdout));
@@ -235,8 +218,6 @@ export function printGoldReport(
       }`,
     );
     if (body.hashedNow > 0)
-      log(
-        `hashed ${body.hashedNow} tracks this run; ${body.hashMissing} still uncached`,
-      );
+      log(`hashed ${body.hashedNow} tracks this run; ${body.hashMissing} still uncached`);
   });
 }

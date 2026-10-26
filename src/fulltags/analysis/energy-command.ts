@@ -81,11 +81,9 @@ function buildExtractionQueue(db: Database): ExtractTrack[] {
     .all() as Row[];
 
   const existing = new Set(
-    (
-      db.query("SELECT video_id FROM energy_features").all() as {
-        video_id: string;
-      }[]
-    ).map((r) => r.video_id),
+    (db.query("SELECT video_id FROM energy_features").all() as { video_id: string }[]).map(
+      (r) => r.video_id,
+    ),
   );
 
   const queue: ExtractTrack[] = [];
@@ -95,13 +93,7 @@ function buildExtractionQueue(db: Database): ExtractTrack[] {
     const dropStart = dur * 0.3;
     const dropEnd = Math.min(dur * 0.6, dropStart + 60);
     if (dropEnd - dropStart < 4) continue;
-    queue.push({
-      videoId: r.video_id,
-      path: r.file_path,
-      bpm: r.bpm_folded!,
-      dropStart,
-      dropEnd,
-    });
+    queue.push({ videoId: r.video_id, path: r.file_path, bpm: r.bpm_folded!, dropStart, dropEnd });
   }
   return queue;
 }
@@ -146,9 +138,7 @@ async function runWorker(
 
       const line = await readLine(300_000);
       if (line === null) {
-        console.error(
-          `  worker ${workerIdx}: timeout/EOF after ${extracted}/${slice.length}`,
-        );
+        console.error(`  worker ${workerIdx}: timeout/EOF after ${extracted}/${slice.length}`);
         break;
       }
       const parsed = parseExtractLine(line);
@@ -191,14 +181,10 @@ async function runEnergyExtraction(db: Database): Promise<void> {
   const queue = buildExtractionQueue(db);
   if (queue.length === 0) {
     const existing = energyFeatureCount(db);
-    console.log(
-      `energy --extract: nothing to extract (${existing} features already stored)`,
-    );
+    console.log(`energy --extract: nothing to extract (${existing} features already stored)`);
     return;
   }
-  console.log(
-    `energy --extract: ${queue.length} tracks to extract (${JOBS} workers)`,
-  );
+  console.log(`energy --extract: ${queue.length} tracks to extract (${JOBS} workers)`);
 
   const script = getEnergyScript();
   const { writeFileSync } = await import("node:fs");
@@ -247,9 +233,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
     if (!energyModelsPresent()) {
       console.log("energy --extract: downloading missing ONNX heads...");
       const fetched = await energyModelsEnsure();
-      console.log(
-        `  fetched ${fetched.length} model(s): ${fetched.join(", ")}`,
-      );
+      console.log(`  fetched ${fetched.length} model(s): ${fetched.join(", ")}`);
     }
     await runEnergyExtraction(db);
     return;
@@ -259,9 +243,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
   const n = rows.length;
 
   if (n === 0) {
-    console.log(
-      "energy: no features extracted yet. Run `megadj energy --extract` first.",
-    );
+    console.log("energy: no features extracted yet. Run `megadj energy --extract` first.");
     return;
   }
 
@@ -292,11 +274,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 
     const bpms = rows.map((r) => r.bpm ?? 0);
     const scoredCache = new Map<string, ScoredTrack[]>();
-    const presetResults: {
-      name: string;
-      gatesPassed: number;
-      gatesTotal: number;
-    }[] = [];
+    const presetResults: { name: string; gatesPassed: number; gatesTotal: number }[] = [];
 
     for (const preset of WEIGHT_PRESETS) {
       const scored = scoreAll(rows, frozen, preset);
@@ -310,17 +288,11 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
       ];
       const coll = collectGates(gateResults);
 
-      presetResults.push({
-        name: preset.name,
-        gatesPassed: coll.passed,
-        gatesTotal: coll.total,
-      });
+      presetResults.push({ name: preset.name, gatesPassed: coll.passed, gatesTotal: coll.total });
 
       if (!opts.json) {
         console.log(`\npreset: ${preset.name}`);
-        console.log(
-          `  weights: ${BLOC_NAMES.map((b) => `${b}=${preset.weights[b]}`).join(" ")}`,
-        );
+        console.log(`  weights: ${BLOC_NAMES.map((b) => `${b}=${preset.weights[b]}`).join(" ")}`);
         console.log(
           `  bands: ${Object.entries(dist)
             .map(([k, v]) => `E${k}=${(v * 100).toFixed(1)}%`)
@@ -342,17 +314,11 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
     });
     const best = presetResults[0];
     if (best !== undefined) {
-      console.log(
-        `\nbest preset: ${best.name} (${best.gatesPassed}/${best.gatesTotal} gates)`,
-      );
+      console.log(`\nbest preset: ${best.name} (${best.gatesPassed}/${best.gatesTotal} gates)`);
     }
 
     if (opts.json) {
-      await writeJson({
-        trackCount: n,
-        presets: presetResults,
-        bestPreset: best?.name ?? null,
-      });
+      await writeJson({ trackCount: n, presets: presetResults, bestPreset: best?.name ?? null });
     }
 
     // Write scores + persist frozen reference for the best preset
@@ -362,8 +328,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
         scoreAll(
           rows,
           frozen,
-          WEIGHT_PRESETS.find((p) => p.name === best.name) ??
-            WEIGHT_PRESETS[1]!,
+          WEIGHT_PRESETS.find((p) => p.name === best.name) ?? WEIGHT_PRESETS[1]!,
         );
       const updateStmt = db.prepare(
         `UPDATE energy_features
@@ -374,13 +339,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
       db.exec("BEGIN IMMEDIATE");
       try {
         for (const t of scored) {
-          updateStmt.run(
-            t.composite,
-            t.band,
-            t.confidence,
-            best.name,
-            t.videoId,
-          );
+          updateStmt.run(t.composite, t.band, t.confidence, best.name, t.videoId);
         }
         // Persist the frozen reference so future scores are stable
         const composites = scored.map((t) => t.composite);
@@ -395,9 +354,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
               Object.fromEntries(
                 BLOC_NAMES.map((b) => [
                   b,
-                  WEIGHT_PRESETS.find((p) => p.name === best.name)?.weights[
-                    b
-                  ] ?? 0.2,
+                  WEIGHT_PRESETS.find((p) => p.name === best.name)?.weights[b] ?? 0.2,
                 ]),
               ),
             ),
@@ -412,12 +369,8 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
         db.exec("ROLLBACK");
         throw e;
       }
-      console.log(
-        `score: updated ${scored.length} tracks with preset ${best.name}`,
-      );
-      console.log(
-        `freeze: persisted reference (${n} tracks, preset ${best.name})`,
-      );
+      console.log(`score: updated ${scored.length} tracks with preset ${best.name}`);
+      console.log(`freeze: persisted reference (${n} tracks, preset ${best.name})`);
     }
   }
 
@@ -434,9 +387,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
     const coll = collectGates(gateResults);
     console.log(`gates: ${coll.passed}/${coll.total} pass`);
     for (const g of coll.results) {
-      console.log(
-        `  ${g.pass ? "✓" : "✗"} ${g.name}: ${g.value} (${g.threshold})`,
-      );
+      console.log(`  ${g.pass ? "✓" : "✗"} ${g.name}: ${g.value} (${g.threshold})`);
     }
   }
 
@@ -451,9 +402,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
       title: string | null;
     }
     const oldRows = db
-      .query(
-        "SELECT video_id, energy, title FROM tracks WHERE energy IS NOT NULL",
-      )
+      .query("SELECT video_id, energy, title FROM tracks WHERE energy IS NOT NULL")
       .all() as TrackRow[];
     const oldMap = new Map(oldRows.map((r) => [r.video_id, r]));
 
@@ -483,9 +432,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
     movers.sort((a, b) => b.delta - a.delta);
     const top = movers.slice(0, 30);
 
-    console.log(
-      `\nshadow: ${movers.length} tracks moved ≥2 bands (showing top ${top.length})`,
-    );
+    console.log(`\nshadow: ${movers.length} tracks moved ≥2 bands (showing top ${top.length})`);
     for (const m of top) {
       console.log(`  ${m.title}: E${m.oldBand} → E${m.newBand} (Δ${m.delta})`);
     }
@@ -493,14 +440,10 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 }
 
 /** Format a nullable energy signal for the energy-why printout. */
-const whyVal = (n: number | null, unit = ""): string =>
-  n !== null ? `${n}${unit}` : "?";
+const whyVal = (n: number | null, unit = ""): string => (n !== null ? `${n}${unit}` : "?");
 
 /** Show bloc breakdown for one track. */
-export async function energyWhy(
-  state: ArchiveState,
-  videoId: string,
-): Promise<void> {
+export async function energyWhy(state: ArchiveState, videoId: string): Promise<void> {
   const db = state.db;
   migrateEnergyTables(db);
 
@@ -544,9 +487,7 @@ export async function energyWhy(
   }
 
   console.log(`energy-why: ${videoId}`);
-  console.log(
-    `  band: E${row.energy_band ?? "?"} (composite: ${whyVal(row.composite_rank)})`,
-  );
+  console.log(`  band: E${row.energy_band ?? "?"} (composite: ${whyVal(row.composite_rank)})`);
   console.log(`  confidence: ${row.energy_confidence ?? "?"}`);
   console.log(`  preset: ${row.weight_preset ?? "?"}`);
   console.log(
@@ -556,9 +497,7 @@ export async function energyWhy(
   console.log(`    onsets/beat: ${whyVal(row.onsets_per_beat)}`);
   console.log(`    BPM: ${whyVal(row.bpm)}`);
   console.log(`    HF energy re:LUFS: ${whyVal(row.hf_energy_re_lufs, " dB")}`);
-  console.log(
-    `    low energy re:LUFS: ${whyVal(row.low_energy_re_lufs, " dB")}`,
-  );
+  console.log(`    low energy re:LUFS: ${whyVal(row.low_energy_re_lufs, " dB")}`);
   console.log(`    crest factor: ${whyVal(row.crest_factor)}`);
   console.log(`    spectral flux: ${whyVal(row.spectral_flux)}`);
   console.log(`    LUFS (drop): ${whyVal(row.lufs_drop)}`);

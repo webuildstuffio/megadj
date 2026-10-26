@@ -76,13 +76,7 @@ export const TRACK_MOOD = {
  */
 export const PHRASE_KINDS = {
   /** Phrase kinds for HIGH mood (up-down style). */
-  HIGH: {
-    INTRO: 1,
-    UP: 2,
-    DOWN: 3,
-    CHORUS: 5,
-    OUTRO: 6,
-  },
+  HIGH: { INTRO: 1, UP: 2, DOWN: 3, CHORUS: 5, OUTRO: 6 },
   /** Phrase kinds for MID/LOW mood (bridge-verse style). */
   MID: {
     INTRO: 1,
@@ -113,13 +107,7 @@ export interface AnlzPhrases {
 const dec = new TextDecoder("utf-16be");
 
 function u32be(b: Uint8Array, off: number): number {
-  return (
-    ((b[off]! << 24) |
-      (b[off + 1]! << 16) |
-      (b[off + 2]! << 8) |
-      b[off + 3]!) >>>
-    0
-  );
+  return ((b[off]! << 24) | (b[off + 1]! << 16) | (b[off + 2]! << 8) | b[off + 3]!) >>> 0;
 }
 
 function u16be(b: Uint8Array, off: number): number {
@@ -135,10 +123,9 @@ function tag(b: Uint8Array, off: number): string {
  * (tag, offset, total length). Null on any structural violation —
  * corrupt sidecars are a visible null, never a partial parse.
  */
-function walkContainer(data: Uint8Array): {
-  path: string;
-  sections: { tag: string; off: number; total: number }[];
-} | null {
+function walkContainer(
+  data: Uint8Array,
+): { path: string; sections: { tag: string; off: number; total: number }[] } | null {
   if (data.length < 44) return null;
   if (tag(data, 0) !== "PMAI") return null;
   if (u32be(data, 4) !== 28) return null;
@@ -268,10 +255,7 @@ export function parseAnlzPhrases(data: Uint8Array): AnlzPhrases | null {
  * Compute intro/outro bar counts from PSSI phrases.
  * Returns { introBars, outroBars } with raw bar counts (not yet rounded).
  */
-export function phraseInOutBars(p: AnlzPhrases): {
-  introBars: number;
-  outroBars: number;
-} {
+export function phraseInOutBars(p: AnlzPhrases): { introBars: number; outroBars: number } {
   const introKind = 1; // INTRO is always kind=1 in all moods
   const outroKind = p.mood === TRACK_MOOD.HIGH ? 6 : 10;
 
@@ -282,10 +266,7 @@ export function phraseInOutBars(p: AnlzPhrases): {
   const introIdx = p.phrases.findIndex((ph) => ph.kind === introKind);
   if (introIdx !== -1) {
     const intro = p.phrases[introIdx]!;
-    const nextBeat =
-      introIdx + 1 < p.phrases.length
-        ? p.phrases[introIdx + 1]!.beat
-        : p.endBeat;
+    const nextBeat = introIdx + 1 < p.phrases.length ? p.phrases[introIdx + 1]!.beat : p.endBeat;
     introBars = Math.floor((nextBeat - intro.beat) / 4);
   }
 
@@ -293,10 +274,7 @@ export function phraseInOutBars(p: AnlzPhrases): {
   const outroIdx = p.phrases.findLastIndex((ph) => ph.kind === outroKind);
   if (outroIdx !== -1) {
     const outro = p.phrases[outroIdx]!;
-    const nextBeat =
-      outroIdx + 1 < p.phrases.length
-        ? p.phrases[outroIdx + 1]!.beat
-        : p.endBeat;
+    const nextBeat = outroIdx + 1 < p.phrases.length ? p.phrases[outroIdx + 1]!.beat : p.endBeat;
     outroBars = Math.floor((nextBeat - outro.beat) / 4);
   }
 
@@ -314,10 +292,7 @@ export function phraseInOutBars(p: AnlzPhrases): {
  * "Roll" = no qualifying drop sections — the track rolls without a
  * big structural contrast (verse/bridge/up/down only).
  */
-export function phraseDropRoll(p: AnlzPhrases): {
-  drop: boolean;
-  roll: boolean;
-} {
+export function phraseDropRoll(p: AnlzPhrases): { drop: boolean; roll: boolean } {
   const chorusKind = p.mood === TRACK_MOOD.HIGH ? 5 : 9;
   const introKind = 1;
   const outroKind = p.mood === TRACK_MOOD.HIGH ? 6 : 10;
@@ -327,8 +302,7 @@ export function phraseDropRoll(p: AnlzPhrases): {
     const ph = p.phrases[i]!;
     if (ph.kind !== chorusKind) continue;
     // Skip if this is the only phrase type (weak signal)
-    const nextBeat =
-      i + 1 < p.phrases.length ? p.phrases[i + 1]!.beat : p.endBeat;
+    const nextBeat = i + 1 < p.phrases.length ? p.phrases[i + 1]!.beat : p.endBeat;
     const bars = Math.floor((nextBeat - ph.beat) / 4);
     if (bars >= 8) return { drop: true, roll: false };
   }
@@ -336,9 +310,7 @@ export function phraseDropRoll(p: AnlzPhrases): {
   // No qualifying drop — check for rolling structure
   // A roll needs at least 2 non-intro/outro phrases to be meaningful
   // Small chorus sections (<8 bars) count as body content, not drops
-  const bodyPhrases = p.phrases.filter(
-    (ph) => ph.kind !== introKind && ph.kind !== outroKind,
-  );
+  const bodyPhrases = p.phrases.filter((ph) => ph.kind !== introKind && ph.kind !== outroKind);
   if (bodyPhrases.length >= 2) return { drop: false, roll: true };
 
   return { drop: false, roll: false };
@@ -374,10 +346,7 @@ export function parseAnlzGrid(data: Uint8Array): AnlzGrid | null {
 export function parseAnlzInventory(data: Uint8Array): AnlzInventory | null {
   const c = walkContainer(data);
   if (!c) return null;
-  return {
-    path: c.path,
-    sections: c.sections.map((s) => ({ tag: s.tag, bytes: s.total })),
-  };
+  return { path: c.path, sections: c.sections.map((s) => ({ tag: s.tag, bytes: s.total })) };
 }
 
 /** Encode a JS string as UTF-16BE bytes + the NUL terminator (Bun's
@@ -411,10 +380,7 @@ function utf16be(s: string): Uint8Array {
  *     must NOT fabricate one — a grid without the track's real section
  *     layout is a corruption vector)
  */
-export function rewriteAnlzGrid(
-  data: Uint8Array,
-  beats: AnlzBeat[],
-): Uint8Array | null {
+export function rewriteAnlzGrid(data: Uint8Array, beats: AnlzBeat[]): Uint8Array | null {
   const c = walkContainer(data);
   if (!c) return null;
   const pq = c.sections.find((s) => s.tag === "PQTZ");
@@ -476,15 +442,7 @@ export function buildAnlz(opts: {
   for (const s of opts.extraSections ?? []) {
     // minimal section: tag + hdrLen 24 + total 24 + padding zeros
     const b = new Uint8Array(s.bytes);
-    b.set(
-      [
-        s.tag.charCodeAt(0),
-        s.tag.charCodeAt(1),
-        s.tag.charCodeAt(2),
-        s.tag.charCodeAt(3),
-      ],
-      0,
-    );
+    b.set([s.tag.charCodeAt(0), s.tag.charCodeAt(1), s.tag.charCodeAt(2), s.tag.charCodeAt(3)], 0);
     const sdv = new DataView(b.buffer);
     sdv.setUint32(4, 24, false);
     sdv.setUint32(8, s.bytes, false);
