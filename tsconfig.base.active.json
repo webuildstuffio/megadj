@@ -1,0 +1,1 @@
+{"$schema":"https://json.schemastore.org/tsconfig","compilerOptions":{"incremental":true,"moduleResolution":"bundler","noUncheckedIndexedAccess":true,"strict":true,"tsBuildInfoFile":"./node_modules/.tmp/tsconfig.tsbuildinfo"}}
