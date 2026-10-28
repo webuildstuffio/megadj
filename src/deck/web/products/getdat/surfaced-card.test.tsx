@@ -110,7 +110,7 @@ describe("surfaced-link cohort in the web UI (#256 parity)", () => {
 
   test("stat cards + share-bar segs are clickable (jump affordance)", () => {
     expect(statsSrc).toContain("onClick?: (() => void) | undefined");
-    expect(sharedSrc).toContain("onClick?: () => void;");
+    expect(sharedSrc).toContain("onClick?: () => void");
     expect(fleetCss).toContain(".stat.clickable");
     expect(fleetCss).toContain(".arch-seg.clickable");
   });

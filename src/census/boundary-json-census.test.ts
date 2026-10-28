@@ -28,7 +28,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.md5s)",
     "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.fps)",
     "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.evidence)",
-    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse( row.proposed_action, )",
+    "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.proposed_action)",
     "src/deck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.validation)",
   ]),
   'src/deck/deckctl/queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
@@ -247,7 +247,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     audited: 89,
     guarded: 56,
     sanctioned: 33,
-    digest: "affb081bb6b7fd92c31e292e196074300d7391a05d99d1a3a1ee10d7198ecea8",
+    digest: "0fe02570231fb62f0253f71832b90a578ff40a99d2b884aa8412f93ce5494634",
   });
 });
 

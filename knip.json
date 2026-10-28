@@ -79,7 +79,7 @@
         "uv",
         "jscpd"
       ],
-      "ignoreDependencies": ["fuse.js", "tinykeys"]
+      "ignoreDependencies": []
     }
   }
 }
