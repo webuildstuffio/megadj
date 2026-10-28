@@ -9,6 +9,12 @@
     "megadj": "./src/cli.ts"
   },
   "workspaces": [],
+  "sideEffects": [
+    "*.css",
+    "*.scss",
+    "**/*.css",
+    "**/*.scss"
+  ],
   "scripts": {
     "megadj": "bun run src/cli.ts",
     "deck": "bun run src/deck/index.ts",
