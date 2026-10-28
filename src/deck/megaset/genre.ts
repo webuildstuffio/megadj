@@ -15,6 +15,7 @@ export function genreWhy(reader: ArchiveQuery, videoId: string) {
     title: null as string | null,
     artist: null as string | null,
     db_genre: null as string | null,
+    db_genre_secondary: null as string | null,
     voted: false,
     votes: [] as {
       rung: string;
@@ -29,8 +30,12 @@ export function genreWhy(reader: ArchiveQuery, videoId: string) {
     title: string | null;
     artist: string | null;
     genre: string | null;
+    genre_secondary: string | null;
     genre_votes: string | null;
-  }>("SELECT title, artist, genre, genre_votes FROM tracks WHERE video_id = ?", videoId);
+  }>(
+    "SELECT title, artist, genre, genre_secondary, genre_votes FROM tracks WHERE video_id = ?",
+    videoId,
+  );
   if (!track) return { ...empty(), missing: true as const };
 
   const votes = parseVotes(track.genre_votes);
@@ -45,6 +50,7 @@ export function genreWhy(reader: ArchiveQuery, videoId: string) {
     title: track.title,
     artist: track.artist,
     db_genre: track.genre,
+    db_genre_secondary: track.genre_secondary,
     voted: true,
     elected: elected.genre,
     elected_weight: round4(elected.weight),

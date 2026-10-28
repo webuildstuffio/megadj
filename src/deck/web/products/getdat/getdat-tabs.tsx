@@ -597,6 +597,41 @@ export function EnrichmentFunnel(props: {
             </KVVal>
           </KVRow>
         )}
+        {stages.genreSecondary > 0 && (
+          <KVRow>
+            <KVKey>
+              secondary genre coverage
+              <span class="dt-sub"> — runner-up from the Dawid-Skene posterior / vote ladder</span>
+            </KVKey>
+            <KVVal>
+              <Meter
+                done={stages.genreSecondary}
+                total={Math.max(1, stages.genreVoted)}
+                label=""
+                cls={stages.genreSecondary >= stages.genreVoted ? "ok" : ""}
+              />
+            </KVVal>
+          </KVRow>
+        )}
+        {stages.energyV31 > 0 && (
+          <KVRow>
+            <KVKey>
+              energy v3.1 (12-signal composite)
+              <span class="dt-sub">
+                {" "}
+                — apply with <code>megadj energy --apply</code>
+              </span>
+            </KVKey>
+            <KVVal>
+              <Meter
+                done={stages.energyV31}
+                total={Math.max(1, stages.genreVoted + stages.noGenre)}
+                label=""
+                cls={stages.energyV31 >= stages.genreVoted + stages.noGenre ? "ok" : ""}
+              />
+            </KVVal>
+          </KVRow>
+        )}
         <KVRow>
           <KVKey>
             <button

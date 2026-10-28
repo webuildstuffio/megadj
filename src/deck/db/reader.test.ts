@@ -36,8 +36,8 @@ seed.exec(`
     file_size_bytes INTEGER, duration_s REAL,
     attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT,
     last_error TEXT, liked_position INTEGER,
-    source TEXT NOT NULL DEFAULT 'liked', genre TEXT, energy INTEGER,
-    artwork_status TEXT, year TEXT, first_seen_at TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'liked', genre TEXT, genre_secondary TEXT,
+    energy REAL, artwork_status TEXT, year TEXT, first_seen_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     source_links TEXT, surfaced_done_at TEXT
   );

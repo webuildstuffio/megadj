@@ -101,6 +101,8 @@ def main() -> None:
     genres_tertiary: dict[str, str] = {}
     all_energies: list[float] = []
     energy_by_path: dict[str, float] = {}
+    # Energy v3.1 (#458): prefer scored bands from energy_features when available
+    energy_v31_by_id: dict[str, int] = {}
     family_aggressive: dict[str, list[float]] = {}
     family_happy: dict[str, list[float]] = {}
     all_aggressive: list[float] = []
@@ -177,6 +179,16 @@ def main() -> None:
             if genre_fam:
                 family_aggressive.setdefault(genre_fam, []).append(agg)
                 family_happy.setdefault(genre_fam, []).append(hap)
+        # Energy v3.1: load scored bands from energy_features (#458)
+        try:
+            for ef in con.execute(
+                "SELECT video_id, energy_band FROM energy_features"
+                " WHERE energy_band IS NOT NULL"
+            ):
+                energy_v31_by_id[ef["video_id"]] = int(ef["energy_band"])
+        except Exception:
+            pass  # energy_features table may not exist yet
+
         for row_var in con.execute(
             "SELECT source_path, bpm_residual_std FROM beats"
             " WHERE bpm_residual_std IS NOT NULL AND source_path IS NOT NULL"
@@ -429,23 +441,29 @@ def main() -> None:
         }
         fp_key = nfc_casefold(p)
 
-        # Energy band (library-relative percentile)
-        raw_energy = energy_by_path.get(fp_key)
-        if raw_energy is None:
-            energy_str = (tags or {}).get("energy", "")
-            if not energy_str:
-                led_row = led.get("path:" + fp_key)
-                if led_row and led_row.get("energy"):
-                    energy_str = str(led_row["energy"])
-            if not energy_str:
-                energy_str = energy_from_mood.get(fp_key, "")
-            if energy_str:
-                try:
-                    raw_energy = float(energy_str)
-                except (TypeError, ValueError):
-                    pass
-        if raw_energy is not None:
-            result["energy_band"] = energy_band(raw_energy)
+        # Energy band: prefer v3.1 scored band (12-signal composite, #458)
+        led_row = led.get("path:" + fp_key)
+        vid = led_row.get("video_id") if led_row else None
+        v31_band = energy_v31_by_id.get(vid) if vid else None
+        if v31_band is not None:
+            result["energy_band"] = v31_band
+        else:
+            # Fallback: v2.0 energy (library-relative percentile from tracks.energy)
+            raw_energy = energy_by_path.get(fp_key)
+            if raw_energy is None:
+                energy_str = (tags or {}).get("energy", "")
+                if not energy_str:
+                    if led_row and led_row.get("energy"):
+                        energy_str = str(led_row["energy"])
+                if not energy_str:
+                    energy_str = energy_from_mood.get(fp_key, "")
+                if energy_str:
+                    try:
+                        raw_energy = float(energy_str)
+                    except (TypeError, ValueError):
+                        pass
+            if raw_energy is not None:
+                result["energy_band"] = energy_band(raw_energy)
 
         # IN/OUT bars + Drop/Roll from ANLZ phrase data
         inout = inout_by_path.get(fp_key)

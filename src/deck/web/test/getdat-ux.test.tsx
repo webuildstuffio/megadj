@@ -57,6 +57,8 @@ describe("useFetched refresh (post-mutation reload)", () => {
 const funnelStages = {
   noGenre: 1200,
   genreVoted: 480,
+  genreSecondary: 2642,
+  energyV31: 3200,
   rawBatches: [
     { folder: "/music/DJ-Imports/2026-09-19-b", files: 12 },
     { folder: "/music/DJ-Imports/2026-09-19-a", files: 4 },

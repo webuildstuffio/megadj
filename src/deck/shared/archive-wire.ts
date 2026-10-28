@@ -13,6 +13,9 @@ export interface ArchiveTrack {
   file_path: string | null;
   duration_s: number | null;
   genre: string | null;
+  /** Secondary genre from the Dawid-Skene posterior / vote runner-up.
+   *  Null when no secondary is available. #465: surfaced in product. */
+  genre_secondary: string | null;
   energy: number | null;
   source: string;
   liked_position: number | null;
@@ -102,6 +105,10 @@ export interface ArchiveAnalysisCoverage {
         noGenre: number;
         /** genre_votes populated → ran under the CURRENT (voted) system. */
         genreVoted: number;
+        /** #465: tracks with a populated genre_secondary column. */
+        genreSecondary: number;
+        /** #458: tracks scored by Energy v3.1 (energy_features.energy_band). */
+        energyV31: number;
         /** ABSOLUTE folder paths of dated batch folders not yet ingested —
          *  /intake/start's allowlist compares full paths, so these must be
          *  absolute for the process-batch buttons to pass it. */
@@ -202,6 +209,8 @@ export interface ArchiveGenreWhy {
   artist: string | null;
   /** The genre column (may carry a first-win-era/sync-era label). */
   db_genre: string | null;
+  /** Secondary genre from Dawid-Skene posterior / vote runner-up. */
+  db_genre_secondary: string | null;
   /** false = never voted: an honest empty-state, never fake data. */
   voted: boolean;
   /** only when voted: the replayed election result. */

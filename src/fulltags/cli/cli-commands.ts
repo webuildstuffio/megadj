@@ -671,7 +671,7 @@ const energy: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(
     rest,
     [],
-    ["phase0", "extract", "freeze", "score", "gates", "full", "shadow", "json"],
+    ["phase0", "extract", "freeze", "score", "gates", "full", "shadow", "apply", "json"],
   );
   const json = flags.bools.has("json");
   const { runEnergy } = await import("../analysis/energy-command");
@@ -684,6 +684,7 @@ const energy: CliCommandHandler = async (rest, { state }) => {
     gates: flags.bools.has("gates"),
     full: flags.bools.has("full"),
     shadow: flags.bools.has("shadow"),
+    apply: flags.bools.has("apply"),
     json,
   });
 };

@@ -7,8 +7,8 @@ import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { existsSync, statSync } from "node:fs";
 
 export const TRACK_COLS = `video_id, title, artist, album, status, bitrate_kbps,
-  codec, file_path, duration_s, genre, energy, source, liked_position,
-  first_seen_at, updated_at`;
+  codec, file_path, duration_s, genre, genre_secondary, energy, source,
+  liked_position, first_seen_at, updated_at`;
 
 /** Read-only connection and key-cache query family. */
 export class ArchiveReaderCore {

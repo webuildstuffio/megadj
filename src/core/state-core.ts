@@ -52,7 +52,8 @@ export class ArchiveCore {
     this.addColumnIfMissing("tracks", "genre_votes", "TEXT");
     this.addColumnIfMissing("tracks", "year", "TEXT");
     this.addColumnIfMissing("tracks", "label", "TEXT");
-    this.addColumnIfMissing("tracks", "energy", "INTEGER");
+    this.addColumnIfMissing("tracks", "energy", "REAL");
+    this.addColumnIfMissing("tracks", "genre_secondary", "TEXT");
     this.addColumnIfMissing("tracks", "artwork_status", "TEXT");
     this.addColumnIfMissing("tracks", "content_hash", "TEXT");
     // #256 link-first: the acquisition links surfaced for a track

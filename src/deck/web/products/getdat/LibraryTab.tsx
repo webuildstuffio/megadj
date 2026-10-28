@@ -274,6 +274,12 @@ export function LibraryTab() {
                       videoId={t.video_id}
                       artist={t.artist}
                     />
+                    {t.genre && (
+                      <span class="dt-sub">
+                        {t.genre}
+                        {t.genre_secondary ? ` · ${t.genre_secondary}` : ""}
+                      </span>
+                    )}
                   </KVKey>
                   <KVVal title={t.file_path ?? ""}>
                     {t.bitrate_kbps ? `${t.bitrate_kbps} kbps ${t.codec ?? ""}` : (t.codec ?? "")}
@@ -310,6 +316,18 @@ export function LibraryTab() {
               sortValue: (t) => (t.title ?? t.video_id).toLowerCase(),
             },
             {
+              key: "genre",
+              head: "genre",
+              min: 100,
+              cell: (t) => (
+                <>
+                  {t.genre ?? "—"}
+                  {t.genre_secondary ? <span class="dt-sub"> · {t.genre_secondary}</span> : null}
+                </>
+              ),
+              sortValue: (t) => t.genre ?? "",
+            },
+            {
               key: "year",
               head: "year",
               align: "end",
@@ -324,6 +342,22 @@ export function LibraryTab() {
               min: 86,
               cell: (t) => STATUS_LANG[t.status] ?? t.status,
               sortValue: (t) => t.status,
+            },
+            {
+              key: "energy",
+              head: "energy",
+              align: "end",
+              min: 44,
+              grow: 0,
+              cell: (t) =>
+                t.energy !== null && t.energy !== undefined ? (
+                  <span class="arch-pill" title={`energy band E${t.energy}`}>
+                    E{t.energy}
+                  </span>
+                ) : (
+                  "—"
+                ),
+              sortValue: (t) => t.energy ?? null,
             },
             {
               key: "art",

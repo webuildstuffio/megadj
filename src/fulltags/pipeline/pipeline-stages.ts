@@ -241,6 +241,11 @@ export async function stageArt(ctx: TrackCtx): Promise<void> {
 }
 
 // ---------- energy (cheap, local, sortable) ----------
+// NOTE: Energy v3.1 (#458) writes bands via `megadj energy --apply` directly
+// to tracks.energy. This per-track stage is the v2.0 fallback for tracks that
+// haven't been through the v3.1 pipeline yet (new ingests, first enrichment).
+// After v3.1 --apply, tracks.energy carries the 12-signal composite band and
+// this stage's value would only be overwritten on the NEXT --apply run.
 export async function stageEnergy(ctx: TrackCtx): Promise<void> {
   const { opts, t, patch } = ctx;
   if (!(want(opts, "energy") && !opts.dryRun)) return;
@@ -248,11 +253,6 @@ export async function stageEnergy(ctx: TrackCtx): Promise<void> {
   // surface. Before re-measuring, probe the file for an existing stamp —
   // a second identical value would still rewrite the container, so skip
   // when the stamp matches the measured value.
-  //
-  // ENERGY 2.0 (roadmap #4): when the mood stamp carries model-derived
-  // danceability + arousal, blend them with the RMS score
-  // (0.5·rms + 0.3·dance + 0.2·arousal-scaled) — perceptual energy tracks
-  // the model view, not just loudness. RMS-only files keep the old value.
   const rms = await measureRms(t.path);
   let e = energyFromLufs(rms);
   const moodStampVal = readStamp(t.path, "MOOD");

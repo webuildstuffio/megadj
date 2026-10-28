@@ -127,6 +127,14 @@ export function GenreWhyTab() {
                     </span>
                   </KVVal>
                 </KVRow>
+                {why.data.db_genre_secondary && (
+                  <KVRow>
+                    <KVKey>Secondary genre (runner-up)</KVKey>
+                    <KVVal>
+                      <span class="arch-pill">{why.data.db_genre_secondary}</span>
+                    </KVVal>
+                  </KVRow>
+                )}
               </KVRows>
             ) : (
               <div class="note-card">

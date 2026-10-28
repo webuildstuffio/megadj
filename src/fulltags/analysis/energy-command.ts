@@ -50,6 +50,7 @@ export interface EnergyCommandOpts {
   readonly gates: boolean;
   readonly full: boolean;
   readonly shadow: boolean;
+  readonly apply: boolean;
   readonly json: boolean;
 }
 
@@ -228,6 +229,7 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
   const doGates = opts.gates || opts.full;
   const doPhase0 = opts.phase0 || opts.full;
   const doShadow = opts.shadow || opts.full;
+  const doApply = opts.apply || opts.full;
 
   if (opts.extract) {
     if (!energyModelsPresent()) {
@@ -249,10 +251,16 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
 
   console.log(`energy: ${n} tracks with features`);
 
+  // Standalone --apply: bridge scored energy bands to tracks.energy
+  if (doApply && !doFreeze && !doScore && !doGates && !doPhase0 && !doShadow) {
+    await applyEnergyV31(db, opts.json);
+    return;
+  }
+
   const needsFreeze = doPhase0 || doFreeze || doScore || doGates || doShadow;
-  if (!needsFreeze) {
+  if (!needsFreeze && !doApply) {
     console.log(
-      "usage: megadj energy --full | --phase0 | --extract | --freeze | --score | --gates | --shadow",
+      "usage: megadj energy --full | --phase0 | --extract | --freeze | --score | --gates | --shadow | --apply",
     );
     return;
   }
@@ -391,6 +399,11 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
     }
   }
 
+  // Apply: bridge v3.1 scored energy_band → tracks.energy (#458 Phase 4)
+  if (doApply) {
+    await applyEnergyV31(db, opts.json);
+  }
+
   // Shadow: biggest movers vs Energy 2.0
   if (doShadow) {
     const preset = WEIGHT_PRESETS[1]!;
@@ -436,6 +449,48 @@ export async function runEnergy(opts: EnergyCommandOpts): Promise<void> {
     for (const m of top) {
       console.log(`  ${m.title}: E${m.oldBand} → E${m.newBand} (Δ${m.delta})`);
     }
+  }
+}
+
+/**
+ * Apply energy v3.1 bands to tracks.energy (#458 Phase 4).
+ * Reads scored energy_band from energy_features and writes to tracks.energy.
+ * Standalone: `megadj energy --apply`; also called after --score in --full.
+ */
+async function applyEnergyV31(db: Database, json: boolean): Promise<void> {
+  interface ScoredRow {
+    video_id: string;
+    energy_band: number;
+  }
+  const scored = db
+    .query(
+      `SELECT video_id, energy_band FROM energy_features
+       WHERE energy_band IS NOT NULL`,
+    )
+    .all() as ScoredRow[];
+
+  if (scored.length === 0) {
+    console.log("apply: no scored energy bands found. Run `megadj energy --full` first.");
+    return;
+  }
+
+  const stmt = db.prepare(`UPDATE tracks SET energy = ? WHERE video_id = ?`);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    let applied = 0;
+    for (const r of scored) {
+      stmt.run(r.energy_band, r.video_id);
+      applied++;
+    }
+    db.exec("COMMIT");
+    console.log(`apply: wrote ${applied} tracks with v3.1 energy bands (E1–E9) → tracks.energy`);
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+
+  if (json) {
+    await writeJson({ applied: scored.length, version: "energy-v3.1" });
   }
 }
 

@@ -262,6 +262,22 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
                      AND genre_votes NOT IN ('', '[]', '{}')`,
                 )[0]?.n ?? 0)
               : 0,
+            genreSecondary: hasCol("genre_secondary")
+              ? (this.rows<{ n: number }>(
+                  `SELECT COUNT(*) n FROM tracks
+                   WHERE status = 'downloaded'
+                     AND genre_secondary IS NOT NULL
+                     AND genre_secondary != ''`,
+                )[0]?.n ?? 0)
+              : 0,
+            energyV31:
+              this.rows<{ name: string }>(
+                `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'energy_features'`,
+              ).length > 0
+                ? (this.rows<{ n: number }>(
+                    `SELECT COUNT(*) n FROM energy_features WHERE energy_band IS NOT NULL`,
+                  )[0]?.n ?? 0)
+                : 0,
             rawBatches: Object.entries(
               batchRows.reduce<Record<string, number>>((acc, r) => {
                 const abs = batchFolderOf(r.folder);
