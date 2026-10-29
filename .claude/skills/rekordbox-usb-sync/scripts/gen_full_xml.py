@@ -2,15 +2,17 @@
 """Generate a complete rekordbox XML (3,054 tracks + all 154 playlists) from the
 OneLibrary exportLibrary.db, for import into rekordbox 7 followed by a proper
 USB export (which writes BOTH export.pdb for the XDJ-XZ AND exportLibrary.db).
+
+Requires defusedxml (alongside pyrekordbox), e.g. `uv run --with defusedxml`.
 """
 import os
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
 
-DB = "/tmp/usb-sync/nm_current.db"
-OUT = os.path.expanduser("~/rekordbox-exports/full_library.xml")
-VOL = os.environ.get("USB_SYNC_MASTER", "DJMASTER")
+# defusedxml.ElementTree is parse-side only (no Element/SubElement); the
+# builder classes below come from stdlib and never parse anything.
+from xml.etree.ElementTree import Element, SubElement, tostring
 
+import defusedxml.ElementTree as ET
+from defusedxml import minidom
 from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
 from pyrekordbox.devicelib_plus.models import (
     Artist,
@@ -18,6 +20,11 @@ from pyrekordbox.devicelib_plus.models import (
     Playlist,
     PlaylistContent,
 )
+from pyrekordbox.rbxml import encode_path
+
+DB = "/tmp/usb-sync/nm_current.db"
+OUT = os.path.expanduser("~/rekordbox-exports/full_library.xml")
+VOL = os.environ.get("USB_SYNC_MASTER", "DJMASTER")
 
 db = DeviceLibraryPlus(DB)
 
@@ -35,18 +42,16 @@ for e in db.query(PlaylistContent).order_by(PlaylistContent.sequenceNo).all():
     entries.setdefault(e.playlist_id, []).append(e.content_id)
 print(f"playlists: {len(playlists)}, entries: {sum(len(v) for v in entries.values())}")
 
-root = ET.Element("DJ_PLAYLISTS", {"Version": "1.0.0"})
-ET.SubElement(root, "PRODUCT", {"Name": "Crate Recovery", "Version": "2.0", "Company": "recovery"})
-coll = ET.SubElement(root, "COLLECTION", {"Total": str(len(order))})
-
-from pyrekordbox.rbxml import encode_path
+root = Element("DJ_PLAYLISTS", {"Version": "1.0.0"})
+SubElement(root, "PRODUCT", {"Name": "Crate Recovery", "Version": "2.0", "Company": "recovery"})
+coll = SubElement(root, "COLLECTION", {"Total": str(len(order))})
 
 for cid in order:
     c = tracks[cid]
     artist = artists.get(c.artist_id_artist, "")
     d, fn = os.path.split(c.path.lstrip("/"))
     full = f"/Volumes/{VOL}{c.path}"
-    t = ET.SubElement(coll, "TRACK", {
+    t = SubElement(coll, "TRACK", {
         "TrackID": str(cid),
         "Name": (c.title or fn)[:255],
         "Artist": artist[:255],
@@ -57,12 +62,12 @@ for cid in order:
     if c.length:
         t.set("TotalTime", str(int(c.length)))
 
-pls = ET.SubElement(root, "PLAYLISTS")
-root_node = ET.SubElement(pls, "NODE", {"Name": "ROOT", "Type": "0", "KeyType": "0"})
+pls = SubElement(root, "PLAYLISTS")
+root_node = SubElement(pls, "NODE", {"Name": "ROOT", "Type": "0", "KeyType": "0"})
 
 def emit(p, parent):
     attr = p.attribute
-    node = ET.SubElement(parent, "NODE", {"Name": (p.name or "Playlist")[:255]})
+    node = SubElement(parent, "NODE", {"Name": (p.name or "Playlist")[:255]})
     if attr == 1:  # folder — rekordbox XML: Type 0 = folder, 1 = playlist
         node.set("Type", "0")
         node.set("KeyType", "0")
@@ -73,7 +78,7 @@ def emit(p, parent):
         node.set("Type", "1")
         node.set("KeyType", "0")
         for cid in entries.get(p.playlist_id, []):
-            ET.SubElement(node, "TRACK", {"Key": str(cid)})
+            SubElement(node, "TRACK", {"Key": str(cid)})
 
 tops = [p for p in sorted(playlists.values(), key=lambda x: x.sequenceNo or 0)
         if not p.playlist_id_parent or p.playlist_id_parent not in playlists]
@@ -84,7 +89,7 @@ for p in tops:
     seen.add(p.playlist_id)
     emit(p, root_node)
 
-xml = ET.tostring(root, encoding="unicode")
+xml = tostring(root, encoding="unicode")
 dom = minidom.parseString(xml)
 with open(OUT, "w") as f:
     dom.writexml(f, indent="", addindent="  ", newl="\n")
