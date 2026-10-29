@@ -106,7 +106,7 @@ def write_pgz(path: str, pcm_s16: np.ndarray) -> tuple[int, str]:
 
     table_entries: list[bytes] = []
     current_offset = data_offset
-    for i, page in enumerate(pages):
+    for _i, page in enumerate(pages):
         entry = struct.pack(">Q", current_offset)
         entry += struct.pack(">I", page["compressed"])
         entry += struct.pack(">I", page["bytes"])
