@@ -265,6 +265,23 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "stem-export",
+    group: "fulltags",
+    block: [
+      "  megadj stem-export <VOLUME> [--limit N] [--dry-run] [--json]",
+      "                                               write OverCue stems (CDJMODS/) to a USB volume",
+      "                                               for XZ Mods playback — reads from stem_cache,",
+      "                                               resamples to 96 kHz, writes 7 PGZ mixes per track",
+    ],
+  },
+  {
+    name: "stem-status",
+    group: "fulltags",
+    block: [
+      "  megadj stem-status [--json]                   show stem cache coverage vs downloaded tracks",
+    ],
+  },
+  {
     name: "bench",
     group: "fulltags",
     block: [

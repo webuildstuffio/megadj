@@ -711,6 +711,42 @@ const stemsCommand: CliCommandHandler = async (rest, { state, musicDir }) => {
   await runStems(analysisPassOptions(parsed, state, musicDir));
 };
 
+const stemExportCommand: CliCommandHandler = async (rest, { state }) => {
+  const flags = parseFlags(rest, ["limit"], ["dry-run", "json"]);
+  const json = flags.bools.has("json");
+  if (nonNegOptInvalid(flags, "limit", "stem-export", json)) return;
+  const limit = nonNegOpt(flags, "limit", "stem-export", json);
+  const volume = firstPositional(rest, "stem-export", ["limit"]);
+  if (!volume) {
+    await finishCommandError({
+      command: "stem-export",
+      json,
+      error:
+        "pass a volume path — megadj stem-export /Volumes/XZTEST [--limit N] [--dry-run] [--json]",
+      exitCode: 2,
+    });
+    return;
+  }
+  const { stemExport } = await import("../analysis/stem-export");
+  await stemExport({ state, volume, limit, dryRun: flags.bools.has("dry-run"), json });
+};
+
+const stemStatusCommand: CliCommandHandler = async (_rest, { state }) => {
+  const flags = parseFlags(_rest, [], ["json"]);
+  const json = flags.bools.has("json");
+  const total = state.stemCacheCount();
+  const trackCount = (
+    state.db.query("SELECT COUNT(*) AS n FROM tracks WHERE status = 'downloaded'").get() as {
+      n: number;
+    }
+  ).n;
+  if (json) {
+    await writeJson({ command: "stem-status", stemsCached: total, tracksDownloaded: trackCount });
+  } else {
+    console.log(`stem-status: ${total} tracks separated (${trackCount} total downloaded)`);
+  }
+};
+
 export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   "booth-fix": boothFix,
   drop,
@@ -735,4 +771,6 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   regate,
   bench,
   stems: stemsCommand,
+  "stem-export": stemExportCommand,
+  "stem-status": stemStatusCommand,
 };

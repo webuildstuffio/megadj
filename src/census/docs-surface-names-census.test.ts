@@ -59,14 +59,8 @@ const ALLOWED: Readonly<Record<string, readonly AllowEntry[]>> = {
   "docs/fulltags/fulltags-v3-rebench-and-build-plan-2026-09-29.md": [
     { name: "analyze", reason: "v3 planned verb — WS2 B2.3 #358" },
   ],
-  "docs/FEATURES.md": [
-    { name: "stems", reason: "planned Demucs stem runner — #555 #556" },
-    { name: "stem-export", reason: "planned OverCue USB export — #555" },
-    { name: "stem-status", reason: "planned stem coverage report — #555" },
-  ],
-  "docs/fulltags/v4-remaining-plan-2026-10-01.md": [
-    { name: "stems", reason: "planned Demucs stem runner — #555 #556" },
-  ],
+  "docs/FEATURES.md": [],
+  "docs/fulltags/v4-remaining-plan-2026-10-01.md": [],
 };
 
 /* ---------- scanning ---------- */
