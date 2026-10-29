@@ -198,6 +198,19 @@ def main() -> None:
                 var_by_path[fp] = float(row_var[1]) > VAR_THRESHOLD
             except (TypeError, ValueError):
                 pass
+
+        # VOX/HOOK from stem separation (#429)
+        vox_hook_by_path: dict[str, str] = {}
+        try:
+            for sc_row in con.execute(
+                "SELECT s.source_path, s.vox_hook FROM stem_cache s"
+                " WHERE s.vox_hook IS NOT NULL AND s.source_path IS NOT NULL"
+            ):
+                fp_sc = nfc_casefold(sc_row[0] or "")
+                vox_hook_by_path[fp_sc] = sc_row[1]
+        except Exception:
+            pass  # stem_cache table may not exist yet
+
         con.close()
 
     out = {
@@ -423,13 +436,14 @@ def main() -> None:
         """Resolve all v4 comment tokens for a track.
 
         Returns dict with keys: energy_band, intro_bars, outro_bars,
-        drop, roll, hard, soft, dark, euph, var_tempo, subgenre.
-        VOX/HOOK needs vocal stem separation pipeline.
+        vox, hook, drop, roll, hard, soft, dark, euph, var_tempo, subgenre.
         """
         result: dict = {
             "energy_band": None,
             "intro_bars": None,
             "outro_bars": None,
+            "vox": False,
+            "hook": False,
             "drop": False,
             "roll": False,
             "hard": False,
@@ -472,6 +486,13 @@ def main() -> None:
             result["outro_bars"] = round_bars_down(inout[1])
             result["drop"] = inout[2]
             result["roll"] = inout[3]
+
+        # VOX/HOOK from stem separation (#429)
+        vh = vox_hook_by_path.get(fp_key)
+        if vh == "VOX":
+            result["vox"] = True
+        elif vh == "HOOK":
+            result["hook"] = True
 
         # Within-family mood percentiles
         agg = agg_by_path.get(fp_key)
@@ -523,7 +544,10 @@ def main() -> None:
         if ib is not None and ob is not None:
             parts.append(f"IN:{ib}")
             parts.append(f"OUT:{ob}")
-        # VOX/HOOK not yet available — omit
+        if data.get("vox"):
+            parts.append("VOX")
+        elif data.get("hook"):
+            parts.append("HOOK")
         if data.get("drop"):
             parts.append("Drop")
         elif data.get("roll"):
