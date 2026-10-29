@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { ArchiveState } from "../../core/state";
 import { genreEvalRow } from "../../test-support/genre-row";
-import { genre } from "./genre";
+import { genre } from "./genre-run";
 
 async function captureGenreJson(
   state: ArchiveState,
