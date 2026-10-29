@@ -1,7 +1,7 @@
 # 0b — Cold backup of the master library — runbook
 
 **Status:** ✅ LOCAL COLD BACKUP ACTIVE (Oct 29, 2026) — SHELF1 migrated
-from Toshiba 4 TB ExFAT HDD to Fikwok 2 TB NVMe (APFS). The old HDD is
+from Toshiba 4 TB ExFAT HDD to Fikwok 2 TB NVMe (HFS+). The old HDD is
 now `SHELF1-COLD`, stored unpowered and synced monthly via rsync.
 
 Cloud backup remains SHELVED (owner call, Sep 19; issue #2 closed

@@ -137,7 +137,7 @@ Product contract and measured roadmap:
 
 ### 🗄️ The shelf master — the archive that never leaves the desk
 
-Above the USB sticks sits the shelf: an archive-grade NVMe (APFS) holding a
+Above the USB sticks sits the shelf: an archive-grade NVMe (HFS+) holding a
 strict, byte-verified copy of every drive. rekordbox's master DB even lives on it.
 
 - 🧲 **`megadj shelf-archive [volume …]`** sweeps any drive into the shelf —

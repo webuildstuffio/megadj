@@ -181,7 +181,7 @@ parts live, via [XZ Mods](https://github.com/OpticMystic/XZ-Mods).
 | **Output**        | 4 stems per track (vocals, drums, bass, other) cached in `stem_cache` table; reusable by VOX/HOOK (#429) and grid audit |
 | **Export**        | `megadj stem-export <drive> [--limit N] [--with-loader]` — writes [OverCue stems format](https://github.com/OverCue-gg/overcue-stems-format) (`CDJMODS/`) to a FAT32 playing USB |
 | **XZ Mods compat**| Vocals = vocals stem · Drums = drums stem · Harmonics = bass + other mixed · FLAC pages at 96 kHz |
-| **Constraints**   | FAT32 playing USB required (SHELF1 is APFS NVMe, not bootable); XDJ-XZ firmware exactly 1.26; XZ Mods v0.2.1+ |
+| **Constraints**   | FAT32 playing USB required (SHELF1 is HFS+ NVMe, not bootable); XDJ-XZ firmware exactly 1.26; XZ Mods v0.2.1+ |
 
 **Commands:**
 `megadj stems --limit 500` (overnight batch, ~4–5 h on MPS) ·

@@ -124,7 +124,7 @@ Open the XZ Mods Mac app (from DMG → Applications).
 - **Zero brick risk** — remove USB + reboot = stock XDJ-XZ
 - **All open issues reviewed**: 3 open, none safety-related
 - **No reports** of bricking or hardware damage across all issues/forums
-- **Existing drives untouched**: SHELF1 (APFS NVMe, archive), FLIP-MASTER (playing)
+- **Existing drives untouched**: SHELF1 (HFS+ NVMe, archive), FLIP-MASTER (playing)
 
 ## Scale-Up Path
 
