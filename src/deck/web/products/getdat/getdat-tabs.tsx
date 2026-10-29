@@ -606,9 +606,9 @@ export function EnrichmentFunnel(props: {
             <KVVal>
               <Meter
                 done={stages.genreSecondary}
-                total={Math.max(1, stages.genreVoted)}
+                total={Math.max(1, stages.genreVoted + stages.noGenre)}
                 label=""
-                cls={stages.genreSecondary >= stages.genreVoted ? "ok" : ""}
+                cls={stages.genreSecondary >= stages.genreVoted + stages.noGenre ? "ok" : ""}
               />
             </KVVal>
           </KVRow>

@@ -137,10 +137,34 @@ export function GenreWhyTab() {
                 )}
               </KVRows>
             ) : (
-              <div class="note-card">
-                Never voted — run <code>megadj fetch --genres</code> to put it on the ladder. The
-                stored label (if any) predates the vote write path.
-              </div>
+              <>
+                <div class="note-card">
+                  Never voted — run <code>megadj fetch --genres</code> to put it on the ladder.
+                  {why.data.db_genre
+                    ? ` Current label "${why.data.db_genre}" predates the vote write path.`
+                    : ""}
+                </div>
+                {(why.data.db_genre || why.data.db_genre_secondary) && (
+                  <KVRows>
+                    {why.data.db_genre && (
+                      <KVRow>
+                        <KVKey>Stored genre (pre-vote)</KVKey>
+                        <KVVal>
+                          <span class="arch-pill muted">{why.data.db_genre}</span>
+                        </KVVal>
+                      </KVRow>
+                    )}
+                    {why.data.db_genre_secondary && (
+                      <KVRow>
+                        <KVKey>Secondary genre</KVKey>
+                        <KVVal>
+                          <span class="arch-pill muted">{why.data.db_genre_secondary}</span>
+                        </KVVal>
+                      </KVRow>
+                    )}
+                  </KVRows>
+                )}
+              </>
             )}
             {why.data.voted && why.data.matches_db === false ? (
               // Drift is the ONE finding this tab exists to surface — a

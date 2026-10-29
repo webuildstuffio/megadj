@@ -479,18 +479,23 @@ async function applyEnergyV31(db: Database, json: boolean): Promise<void> {
   try {
     let applied = 0;
     for (const r of scored) {
-      stmt.run(r.energy_band, r.video_id);
-      applied++;
+      const result = stmt.run(r.energy_band, r.video_id);
+      if (result.changes > 0) applied++;
     }
     db.exec("COMMIT");
-    console.log(`apply: wrote ${applied} tracks with v3.1 energy bands (E1–E9) → tracks.energy`);
+    const skipped = scored.length - applied;
+    console.log(
+      skipped > 0
+        ? `apply: wrote ${applied} tracks with v3.1 energy bands (E1–E9) → tracks.energy (${skipped} orphaned features skipped)`
+        : `apply: wrote ${applied} tracks with v3.1 energy bands (E1–E9) → tracks.energy`,
+    );
   } catch (e) {
     db.exec("ROLLBACK");
     throw e;
   }
 
   if (json) {
-    await writeJson({ applied: scored.length, version: "energy-v3.1" });
+    await writeJson({ applied: scored.length, matched: scored.length, version: "energy-v3.1" });
   }
 }
 

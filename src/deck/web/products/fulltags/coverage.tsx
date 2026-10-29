@@ -32,6 +32,9 @@ export function CoverageStrip(props: {
     { key: "mood", label: "mood", cmd: "megadj mood" },
     { key: "cues", label: "cues", cmd: "megadj cues" },
   ] as const;
+  const stages = cov.stages;
+  const energyV31 = stages?.energyV31 ?? 0;
+  const genreSecondary = stages?.genreSecondary ?? 0;
   return (
     <div class="card ft-coverage">
       <div class="ft-coverage-head">
@@ -67,6 +70,34 @@ export function CoverageStrip(props: {
           </div>
         );
       })}
+      {energyV31 > 0 && (
+        <div class="ft-coverage-row">
+          <span class="ft-coverage-label">energy v3.1</span>
+          <Meter
+            done={energyV31}
+            total={cov.tracks || energyV31}
+            label=""
+            cls={energyV31 >= cov.tracks ? "ok" : "dim"}
+          />
+          <code class="ft-coverage-cmd">
+            {energyV31 >= cov.tracks ? "complete" : "megadj energy --apply"}
+          </code>
+        </div>
+      )}
+      {genreSecondary > 0 && (
+        <div class="ft-coverage-row">
+          <span class="ft-coverage-label">secondary genre</span>
+          <Meter
+            done={genreSecondary}
+            total={cov.tracks || genreSecondary}
+            label=""
+            cls={genreSecondary >= cov.tracks ? "ok" : "dim"}
+          />
+          <code class="ft-coverage-cmd">
+            {genreSecondary >= cov.tracks ? "complete" : "megadj fetch --genres"}
+          </code>
+        </div>
+      )}
     </div>
   );
 }

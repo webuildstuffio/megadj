@@ -683,13 +683,20 @@ def main() -> None:
     MANUAL_COLORS = {1, 8}  # Pink, Purple — user-managed
     color_written = 0
     color_skipped = 0
-    # Color ALL rows from energy_by_path — no redundant resolve_data_v4 calls
+    # Color ALL rows — prefer v3.1 scored bands, fall back to v2.0
     for c in rows:
         fp_key = nfc_casefold(c.FolderPath or "")
-        eb_raw = energy_by_path.get(fp_key)
-        if eb_raw is None:
-            continue
-        eb = energy_band(eb_raw)
+        # Prefer v3.1 scored band (#458: same preference as resolve_data_v4)
+        led_row_c = led.get("path:" + fp_key)
+        vid_c = led_row_c.get("video_id") if led_row_c else None
+        v31_band_c = energy_v31_by_id.get(vid_c) if vid_c else None
+        if v31_band_c is not None:
+            eb = v31_band_c
+        else:
+            eb_raw = energy_by_path.get(fp_key)
+            if eb_raw is None:
+                continue
+            eb = energy_band(eb_raw)
         target_color = ENERGY_TO_COLOR.get(eb, 0)
         current_color = int(c.ColorID or 0)
         if current_color in MANUAL_COLORS:

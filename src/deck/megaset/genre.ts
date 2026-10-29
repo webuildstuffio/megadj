@@ -39,7 +39,15 @@ export function genreWhy(reader: ArchiveQuery, videoId: string) {
   if (!track) return { ...empty(), missing: true as const };
 
   const votes = parseVotes(track.genre_votes);
-  if (votes.length === 0) return empty();
+  if (votes.length === 0) {
+    return {
+      ...empty(),
+      title: track.title,
+      artist: track.artist,
+      db_genre: track.genre,
+      db_genre_secondary: track.genre_secondary,
+    };
+  }
 
   // Replay through the write path's exact election seam — a breakdown
   // always re-elects the genre the row carries (or exposes the drift).
