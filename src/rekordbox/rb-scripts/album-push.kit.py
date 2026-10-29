@@ -20,7 +20,7 @@ import unicodedata
 import uuid
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
-from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
+from pyrekordbox.masterdb.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdAlbum, DjmdContent  # type: ignore[import-not-found]
 from sqlalchemy import text  # type: ignore[import-not-found]
 

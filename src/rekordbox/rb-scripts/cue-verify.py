@@ -9,7 +9,7 @@ import json
 import sys
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
-from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
+from pyrekordbox.masterdb.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdCue  # type: ignore[import-not-found]
 
 

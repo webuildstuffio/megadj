@@ -13,6 +13,7 @@
 
 import { DB_PATH } from "../cli-env";
 import { masterDbPath } from "./master-path.js";
+import { PYRK_TAG } from "./rb-playlist-scripts.js";
 import {
   applyConfirmationRefusal,
   applyConfirmed,
@@ -60,7 +61,10 @@ export async function rbTitleRepair(
   const dbPath = masterDbPath(opts.mount);
   const log = opts.log ?? console.log;
 
-  const mk = (msg: string, partial: Partial<RbTitleRepairResult> = {}): RbTitleRepairResult => ({
+  const mk = (
+    msg: string,
+    partial: Partial<RbTitleRepairResult> = {},
+  ): RbTitleRepairResult => ({
     command: "rb-title-repair",
     db: dbPath,
     scanned: 0,
@@ -100,16 +104,18 @@ export async function rbTitleRepair(
       pyUvFileArgv({
         file: "title-repair.kit.py",
         args: [dbPath, DB_PATH, apply ? "apply" : "report"],
-        withPkg: "pyrekordbox,mutagen",
+        withPkg: `${PYRK_TAG},mutagen`,
       }),
       300_000,
     );
 
     if (result.status !== 0) {
-      if (backedUpTo) compensateRestore(deps, dbPath, backedUpTo, result.stderr);
+      if (backedUpTo)
+        compensateRestore(deps, dbPath, backedUpTo, result.stderr);
       // the guard's refusal reason rides stdout as {"error": ...} JSON;
       // stderr alone would report an empty `title-repair failed (exit 1):`
-      const reason = kitErrorReason(result.stdout) ?? result.stderr.slice(0, 300);
+      const reason =
+        kitErrorReason(result.stdout) ?? result.stderr.slice(0, 300);
       return mk(`title-repair failed (exit ${result.status}): ${reason}`);
     }
 

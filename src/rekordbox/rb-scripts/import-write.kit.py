@@ -24,7 +24,8 @@ from pyrekordbox.db6.tables import (  # type: ignore[import-not-found]
     DjmdSongPlaylist,
 )
 
-db_path, payload = sys.argv[1], json.loads(sys.argv[2])
+db_path = sys.argv[1]
+payload = json.loads(sys.argv[2] if len(sys.argv) > 2 else sys.stdin.read())
 files, playlist_name, group_name = payload["files"], payload["playlist"], payload["group"]
 gate = {d[0] for d in payload.get("gated", [])}
 now = datetime.datetime.now()
@@ -170,7 +171,7 @@ for f in files:
             out["errors"].append([os.path.basename(full)[:60], repr(e)[:140]])
             continue
     try:
-        if cid not in playlist_content:
+        if cid is not None and cid not in playlist_content:
             # playlist membership for both new and already-imported content
             # so re-runs repair an incomplete batch playlist idempotently.
             # (pyAddSongPlaylist ships at 12-space indent for this depth)

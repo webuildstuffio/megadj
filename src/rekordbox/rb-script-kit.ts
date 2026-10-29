@@ -16,7 +16,7 @@
 
 /** The two import lines every deobfuscate-open script needs. */
 export function pyDbOpenImports(): string {
-  return `from pyrekordbox.db6.database import deobfuscate, BLOB
+  return `from pyrekordbox.masterdb.database import deobfuscate, BLOB
 from pyrekordbox import db6`;
 }
 
@@ -103,7 +103,9 @@ if group_name:
     if parent is None:
         ${pyNewPlaylist("parent", "group_name", "1", "0", "db.query(DjmdPlaylist).count() + 1").replaceAll("\n", "\n        ")}
     out["parentId"] = str(parent.ID)`;
-  const parentExpr = opts.createMissingGroup ? "parent.ID" : "parent.ID if parent else 0";
+  const parentExpr = opts.createMissingGroup
+    ? "parent.ID"
+    : "parent.ID if parent else 0";
   const existing =
     opts.onExisting === "refuse"
       ? `if find_playlist(playlist_name, 0, parent.ID) is not None:

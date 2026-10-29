@@ -20,7 +20,7 @@ import unicodedata
 from pathlib import Path
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
-from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
+from pyrekordbox.masterdb.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent, DjmdKey  # type: ignore[import-not-found]
 
 # @kit(PY_RB_COMMIT_GUARD)

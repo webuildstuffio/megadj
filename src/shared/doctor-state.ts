@@ -43,7 +43,7 @@ export { masterDbPath } from "../rekordbox/master-path";
 
 const PROBE = `
 import datetime, json, os, sys, unicodedata
-from pyrekordbox.db6.database import deobfuscate, BLOB
+from pyrekordbox.masterdb.database import deobfuscate, BLOB
 from pyrekordbox import db6
 from pyrekordbox.db6.tables import DjmdCue, DjmdContent, DjmdPlaylist
 
@@ -110,7 +110,7 @@ print(json.dumps({"kindZero": kind_counts.get("0", 0), "incidentKindZero": incid
 
 const XML_PROBE = `
 import json, re, sys
-from pyrekordbox.db6.database import deobfuscate, BLOB
+from pyrekordbox.masterdb.database import deobfuscate, BLOB
 from pyrekordbox import db6
 from pyrekordbox.db6.tables import DjmdPlaylist
 
@@ -165,7 +165,10 @@ function runStateProbe(dbPath: string): StateProbe {
   };
   if (!existsSync(dbPath)) return { ...empty, error: "master DB not found" };
   if (rekordboxRunning())
-    return { ...empty, error: "rekordbox is running — state checks need it quit" };
+    return {
+      ...empty,
+      error: "rekordbox is running — state checks need it quit",
+    };
   const r = spawnSync(
     "uv",
     [
@@ -189,17 +192,36 @@ function runStateProbe(dbPath: string): StateProbe {
   try {
     probeJson = JSON.parse(r.stdout.trim().split("\n").pop() ?? "");
   } catch (error) {
-    return { ...empty, error: `probe returned malformed JSON: ${errMessage(error)}` };
+    return {
+      ...empty,
+      error: `probe returned malformed JSON: ${errMessage(error)}`,
+    };
   }
-  if (!isRecord(probeJson)) return { ...empty, error: "probe returned a non-object payload" };
-  const p = probeJson as unknown as Omit<StateProbe, "ran" | "error" | "playlistsMissingXml">;
+  if (!isRecord(probeJson))
+    return { ...empty, error: "probe returned a non-object payload" };
+  const p = probeJson as unknown as Omit<
+    StateProbe,
+    "ran" | "error" | "playlistsMissingXml"
+  >;
   // XML twin check (separate probe, best-effort)
   let missingXml = 0;
-  const xmlPath = join(dbPath.replace(/\/master\.db$/u, ""), "masterPlaylists6.xml");
+  const xmlPath = join(
+    dbPath.replace(/\/master\.db$/u, ""),
+    "masterPlaylists6.xml",
+  );
   if (existsSync(xmlPath)) {
     const rx = spawnSync(
       "uv",
-      ["run", "--with", "pyrekordbox", "python", "-c", XML_PROBE, dbPath, xmlPath],
+      [
+        "run",
+        "--with",
+        "pyrekordbox",
+        "python",
+        "-c",
+        XML_PROBE,
+        dbPath,
+        xmlPath,
+      ],
       { encoding: "utf8", timeout: 180_000 },
     );
     if (rx.status === 0 && rx.stdout) {
@@ -207,10 +229,14 @@ function runStateProbe(dbPath: string): StateProbe {
       // unusable" (missing = unknown → surfaced via the count), never as
       // a silent 0-missing pass.
       try {
-        const px = JSON.parse(rx.stdout.trim().split("\n").pop() ?? "") as { missing?: number };
+        const px = JSON.parse(rx.stdout.trim().split("\n").pop() ?? "") as {
+          missing?: number;
+        };
         missingXml = typeof px.missing === "number" ? px.missing : 0;
       } catch (error) {
-        console.error(`playlist XML probe returned malformed JSON: ${errMessage(error)}`);
+        console.error(
+          `playlist XML probe returned malformed JSON: ${errMessage(error)}`,
+        );
         missingXml = -1;
       }
     } else {
@@ -221,7 +247,10 @@ function runStateProbe(dbPath: string): StateProbe {
 }
 
 export function cueKindResult(
-  probe: Pick<StateProbe, "ran" | "error" | "kindZero" | "incidentKindZero" | "kinds">,
+  probe: Pick<
+    StateProbe,
+    "ran" | "error" | "kindZero" | "incidentKindZero" | "kinds"
+  >,
 ): CheckResult {
   if (!probe.ran) {
     return {
@@ -244,7 +273,9 @@ export function cueKindResult(
     detail: ok
       ? `0 broken intake cues; ${probe.kindZero} legitimate memory cue(s) protected (${kinds || "no cues"})`
       : `${probe.incidentKindZero} Sep 12 intake cue(s) still carry Kind=0. fix: megadj rb-cues <drive> --restamp --apply --yes`,
-    fix: ok ? undefined : "run: megadj rb-cues <drive> --restamp --apply --yes (rekordbox quit)",
+    fix: ok
+      ? undefined
+      : "run: megadj rb-cues <drive> --restamp --apply --yes (rekordbox quit)",
   };
 }
 
@@ -274,7 +305,9 @@ export function checkDupes(dbPath?: string): CheckResult {
     detail: ok
       ? `0 same-title twins across ${p.contentRows} rows`
       : `${p.dupePairs} dupe pair(s) in ${p.contentRows} rows. fix: megadj rb-dedup <drive> (report, then --apply --yes)`,
-    fix: ok ? undefined : "run: megadj rb-dedup <drive> --apply --yes (rekordbox quit)",
+    fix: ok
+      ? undefined
+      : "run: megadj rb-dedup <drive> --apply --yes (rekordbox quit)",
   };
 }
 

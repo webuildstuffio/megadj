@@ -15,7 +15,7 @@ import unicodedata
 from typing import Any
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
-from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
+from pyrekordbox.masterdb.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]
 
 _DUPE_SUFFIX = re.compile(r"\s*\[(?:archive(?: \d+)?|BACKUP2)]")
