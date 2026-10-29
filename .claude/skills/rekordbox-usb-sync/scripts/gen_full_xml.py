@@ -7,10 +7,6 @@ Requires defusedxml (alongside pyrekordbox), e.g. `uv run --with defusedxml`.
 """
 import os
 
-# defusedxml.ElementTree is parse-side only (no Element/SubElement); the
-# builder classes below come from stdlib and never parse anything.
-from xml.etree.ElementTree import Element, SubElement, tostring
-
 import defusedxml.ElementTree as ET
 from defusedxml import minidom
 from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
@@ -42,43 +38,55 @@ for e in db.query(PlaylistContent).order_by(PlaylistContent.sequenceNo).all():
     entries.setdefault(e.playlist_id, []).append(e.content_id)
 print(f"playlists: {len(playlists)}, entries: {sum(len(v) for v in entries.values())}")
 
-root = Element("DJ_PLAYLISTS", {"Version": "1.0.0"})
-SubElement(root, "PRODUCT", {"Name": "Crate Recovery", "Version": "2.0", "Company": "recovery"})
-coll = SubElement(root, "COLLECTION", {"Total": str(len(order))})
+# Build the document with defusedxml.minidom only: it exposes no document
+# factory, so seed it from a literal and grow it via DOM methods. No stdlib
+# xml module is imported anywhere in this script.
+dom = minidom.parseString('<DJ_PLAYLISTS Version="1.0.0"/>')
+root = dom.documentElement
+
+def add(parent, tag, attrs=None):
+    node = dom.createElement(tag)
+    for k, v in (attrs or {}).items():
+        node.setAttribute(k, v)
+    parent.appendChild(node)
+    return node
+
+add(root, "PRODUCT", {"Name": "Crate Recovery", "Version": "2.0", "Company": "recovery"})
+coll = add(root, "COLLECTION", {"Total": str(len(order))})
 
 for cid in order:
     c = tracks[cid]
     artist = artists.get(c.artist_id_artist, "")
     d, fn = os.path.split(c.path.lstrip("/"))
     full = f"/Volumes/{VOL}{c.path}"
-    t = SubElement(coll, "TRACK", {
+    t = add(coll, "TRACK", {
         "TrackID": str(cid),
         "Name": (c.title or fn)[:255],
         "Artist": artist[:255],
         "Location": encode_path(full),
     })
     if c.bpmx100:
-        t.set("AverageBpm", f"{c.bpmx100/100:.2f}")
+        t.setAttribute("AverageBpm", f"{c.bpmx100/100:.2f}")
     if c.length:
-        t.set("TotalTime", str(int(c.length)))
+        t.setAttribute("TotalTime", str(int(c.length)))
 
-pls = SubElement(root, "PLAYLISTS")
-root_node = SubElement(pls, "NODE", {"Name": "ROOT", "Type": "0", "KeyType": "0"})
+pls = add(root, "PLAYLISTS")
+root_node = add(pls, "NODE", {"Name": "ROOT", "Type": "0", "KeyType": "0"})
 
 def emit(p, parent):
     attr = p.attribute
-    node = SubElement(parent, "NODE", {"Name": (p.name or "Playlist")[:255]})
+    node = add(parent, "NODE", {"Name": (p.name or "Playlist")[:255]})
     if attr == 1:  # folder — rekordbox XML: Type 0 = folder, 1 = playlist
-        node.set("Type", "0")
-        node.set("KeyType", "0")
+        node.setAttribute("Type", "0")
+        node.setAttribute("KeyType", "0")
         for child in sorted(playlists.values(), key=lambda x: x.sequenceNo or 0):
             if child.playlist_id_parent == p.playlist_id:
                 emit(child, node)
     else:          # playlist leaf with TrackID-keyed entries
-        node.set("Type", "1")
-        node.set("KeyType", "0")
+        node.setAttribute("Type", "1")
+        node.setAttribute("KeyType", "0")
         for cid in entries.get(p.playlist_id, []):
-            SubElement(node, "TRACK", {"Key": str(cid)})
+            add(node, "TRACK", {"Key": str(cid)})
 
 tops = [p for p in sorted(playlists.values(), key=lambda x: x.sequenceNo or 0)
         if not p.playlist_id_parent or p.playlist_id_parent not in playlists]
@@ -89,8 +97,6 @@ for p in tops:
     seen.add(p.playlist_id)
     emit(p, root_node)
 
-xml = tostring(root, encoding="unicode")
-dom = minidom.parseString(xml)
 with open(OUT, "w") as f:
     dom.writexml(f, indent="", addindent="  ", newl="\n")
 print(f"wrote {OUT} ({os.path.getsize(OUT)} bytes)")
