@@ -11,9 +11,28 @@ NOT_PLANNED Sep 20). The local cold backup gives two physical copies.
 
 The old Toshiba 4 TB ExFAT HDD was the shelf master until Oct 29, 2026.
 After the NVMe migration it holds a verified 1:1 copy of the archive.
+Its permanent label is `SHELF1-COLD` (renamed from `SHELF1` on Oct 29).
+
+### Pre-flight (EVERY time you plug in the cold backup)
 
 ```sh
-# Monthly incremental sync — NVMe → HDD (plug in the Toshiba, rename if needed)
+# 1. BEFORE plugging in: quit Rekordbox (it will see the drive mount)
+# 2. Plug in the Toshiba HDD
+# 3. Verify its label is SHELF1-COLD — NOT SHELF1
+diskutil info /Volumes/SHELF1-COLD | grep "Volume Name"
+# Expected: "Volume Name: SHELF1-COLD"
+# If it mounted as "SHELF1 1" or "SHELF1 2" → name collision!
+# Fix: diskutil rename diskXs2 "SHELF1-COLD"
+```
+
+**Why this matters:** two drives named `SHELF1` simultaneously causes
+macOS to mount the second as `SHELF1 1`, and Rekordbox gets confused
+about which drive owns the library paths (Oct 29 2026 incident).
+
+### Sync
+
+```sh
+# Monthly incremental sync — NVMe → HDD
 rsync -avH --delete --exclude='._*' --exclude='.Trashes' \
   /Volumes/SHELF1/ /Volumes/SHELF1-COLD/
 
@@ -22,6 +41,9 @@ find /Volumes/SHELF1/Contents -type f | sort -R | head -10 | while read src; do
   rel="${src#/Volumes/SHELF1/}"
   echo "$(md5 -q "$src") $(md5 -q "/Volumes/SHELF1-COLD/$rel") $rel"
 done
+
+# Eject when done — never leave it plugged in
+diskutil eject /Volumes/SHELF1-COLD
 ```
 
 Schedule: monthly, or after any major import batch. Log each run in

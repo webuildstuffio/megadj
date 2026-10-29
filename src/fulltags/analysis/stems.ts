@@ -143,27 +143,39 @@ export async function stems(opts: StemsOptions): Promise<void> {
 
   let separated = 0;
   let failed = 0;
+  let workerRestarts = 0;
+  const batchStart = Date.now();
+  const elapsedTimes: number[] = [];
+  const errors: { label: string; error: string }[] = [];
 
   try {
     for (let i = 0; i < queue.length; i++) {
       const t = queue[i]!;
       const outputDir = join(stemDir, t.video_id);
       const label = basename(t.file_path ?? t.video_id);
-      log(`  [${i + 1}/${queue.length}] separating ${label}…`);
+      const remaining = queue.length - i;
+      const avgS =
+        elapsedTimes.length > 0 ? elapsedTimes.reduce((a, b) => a + b, 0) / elapsedTimes.length : 0;
+      const etaMin = avgS > 0 ? Math.round((remaining * avgS) / 60) : 0;
+      const etaStr = etaMin > 0 ? ` ETA ~${etaMin}min` : "";
+      log(`  [${i + 1}/${queue.length}] separating ${label}…${etaStr}`);
       opts.onProgress?.(`stems ${i + 1}/${queue.length}: ${label}`);
 
       const result = await session.analyze({ path: t.file_path!, outputDir });
 
       if (result === null) {
         failed++;
+        errors.push({ label, error: "worker returned null (timeout or crash)" });
         log(`  ❌ separation failed: ${label}`);
         session.close();
         session = await openStemSession();
+        workerRestarts++;
         if (session === null) {
-          log("  ❌ worker died; aborting remaining queue");
+          log("  ❌ worker died after restart; aborting remaining queue");
           failed += queue.length - i - 1;
           break;
         }
+        log("  ♻️  worker restarted — continuing");
         continue;
       }
 
@@ -180,6 +192,7 @@ export async function stems(opts: StemsOptions): Promise<void> {
         elapsedS: result.elapsedS,
       });
 
+      elapsedTimes.push(result.elapsedS);
       separated++;
       log(`  ✅ ${label} — ${result.elapsedS}s (${separated}/${queue.length})`);
     }
@@ -187,9 +200,26 @@ export async function stems(opts: StemsOptions): Promise<void> {
     session?.close();
   }
 
+  const batchElapsedMin = Math.round((Date.now() - batchStart) / 60000);
+  const avgTrackS =
+    elapsedTimes.length > 0
+      ? Math.round(elapsedTimes.reduce((a, b) => a + b, 0) / elapsedTimes.length)
+      : 0;
+
   log(
     `\nstems: ${separated} separated, ${failed} failed, ${skipped} cached, ${tooLong} over cap, ${tooShort} under ${MIN_STEM_SECONDS}s`,
   );
+  if (batchElapsedMin > 0) {
+    log(`  batch: ${batchElapsedMin}min total, ~${avgTrackS}s/track avg`);
+  }
+  if (workerRestarts > 0) {
+    log(`  ⚠️  ${workerRestarts} worker restart(s) during batch`);
+  }
+  if (errors.length > 0) {
+    log(`  errors:`);
+    for (const e of errors.slice(0, 10)) log(`    ${e.label}: ${e.error}`);
+    if (errors.length > 10) log(`    … and ${errors.length - 10} more`);
+  }
 
   if (opts.json) {
     await writeJson({
@@ -201,6 +231,10 @@ export async function stems(opts: StemsOptions): Promise<void> {
       tooShort,
       stemDir,
       model: STEM_MODEL,
+      batchElapsedMin,
+      avgTrackS,
+      workerRestarts,
+      errors: errors.slice(0, 20),
     });
   }
 }
