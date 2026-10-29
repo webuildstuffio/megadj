@@ -115,7 +115,7 @@ export interface StageCtx {
    *  COLLECT votes instead of first-win writing; the ONE election +
    *  write happens in stageGenreElection. Undefined keeps the legacy
    *  first-win behavior exactly. */
-  genreVotes?: GenreVote[] | undefined;
+  genreVotes: GenreVote[];
 }
 
 /** SC search result shape (first hit feeds genre + year + art). */
@@ -263,37 +263,15 @@ import {
   type GenreVoteResult,
 } from "../genre/genre-vote";
 
-/** One SC genre win: canonicalize → file tag + DB row + stat + note.
- *  Structurally typed on GenreYearCtx (the stage-2 arms' context) — the
- *  arm-split module in fetch-genre-year.ts calls this injected rung.
- *  #173: when the ctx carries a vote accumulator it COLLECTS (the
- *  election writes once, in stageGenreElection); without one it keeps
- *  the legacy first-win write. */
+/** One SC genre vote: canonicalize, junk-gate, collect. The election writes once. */
 export function applyScGenre(t: Parameters<typeof stageGenreArm>[0], rawGenre: string): void {
-  // Junk gate: numeric genres (SC genre IDs leaked through yt-dlp), the
-  // placeholder "Music", and umbrella strings (EDM/Electronic/Dance) are
-  // not actionable genres — refuse, never write them anywhere.
   const lower = rawGenre.toLowerCase();
   if (/^\d+$/.test(rawGenre) || lower === "music") return;
   const g = canonGenre(rawGenre);
   if (UMBRELLA_STRINGS.has(g.toLowerCase())) return;
-  if (t.genreVotes !== undefined) {
-    // vote mode: collect, never write (the election owns the write)
-    t.genreVotes.push({ rung: "sc", genre: g, weight: GENRE_VOTE_WEIGHTS.sc });
-    t.stats.genreSc++;
-    t.notes.push(`genre:${g} (sc, vote)`);
-    return;
-  }
-  // Tag write first, DB row only on success — the DB never claims a genre
-  // the file doesn't carry (the discipline markYear and the BP path use;
-  // the SC path silently skipped it and could leave a lying DB row).
-  if (!setFileTags(t.row.file_path, { genre: g })) {
-    t.notes.push("genre:WRITE-FAILED");
-    return;
-  }
-  db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, t.row.video_id);
+  t.genreVotes.push({ rung: "sc", genre: g, weight: GENRE_VOTE_WEIGHTS.sc });
   t.stats.genreSc++;
-  t.notes.push(`genre:${g}`);
+  t.notes.push(`genre:${g} (sc, vote)`);
 }
 
 /** The #128 imprint prior vote lives in fetch-genre-year.ts now (the
@@ -311,19 +289,9 @@ export function applyScGenre(t: Parameters<typeof stageGenreArm>[0], rawGenre: s
 function bcApplyGenre(t: StageCtx, page: BcPage): boolean {
   const g = bcGenre(page, canonGenre);
   if (!g || UMBRELLA_STRINGS.has(g.toLowerCase())) return false;
-  if (t.genreVotes !== undefined) {
-    t.genreVotes.push({ rung: "bc", genre: g, weight: GENRE_VOTE_WEIGHTS.bc });
-    t.stats.genreBc++;
-    t.notes.push(`genre:${g} (bc, vote)`);
-    return true; // consumed: the page fetch already happened
-  }
-  if (!setFileTags(t.row.file_path, { genre: g })) {
-    t.notes.push("genre:WRITE-FAILED (bc)");
-    return true; // consumed: stop the ladder even though the write failed
-  }
-  db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, t.row.video_id);
+  t.genreVotes.push({ rung: "bc", genre: g, weight: GENRE_VOTE_WEIGHTS.bc });
   t.stats.genreBc++;
-  t.notes.push(`genre:${g} (bc)`);
+  t.notes.push(`genre:${g} (bc, vote)`);
   return true;
 }
 

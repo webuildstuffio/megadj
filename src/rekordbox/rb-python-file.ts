@@ -154,7 +154,7 @@ export function rbPythonFile(opts: {
   timeoutMs: number;
   withPkg?: string;
   maxBuffer?: number;
-  input?: string;
+  input?: string | undefined;
 }): { status: number | null; stdout: string; stderr: string } {
   const file = join(import.meta.dir, "rb-scripts", opts.file);
   const script = renderKitMarkers(readFileSync(file, "utf8"));

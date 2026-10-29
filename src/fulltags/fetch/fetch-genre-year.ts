@@ -33,7 +33,7 @@ export interface GenreYearCtx {
    *  the single write happens once in applyGenreVotes at stage end (the
    *  first-win arms below only write when the ladder is ALONE — see the
    *  vote-collect guard at stageGenreYear's call site). */
-  genreVotes?: GenreVote[] | undefined;
+  genreVotes: GenreVote[];
 }
 /** Structural mirror of fetch-stages' Stats (kept local: importing it
  *  would re-create the cycle the split removes). */
@@ -43,17 +43,6 @@ interface StatsShape {
   genreImprint: number;
   yearBp: number;
   yearSc: number;
-}
-
-/** One BP genre win: file tag + DB row + stat + note (write-first). */
-function applyBpGenre(t: GenreYearCtx, g: string): void {
-  if (setFileTags(t.row.file_path, { genre: g })) {
-    db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, t.row.video_id);
-    t.stats.genreBp++;
-    t.notes.push(`genre:${g} (bp)`);
-  } else {
-    t.notes.push("genre:WRITE-FAILED (bp)");
-  }
 }
 
 /** The #128 imprint prior vote: the track's imprint (Beatport-filled
@@ -70,7 +59,7 @@ function applyImprintGenre(t: GenreYearCtx): boolean {
   // weight 0.15 — it only wins when it's the sole voice) and let the
   // single election write. The vote path skips the immediate tag write:
   // the elected label is tagged once, by the vote seam.
-  t.genreVotes?.push({
+  t.genreVotes.push({
     rung: "imprint",
     genre: vote.family,
     weight: GENRE_VOTE_WEIGHTS.imprint,
@@ -89,60 +78,29 @@ function queueAiGenre(t: GenreYearCtx): void {
 }
 
 /** The genre ladder: SC hit → BP store genre → imprint prior → AI queue.
- *  `applyScGenre` is injected (the SC rung stays in fetch-stages with the
- *  Stats/junk-gate context it shares with the art path).
+ *  `applyScGenre` is injected (the SC rung stays in fetch-stages).
  *
- *  #173 vote ladder: when the context carries a vote accumulator (the
- *  caller opened one), the rungs COLLECT instead of first-win write —
- *  the SC arm votes via the injected applyScGenre wrapper, BP/imprint
- *  votes land here, and the ONE election+write happens in
- *  stageGenreElection after this returns. Without the accumulator the
- *  legacy first-win behavior is preserved exactly (write-on-first-claim). */
+ *  #173 vote ladder: EVERY rung with a claim votes; the ONE
+ *  election+write happens in stageGenreElection after this returns. */
 export function stageGenreArm(
   t: GenreYearCtx,
   best: ScHit | null,
   applyScGenre: (t: GenreYearCtx, rawGenre: string) => void,
 ): void {
-  if (t.genreVotes !== undefined) {
-    // ---- vote-collection mode (#173): EVERY rung with a claim votes —
-    // the ladder order no longer hides later rungs (the old early-return
-    // let SC's 0.35 vote block BP's 0.6 even when bpBest was in hand;
-    // the election, not the ladder order, picks the winner). ----
-    if (best?.genre) {
-      // junk gates live in applyScGenre; it pushes the vote when clean
-      applyScGenre(t, best.genre);
-    }
-    if (t.bpBest) {
-      const g = bpGenre(t.bpBest);
-      if (g) {
-        t.genreVotes.push({ rung: "bp", genre: g, weight: GENRE_VOTE_WEIGHTS.bp });
-        t.stats.genreBp++;
-        t.notes.push(`genre:${g} (bp, vote)`);
-      }
-    }
-    // The imprint prior's rung gate stays absolute: it speaks only when
-    // NO catalog genre claim exists (a junk-refused SC genre is not a
-    // claim). Zero votes = honest AI-queue fallback, exactly the old
-    // when-catalog-misses rule — multi-collect changed who votes, never
-    // when the AI fallback fires.
-    if (t.genreVotes.length === 0 && !applyImprintGenre(t)) queueAiGenre(t);
-    return;
+  if (best?.genre) {
+    applyScGenre(t, best.genre);
   }
-  // ---- legacy first-win mode (unchanged shape, no vote accumulator) ----
-  if (best?.genre) return applyScGenre(t, best.genre);
   if (t.bpBest) {
-    // Beatport store genre is the vote BETWEEN SC and AI.
     const g = bpGenre(t.bpBest);
-    if (g) return applyBpGenre(t, g);
-    // both catalog genres missed but Beatport matched the release —
-    // the #128 imprint prior votes from the label it carries
-    if (applyImprintGenre(t)) return;
-    return queueAiGenre(t);
+    if (g) {
+      t.genreVotes.push({ rung: "bp", genre: g, weight: GENRE_VOTE_WEIGHTS.bp });
+      t.stats.genreBp++;
+      t.notes.push(`genre:${g} (bp, vote)`);
+    }
   }
-  // no BP hit at all, but a BP-filled label already on the row/file
-  // votes (e.g. a re-run after the identity stage landed)
-  if (applyImprintGenre(t)) return;
-  queueAiGenre(t);
+  // The imprint prior's rung gate stays absolute: it speaks only when
+  // NO catalog genre claim exists. Zero votes = honest AI-queue fallback.
+  if (t.genreVotes.length === 0 && !applyImprintGenre(t)) queueAiGenre(t);
 }
 
 /** One BP year win: file tag + DB row + stat + note (write-first

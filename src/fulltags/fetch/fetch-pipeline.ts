@@ -228,7 +228,7 @@ async function processTask({
     bpBest: null,
     bcBest: null,
     durationS: t.truth.durationS,
-    genreVotes: t.needGenre && !dry ? genreVotes : undefined,
+    genreVotes,
   };
 
   // ---- 1. tags (DB → file) ----
@@ -261,7 +261,7 @@ async function processTask({
   const rawTitle = ctx.truth.title ?? r.title;
 
   // ---- W9 Discogs vote (offline DB → API fallback, 1 rps) ----
-  if (t.needGenre && !dry && genreVotes !== undefined) {
+  if (t.needGenre && !dry) {
     if (rawArtist && rawTitle) {
       const dgVote = await discogsGenreVote(rawArtist, rawTitle);
       if (dgVote) {
@@ -277,7 +277,7 @@ async function processTask({
   const genreArtist = routed?.artist ?? rawArtist;
 
   // ---- W8 Last.fm vote (opt-in, needs LASTFM_API_KEY env) ----
-  if (t.needGenre && !dry && genreVotes !== undefined) {
+  if (t.needGenre && !dry) {
     const lastfmKey = nonEmptyEnv("LASTFM_API_KEY");
     if (lastfmKey && genreArtist && rawTitle) {
       const lfmVote = await lastfmGenreVote(genreArtist, rawTitle, lastfmKey);
@@ -292,7 +292,7 @@ async function processTask({
   }
 
   // ---- MB recording-level genre vote (deepened from artist-only) ----
-  if (t.needGenre && !dry && genreVotes !== undefined && rawTitle) {
+  if (t.needGenre && !dry && rawTitle) {
     const mbRec = await mbGenreForRecording(genreArtist, rawTitle);
     if (mbRec.genre && !UMBRELLA_STRINGS.has(mbRec.genre.toLowerCase())) {
       genreVotes.push({
