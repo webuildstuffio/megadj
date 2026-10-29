@@ -1,9 +1,4 @@
-import type {
-  CueRecord,
-  CueRecordInput,
-  MoodRecord,
-  MoodRecordInput,
-} from "./ledgers";
+import type { CueRecord, CueRecordInput, MoodRecord, MoodRecordInput } from "./ledgers";
 import { ArchiveBeats } from "./state-beats";
 import type { RunRow } from "./state-types";
 
@@ -41,13 +36,7 @@ export class ArchiveState extends ArchiveBeats {
   moodSummary(): {
     available: boolean;
     analyzed: number;
-    avg: {
-      dance: number;
-      valence: number;
-      arousal: number;
-      party: number;
-      electronic: number;
-    };
+    avg: { dance: number; valence: number; arousal: number; party: number; electronic: number };
   } {
     return this.ledgers.moodSummary();
   }
@@ -101,18 +90,11 @@ export class ArchiveState extends ArchiveBeats {
     return this.embeddingsLedger.sectionPreferredCorpus();
   }
 
-  setKeyRecord(record: {
-    videoId: string;
-    key: string;
-    sourcePath: string;
-  }): void {
+  setKeyRecord(record: { videoId: string; key: string; sourcePath: string }): void {
     this.keysLedger.setKeyRecord(record);
   }
 
-  keyRecord(
-    videoId: string,
-    sourcePath: string,
-  ): { key: string; analyzedAt: string } | null {
+  keyRecord(videoId: string, sourcePath: string): { key: string; analyzedAt: string } | null {
     return this.keysLedger.keyRecord(videoId, sourcePath);
   }
 
@@ -161,7 +143,9 @@ export class ArchiveState extends ArchiveBeats {
       );
   }
 
-  stemRecord(videoId: string): {
+  stemRecord(
+    videoId: string,
+  ): {
     model: string;
     stemDir: string;
     vocalsPath: string | null;
@@ -173,9 +157,10 @@ export class ArchiveState extends ArchiveBeats {
     analyzedAt: string;
     elapsedS: number | null;
   } | null {
-    const row = this.db
-      .query("SELECT * FROM stem_cache WHERE video_id = ?")
-      .get(videoId) as Record<string, unknown> | null;
+    const row = this.db.query("SELECT * FROM stem_cache WHERE video_id = ?").get(videoId) as Record<
+      string,
+      unknown
+    > | null;
     if (row === null) return null;
     const sampleRate = Number(row["sample_rate"]);
     if (!Number.isFinite(sampleRate)) return null;
@@ -184,8 +169,7 @@ export class ArchiveState extends ArchiveBeats {
     return {
       model: String(row["model"]),
       stemDir: String(row["stem_dir"]),
-      vocalsPath:
-        row["vocals_path"] !== null ? String(row["vocals_path"]) : null,
+      vocalsPath: row["vocals_path"] !== null ? String(row["vocals_path"]) : null,
       drumsPath: row["drums_path"] !== null ? String(row["drums_path"]) : null,
       bassPath: row["bass_path"] !== null ? String(row["bass_path"]) : null,
       otherPath: row["other_path"] !== null ? String(row["other_path"]) : null,
@@ -197,9 +181,7 @@ export class ArchiveState extends ArchiveBeats {
   }
 
   stemCacheCount(): number {
-    const row = this.db.query("SELECT COUNT(*) AS n FROM stem_cache").get() as {
-      n: number;
-    };
+    const row = this.db.query("SELECT COUNT(*) AS n FROM stem_cache").get() as { n: number };
     return row.n;
   }
 }

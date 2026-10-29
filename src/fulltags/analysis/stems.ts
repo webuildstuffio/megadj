@@ -43,20 +43,14 @@ const DEFAULT_MAX_STEM_SECONDS = 10 * 60;
 export async function stems(opts: StemsOptions): Promise<void> {
   const log = commandLog(opts);
   const stemDir = nonEmptyEnv("MEGADJ_STEM_DIR") ?? defaultStemDir();
-  const maxSeconds =
-    opts.maxSeconds === undefined ? DEFAULT_MAX_STEM_SECONDS : opts.maxSeconds;
+  const maxSeconds = opts.maxSeconds === undefined ? DEFAULT_MAX_STEM_SECONDS : opts.maxSeconds;
 
   mkdirSync(stemDir, { recursive: true });
   log(`stems: cache dir ${stemDir}`);
 
   const candidates = opts.state
     .allTracks()
-    .filter(
-      (t) =>
-        t.status === "downloaded" &&
-        t.file_path !== null &&
-        existsSync(t.file_path),
-    );
+    .filter((t) => t.status === "downloaded" && t.file_path !== null && existsSync(t.file_path));
   log(`  queue: ${candidates.length} downloaded file(s) on disk`);
 
   const todo: TrackRow[] = [];
@@ -85,14 +79,7 @@ export async function stems(opts: StemsOptions): Promise<void> {
   );
 
   if (queue.length === 0) {
-    if (opts.json)
-      await writeJson({
-        command: "stems",
-        separated: 0,
-        skipped,
-        tooLong,
-        failed: 0,
-      });
+    if (opts.json) await writeJson({ command: "stems", separated: 0, skipped, tooLong, failed: 0 });
     return;
   }
 
@@ -114,9 +101,7 @@ export async function stems(opts: StemsOptions): Promise<void> {
     log("  loading Demucs model…");
     session = await openStemSession();
     if (session === null) {
-      log(
-        "  ❌ failed to start Demucs worker (is torch/demucs installed via uv?)",
-      );
+      log("  ❌ failed to start Demucs worker (is torch/demucs installed via uv?)");
       if (opts.json)
         await writeJson({
           command: "stems",
@@ -187,9 +172,7 @@ export async function stems(opts: StemsOptions): Promise<void> {
     session?.close();
   }
 
-  log(
-    `\nstems: ${separated} separated, ${failed} failed, ${skipped} cached, ${tooLong} over cap`,
-  );
+  log(`\nstems: ${separated} separated, ${failed} failed, ${skipped} cached, ${tooLong} over cap`);
 
   if (opts.json) {
     await writeJson({

@@ -252,9 +252,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
 });
 
 test("Number() sanctions carry an audit reason", () => {
-  expect(
-    Object.values(NUMBER_SANCTIONS).every((reason) => reason.length > 20),
-  ).toBe(true);
+  expect(Object.values(NUMBER_SANCTIONS).every((reason) => reason.length > 20)).toBe(true);
 });
 
 test("Number() scanner reports locations and ignores prose", () => {
@@ -304,11 +302,7 @@ const CASES: readonly [name: string, source: string, violations: number][] = [
     "const n=Number(raw); if(!Number.isFinite(n)) throw Error(); consume(n);",
     0,
   ],
-  [
-    "discarded predicate guards nothing",
-    "const n=Number(raw); Number.isFinite(n); consume(n);",
-    1,
-  ],
+  ["discarded predicate guards nothing", "const n=Number(raw); Number.isFinite(n); consume(n);", 1],
   [
     "invalid ternary arm cannot consume n",
     "const n=Number(raw); consume(Number.isFinite(n) ? 0 : n);",
@@ -324,11 +318,7 @@ const CASES: readonly [name: string, source: string, violations: number][] = [
     "const n=Number(raw); consume(Number.isFinite(n) || enabled ? n : 0);",
     1,
   ],
-  [
-    "positive if protects its branch",
-    "const n=Number(raw); if(Number.isFinite(n)) consume(n);",
-    0,
-  ],
+  ["positive if protects its branch", "const n=Number(raw); if(Number.isFinite(n)) consume(n);", 0],
   [
     "negative if cannot consume invalid n",
     "const n=Number(raw); if(!Number.isFinite(n)) consume(n);",
