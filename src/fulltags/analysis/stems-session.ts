@@ -49,7 +49,7 @@ const RESPONSE_TIMEOUT_MS = 5 * 60 * 1000;
 const READY_TIMEOUT_MS = 10 * 60 * 1000;
 
 const DEMUCS_MODEL = "htdemucs_ft";
-const DEMUCS_DEPS = "demucs==4.1.0";
+const DEMUCS_DEPS = ["demucs==4.1.0", "soundfile"] as const;
 
 export async function openStemSession(): Promise<StemSession | null> {
   let workerInfo: StemWorkerInfo | null = null;
@@ -62,7 +62,14 @@ export async function openStemSession(): Promise<StemSession | null> {
   >({
     spawn: () =>
       Bun.spawn({
-        cmd: ["uv", "run", "--with", DEMUCS_DEPS, "python", "-c", scriptContent],
+        cmd: [
+          "uv",
+          "run",
+          ...DEMUCS_DEPS.flatMap((dep) => ["--with", dep]),
+          "python",
+          "-c",
+          scriptContent,
+        ],
         stdin: "pipe",
         stdout: "pipe",
         stderr: "inherit",

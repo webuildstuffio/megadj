@@ -16,8 +16,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import soundfile as sf  # type: ignore[import-not-found]
 import torch  # type: ignore[import-not-found]
-import torchaudio  # type: ignore[import-not-found]
 
 STEM_NAMES = ("drums", "bass", "other", "vocals")
 
@@ -47,7 +47,7 @@ def separate_track(model: Any, path: str, output_dir: str, device: str) -> dict[
     out.mkdir(parents=True, exist_ok=True)
 
     audio = AudioFile(path).read(
-        seek=0, streams=0,
+        seek_time=0, streams=0,
         samplerate=model.samplerate,
         channels=model.audio_channels,
     )
@@ -66,11 +66,7 @@ def separate_track(model: Any, path: str, output_dir: str, device: str) -> dict[
     stems = {}
     for i, name in enumerate(model.sources):
         stem_path = out / f"{name}.flac"
-        torchaudio.save(
-            str(stem_path), sources[i],
-            sample_rate=model.samplerate,
-            format="flac",
-        )
+        sf.write(str(stem_path), sources[i].numpy().T, model.samplerate, format="FLAC")
         stems[name] = str(stem_path)
 
     elapsed = time.monotonic() - t0
