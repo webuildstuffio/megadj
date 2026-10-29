@@ -44,8 +44,9 @@ describe("boothFix — end to end (fixture archive)", () => {
     expect(names).toContain("bad ;name .aiff"); // untouched
     expect(names).toContain("track 🔥.aiff");
     const renameRows = res.rows.filter((r) => r.action === "rename");
-    expect(renameRows.length).toBe(1);
-    expect(renameRows[0]!.reasons).toContain("path-illegal-character");
+    expect(renameRows.length).toBe(2);
+    expect(renameRows.find((r) => r.reasons.includes("path-illegal-character"))).toBeDefined();
+    expect(renameRows.find((r) => r.reasons.includes("path-non-fleet-characters"))).toBeDefined();
   });
 
   test("apply: renames the illegal-char file, idempotent re-run", async () => {
@@ -56,9 +57,9 @@ describe("boothFix — end to end (fixture archive)", () => {
     const names = readdirSync(musicDir);
     expect(names).toContain("bad ,name.aiff"); // ; → , + trailing space gone
     expect(names).not.toContain("bad ;name .aiff");
-    // the emoji filename is NOT auto-renamed (renames are for illegal
-    // chars + trailing dot/space only; emoji lives in tags)
-    expect(names).toContain("track 🔥.aiff");
+    // emoji filenames ARE now auto-renamed (path-non-fleet-characters)
+    expect(names).toContain("track.aiff"); // emoji stripped
+    expect(names).not.toContain("track 🔥.aiff");
     // idempotence: second run finds nothing more to rename
     const again = await boothFix({ state, musicDir, apply: true, log: () => {} });
     expect(again.rows.filter((r) => r.action === "rename").length).toBe(0);

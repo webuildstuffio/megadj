@@ -57,6 +57,26 @@ const NON_FLEET_TEXT = new RegExp(
   "u",
 );
 
+/** Filename-hostile characters that sanitizeFilename can transliterate or
+ *  strip — a SUBSET of NON_FLEET_TEXT focused on decorative/replacement
+ *  chars (yt-dlp fullwidth forms, emoji, symbols). Does NOT include CJK
+ *  ideographs, Hiragana, Katakana, Cyrillic etc. which are real content
+ *  in non-Latin filenames. */
+export const FILENAME_HOSTILE = new RegExp(
+  [
+    "[\\u{FF01}-\\u{FF5E}]", // fullwidth ASCII forms (yt-dlp substitutes)
+    "\\u{29F8}", // big solidus (yt-dlp / replacement)
+    "\\u{3000}", // ideographic space
+    "[\\u{300C}-\\u{300F}\\u{3010}-\\u{3011}]", // CJK brackets 「」『』【】
+    "[\\u{1F000}-\\u{1FAFF}]", // emoji SMP
+    "[\\u{2600}-\\u{27BF}]", // misc symbols + dingbats
+    "[\\u{2B00}-\\u{2BFF}]", // misc symbols
+    "\\u{FE0F}\\u{200D}\\u{20E3}", // variation selector, ZWJ, keycap
+    "[\\u{E000}-\\u{F8FF}]", // private use
+  ].join("|"),
+  "u",
+);
+
 /** Raw control bytes in a string — C0 (NUL, bell, escape…), DEL, C1. Built
  *  from code-point tests instead of a literal control-char class: the
  *  no-control-regex rule is right that a literal control char in a pattern
@@ -218,6 +238,14 @@ export function boothTextCompat(input: {
   if (relPath.includes(";") || hasControlChars(relPath)) {
     reasons.push("path-illegal-character");
     offenders.filename = relPath.includes(";") ? ";" : "control byte";
+  }
+  // Fullwidth forms / emoji / yt-dlp substitutes in the filename: these
+  // survive on APFS/exFAT but display as tofu on the fleet and confuse
+  // path matching. sanitizeFilename transliterates them safely.
+  const fnameNonFleet = FILENAME_HOSTILE.exec(input.filename);
+  if (fnameNonFleet !== null) {
+    reasons.push("path-non-fleet-characters");
+    offenders.filename ??= fnameNonFleet[0];
   }
   if (Buffer.byteLength(relPath, "utf8") > 255) {
     reasons.push("path-too-long");

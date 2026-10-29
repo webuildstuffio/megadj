@@ -114,6 +114,42 @@ describe("boothTextCompat — path shape", () => {
   });
 });
 
+describe("boothTextCompat — filename-hostile chars", () => {
+  test("fullwidth yt-dlp substitutes in filename flag path-non-fleet-characters", () => {
+    const r = boothTextCompat(safe({ filename: "Track ｜ Name.m4a" }));
+    expect(r.ok).toBe(false);
+    expect(r.reasons).toContain("path-non-fleet-characters");
+  });
+
+  test("big solidus in filename flags", () => {
+    const r = boothTextCompat(safe({ filename: "A⧸B.m4a" }));
+    expect(r.ok).toBe(false);
+    expect(r.reasons).toContain("path-non-fleet-characters");
+  });
+
+  test("emoji in filename flags", () => {
+    const r = boothTextCompat(safe({ filename: "track 🔥.m4a" }));
+    expect(r.ok).toBe(false);
+    expect(r.reasons).toContain("path-non-fleet-characters");
+  });
+
+  test("CJK brackets in filename flag", () => {
+    const r = boothTextCompat(safe({ filename: "「AMV」Track.m4a" }));
+    expect(r.ok).toBe(false);
+    expect(r.reasons).toContain("path-non-fleet-characters");
+  });
+
+  test("plain ASCII filename does NOT flag", () => {
+    const r = boothTextCompat(safe({ filename: "Artist - Title.mp3" }));
+    expect(r.reasons).not.toContain("path-non-fleet-characters");
+  });
+
+  test("accented Latin filename does NOT flag", () => {
+    const r = boothTextCompat(safe({ filename: "Beyoncé - Mø.mp3" }));
+    expect(r.reasons).not.toContain("path-non-fleet-characters");
+  });
+});
+
 describe("boothTextCompat — reasons dedupe", () => {
   test("two emoji fields produce one deduped reason", () => {
     const r = boothTextCompat(safe({ title: "a 🎉", artist: "b 🎉" }));

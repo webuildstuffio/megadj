@@ -43,8 +43,9 @@ const SANITIZE_MAP: Record<string, string> = {
 
 /** Sanitize one display string to the fleet-safe repertoire: strip
  * emoji/pictograph/private-use characters and control bytes, map common
- * typographic punctuation to ASCII equivalents, keep accents (the
- * players render Latin-extended fine). NFC input assumed. */
+ * typographic punctuation to ASCII equivalents, transliterate fullwidth
+ * forms (yt-dlp's filesystem-safe substitutes) to ASCII, keep accents
+ * (the players render Latin-extended fine). NFC input assumed. */
 export function sanitizeDisplayText(text: string): string {
   let out = "";
   for (const ch of text.normalize("NFC")) {
@@ -54,6 +55,43 @@ export function sanitizeDisplayText(text: string): string {
       out += SANITIZE_MAP[ch];
       continue;
     }
+    // Fullwidth ASCII forms (FF01–FF5E → 0021–007E): yt-dlp writes
+    // these as filesystem-safe substitutes for |, ", :, *, ? etc.
+    // Transliterate to their ASCII originals; sanitizeFilename will
+    // then replace the filesystem-unsafe subset.
+    if (cp >= 0xff01 && cp <= 0xff5e) {
+      out += String.fromCodePoint(cp - 0xfee0);
+      continue;
+    }
+    // Ideographic (fullwidth) space → ASCII space
+    if (cp === 0x3000) {
+      out += " ";
+      continue;
+    }
+    // Big solidus (U+29F8) — yt-dlp's / replacement
+    if (cp === 0x29f8) {
+      out += "/";
+      continue;
+    }
+    // CJK brackets → ASCII brackets
+    if (cp === 0x300c || cp === 0x300e) {
+      out += "[";
+      continue;
+    }
+    if (cp === 0x300d || cp === 0x300f) {
+      out += "]";
+      continue;
+    }
+    // CJK fullwidth brackets 【】
+    if (cp === 0x3010) {
+      out += "[";
+      continue;
+    }
+    if (cp === 0x3011) {
+      out += "]";
+      continue;
+    }
+    // Black small square ▪ (U+25AA) — stripped with symbols below
     // strip: emoji blocks, pictographs, dingbats, variation selectors,
     // ZWJ, keycap, private-use, unassigned BMP symbol areas, control
     if (
@@ -83,9 +121,13 @@ export function sanitizeDisplayText(text: string): string {
 }
 
 /** Sanitize a filename: same repertoire as display text plus the path
- * separators and rekordbox's illegal set. */
+ * separators, rekordbox's illegal set, and filesystem-unsafe chars that
+ * appear after fullwidth→ASCII transliteration (|, ", :, *, ?, <, >). */
 export function sanitizeFilename(name: string): string {
-  let cleaned = sanitizeDisplayText(name).replace(/;/g, ",").replace(/[/\\]/g, "-");
+  let cleaned = sanitizeDisplayText(name)
+    .replace(/;/g, ",")
+    .replace(/[/\\|]/g, "-")
+    .replace(/[":*?<>]/g, "");
   // C1 bytes too (sanitizeDisplayText strips C0 + DEL inline; the C1 range
   // is export-hostile on exFAT as well). Same code-point checks as the
   // booth-text SSOT — no literal control chars in a pattern, no suppression.
@@ -201,7 +243,10 @@ export function fixBoothText(
   if (text.ok) return { row: null, workFile: p, renamed: false };
 
   const needsRename = text.reasons.some(
-    (r) => r === "path-illegal-character" || r === "path-trailing-dot-or-space",
+    (r) =>
+      r === "path-illegal-character" ||
+      r === "path-trailing-dot-or-space" ||
+      r === "path-non-fleet-characters",
   );
   const mojibake = text.reasons.includes("mojibake");
   const emoji = text.reasons.includes("non-fleet-characters");

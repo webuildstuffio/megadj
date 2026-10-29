@@ -27,6 +27,18 @@ describe("sanitizeDisplayText", () => {
     expect(sanitizeDisplayText("ⓂiSS Ⓜoni 7.8")).toBe("iSS oni 7.8");
     expect(sanitizeDisplayText("①②③ mix")).toBe("mix");
   });
+  test("transliterates fullwidth ASCII forms (yt-dlp substitutes)", () => {
+    expect(sanitizeDisplayText("Track ｜ Name")).toBe("Track | Name");
+    expect(sanitizeDisplayText("Song ＂Title＂")).toBe('Song "Title"');
+    expect(sanitizeDisplayText("Time ： Now")).toBe("Time : Now");
+    expect(sanitizeDisplayText("A⧸B")).toBe("A/B");
+    expect(sanitizeDisplayText("ａｌｌ")).toBe("all");
+  });
+  test("transliterates CJK brackets and fullwidth space", () => {
+    expect(sanitizeDisplayText("「AMV」")).toBe("[AMV]");
+    expect(sanitizeDisplayText("【REMIX】")).toBe("[REMIX]");
+    expect(sanitizeDisplayText("A　B")).toBe("A B");
+  });
 });
 
 describe("sanitizeFilename", () => {
@@ -39,6 +51,21 @@ describe("sanitizeFilename", () => {
   });
   test("emoji-bearing names survive", () => {
     expect(sanitizeFilename("track 🔥.mp3")).toBe("track.mp3");
+  });
+  test("fullwidth yt-dlp substitutes → safe ASCII", () => {
+    expect(sanitizeFilename("Post Malone - ＂Wow.＂ (Official).m4a")).toBe(
+      "Post Malone - Wow. (Official).m4a",
+    );
+    expect(sanitizeFilename("Touch It (Remix) ⧸ AMG ｜ TikTok.m4a")).toBe(
+      "Touch It (Remix) - AMG - TikTok.m4a",
+    );
+    expect(sanitizeFilename("Wistoria： Wand S2 ｜ THRONE？.m4a")).toBe(
+      "Wistoria Wand S2 - THRONE.m4a",
+    );
+  });
+  test("CJK brackets in filenames → ASCII brackets", () => {
+    expect(sanitizeFilename("「AMV」Burn The Moment.m4a")).toBe("[AMV]Burn The Moment.m4a");
+    expect(sanitizeFilename("【REMIX】Track.m4a")).toBe("[REMIX]Track.m4a");
   });
   test("never returns an empty name", () => {
     expect(sanitizeFilename("🔥").length).toBeGreaterThan(0);
