@@ -1,4 +1,32 @@
-# Claude Code Assistant v5.28.3
+# Claude Code Assistant v5.28.6
+# v5.28.6 - (Oct 28 2026) Remove the Bun download cache from the
+#          template: the actions/cache step on ~/.bun/install/cache
+#          is dropped where present (the bun-kind variants carrying
+#          a Set up Bun + install block; this repo's own variant has
+#          no such block). Measured restore median 32s (range
+#          29-38s) plus a 1s save to protect a bun install that then
+#          takes 1-4s (0-6s cold fleet-wide): the cache costs roughly
+#          10x the work it protects, an estimated 22-44 billed
+#          min/wk across the 31 repos carrying it. Set up Bun and
+#          bun install --frozen-lockfile stay. The Claude Code CLI
+#          cache below is unchanged (3s restore, 99 MB, hash-verified
+#          exact hits). Supersedes the 2026-10-14 owner override
+#          that kept the cache for Claude pre-install: the CI speed
+#          audit measurement shows that premise no longer holds.
+# v5.28.5 - (Oct 28 2026) CLI cache pin 2.1.311 -> 2.1.312 (checksum
+#          from Anthropic's release manifest); the pin check flagged
+#          the drift (issue tracking in the pin-check filing).
+# v5.28.4 - (Oct 27 2026) allowedTools hardening, completing the
+#          drop begun in the ruling candidate for the interpreter
+#          wildcard question: node, npx and python3 are joined by
+#          python, bunx, pip, pip3 and uv, so no interpreter or
+#          package-runner wildcard remains for a prompt-injected
+#          run to read the settings env block through. bash, bun,
+#          npm and pytest stay, with the git/gh and file tooling:
+#          the allowlist raises the bar on that injection path;
+#          it is not a sandbox. Same bump: CLI cache pin
+#          2.1.310 -> 2.1.311 (checksum from Anthropic's release
+#          manifest); the pin check flagged the drift on this PR.
 # v5.28.3 - (Oct 26 2026) CLI cache pin 2.1.286 -> 2.1.310 (checksum
 #          from Anthropic's release manifest) and the pin is no longer
 #          bumped blind: scripts/check-claude-cli-pin.sh compares the
@@ -754,21 +782,6 @@ jobs:
           bun-version: 1.4.2
 
 
-      - name: Cache Bun dependencies
-
-        uses: actions/cache@v6
-
-        with:
-
-          path: ~/.bun/install/cache
-
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-
-          restore-keys: |
-
-            ${{ runner.os }}-bun-
-
-
       - name: Install dependencies
 
         run: bun install --frozen-lockfile
@@ -781,17 +794,17 @@ jobs:
           path: |
             ~/.local/bin/claude
             ~/.local/share/claude
-          key: claude-cli-2.1.310-${{ runner.os }}-${{ runner.arch }}
+          key: claude-cli-2.1.312-${{ runner.os }}-${{ runner.arch }}
 
       - name: Resolve cached Claude Code CLI
         id: claude-bin
         run: |
           # The cache is agent-writable state, so a restored binary is
           # only used after its SHA256 matches the official Claude Code
-          # 2.1.310 linux-x64 release checksum (Anthropic manifest).
+          # 2.1.312 linux-x64 release checksum (Anthropic manifest).
           # Drift is watched by scripts/check-claude-cli-pin.sh (issue
           # #100); bump version + checksum together when it fires.
-          want="b73676430af12f97316a798b8371f81d640f90a58bdcb8f3ce56a835bb47df56"
+          want="4f4178ce41d83e23341ebfbaecdbcf8ea6bf7baea0690025abe49eeec3a5d01d"
           bin="$HOME/.local/bin/claude"
           hit="${{ steps.claude-cli-cache.outputs.cache-hit }}"
           got="$(sha256sum "$(readlink -f "$bin" 2>/dev/null)" 2>/dev/null | cut -d' ' -f1)"
@@ -825,7 +838,7 @@ jobs:
             --fallback-model claude-haiku-4-5
             --effort medium
             --append-system-prompt "You are a senior SWE. Read AGENTS.md at the repo root first — it has project-specific guidelines that take precedence. Security-review your changes, keep quality high, avoid overengineering. Be pragmatic: user value first. If a comment marked 'claude-handoff' names a progress branch, continue from that branch instead of starting over. Work item by item: after finishing each numbered item, commit and push to your branch before starting the next one. Be economical with turns: batch independent tool calls in one block, read each file once, and run the full check suite once at the end rather than after every edit. Never bypass git hooks (no --no-verify, no core.hooksPath overrides): if a hook blocks a commit or push, read its output and recover, never bypass: for a secret finding, commit everything else and report the blocked file (only a demonstrably fake fixture value may be triaged via a .betterleaksignore fingerprint entry; a real-looking secret is never committed); for a code finding, push everything except the flagged files and put the blocked work in your summary so it is not lost."
-            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(bunx:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(node:*),Bash(npx:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(jq:*),Bash(curl:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(diff:*),Bash(sort:*),Bash(which:*),Bash(env:*),Bash(sleep:*),Bash(python3:*),Bash(pip:*),Bash(pip3:*),Bash(uv:*),Bash(pytest:*),Bash(cargo:*),Bash(rustc:*),Bash(go:*),Bash(npm:*),Bash(pnpm:*),Bash(make:*),Bash(ls:*),Bash(cat:*),Bash(pwd:*),Bash(echo:*),Bash(chmod:*),Bash(tar:*),Bash(unzip:*),Bash(wc:*),Bash(du:*),Bash(tee:*),Bash(xargs:*),Bash(timeout:*),Bash(sqlite3:*),Bash(bash:*)"
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Bash(bun:*),Bash(oxlint:*),Bash(gh:*),Bash(git:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(jq:*),Bash(curl:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(diff:*),Bash(sort:*),Bash(which:*),Bash(env:*),Bash(sleep:*),Bash(pytest:*),Bash(cargo:*),Bash(rustc:*),Bash(go:*),Bash(npm:*),Bash(pnpm:*),Bash(make:*),Bash(ls:*),Bash(cat:*),Bash(pwd:*),Bash(echo:*),Bash(chmod:*),Bash(tar:*),Bash(unzip:*),Bash(wc:*),Bash(du:*),Bash(tee:*),Bash(xargs:*),Bash(timeout:*),Bash(sqlite3:*),Bash(bash:*)"
           settings: |
             {
               "env": {
