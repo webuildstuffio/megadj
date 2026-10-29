@@ -12,7 +12,7 @@
 # reusable call works directly).
 name: security-scan
 "on":
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     - cron: "0 9 * * 1"  # Mondays 09:00 UTC — weekly deep scan
@@ -25,7 +25,7 @@ name: security-scan
 # run instantly, ~2s, zero jobs). Keyed by ref, so PR
 # runs never cancel the weekly deep scan. Pin below.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
     # every PR merge commit. Main stays covered by the weekly
     # Trivy deep scan below (schedule) and workflow_dispatch.
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'pull_request_target' &&
       github.event.pull_request.draft == false
     uses: webuildstuffio/repo-review/.github/workflows/security-scan-reusable.yml@f146f8440487930d0fdefb5132a61b1f6c25d38b  # yamllint disable-line rule:line-length
     with:

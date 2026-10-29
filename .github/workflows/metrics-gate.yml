@@ -10,7 +10,7 @@
 # (findings become PR annotations, never fail the PR).
 name: metrics-gate
 "on":
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
 
 # Superseded PR runs cancel. Caller concurrency is safe
@@ -19,13 +19,19 @@ name: metrics-gate
 # group; equal strings previously cancelled the whole
 # run instantly, ~2s, zero jobs). Needs the pin below.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   gate:
     if: github.event.pull_request.draft == false
-    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@9e8fe834ab6cbe96c7d133e703e0b326c1707b9e  # yamllint disable-line rule:line-length
+    # pull-requests: write lets the reusable's prlabels step read this PR's
+    # live labels and post its gate comments (folio-app pattern, proven on
+    # goldoutput.com); contents: read is what checkout + gate reads need.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: webuildstuffio/repo-review/.github/workflows/metrics-reusable.yml@f146f8440487930d0fdefb5132a61b1f6c25d38b  # yamllint disable-line rule:line-length
     with:
       run_snapshot: false
       language: typescript
