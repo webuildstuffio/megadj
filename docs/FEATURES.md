@@ -176,17 +176,17 @@ parts live, via [XZ Mods](https://github.com/OpticMystic/XZ-Mods).
 
 |                   |                                                                                                     |
 | ----------------- | --------------------------------------------------------------------------------------------------- |
-| **Status**        | 🧭 planned ([#555](https://github.com/webuildstuffio/megadj/issues/555), [#556](https://github.com/webuildstuffio/megadj/issues/556)) |
+| **Status**        | ✅ shipped ([#555](https://github.com/webuildstuffio/megadj/issues/555), [#556](https://github.com/webuildstuffio/megadj/issues/556)) |
 | **Runner**        | `megadj stems [--limit N] [--format wav\|mp3\|all]` — batch Demucs `htdemucs_ft` on MPS (~30 s/track Apple Silicon) |
 | **Output**        | 4 stems per track (vocals, drums, bass, other) cached in `stem_cache` table; reusable by VOX/HOOK (#429) and grid audit |
 | **Export**        | `megadj stem-export <drive> [--limit N] [--with-loader]` — writes [OverCue stems format](https://github.com/OverCue-gg/overcue-stems-format) (`CDJMODS/`) to a FAT32 playing USB |
 | **XZ Mods compat**| Vocals = vocals stem · Drums = drums stem · Harmonics = bass + other mixed · FLAC pages at 96 kHz |
 | **Constraints**   | FAT32 playing USB required (SHELF1 is exFAT, not bootable); XDJ-XZ firmware exactly 1.26; XZ Mods v0.2.1+ |
 
-**Commands (planned):**
+**Commands:**
 `megadj stems --limit 500` (overnight batch, ~4–5 h on MPS) ·
-`megadj stem-export XZTEST --limit 20 --with-loader` (test USB) ·
-`megadj stem-status` (coverage report)
+`megadj stem-export /Volumes/XZTEST [--limit N] [--dry-run]` (write OverCue to USB) ·
+`megadj stem-status` (coverage + VOX/HOOK breakdown)
 
 **Vibe:** the whole library, unmixed — on the player, not in Ableton.
 
