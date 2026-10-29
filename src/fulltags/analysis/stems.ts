@@ -164,9 +164,10 @@ export async function stems(opts: StemsOptions): Promise<void> {
       const result = await session.analyze({ path: t.file_path!, outputDir });
 
       if (result === null) {
+        // null = timeout or worker crash (session dead)
         failed++;
-        errors.push({ label, error: "worker returned null (timeout or crash)" });
-        log(`  ❌ separation failed: ${label}`);
+        errors.push({ label, error: "worker timeout or crash (session dead)" });
+        log(`  ❌ worker died: ${label} — restarting`);
         session.close();
         session = await openStemSession();
         workerRestarts++;
@@ -176,6 +177,15 @@ export async function stems(opts: StemsOptions): Promise<void> {
           break;
         }
         log("  ♻️  worker restarted — continuing");
+        continue;
+      }
+
+      if (!result.ok) {
+        // Worker returned a structured error — session is still alive
+        failed++;
+        const detail = result.traceback !== "" ? ` (${result.traceback})` : "";
+        errors.push({ label, error: `${result.errorType}: ${result.error}` });
+        log(`  ❌ ${label} — ${result.errorType}: ${result.error}${detail}`);
         continue;
       }
 
@@ -194,7 +204,10 @@ export async function stems(opts: StemsOptions): Promise<void> {
 
       elapsedTimes.push(result.elapsedS);
       separated++;
-      log(`  ✅ ${label} — ${result.elapsedS}s (${separated}/${queue.length})`);
+      const sizeMB = Math.round(result.outputBytes / 1024 / 1024);
+      log(
+        `  ✅ ${label} — ${result.elapsedS}s, ${result.durationS}s audio, ${sizeMB}MB stems (${separated}/${queue.length})`,
+      );
     }
   } finally {
     session?.close();

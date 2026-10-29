@@ -30,10 +30,23 @@ export interface StemRequest {
   outputDir: string;
 }
 
-export interface StemResult {
+export interface StemSuccess {
+  ok: true;
   stems: Record<string, string>;
   elapsedS: number;
+  durationS: number;
+  outputBytes: number;
+  trackNumber: number;
 }
+
+export interface StemError {
+  ok: false;
+  error: string;
+  errorType: string;
+  traceback: string;
+}
+
+export type StemResult = StemSuccess | StemError;
 
 export interface StemSession {
   info: StemWorkerInfo;
@@ -110,13 +123,29 @@ export async function openStemSession(): Promise<StemSession | null> {
     parse(line, req) {
       const obj = parseJsonOrNull(line) as Record<string, unknown> | null;
       if (obj === null || obj["id"] !== req.path) return null;
-      if (obj["status"] !== "ok") return null;
+
+      if (obj["status"] !== "ok") {
+        return {
+          ok: false as const,
+          error: String(obj["error"] ?? "unknown error"),
+          errorType: String(obj["error_type"] ?? "Unknown"),
+          traceback: String(obj["traceback"] ?? ""),
+        };
+      }
+
       const stems = obj["stems"];
       if (stems === null || typeof stems !== "object") return null;
       const elapsedRaw = Number(obj["elapsed_s"]);
+      const durationRaw = Number(obj["duration_s"]);
+      const bytesRaw = Number(obj["output_bytes"]);
+      const trackRaw = Number(obj["track_number"]);
       return {
+        ok: true as const,
         stems: stems as Record<string, string>,
         elapsedS: Number.isFinite(elapsedRaw) ? elapsedRaw : 0,
+        durationS: Number.isFinite(durationRaw) ? durationRaw : 0,
+        outputBytes: Number.isFinite(bytesRaw) ? bytesRaw : 0,
+        trackNumber: Number.isFinite(trackRaw) ? trackRaw : 0,
       };
     },
   });
