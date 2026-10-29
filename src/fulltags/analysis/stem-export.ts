@@ -298,7 +298,14 @@ export async function stemExport(opts: StemExportOptions): Promise<void> {
     log(`  wrote CDJMODS/index.json (${entryMap.size} entries)`);
   }
 
+  const loaderExists = existsSync(join(volume, "autoexec.bin"));
+
   log(`\nstem-export: ${exported} exported, ${failed} failed, ${alreadyExported.length} cached`);
+  if (!loaderExists) {
+    log(`  ⚠️  no autoexec.bin on ${basename(volume)} — use XZ Mods app to prepare the USB loader`);
+  } else {
+    log(`  ✅ autoexec.bin present — USB ready for XZ Mods playback`);
+  }
 
   if (opts.json) {
     await writeJson({
@@ -308,6 +315,7 @@ export async function stemExport(opts: StemExportOptions): Promise<void> {
       alreadyExported: alreadyExported.length,
       volume,
       cdjmodsDir,
+      loaderPresent: loaderExists,
     });
   }
 }
