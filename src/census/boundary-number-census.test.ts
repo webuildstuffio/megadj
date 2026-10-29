@@ -211,10 +211,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // (megaset-builder + cohorts-view) consolidated into ONE shared copy
     // in products/shared/minutes.ts — audited 65→64, sanctioned 19→18,
     // guarded unchanged; sanction re-keyed, digest shifted below.
-    // Oct 28 (#555): stem-export.ts adds 2 Number()+isFinite guards
-    // (framesRaw, elapsedRaw in the overcue-writer response parser).
-    audited: 70,
-    guarded: 52,
+    // Oct 28 (#555/#429): stem-export.ts + vocal-zones.ts add 4
+    // Number()+isFinite guards (response parsers).
+    audited: 72,
+    guarded: 54,
     sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -249,7 +249,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Oct 29 (#555/#556): stems pipeline adds 4 guarded Number() calls
     // (state.ts stemRecord: sampleRate + elapsedS; stems-session.ts:
     // samplerate + elapsed_s parse) — audited 64→68, guarded 46→50.
-    digest: "a3abf7fa11cac82396158f3290179325ad6a535252725a394e57f8f86eb4128b",
+    digest: "eb2792e5dccbdb03521e977ccf5686b8df1d324c305ff744d189c74a30bfe08d",
   });
 });
 

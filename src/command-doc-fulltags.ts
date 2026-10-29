@@ -265,6 +265,16 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "vocal-zones",
+    group: "fulltags",
+    block: [
+      "  megadj vocal-zones [--limit N] [--force] [--dry-run] [--json]",
+      "                                               classify VOX/HOOK from cached vocals stem:",
+      "                                               VOX = vocals in intro/outro mix zones (clash),",
+      "                                               HOOK = vocals in body only (clean mix zones)",
+    ],
+  },
+  {
     name: "stem-export",
     group: "fulltags",
     block: [

@@ -114,6 +114,7 @@ export class ArchiveCore {
         analyzed_at TEXT NOT NULL, elapsed_s REAL
       );
     `);
+    this.addColumnIfMissing("stem_cache", "vox_hook", "TEXT");
   }
 
   private addColumnIfMissing(table: string, column: string, ddl: string): void {

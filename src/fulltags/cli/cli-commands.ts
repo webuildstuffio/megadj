@@ -711,6 +711,21 @@ const stemsCommand: CliCommandHandler = async (rest, { state, musicDir }) => {
   await runStems(analysisPassOptions(parsed, state, musicDir));
 };
 
+const vocalZonesCommand: CliCommandHandler = async (rest, { state }) => {
+  const flags = parseFlags(rest, ["limit"], ["force", "dry-run", "json"]);
+  const json = flags.bools.has("json");
+  if (nonNegOptInvalid(flags, "limit", "vocal-zones", json)) return;
+  const limit = nonNegOpt(flags, "limit", "vocal-zones", json);
+  const { vocalZones } = await import("../analysis/vocal-zones");
+  await vocalZones({
+    state,
+    limit,
+    force: flags.bools.has("force"),
+    dryRun: flags.bools.has("dry-run"),
+    json,
+  });
+};
+
 const stemExportCommand: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["limit"], ["dry-run", "json"]);
   const json = flags.bools.has("json");
@@ -771,6 +786,7 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   regate,
   bench,
   stems: stemsCommand,
+  "vocal-zones": vocalZonesCommand,
   "stem-export": stemExportCommand,
   "stem-status": stemStatusCommand,
 };
