@@ -118,11 +118,8 @@ describe("json stdout deadline (#pipe-wedge)", () => {
         },
       );
       let bytes = 0;
-      for await (const chunk of cli.stdout as AsyncIterable<Buffer>)
-        bytes += chunk.length;
-      const code = await new Promise<number | null>((resolve) =>
-        cli.on("exit", (c) => resolve(c)),
-      );
+      for await (const chunk of cli.stdout as AsyncIterable<Buffer>) bytes += chunk.length;
+      const code = await new Promise<number | null>((resolve) => cli.on("exit", (c) => resolve(c)));
       // The fixture's 1,500 paths don't exist on disk; intake-status still
       // emits the full JSON summary (exit 0 here — drift is ledger-only for
       // this cohort). This test owns the #pipe-wedge invariant: the full
