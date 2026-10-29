@@ -51,11 +51,11 @@ src/fulltags/
   verify-key.ts          the key gauntlet gate (`fulltags verify-key`, ≥80% vs existing MIK/RB keys)
   schema.ts              FullTag / TagPatch types, genre canon + vocabulary
   schema-guards.ts       validatePatch (runtime guards before any write)
-  writer.ts              ONE write surface: writePatch / applyTags / embedArt
+  writer.ts              ONE write surface: writePatch / writePatch / embedArt
                          (all format gotchas live here)
   readers.ts             groundTruth / readFullTag — file-first reads
   media-probe.ts         bounded ffprobe/audio probing
-  metadata-build.ts      yt-dlp info → EnrichedMetadata (cleanYouTubeTitle, credits)
+  metadata-build.ts      yt-dlp info → TagPatch (cleanYouTubeTitle, credits)
   identity.ts            MB recording lookup + the audit ground-truth row
   art-sources.ts         SC search + every artwork source (the art ladder)
   ai.ts                  OpenRouter genre/year fallback (conf ≥ 0.7)
@@ -133,7 +133,7 @@ Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key --mood` 
 
 | megadj command | What it does now |
 | --- | --- |
-| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims |
+| `megadj ingest` | unchanged — calls FullTags `writePatch`/`wavToAiff`/energy via shims |
 | `megadj fetch` | `src/fulltags/fetch/fetch-pipeline.ts` writes through FullTags `writePatch` (#184 — re-homed) |
 | `megadj audit` | same completeness gate as `fulltags audit` (one reader) |
 | `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted) |

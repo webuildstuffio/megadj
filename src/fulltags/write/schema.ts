@@ -84,26 +84,6 @@ export function completeness(tag: Partial<FullTag>): { complete: boolean; missin
   return { complete: missing.length === 0, missing };
 }
 
-/**
- * LEGACY (megadj ingest/sync compat) tag shape. Kept byte-compatible with
- * the old `src/metadata.ts` interface: uses `date` instead of `year`.
- * New code should use FullTag / TagPatch; applyTags still accepts this.
- */
-export interface EnrichedMetadata {
-  title: string | null;
-  artist: string | null;
-  albumArtist: string | null;
-  album: string | null;
-  genre: string | null;
-  date: string | null;
-  composer: string | null;
-  comment: string | null;
-  bpm: number | null;
-  remixer?: string | null;
-  grouping?: string | null;
-  mbid?: string | null;
-}
-
 /** A partial write: only these fields are merged into the file.
  *  Every optional is `| undefined` (exactOptionalPropertyTypes): callers
  *  build patches from nullable source records with `?? undefined`, which

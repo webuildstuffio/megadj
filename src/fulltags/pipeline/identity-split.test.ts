@@ -47,19 +47,19 @@ describe("#275 scInfoToYtdlpInfo artist correction", () => {
 });
 
 describe("#275 buildMetadata identity hygiene", () => {
-  test("'X - Unknown Album' placeholders dissolve to honest null", () => {
+  test("'X - Unknown Album' placeholders dissolve to honest undefined", () => {
     expect(
       buildMetadata({ title: "T", album: "Big Joy Records - Unknown Album" }).album,
-    ).toBeNull();
+    ).toBeUndefined();
   });
 
   test("real albums pass through untouched", () => {
     expect(buildMetadata({ title: "T", album: "Buds" }).album).toBe("Buds");
   });
 
-  test("description without an album mention stays null", () => {
+  test("description without an album mention stays undefined", () => {
     expect(
       buildMetadata({ title: "T", description: "out now everywhere, shout out my mom" }).album,
-    ).toBeNull();
+    ).toBeUndefined();
   });
 });

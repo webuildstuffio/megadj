@@ -29,7 +29,7 @@ import {
  *  unicorn's prefer-export-from wants the direct-from-source form — done. */
 export type { SyncSource as PlaylistSource } from "../soundcloud";
 import { commandLog, ProgressBar } from "../../shared/progress";
-import { applyTags } from "../../fulltags/write/writer";
+import { writePatch } from "../../fulltags/write/writer";
 import { probeFile } from "../../fulltags/utils/media-probe";
 import { organize } from "./organize";
 import { downloadBatchDir } from "./intake-folder";
@@ -487,7 +487,7 @@ export async function settleDownload(
       }
     }
     const meta = buildMetadata(dl.info);
-    await applyTags(dl.filePath, meta);
+    await writePatch(dl.filePath, meta);
     const fileSize = await statSizeSafe(dl.filePath, log);
     if (fileSize === null) {
       totals.failed++;
@@ -498,9 +498,9 @@ export async function settleDownload(
     }
     totals.bytes += fileSize;
     state.markDownloaded(track.video_id, {
-      title: meta.title,
-      artist: meta.artist,
-      album: meta.album,
+      title: meta.title ?? null,
+      artist: meta.artist ?? null,
+      album: meta.album ?? null,
       genre: meta.genre,
       formatId: dl.formatId ?? null,
       bitrateKbps: Downloader.formatBitrateKbps(dl.formatId),
@@ -509,7 +509,7 @@ export async function settleDownload(
       fileSizeBytes: fileSize,
       durationS: dl.info.duration ?? null,
     });
-    state.updateGenre(track.video_id, meta.genre);
+    state.updateGenre(track.video_id, meta.genre ?? null);
     totals.downloaded++;
     log(`  ↳ downloaded → ${meta.title ?? track.video_id}`);
     bar.update(1, fileSize);

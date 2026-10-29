@@ -80,7 +80,7 @@ describe("buildMetadata", () => {
     expect(meta.title).toBe("Fade Away");
     expect(meta.artist).toBe("The Kid LAROI");
     expect(meta.album).toBe("Fade Away");
-    expect(meta.date).toBe("2020");
+    expect(meta.year).toBe(2020);
     expect(meta.composer).toBe("Heavy Keyzz");
     expect(meta.comment).toContain("music.youtube.com");
   });
@@ -88,10 +88,10 @@ describe("buildMetadata", () => {
   test("falls back gracefully on sparse info", () => {
     const meta = buildMetadata({ title: "Unknown Track" });
     expect(meta.title).toBe("Unknown Track");
-    expect(meta.artist).toBeNull();
+    expect(meta.artist).toBeUndefined();
     // #61: no "Music" mint — an unknown genre stays null (honest gap;
     // fetch fills it later from SC/Beatport).
-    expect(meta.genre).toBeNull();
+    expect(meta.genre).toBeUndefined();
   });
 
   test("keeps a real genre the regex table can't match", () => {
@@ -102,7 +102,7 @@ describe("buildMetadata", () => {
 
   test("refuses the literal Music placeholder", () => {
     // YouTube-tier category "Music" is not a genre — must not pass through.
-    expect(buildMetadata({ title: "X", genre: "Music" }).genre).toBeNull();
+    expect(buildMetadata({ title: "X", genre: "Music" }).genre).toBeUndefined();
   });
 });
 
@@ -155,7 +155,7 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
     // collaborators), which outranks the uploading channel's own name —
     // the BP artist gate can match it.
     expect(meta.artist).toBe("Porter Robinson & Madeon");
-    expect(meta.date).toBe("2016");
+    expect(meta.year).toBe(2016);
   });
 
   test("#275: an imprint-channel upload takes the title's artist, not the channel", () => {
@@ -187,8 +187,8 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
     expect(meta.album).toBe("Buds");
   });
 
-  test("#275: 'X - Unknown Album' placeholders dissolve to honest null", () => {
-    expect(buildMetadata({ title: "T", album: "Experts Only - Unknown Album" }).album).toBeNull();
+  test("#275: 'X - Unknown Album' placeholders dissolve to honest undefined", () => {
+    expect(buildMetadata({ title: "T", album: "Experts Only - Unknown Album" }).album).toBeUndefined();
     expect(buildMetadata({ title: "T", album: "Real Album" }).album).toBe("Real Album");
   });
 
@@ -201,18 +201,18 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
 
 describe("junk-genre guard (Sep 19 organize audit)", () => {
   test("URL-shaped 'genres' are honest nulls — they minted garbage folders", () => {
-    expect(buildMetadata({ genre: "https://djsoundtop.com" }).genre).toBeNull();
-    expect(buildMetadata({ genre: "http://electronicfresh.com" }).genre).toBeNull();
+    expect(buildMetadata({ genre: "https://djsoundtop.com" }).genre).toBeUndefined();
+    expect(buildMetadata({ genre: "http://electronicfresh.com" }).genre).toBeUndefined();
   });
 
   test("JSON-blob genres (the thumbnails-array row) are nulls", () => {
-    expect(buildMetadata({ genre: "[{'id': 'mini', 'url': 'https://…'}]" }).genre).toBeNull();
-    expect(buildMetadata({ genre: '{"a":1}' }).genre).toBeNull();
+    expect(buildMetadata({ genre: "[{'id': 'mini', 'url': 'https://…'}]" }).genre).toBeUndefined();
+    expect(buildMetadata({ genre: '{"a":1}' }).genre).toBeUndefined();
   });
 
   test("overlong tag-soup and control bytes are nulls", () => {
-    expect(buildMetadata({ genre: "x".repeat(61) }).genre).toBeNull();
-    expect(buildMetadata({ genre: "Tech\u0000House" }).genre).toBeNull();
+    expect(buildMetadata({ genre: "x".repeat(61) }).genre).toBeUndefined();
+    expect(buildMetadata({ genre: "Tech\u0000House" }).genre).toBeUndefined();
   });
 
   test("real genres still pass — the guard only kills junk (guess may refine)", () => {

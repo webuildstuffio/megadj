@@ -1,10 +1,11 @@
 /**
- * FullTags metadata builder — turns a yt-dlp info object into a complete
- * EnrichedMetadata record. Migrated from src/metadata.ts (the yt-dlp +
- * description-credits + genre-inference pass).
+ * FullTags metadata builder — turns a yt-dlp info object into a TagPatch.
+ * Migrated from src/metadata.ts (the yt-dlp + description-credits +
+ * genre-inference pass).
  */
 import { guessFromFreeText } from "../genre/genre-vocab";
-import type { EnrichedMetadata } from "./schema";
+import type { TagPatch } from "./schema";
+import { yearFromDate } from "./writer";
 
 export interface YtdlpInfo {
   title?: string;
@@ -132,14 +133,14 @@ function plausibleGenre(candidate: string): boolean {
   return true;
 }
 
-export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
-  const artist = info.artist?.trim() || null;
+export function buildMetadata(info: YtdlpInfo): TagPatch {
+  const artist = (info.artist?.trim() || undefined) ?? undefined;
   // Strip "Artist - " prefix from the title when the artist field already
   // carries the name (yt-dlp/SC titles are "Artist - Track"; keeping the
   // prefix mints a contaminated Title in archive.db AND in file tags —
   // the #321 root cause). Clean first, then strip.
-  let title = cleanYouTubeTitle(info.title) ?? info.title ?? null;
-  if (title !== null && artist !== null) {
+  let title = cleanYouTubeTitle(info.title) ?? info.title ?? undefined;
+  if (title !== undefined && artist !== undefined) {
     const split = splitArtistFromTitle(title);
     if (split !== null && split.artist.toLowerCase() === artist.toLowerCase()) {
       title = split.track;
@@ -148,36 +149,39 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   // #275: "<uploader> - Unknown Album" placeholders are a LIE the writer
   // minted when album was unknown — an honest unknown beats a lying
   // placeholder (repo rule). Strip the pattern wherever it rode in.
-  const rawAlbum = info.album?.trim() || null;
-  const album = rawAlbum !== null && /- Unknown Album$/i.test(rawAlbum) ? null : rawAlbum;
+  const rawAlbum = info.album?.trim() || undefined;
+  const album = rawAlbum !== undefined && /- Unknown Album$/i.test(rawAlbum) ? undefined : rawAlbum;
   const date =
     info.release_date ||
-    (info.release_year ? String(info.release_year) : null) ||
+    (info.release_year ? String(info.release_year) : undefined) ||
     info.upload_date ||
-    null;
+    undefined;
   const composer = extractComposer(description_credits(info.description));
   // Honest gap, never a guess (repo rule): when nothing infers, genre stays
-  // null for `fetch` to fill later. The old `?? "Music"` minted placeholder
-  // rows invisible to genreSeeds AND inference (#61). A non-"Music" raw
-  // genre from yt-dlp passes through untouched — the regex table can miss
-  // real genres ("Kuduro"), and replacing them with "Music" was strictly
-  // worse than keeping them. The junk guard (Sep 19 organize audit) sits
-  // in front: URLs / JSON blobs / control-byte soup are NOT genres —
-  // they minted garbage genre FOLDERS on organize; null is honest.
+  // undefined for `fetch` to fill later. The old `?? "Music"` minted
+  // placeholder rows invisible to genreSeeds AND inference (#61). A non-
+  // "Music" raw genre from yt-dlp passes through untouched — the regex
+  // table can miss real genres ("Kuduro"), and replacing them with "Music"
+  // was strictly worse than keeping them. The junk guard (Sep 19 organize
+  // audit) sits in front: URLs / JSON blobs / control-byte soup are NOT
+  // genres — they minted garbage genre FOLDERS on organize; undefined is
+  // honest.
   const rawGenre =
     info.genre && info.genre.toLowerCase() !== "music" && plausibleGenre(info.genre)
       ? info.genre
-      : null;
+      : undefined;
   // A junk `genre` is also poisoned as an INFERENCE INPUT (the \u0000 blob
   // still regex-matched "house" and minted a folder via the guess path) —
   // only plausible genre text may feed the guesser.
-  const genre = guessFromFreeText([rawGenre, info.artist, info.album, info.title]) ?? rawGenre;
+  const genre =
+    guessFromFreeText([rawGenre, info.artist, info.album, info.title]) ?? rawGenre ?? undefined;
   // #275: SC descriptions name the real album surprisingly often
-  // ("from the upcoming album "Buds" by …" — measured on Surf Curse).
+  // ("from the upcoming album "Buds" by …" — measured on Surf Curve).
   // A quoted album mention recovers what yt-dlp leaves absent; the
   // mention must be plausible-length to avoid CSS/JSON soup.
-  const descAlbum = album ?? descriptionAlbum(info.description);
-  const albumArtist = artist && descAlbum ? artist : null;
+  const descAlbum = album ?? descriptionAlbum(info.description) ?? undefined;
+  const albumArtist = artist && descAlbum ? artist : undefined;
+  const year = date ? yearFromDate(date.slice(0, 4)) : undefined;
 
   return {
     title,
@@ -185,10 +189,9 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
     albumArtist,
     album: descAlbum,
     genre,
-    date: date?.slice(0, 4) ?? null,
-    composer,
-    comment: info.webpage_url ?? null,
-    bpm: null, // analysis happens in rekordbox itself
+    year,
+    composer: composer ?? undefined,
+    comment: info.webpage_url ?? undefined,
   };
 }
 

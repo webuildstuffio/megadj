@@ -13,9 +13,8 @@
 // per-file failures, meaningful exit code.
 import { existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { tempSiblingPath } from "../../shared/atomic-file";
-import { applyTags } from "../../fulltags/write/writer";
+import { writePatch } from "../../fulltags/write/writer";
 import { fingerprintFile } from "../../fulltags/analysis/fingerprint";
-import type { EnrichedMetadata } from "../../fulltags/write/schema";
 import { probeMediaSync } from "../../fulltags/utils/media-probe";
 import { Downloader, type DownloadResult } from "../downloader";
 import type { ArchiveState } from "../../core/state";
@@ -258,18 +257,7 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
         // 5. All gates passed: carry the OLD file's ground-truth tags onto
         // the new file (yt-dlp's fresh embed only knows YouTube's tags),
         // swap atomically, update the row.
-        const oldMeta: EnrichedMetadata = {
-          title: c.title,
-          artist: null,
-          albumArtist: null,
-          album: null,
-          genre: null,
-          date: null,
-          composer: null,
-          comment: null,
-          bpm: null,
-        };
-        await applyTags(tmp, oldMeta);
+        await writePatch(tmp, { title: c.title ?? undefined });
         replaceFileAtomically(tmp, oldPath);
         const newFormatId = dl.formatId ?? null;
         const newSize = statSync(oldPath).size;

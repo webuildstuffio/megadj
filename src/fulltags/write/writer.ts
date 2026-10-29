@@ -14,7 +14,7 @@
 import { $ } from "bun";
 import { extname } from "node:path";
 import { existsSync, renameSync, unlinkSync } from "node:fs";
-import type { EnrichedMetadata, TagPatch } from "./schema";
+import type { TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 import { id3Open } from "./mutagen";
 import { fetchImage } from "../sources/art-sources";
@@ -59,27 +59,6 @@ export { isAudioFile } from "../../shared/audio-exts";
 export function yearFromDate(date: string): number | undefined {
   const y = Number(date.match(/\d{4}/)?.[0]);
   return Number.isFinite(y) && y >= 1000 && y <= 3000 ? y : undefined;
-}
-
-/**
- * Write a legacy EnrichedMetadata (full-record replace semantics).
- * Thin wrapper kept for megadj ingest/sync compat.
- */
-export async function applyTags(filePath: string, meta: EnrichedMetadata): Promise<void> {
-  const patch: TagPatch = {
-    title: meta.title ?? undefined,
-    artist: meta.artist ?? undefined,
-    albumArtist: meta.albumArtist ?? undefined,
-    album: meta.album ?? undefined,
-    genre: meta.genre ?? undefined,
-    year: meta.date ? yearFromDate(meta.date) : undefined,
-    composer: meta.composer ?? undefined,
-    grouping: meta.grouping ?? undefined,
-    remixer: meta.remixer ?? undefined,
-    comment: meta.comment ?? undefined,
-    mbid: meta.mbid ?? undefined,
-  };
-  await writePatch(filePath, patch);
 }
 
 /**

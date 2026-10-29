@@ -16,7 +16,7 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "clampMinutes finite-checks the converted form value and supplies the default — the ONE shared copy (megaset-builder + cohorts-view both import it; #457 target 9).",
   "src/deck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
-  // #230 (Sep 17): writer.ts applyTags's year parse was UPGRADED from a
+  // #230 (Sep 17): writer.ts yearFromDate's year parse was UPGRADED from a
   // sanctioned raw Number() to an isFinite-gated site — the sanction is
   // gone (sanctioned 16→15, guarded 25→26), see the counts trail below.
   "src/fulltags/write/writer-mutagen.ts::mp4Statement::Number(v)":
@@ -79,7 +79,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // 17→16) and tools/ast-ccn.ts's argv tail parses digits-only under
     // a census-visible Number.isFinite gate (its 2 raw Number() sites
     // became 1 guarded site: audited unchanged at 41, guarded 24→25).
-    // Sep 17 (#230): writer.ts applyTags's year parse upgraded from a
+    // Sep 17 (#230): writer.ts yearFromDate's year parse upgraded from a
     // sanctioned raw Number() to an explicit isFinite+range gate, now
     // extracted as writer.ts::yearFromDate — the site reclassifies
     // sanctioned→guarded (audited 41 unchanged, guarded 25→26,

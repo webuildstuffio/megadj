@@ -1,26 +1,24 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { applyTags } from "../write/writer";
-import type { EnrichedMetadata } from "../write/schema";
+import { writePatch } from "../write/writer";
+import type { TagPatch } from "../write/schema";
 import { wavToAiff } from "../write/convert-aiff";
 
 const DIR = `/tmp/megadj-aiff-tags-test-${process.pid}`;
 const WAV = `${DIR}/track.wav`;
 const AIFF = `${DIR}/track.aiff`;
 
-const META: EnrichedMetadata = {
+const META: TagPatch = {
   title: "Song (Remixer Remix)",
   artist: "Test Artist",
   albumArtist: "Test Artist",
   album: "Test Artist — Test (Remixes)",
   genre: "House",
-  date: "2024",
+  year: 2024,
   composer: "Original Artist",
   comment: "https://soundcloud.com/test/song",
-  bpm: null,
   grouping: "House",
   remixer: "Remixer",
-  mbid: null,
 };
 
 afterAll(async () => {
@@ -69,7 +67,7 @@ describe("AIFF tag pipeline (rekordbox covers)", () => {
 
       // applyTags (post-conversion enrichment) must NOT drop the ID3 chunk
       // — ffmpeg would; mutagen edits it in place.
-      await applyTags(AIFF, META);
+      await writePatch(AIFF, META);
       const chunks = await id3Chunks(AIFF);
       expect(chunks).toContain("ID3 "); // art + tags still there
 

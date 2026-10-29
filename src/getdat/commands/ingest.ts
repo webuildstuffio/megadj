@@ -24,7 +24,7 @@ import { basename, join } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState } from "../../core/state";
 import { commandLog } from "../../shared/progress";
-import { applyTags } from "../../fulltags/write/writer";
+import { writePatch, yearFromDate } from "../../fulltags/write/writer";
 import { detectRemix } from "../../fulltags/sources/remix";
 import { energyFromLufs, firstTag, measureRms } from "../../fulltags/utils/media-probe";
 import { walkAudio, type Record_ } from "./ingest-probe";
@@ -187,19 +187,18 @@ async function ingestOne(
   if (genre && genre !== "Music") extraMeta.grouping = genre;
 
   if (!opts.dryRun && (changes.length > 0 || Object.keys(extraMeta).length > 0)) {
-    await applyTags(file, {
-      title,
-      artist,
-      albumArtist: extraMeta.albumArtist ?? (artist && album ? artist : null),
-      album,
-      genre,
-      date,
-      composer: extraMeta.originalArtist ?? null,
-      comment: firstTag(probe.tags, ["comment"]),
-      bpm: null,
-      grouping: extraMeta.grouping ?? null,
-      remixer: extraMeta.remixer ?? null,
-      mbid: mbidUsed,
+    await writePatch(file, {
+      title: title ?? undefined,
+      artist: artist ?? undefined,
+      albumArtist: extraMeta.albumArtist ?? (artist && album ? artist : null) ?? undefined,
+      album: album ?? undefined,
+      genre: genre ?? undefined,
+      year: date ? yearFromDate(date) : undefined,
+      composer: extraMeta.originalArtist ?? undefined,
+      comment: firstTag(probe.tags, ["comment"]) ?? undefined,
+      grouping: extraMeta.grouping ?? undefined,
+      remixer: extraMeta.remixer ?? undefined,
+      mbid: mbidUsed ?? undefined,
     });
     counters.tagged++;
   }
