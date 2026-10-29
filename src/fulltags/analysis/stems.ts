@@ -40,6 +40,10 @@ export interface StemsOptions {
  *  DJ tracks (same policy as beats/mood). 0 disables the cap. */
 const DEFAULT_MAX_STEM_SECONDS = 10 * 60;
 
+/** Minimum duration — jingles, sound effects, and sub-10s clips are not
+ *  worth separating (Demucs overhead exceeds the audio length). */
+const MIN_STEM_SECONDS = 10;
+
 export async function stems(opts: StemsOptions): Promise<void> {
   const log = commandLog(opts);
   const stemDir = nonEmptyEnv("MEGADJ_STEM_DIR") ?? defaultStemDir();
@@ -56,15 +60,24 @@ export async function stems(opts: StemsOptions): Promise<void> {
   const todo: TrackRow[] = [];
   let skipped = 0;
   let tooLong = 0;
+  let tooShort = 0;
   for (const t of candidates) {
     if (!opts.force && opts.state.stemRecord(t.video_id)) {
       skipped++;
       continue;
     }
-    if (maxSeconds > 0 && (t.duration_s ?? 0) > maxSeconds) {
+    const dur = t.duration_s ?? 0;
+    if (maxSeconds > 0 && dur > maxSeconds) {
       tooLong++;
       log(
-        `  ⏭ over ${Math.round(maxSeconds / 60)}min cap (${Math.round((t.duration_s ?? 0) / 60)}min) — stems skipped: ${basename(t.file_path ?? "")}`,
+        `  ⏭ over ${Math.round(maxSeconds / 60)}min cap (${Math.round(dur / 60)}min) — stems skipped: ${basename(t.file_path ?? "")}`,
+      );
+      continue;
+    }
+    if (dur > 0 && dur < MIN_STEM_SECONDS) {
+      tooShort++;
+      log(
+        `  ⏭ under ${MIN_STEM_SECONDS}s (${Math.round(dur)}s) — stems skipped: ${basename(t.file_path ?? "")}`,
       );
       continue;
     }
@@ -75,11 +88,12 @@ export async function stems(opts: StemsOptions): Promise<void> {
   const queue = todo.slice(0, Math.max(0, limit));
 
   log(
-    `  ${queue.length} to separate (${skipped} cached, ${tooLong} over duration cap, limit ${limit})`,
+    `  ${queue.length} to separate (${skipped} cached, ${tooLong} over cap, ${tooShort} under ${MIN_STEM_SECONDS}s, limit ${limit})`,
   );
 
   if (queue.length === 0) {
-    if (opts.json) await writeJson({ command: "stems", separated: 0, skipped, tooLong, failed: 0 });
+    if (opts.json)
+      await writeJson({ command: "stems", separated: 0, skipped, tooLong, tooShort, failed: 0 });
     return;
   }
 
@@ -92,6 +106,7 @@ export async function stems(opts: StemsOptions): Promise<void> {
         wouldSeparate: queue.length,
         skipped,
         tooLong,
+        tooShort,
       });
     return;
   }
@@ -172,7 +187,9 @@ export async function stems(opts: StemsOptions): Promise<void> {
     session?.close();
   }
 
-  log(`\nstems: ${separated} separated, ${failed} failed, ${skipped} cached, ${tooLong} over cap`);
+  log(
+    `\nstems: ${separated} separated, ${failed} failed, ${skipped} cached, ${tooLong} over cap, ${tooShort} under ${MIN_STEM_SECONDS}s`,
+  );
 
   if (opts.json) {
     await writeJson({
@@ -181,6 +198,7 @@ export async function stems(opts: StemsOptions): Promise<void> {
       failed,
       skipped,
       tooLong,
+      tooShort,
       stemDir,
       model: STEM_MODEL,
     });
