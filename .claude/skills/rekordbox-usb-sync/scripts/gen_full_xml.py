@@ -5,6 +5,7 @@ USB export (which writes BOTH export.pdb for the XDJ-XZ AND exportLibrary.db).
 
 Requires defusedxml (alongside pyrekordbox), e.g. `uv run --with defusedxml`.
 """
+import io
 import os
 
 import defusedxml.ElementTree as ET
@@ -97,8 +98,14 @@ for p in tops:
     seen.add(p.playlist_id)
     emit(p, root_node)
 
+# Serialize and validate before opening OUT: writexml emits XML-invalid
+# control characters in attribute values verbatim, and the pre-defusedxml
+# pipeline caught those when it re-parsed the serialized tree pre-write.
+buf = io.StringIO()
+dom.writexml(buf, indent="", addindent="  ", newl="\n")
+ET.fromstring(buf.getvalue())
 with open(OUT, "w") as f:
-    dom.writexml(f, indent="", addindent="  ", newl="\n")
+    f.write(buf.getvalue())
 print(f"wrote {OUT} ({os.path.getsize(OUT)} bytes)")
 
 # validate: tracks + playlist entries via ElementTree
