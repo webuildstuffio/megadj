@@ -444,12 +444,40 @@ export function classifyMusic(result: YtdlpInfo, opts: SyncOptions): boolean {
  *  — this catches them BEFORE download to avoid wasting bandwidth. */
 export const MAX_SYNC_DURATION_S = 20 * 60;
 
-/** Title patterns that indicate junk content: DJ sets, album rips, workout
- *  compilations, non-music (interviews, tutorials, meditation). These pass
- *  classifyMusic because they ARE in the "Music" category on YouTube, but
- *  they're not individual tracks suitable for a DJ library. */
-const JUNK_TITLE_RE =
-  /\bfull set\b|\bfull show\b|\bfull album\b|\bunreleased album\b|\bconcept album\b|\bsubscribers mix\b|\byear mix\b|\bbest of \d{4}\b.*\bmix\b|\bnonstop\b|\bworkout\b|\bgym\b|\bfitness\b|\bmotivation mix\b|\blucid dream(?:ing)?\b|\bmeditation\b|\bsleep\b|\basin\b|\binterview\b|\bbehind the scenes\b|\bmaking of\b|\btutorial\b|\bhow to\b|\bdeconstructed\b|\bverified\b/i;
+/** Title patterns that indicate junk content — DJ sets, album rips, workout
+ *  compilations, non-music. These pass classifyMusic (they ARE "Music" on
+ *  YouTube) but are not individual tracks suitable for a DJ library.
+ *  Built as a joined array for readability and easy extension. */
+const JUNK_TITLE_PATTERNS = [
+  "full set",
+  "full show",
+  "full album",
+  "unreleased album",
+  "concept album",
+  "subscribers mix",
+  "year mix",
+  "nonstop",
+  "workout",
+  "gym",
+  "fitness",
+  "motivation mix",
+  "lucid dream(?:ing)?",
+  "meditation",
+  "sleep",
+  "asmr",
+  "interview",
+  "behind the scenes",
+  "making of",
+  "tutorial",
+  "how to",
+  "deconstructed",
+  "verified",
+];
+
+const JUNK_TITLE_RE = new RegExp(
+  `${JUNK_TITLE_PATTERNS.map((p) => `\\b${p}\\b`).join("|")}|\\bbest of \\d{4}\\b.*\\bmix\\b`,
+  "i",
+);
 
 /** True when the probed info looks like a junk title (set/album/workout). */
 export function classifyJunk(result: YtdlpInfo): boolean {
