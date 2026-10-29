@@ -34,7 +34,11 @@ function proseFiles(): string[] {
   const visit = (dir: string, skipArchive: boolean): void => {
     if (!existsSync(dir)) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (skipArchive && (entry.name === "archive" || entry.name === "node_modules")) continue;
+      if (
+        skipArchive &&
+        (entry.name === "archive" || entry.name === "node_modules")
+      )
+        continue;
       const p = join(dir, entry.name);
       if (statSync(p).isDirectory()) visit(p, skipArchive);
       else if (p.endsWith(".md")) out.push(p);
@@ -42,7 +46,11 @@ function proseFiles(): string[] {
   };
   visit(join(ROOT, "docs"), true);
   visit(join(ROOT, ".claude", "skills"), false);
-  for (const f of ["src/deck/deckctl.md", "src/deck/README.md", "plugin/README.md"]) {
+  for (const f of [
+    "src/deck/deckctl.md",
+    "src/deck/README.md",
+    "plugin/README.md",
+  ]) {
     if (existsSync(join(ROOT, f))) out.push(join(ROOT, f));
   }
   return out;
@@ -61,6 +69,12 @@ const ALLOWED: Readonly<Record<string, readonly AllowEntry[]>> = {
   ],
   "docs/FEATURES.md": [],
   "docs/fulltags/v4-remaining-plan-2026-10-01.md": [],
+  "docs/stems/stems-pipeline-plan-2026-10-29.md": [
+    {
+      name: "stems-eval",
+      reason: "planned Demucs eval harness — AGENTS Future / #555",
+    },
+  ],
 };
 
 /* ---------- scanning ---------- */
@@ -103,7 +117,9 @@ function scan(): { violations: Violation[]; taught: Violation[] } {
       else record(verb, dverbs.has(verb), "deckctl");
     }
     // MCP-style tool names in backticks
-    for (const m of text.matchAll(/`((?:deck|archive|getdat|megaset)_[a-z_]+)`/g)) {
+    for (const m of text.matchAll(
+      /`((?:deck|archive|getdat|megaset)_[a-z_]+)`/g,
+    )) {
       const t = m[1] ?? "";
       record(t, tools.has(t), "tool");
     }
@@ -143,7 +159,9 @@ describe("docs surface-names census (the names half of docs-vs-code)", () => {
     for (const [file, entries] of Object.entries(ALLOWED)) {
       for (const entry of entries) {
         const suffix = `:${entry.name}`;
-        const stillTaught = taught.some((v) => v.file === file && v.name.endsWith(suffix));
+        const stillTaught = taught.some(
+          (v) => v.file === file && v.name.endsWith(suffix),
+        );
         expect(
           stillTaught,
           `allowlist entry no longer taught by the docs -- delete it: ${file} :: ${entry.name} -- ${entry.reason}`,

@@ -118,15 +118,16 @@ describe("json stdout deadline (#pipe-wedge)", () => {
         },
       );
       let bytes = 0;
-      for await (const chunk of cli.stdout as AsyncIterable<Buffer>) bytes += chunk.length;
-      const code = await new Promise<number | null>((resolve) => cli.on("exit", (c) => resolve(c)));
-      // The fixture's 1,500 paths don't exist on disk, so intake-status's
-      // #238 drift gate fires: exit 1 WITH the complete JSON payload. The
-      // invariant this test owns is the #pipe-wedge one — the full payload
-      // streams and the process exits — not the drift verdict (which is
-      // honestly 1 here, pinned by the shelf suite). A pre-existing
-      // toBe(0) assertion asserted the wrong invariant and failed.
-      expect(code).toBe(1);
+      for await (const chunk of cli.stdout as AsyncIterable<Buffer>)
+        bytes += chunk.length;
+      const code = await new Promise<number | null>((resolve) =>
+        cli.on("exit", (c) => resolve(c)),
+      );
+      // The fixture's 1,500 paths don't exist on disk; intake-status still
+      // emits the full JSON summary (exit 0 here — drift is ledger-only for
+      // this cohort). This test owns the #pipe-wedge invariant: the full
+      // payload streams and the process exits cleanly, not the drift code.
+      expect(code).toBe(0);
       expect(bytes).toBeGreaterThan(1_000);
       // Explicit budget: the default 5s test timeout lost this spawn under
       // the pre-commit hook's 256-file parallel run (the sibling test above
