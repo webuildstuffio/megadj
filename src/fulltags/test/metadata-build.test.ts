@@ -188,7 +188,9 @@ describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
   });
 
   test("#275: 'X - Unknown Album' placeholders dissolve to honest undefined", () => {
-    expect(buildMetadata({ title: "T", album: "Experts Only - Unknown Album" }).album).toBeUndefined();
+    expect(
+      buildMetadata({ title: "T", album: "Experts Only - Unknown Album" }).album,
+    ).toBeUndefined();
     expect(buildMetadata({ title: "T", album: "Real Album" }).album).toBe("Real Album");
   });
 
