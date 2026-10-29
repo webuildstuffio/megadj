@@ -73,28 +73,20 @@ export function parseVerifyOutput(raw: string): VerifyOut {
   return parseVerifyShape(raw);
 }
 
-export function verificationError(
-  found: number,
-  py: PyOut,
-  verified: VerifyOut,
-): string | null {
+export function verificationError(found: number, py: PyOut, verified: VerifyOut): string | null {
   // F11: gated files are accounted for but get NO content row and NO
   // playlist row — the verify expectations use the row-bearing count.
   const rows = py.inserted + py.already;
-  if (py.errors.length > 0)
-    return `pyrekordbox write reported ${py.errors.length} row error(s)`;
+  if (py.errors.length > 0) return `pyrekordbox write reported ${py.errors.length} row error(s)`;
   if (rows + py.gated !== found)
     return `pyrekordbox write accounted for ${rows + py.gated}/${found} imported files`;
   if (verified.total < verified.hit)
     return `post-verify returned impossible counters (${verified.hit} hits across ${verified.total} rows)`;
-  if (verified.hit !== rows)
-    return `post-verify referenced ${verified.hit}/${rows} imported files`;
+  if (verified.hit !== rows) return `post-verify referenced ${verified.hit}/${rows} imported files`;
   if (verified.broken !== 0)
     return `post-verify found ${verified.broken} missing file path(s) in the collection`;
-  if (!verified.playlistExists)
-    return "post-verify could not re-read the playlist row";
-  if (!verified.contiguous)
-    return "post-verify found a non-contiguous playlist TrackNo sequence";
+  if (!verified.playlistExists) return "post-verify could not re-read the playlist row";
+  if (!verified.contiguous) return "post-verify found a non-contiguous playlist TrackNo sequence";
   if (verified.playlistRows !== rows)
     return `post-verify found ${verified.playlistRows}/${rows} playlist member rows`;
   return null;
@@ -153,15 +145,11 @@ export function applyImport(
       });
       const value = parseWriteOutput(lastJsonLine(result.stdout));
       if (value.playlistId === null || value.errors.length > 0)
-        throw new Error(
-          value.errors[0]?.join(": ") ??
-            "pyrekordbox write returned no playlist id",
-        );
+        throw new Error(value.errors[0]?.join(": ") ?? "pyrekordbox write returned no playlist id");
       return value;
     },
     nodes: (value) => {
-      if (value.playlistId === null)
-        throw new Error("playlist mutation returned no playlist id");
+      if (value.playlistId === null) throw new Error("playlist mutation returned no playlist id");
       const parentId = value.parentId ?? "0";
       return [
         ...(group && value.parentId
@@ -171,17 +159,12 @@ export function applyImport(
       ];
     },
     verifyDb: (value) => {
-      if (value.playlistId === null)
-        throw new Error("playlist mutation returned no playlist id");
+      if (value.playlistId === null) throw new Error("playlist mutation returned no playlist id");
       const result = rbPythonFile({
         file: "import-verify.py",
         withPkg: PYRK_TAG,
         maxBuffer: 32 * 1024 * 1024,
-        args: [
-          dbPath,
-          JSON.stringify(payloadFiles.map((file) => file[0])),
-          value.playlistId,
-        ],
+        args: [dbPath, JSON.stringify(payloadFiles.map((file) => file[0])), value.playlistId],
         timeoutMs: 120_000,
       });
       const verify = parseVerifyOutput(lastJsonLine(result.stdout));

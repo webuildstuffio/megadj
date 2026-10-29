@@ -22,11 +22,7 @@ import { AUDIO_EXTS } from "../shared/audio-exts";
  *  machines (the local Mac path is an accident of where the import ran).
  *  The rel path under the archive maps 1:1 under Contents/ because
  *  shelf-sync copies batch folders whole. Null when no shelf twin. */
-function shelfPathFor(
-  mount: string,
-  archiveDir: string,
-  full: string,
-): string | null {
+function shelfPathFor(mount: string, archiveDir: string, full: string): string | null {
   const rel = relative(archiveDir, full);
   if (rel.startsWith("..") || rel === "") return null;
   const candidate = join(mount, "Contents", rel);
@@ -62,8 +58,7 @@ export function probePayloadFiles(
     } catch {
       continue;
     }
-    if (st.isFile() && AUDIO_EXTS.has(extname(e).toLowerCase()))
-      files.push([full, e]);
+    if (st.isFile() && AUDIO_EXTS.has(extname(e).toLowerCase())) files.push([full, e]);
   }
   if (files.length === 0) return [];
 
@@ -146,9 +141,7 @@ export interface DupeRefusal {
  *  Without this, the dupe gate saw each variant as a distinct file and
  *  imported all of them (Sep 26 audit: 34 archive + 60 BACKUP2 groups). */
 function stripDupeSuffix(name: string): string {
-  return name
-    .replace(/ \[archive(?: \d+)?\]/u, "")
-    .replace(/ \[BACKUP2\]/u, "");
+  return name.replace(/ \[archive(?: \d+)?\]/u, "").replace(/ \[BACKUP2\]/u, "");
 }
 
 /** The F11 dupe-gate scan (read-only, ONE fresh spawn): Python emits the
@@ -177,11 +170,7 @@ export function dupeGateScan(
     const stemKey = nameKey(stripDupeSuffix(basename(path)));
     const first = seenStemKeys.get(stemKey);
     if (first !== undefined && first !== path) {
-      intraBatchRefused.set(path, {
-        file: path,
-        matchedBy: "path",
-        rowId: "intra-batch",
-      });
+      intraBatchRefused.set(path, { file: path, matchedBy: "path", rowId: "intra-batch" });
     } else {
       seenStemKeys.set(stemKey, path);
     }
@@ -191,9 +180,7 @@ export function dupeGateScan(
   const incoming = payloadFiles.flatMap((f) => {
     const path = f[0];
     const fp = f[11];
-    return typeof path === "string" && typeof fp === "string" && fp
-      ? [{ path, fp }]
-      : [];
+    return typeof path === "string" && typeof fp === "string" && fp ? [{ path, fp }] : [];
   });
 
   const scan = rbPythonFile({
@@ -201,10 +188,7 @@ export function dupeGateScan(
     args: [
       dbPath,
       JSON.stringify({
-        files: payloadFiles.map((f) => [
-          f[0],
-          typeof f[7] === "number" ? f[7] : 0,
-        ]),
+        files: payloadFiles.map((f) => [f[0], typeof f[7] === "number" ? f[7] : 0]),
       }),
     ],
     timeoutMs: 120_000,
@@ -220,9 +204,7 @@ export function dupeGateScan(
     const rowId = typeof c.rowId === "string" ? c.rowId : null;
     const path = typeof c.path === "string" ? c.path : null;
     const duration =
-      typeof c.duration === "number" && Number.isFinite(c.duration)
-        ? c.duration
-        : null;
+      typeof c.duration === "number" && Number.isFinite(c.duration) ? c.duration : null;
     const targets = isUnknownArray(c.targets) ? c.targets : [];
     if (rowId === null || path === null || !existsSync(path)) return [];
     return [{ rowId, path, duration, targets }];
@@ -234,18 +216,12 @@ export function dupeGateScan(
     for (const t of c.targets) {
       const target = String(t);
       if (!refused.has(target)) {
-        refused.set(target, {
-          file: target,
-          matchedBy: "path",
-          rowId: c.rowId,
-        });
+        refused.set(target, { file: target, matchedBy: "path", rowId: c.rowId });
       }
     }
   }
   // acoustic half — fingerprint the duration candidates (the ONE seam)
-  const fpCandidates = candidates.filter(
-    (c) => !c.targets.length && c.duration !== null,
-  );
+  const fpCandidates = candidates.filter((c) => !c.targets.length && c.duration !== null);
   const fpByPath = new Map<string, string | null>();
   const incomingByFp = new Map<string, string>();
   for (const f of incoming) {

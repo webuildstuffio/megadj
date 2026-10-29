@@ -35,9 +35,7 @@ describe("rb-script-kit", () => {
     expect(pyDbOpen("db_path")).toBe(
       "db = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))",
     );
-    expect(pyDbOpenBlock("sys.argv[1]")).toBe(
-      `${pyDbOpenImports()}\n${pyDbOpen("sys.argv[1]")}`,
-    );
+    expect(pyDbOpenBlock("sys.argv[1]")).toBe(`${pyDbOpenImports()}\n${pyDbOpen("sys.argv[1]")}`);
   });
 
   test("census: deobfuscate open rule lives only in rb-script-kit.ts", () => {
@@ -47,10 +45,7 @@ describe("rb-script-kit", () => {
       if (f === "rb-script-kit.ts") continue;
       const src = readFileSync(join(REKORDBOX_DIR, f), "utf8");
       // Scripts may not hand-roll either half of the rule.
-      if (
-        src.includes("deobfuscate(BLOB)") ||
-        src.includes("import deobfuscate, BLOB")
-      ) {
+      if (src.includes("deobfuscate(BLOB)") || src.includes("import deobfuscate, BLOB")) {
         offenders.push(f);
       }
     }
@@ -68,9 +63,7 @@ describe("rb-script-kit", () => {
     expect(pyPathKeyFn()).toBe(
       `def nfc(s):\n    return unicodedata.normalize("NFC", s) if s else s\n\ndef path_key(s):\n    return nfc(s).casefold()`,
     );
-    expect(pyPathKeyFn(false)).toBe(
-      `def path_key(s):\n    return nfc(s).casefold()`,
-    );
+    expect(pyPathKeyFn(false)).toBe(`def path_key(s):\n    return nfc(s).casefold()`);
   });
 
   test("rid + find_playlist keep the exact semantics the pinned scripts assert", () => {
@@ -81,9 +74,7 @@ describe("rb-script-kit", () => {
     expect(PY_FIND_PLAYLIST_FN).toContain(
       "expected_parent_id = parent.ID if parent is not None else 0",
     );
-    expect(PY_FIND_PLAYLIST_FN).toContain(
-      "str(p.ParentID or 0) == str(expected_parent_id)",
-    );
+    expect(PY_FIND_PLAYLIST_FN).toContain("str(p.ParentID or 0) == str(expected_parent_id)");
   });
 
   test("content-match preamble + per-track step are the unique basename rule", () => {
@@ -91,12 +82,8 @@ describe("rb-script-kit", () => {
     expect(preamble).toContain("by_path.setdefault(path, c.ID)");
     expect(preamble).toContain("by_base.setdefault(b, []).append(c.ID)");
     // the 60-char FileNameL clip tolerance, unique-only
-    expect(PY_MATCH_TRACK_STEP).toContain(
-      'candidates = by_base.get(base[:57] + "...", [])',
-    );
-    expect(PY_MATCH_TRACK_STEP).toContain(
-      "if cid is None and len(candidates) == 1:",
-    );
+    expect(PY_MATCH_TRACK_STEP).toContain('candidates = by_base.get(base[:57] + "...", [])');
+    expect(PY_MATCH_TRACK_STEP).toContain("if cid is None and len(candidates) == 1:");
   });
 
   test("cue_sig block: delete and verify interpolate the SAME fragment", () => {
