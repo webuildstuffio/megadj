@@ -192,4 +192,74 @@ describe("adoptFromShelf (--shelf repoint)", () => {
     expect(logs.some((m) => m.includes("no shelf copy: Ghost Track.m4a"))).toBe(true);
     ts.done({ dir: d, state: s });
   });
+
+  test("adopt --shelf --json: stat diagnostics ride stderr; stdout stays one JSON object", async () => {
+    // Codex P1 (2026-10-29): a nowhere-track's dead path hits keyRecord's
+    // statSync miss inside the cache warm-up — console.debug is stdout-
+    // bound in Bun, so the diagnostic used to corrupt the writeJson
+    // summary downstream consumers parse. Pin the channel split.
+    const { state: s, dir: d } = ts.next();
+    s.upsertTrackFromPlaylist("gj1", 0, "Ghost JSON Track");
+    s.markDownloaded("gj1", {
+      title: "Ghost JSON Track",
+      artist: null,
+      album: null,
+      formatId: null,
+      bitrateKbps: null,
+      codec: "aac",
+      filePath: join(d, "Ghost JSON Track.m4a"), // never created — dead path
+      fileSizeBytes: 5,
+      durationS: null,
+    });
+
+    const stdoutChunks: string[] = [];
+    const stderrChunks: string[] = [];
+    const debugLeak: string[] = [];
+    const origError = console.error;
+    const origDebug = console.debug;
+    const origLog = console.log;
+    const origWrite = process.stdout.write;
+    console.error = (...args: unknown[]) => {
+      stderrChunks.push(args.map(String).join(" "));
+    };
+    console.debug = (...args: unknown[]) => {
+      debugLeak.push(args.map(String).join(" "));
+    };
+    console.log = (...args: unknown[]) => {
+      stdoutChunks.push(args.map(String).join(" "));
+    };
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      stdoutChunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString());
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await adoptFromShelf({
+        state: s,
+        musicDir: d,
+        shelfVolume: shelfDir,
+        dryRun: false,
+        json: true,
+        onProgress: () => {},
+      });
+    } finally {
+      console.error = origError;
+      console.debug = origDebug;
+      console.log = origLog;
+      process.stdout.write = origWrite;
+    }
+
+    expect(debugLeak).toEqual([]);
+    expect(stderrChunks.some((m) => m.includes("archive key cache could not stat candidate"))).toBe(
+      true,
+    );
+    const summary = JSON.parse(stdoutChunks.join("")) as {
+      command: string;
+      nowhere: number;
+      keys_cached: number;
+    };
+    expect(summary.command).toBe("adopt");
+    expect(summary.nowhere).toBe(1);
+    expect(summary.keys_cached).toBe(0);
+    ts.done({ dir: d, state: s });
+  });
 });

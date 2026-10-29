@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import type { CueRecord, CueRecordInput, MoodRecord, MoodRecordInput } from "./ledgers";
 import { ArchiveBeats } from "./state-beats";
 import type { RunRow } from "./state-types";
@@ -96,11 +97,57 @@ export class ArchiveState extends ArchiveBeats {
   }
 
   setKeyRecord(record: { videoId: string; key: string; sourcePath: string }): void {
-    this.keysLedger.setKeyRecord(record);
+    this.db
+      .query(
+        `INSERT INTO track_keys (video_id, key, source_path, analyzed_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(video_id) DO UPDATE SET
+           key = excluded.key, source_path = excluded.source_path,
+           analyzed_at = excluded.analyzed_at`,
+      )
+      .run(record.videoId, record.key, record.sourcePath, this.now());
   }
 
+  /** Cached key (by video id) at the SAME source path, null when absent or
+   *  stale. Mirrors the live reader contract (ArchiveReaderCore.keyRecord,
+   *  src/deck/db/reader-core.ts): a moved/re-ripped file or a track
+   *  re-analyzed after the key was cached reads as a miss, so a cache
+   *  warm-up re-reads exactly the rows the set-builder reader would. */
   keyRecord(videoId: string, sourcePath: string): { key: string; analyzedAt: string } | null {
-    return this.keysLedger.keyRecord(videoId, sourcePath);
+    let mtimeMs: number;
+    try {
+      const stat = statSync(sourcePath);
+      if (!stat.isFile()) return null;
+      mtimeMs = stat.mtimeMs;
+    } catch (error) {
+      // stderr, never stdout: this fires per dead path inside `adopt --shelf
+      // --json`'s cache warm-up, and stdout carries the writeJson summary.
+      console.error("archive key cache could not stat candidate", error);
+      return null;
+    }
+    const row = this.db
+      .query(
+        `SELECT k.key, k.analyzed_at, t.updated_at AS track_updated_at
+         FROM track_keys k
+         JOIN tracks t ON t.video_id = k.video_id
+         WHERE k.video_id = ? AND k.source_path = ?`,
+      )
+      .get(videoId, sourcePath) as {
+      key: string;
+      analyzed_at: string;
+      track_updated_at: string;
+    } | null;
+    if (row === null) return null;
+    const analyzedMs = Date.parse(row.analyzed_at);
+    const trackMs = Date.parse(row.track_updated_at);
+    if (
+      !Number.isFinite(analyzedMs) ||
+      !Number.isFinite(trackMs) ||
+      trackMs > analyzedMs ||
+      mtimeMs > analyzedMs
+    )
+      return null;
+    return { key: row.key, analyzedAt: row.analyzed_at };
   }
 
   relabelKeySource(videoId: string, fromPath: string, toPath: string): void {
