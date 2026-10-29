@@ -755,10 +755,29 @@ const stemStatusCommand: CliCommandHandler = async (_rest, { state }) => {
       n: number;
     }
   ).n;
+  const voxCount = (
+    state.db.query("SELECT COUNT(*) AS n FROM stem_cache WHERE vox_hook = 'VOX'").get() as {
+      n: number;
+    }
+  ).n;
+  const hookCount = (
+    state.db.query("SELECT COUNT(*) AS n FROM stem_cache WHERE vox_hook = 'HOOK'").get() as {
+      n: number;
+    }
+  ).n;
+  const unclassified = total - voxCount - hookCount;
   if (json) {
-    await writeJson({ command: "stem-status", stemsCached: total, tracksDownloaded: trackCount });
+    await writeJson({
+      command: "stem-status",
+      stemsCached: total,
+      tracksDownloaded: trackCount,
+      vox: voxCount,
+      hook: hookCount,
+      unclassified,
+    });
   } else {
-    console.log(`stem-status: ${total} tracks separated (${trackCount} total downloaded)`);
+    console.log(`stem-status: ${total} separated (${trackCount} downloaded)`);
+    console.log(`  VOX: ${voxCount}  HOOK: ${hookCount}  unclassified: ${unclassified}`);
   }
 };
 
