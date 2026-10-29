@@ -43,8 +43,10 @@ export async function finishRun(
   // #256: surfaced links are NOT downloads — their own cohort, never
   // folded into the downloaded count (the honesty rule).
   const surfaced = totals.surfaced > 0 ? totals.surfaced : (opts.state.linkSurfacedCount?.() ?? 0);
+  const gated =
+    totals.tooLong + totals.junk > 0 ? `, ${totals.tooLong} too-long, ${totals.junk} junk` : "";
   log(
-    `\nrun complete: ${totals.downloaded} downloaded, ${totals.notMusic} not-music, ${surfaced} link-surfaced, ${totals.gone} gone, ${totals.failed} failed, ${(totals.bytes / 1e6).toFixed(1)} MB`,
+    `\nrun complete: ${totals.downloaded} downloaded, ${totals.notMusic} not-music${gated}, ${surfaced} link-surfaced, ${totals.gone} gone, ${totals.failed} failed, ${(totals.bytes / 1e6).toFixed(1)} MB`,
   );
   const counts = opts.state.statusCounts();
   log(
@@ -59,6 +61,8 @@ export async function finishRun(
       attempted: totals.attempted,
       downloaded: totals.downloaded,
       notMusic: totals.notMusic,
+      tooLong: totals.tooLong,
+      junk: totals.junk,
       linkSurfaced: totals.surfaced,
       gone: totals.gone,
       failed: totals.failed,

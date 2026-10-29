@@ -131,6 +131,11 @@ export interface SyncTotals {
   /** #256 link-first: tracks where the rip was SKIPPED because an
    *  official acquisition link was surfaced instead. */
   surfaced: number;
+  /** Duration/junk gate: tracks skipped because they exceed the duration
+   *  cap or match the junk-title detector (DJ sets, album rips, workout
+   *  compilations, non-music). */
+  tooLong: number;
+  junk: number;
 }
 
 /** --repair-identity (#258-followup): re-probe terminal SC rows whose
@@ -278,7 +283,17 @@ function scUrlOf(source: SyncSource): string {
 
 /** Fresh zeroed counters for one sync run. */
 export function newTotals(): SyncTotals {
-  return { attempted: 0, downloaded: 0, gone: 0, failed: 0, notMusic: 0, bytes: 0, surfaced: 0 };
+  return {
+    attempted: 0,
+    downloaded: 0,
+    gone: 0,
+    failed: 0,
+    notMusic: 0,
+    bytes: 0,
+    surfaced: 0,
+    tooLong: 0,
+    junk: 0,
+  };
 }
 
 interface PreparedSources {
@@ -420,6 +435,25 @@ export function classifyMusic(result: YtdlpInfo, opts: SyncOptions): boolean {
     (result.artist !== undefined && result.artist !== null) ||
     TITLE_MUSIC_RE.test(result.title ?? "")
   );
+}
+
+/** Max download duration in seconds (20 min). Tracks longer than this are
+ *  overwhelmingly DJ sets, album rips, or compilations that crash RB's beat
+ *  analyzer (Pioneer gapCorrect SIGSEGV on long irregular-beat files). The
+ *  mood/beats analysis chain already caps at DEFAULT_MAX_MOOD_SECONDS (10 min)
+ *  — this catches them BEFORE download to avoid wasting bandwidth. */
+export const MAX_SYNC_DURATION_S = 20 * 60;
+
+/** Title patterns that indicate junk content: DJ sets, album rips, workout
+ *  compilations, non-music (interviews, tutorials, meditation). These pass
+ *  classifyMusic because they ARE in the "Music" category on YouTube, but
+ *  they're not individual tracks suitable for a DJ library. */
+const JUNK_TITLE_RE =
+  /\bfull set\b|\bfull show\b|\bfull album\b|\bunreleased album\b|\bconcept album\b|\bsubscribers mix\b|\byear mix\b|\bbest of \d{4}\b.*\bmix\b|\bnonstop\b|\bworkout\b|\bgym\b|\bfitness\b|\bmotivation mix\b|\blucid dream(?:ing)?\b|\bmeditation\b|\bsleep\b|\basin\b|\binterview\b|\bbehind the scenes\b|\bmaking of\b|\btutorial\b|\bhow to\b|\bdeconstructed\b|\bverified\b/i;
+
+/** True when the probed info looks like a junk title (set/album/workout). */
+export function classifyJunk(result: YtdlpInfo): boolean {
+  return JUNK_TITLE_RE.test(result.title ?? "");
 }
 
 /** stat() can throw if yt-dlp's reported path vanished between the download
@@ -602,6 +636,27 @@ async function processQueue(
         totals.notMusic++;
         opts.state.markNotMusic(track.video_id, cats[0] ?? null);
         log(`  ↳ skipped (not music: ${cats[0] ?? "no category"})`);
+        bar.update();
+        continue;
+      }
+
+      // Duration cap: reject before download (DJ sets crash RB's beat
+      // analyzer; the gapCorrect SIGSEGV reproduces on files >30 min with
+      // irregular beat patterns — cap at 20 min to stay well clear).
+      const durS = typeof probed.duration === "number" ? probed.duration : 0;
+      if (durS > MAX_SYNC_DURATION_S) {
+        totals.tooLong++;
+        opts.state.markNotMusic(track.video_id, "too-long");
+        log(`  ↳ skipped (${Math.round(durS / 60)}min exceeds ${MAX_SYNC_DURATION_S / 60}min cap)`);
+        bar.update();
+        continue;
+      }
+
+      // Junk title gate: sets, albums, compilations, workout mixes, etc.
+      if (classifyJunk(probed)) {
+        totals.junk++;
+        opts.state.markNotMusic(track.video_id, "junk-title");
+        log(`  ↳ skipped (junk: ${(probed.title ?? "").slice(0, 60)})`);
         bar.update();
         continue;
       }

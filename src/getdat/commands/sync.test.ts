@@ -12,6 +12,8 @@ import {
   statSizeSafe,
   sync,
   classifyMusic,
+  classifyJunk,
+  MAX_SYNC_DURATION_S,
   type SyncOptions,
 } from "./sync";
 import { tempState } from "../../test-support/testutil";
@@ -574,5 +576,64 @@ describe("classifyMusic gate — AI/sloppy-metadata uploads are music (#250)", (
     expect(
       classifyMusic(testYtdlpInfo({ categories: ["Comedy"] }), { musicOnly: false } as SyncOptions),
     ).toBe(true);
+  });
+});
+
+describe("duration cap — DJ sets/albums crash RB beat analyzer", () => {
+  test("cap is 20 minutes", () => {
+    expect(MAX_SYNC_DURATION_S).toBe(20 * 60);
+  });
+});
+
+describe("classifyJunk — title-based junk filter", () => {
+  test("DJ sets/full shows/album rips are junk", () => {
+    for (const title of [
+      "EXIT 2021 | Solomun @ mts Dance Arena FULL SHOW (HQ version)",
+      "Vanilla - Origin (Full Album)",
+      "James Hype live from New York 2022 - Full Set",
+      "The Kid LAROI - Best of Unreleased (unreleased album)",
+      "End of The World (concept album) Unreleased (leaked)",
+    ]) {
+      expect(classifyJunk(testYtdlpInfo({ title }))).toBe(true);
+    }
+  });
+
+  test("workout mixes and non-music are junk", () => {
+    for (const title of [
+      "Aggressive Trap Gym Workout Mix 2023",
+      "Best Gym Workout Music Mix 2022",
+      "Workout Music Mix 2025 - Fitness & Gym Motivation",
+      "Lucid Dreaming Music - The Original",
+      "Best of 2019 House Mix",
+    ]) {
+      expect(classifyJunk(testYtdlpInfo({ title }))).toBe(true);
+    }
+  });
+
+  test("interviews and tutorials are junk", () => {
+    for (const title of [
+      "Skrillex interview backstage at Ultra",
+      "Behind The Scenes of Tomorrowland",
+      "How To Mix: Tutorial for Beginners",
+    ]) {
+      expect(classifyJunk(testYtdlpInfo({ title }))).toBe(true);
+    }
+  });
+
+  test("normal tracks are NOT junk", () => {
+    for (const title of [
+      "Strobe (Extended Mix)",
+      "Lose Yourself to Dance (feat. Pharrell Williams)",
+      "One More Time",
+      "Blue Monday",
+      "Pryda - The Beginning (Original Mix)",
+    ]) {
+      expect(classifyJunk(testYtdlpInfo({ title }))).toBe(false);
+    }
+  });
+
+  test("NONSTOP compilations are junk", () => {
+    expect(classifyJunk(testYtdlpInfo({ title: "NONSTOP VINAHOUSE 2021 - bass cang" }))).toBe(true);
+    expect(classifyJunk(testYtdlpInfo({ title: "Selected 1M Subscribers Mix" }))).toBe(true);
   });
 });
