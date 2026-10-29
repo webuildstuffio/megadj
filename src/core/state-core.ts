@@ -2,7 +2,7 @@ import { openLedger } from "../shared/sqlite-ledger";
 import type { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { Ledgers } from "./ledgers";
-import { EmbeddingsLedger, KeysLedger } from "./similar";
+import { EmbeddingsLedger } from "./similar";
 import { ShelfSweeps } from "./sweeps";
 
 /** Connection, schema, and delegated ledger ownership for archive state. */
@@ -10,7 +10,6 @@ export class ArchiveCore {
   readonly db: Database;
   readonly dbDir: string;
   protected readonly embeddingsLedger: EmbeddingsLedger;
-  protected readonly keysLedger: KeysLedger;
   protected readonly ledgers: Ledgers;
   readonly shelfSweeps: ShelfSweeps;
 
@@ -20,7 +19,6 @@ export class ArchiveCore {
     if (dir) mkdirSync(dir, { recursive: true });
     this.db = openLedger(dbPath, { create: true });
     this.embeddingsLedger = new EmbeddingsLedger(this.db, () => this.now());
-    this.keysLedger = new KeysLedger(this.db, () => this.now());
     this.ledgers = new Ledgers(this.db, () => this.now());
     this.shelfSweeps = new ShelfSweeps(this.db);
     this.migrate();

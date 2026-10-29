@@ -233,34 +233,3 @@ export class EmbeddingsLedger extends RecordLedger {
     });
   }
 }
-
-/**
- * Track_keys ledger — DEPRECATED shim retained only so the type stays
- * importable; the live cache implementation is ArchiveReader's
- * keyRecord/setKeyRecord (src/deck/db/reader.ts). Do not extend here.
- * Plumbing rides RecordLedger (#74) like every other ledger.
- */
-export class KeysLedger extends RecordLedger {
-  /** Upsert one key. Idempotent by video_id: a re-read replaces the row. */
-  setKeyRecord(rec: { videoId: string; key: string; sourcePath: string }): void {
-    this.upsert(
-      "track_keys",
-      rec.videoId,
-      ["key", "source_path", "analyzed_at"],
-      [rec.key, rec.sourcePath, this.now()],
-    );
-  }
-
-  /** Cached key (by video id), null when never cached. A cache hit is
-   * only valid when the file path still matches — a moved/re-ripped file
-   * invalidates its own row lazily, no sweep needed. */
-  keyRecord(videoId: string, sourcePath: string): { key: string; analyzedAt: string } | null {
-    const row = this.db
-      .query(
-        `SELECT key, analyzed_at FROM track_keys
-         WHERE video_id = ? AND source_path = ?`,
-      )
-      .get(videoId, sourcePath) as { key: string; analyzed_at: string } | null;
-    return row ? { key: row.key, analyzedAt: row.analyzed_at } : null;
-  }
-}
