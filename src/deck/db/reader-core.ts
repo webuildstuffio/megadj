@@ -80,8 +80,10 @@ export class ArchiveReaderCore {
       return stat.isFile() ? { size: stat.size, mtimeMs: stat.mtimeMs } : null;
     } catch (error) {
       // A file can vanish between the candidate census and this lookup. A
-      // missing identity must never validate a stale key record.
-      console.debug("archive key cache could not stat candidate", error);
+      // missing identity must never validate a stale key record. stderr,
+      // never stdout: console.debug is stdout-bound in Bun, and stderr is
+      // the house diagnostics channel (same twin diagnostic in state.ts).
+      console.error("archive key cache could not stat candidate", error);
       return null;
     }
   }

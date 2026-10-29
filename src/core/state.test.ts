@@ -1,5 +1,8 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import { utimesSync } from "node:fs";
+import { join } from "node:path";
 import { tempState } from "../test-support/testutil";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 import type { ArchiveState } from "./state";
 
 let dir: string;
@@ -424,5 +427,28 @@ describe("link_surfaced ledger state (#256)", () => {
     scState.upsertTrackFromPlaylist("270000002", 0, "Track", "liked");
     expect(scState.sourceLinks("270000002")).toBeNull();
     expect(scState.trackById("270000002")?.status).toBe("pending");
+  });
+});
+
+describe("keyRecord — reader-mirror contract (#549)", () => {
+  test("a cached key whose video_id has no tracks row reads as a MISS", () => {
+    // ArchiveState.keyRecord must judge cache rows exactly like the live
+    // reader (ArchiveReaderCore.keyRecord, src/deck/db/reader-core.ts),
+    // which INNER JOINs tracks: the set-builder only considers tracks in
+    // the library, so adopt --shelf's warm-up must treat an orphaned
+    // track_keys row as a miss or its "keys cached" count would trust
+    // rows the reader re-reads anyway. A LEFT JOIN (Qodo, 2026-10-29)
+    // would resurrect the retired KeysLedger laxness — deliberately
+    // rejected; this pin holds the mirror.
+    const keyed = writeFakeAudio(join(dir, "Keyed Track.m4a"));
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(keyed, past, past); // backdate: mtime must not outrun analyzed_at
+    state.upsertTrackFromPlaylist("live1", 0, "Keyed Track");
+    state.setKeyRecord({ videoId: "live1", key: "8A", sourcePath: keyed });
+    // Orphaned row: setKeyRecord writes track_keys without a tracks row.
+    state.setKeyRecord({ videoId: "orphan1", key: "1A", sourcePath: keyed });
+
+    expect(state.keyRecord("live1", keyed)?.key).toBe("8A");
+    expect(state.keyRecord("orphan1", keyed)).toBeNull();
   });
 });

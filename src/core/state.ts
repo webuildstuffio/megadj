@@ -115,7 +115,9 @@ export class ArchiveState extends ArchiveBeats {
       if (!stat.isFile()) return null;
       mtimeMs = stat.mtimeMs;
     } catch (error) {
-      console.debug("archive key cache could not stat candidate", error);
+      // stderr, never stdout: this fires per dead path inside `adopt --shelf
+      // --json`'s cache warm-up, and stdout carries the writeJson summary.
+      console.error("archive key cache could not stat candidate", error);
       return null;
     }
     const row = this.db
