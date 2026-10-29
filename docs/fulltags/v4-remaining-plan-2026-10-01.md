@@ -49,18 +49,25 @@ HOOK (vocals present but only in the body — clean mix zones).
 **Recommended: Option A (Demucs htdemucs_ft)** — one-time batch, results
 persist in `beats` table as `vocal_zones` JSON.
 
+**Unified Demucs runner ([#556](https://github.com/webuildstuffio/megadj/issues/556)):**
+The `megadj stems` command runs Demucs once per track and caches ALL 4 stems
+(vocals, drums, bass, other). Three consumers share that cache:
+- **VOX/HOOK** (#429): reads vocals stem → per-bar RMS → zone classification
+- **XZ Mods stem export** ([#555](https://github.com/webuildstuffio/megadj/issues/555)):
+  reads all 4 stems → writes OverCue format → FAT32 playing USB
+- **Grid audit**: reads bass+drums → per-bar energy
+
 **Implementation plan:**
 
 1. Add `vocal_zones` column to `beats` table (JSON array of `{start_s, end_s}`)
-2. Write a vocal-detect module — spawns demucs via uv,
-   reads the vocals stem, runs energy-threshold detection on vocal stem
-3. Write a vocals CLI arm (batch parallel like mood)
+2. `megadj stems` runs Demucs batch, caches 4 stems per track, ledgers in `stem_cache` table
+3. VOX/HOOK module reads cached vocals stem → energy-threshold detection
 4. In `resolve_data_v4`: read vocal zones, compare vs intro/outro beat
    positions from PSSI → VOX if vocals overlap mix zones, HOOK otherwise
 5. Wire into `buildCommentV4` (already has the slot)
 6. Bench against 50 manually-labeled tracks before fleet-wide run
 
-**Dependencies:** `demucs` (pip/uv), PyTorch (CPU-only OK but slow).
+**Dependencies:** `demucs` (pip/uv), PyTorch (CPU-only OK but slow; MPS on Apple Silicon ~30s/track).
 No hardware dependency — runs on the Mac.
 
 ### 2. Multi-genre subgenre display (this session)
@@ -100,7 +107,8 @@ to use the metadata while DJing. Printable.
 | Multi-genre subgenre | Now | Nothing |
 | Web guide | Now | Nothing |
 | Hardware validation | Next drive day | Physical hardware |
-| VOX/HOOK pipeline | Future session | Demucs setup + bench |
+| VOX/HOOK pipeline | Future session | `megadj stems` runner (#556) + bench |
+| XZ Mods stem export | Future session | `megadj stems` + OverCue writer (#555) |
 
 ## Files involved
 
