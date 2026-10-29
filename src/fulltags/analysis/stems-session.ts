@@ -62,93 +62,92 @@ const RESPONSE_TIMEOUT_MS = 5 * 60 * 1000;
 const READY_TIMEOUT_MS = 10 * 60 * 1000;
 
 const DEMUCS_MODEL = "htdemucs_ft";
-const DEMUCS_DEPS = ["demucs==4.1.0", "soundfile"] as const;
+const DEMUCS_DEPS = ["demucs-mlx", "soundfile"] as const;
 
 export async function openStemSession(): Promise<StemSession | null> {
   let workerInfo: StemWorkerInfo | null = null;
   const scriptPath = join(import.meta.dir, "stems-worker.py");
   const scriptContent = readFileSync(scriptPath, "utf8");
 
-  const inner: WorkerSession<StemRequest, StemResult> | null = await openWorkerSession<
-    StemRequest,
-    StemResult
-  >({
-    spawn: () =>
-      Bun.spawn({
-        cmd: [
-          "uv",
-          "run",
-          ...DEMUCS_DEPS.flatMap((dep) => ["--with", dep]),
-          "python",
-          "-c",
-          scriptContent,
-        ],
-        stdin: "pipe",
-        stdout: "pipe",
-        stderr: "inherit",
-        env: {
-          ...process.env,
-          DEMUCS_MODEL,
-          // MPS graph capture: reuse compiled kernels across inference calls
-          PYTORCH_MPS_HIGH_WATERMARK_RATIO: "0.0",
-        },
-      }),
-    isReady(line) {
-      const parsed = parseJsonOrNull(line);
-      if (
-        parsed !== null &&
-        typeof parsed === "object" &&
-        "type" in parsed &&
-        (parsed as Record<string, unknown>)["type"] === "ready"
-      ) {
-        const obj = parsed as Record<string, unknown>;
-        workerInfo = {
-          model: String(obj["model"] ?? DEMUCS_MODEL),
-          device: String(obj["device"] ?? "cpu"),
-          sources: Array.isArray(obj["sources"]) ? (obj["sources"] as unknown[]).map(String) : [],
-          samplerate: (() => {
-            const sr = Number(obj["samplerate"]);
-            return Number.isFinite(sr) ? sr : 44100;
-          })(),
-        };
-        return true;
-      }
-      return lineIsReady(line);
-    },
-    readyTimeoutMs: READY_TIMEOUT_MS,
-    encodeRequest: (req, enc, proc) =>
-      writeNdjsonRequest(proc, enc, { id: req.path, path: req.path, output_dir: req.outputDir }),
-    isResponse: lineHasRequestId,
-    responseTimeoutMs: RESPONSE_TIMEOUT_MS,
-    parse(line, req) {
-      const obj = parseJsonOrNull(line) as Record<string, unknown> | null;
-      if (obj === null || obj["id"] !== req.path) return null;
+  const inner: WorkerSession<StemRequest, StemResult> | null =
+    await openWorkerSession<StemRequest, StemResult>({
+      spawn: () =>
+        Bun.spawn({
+          cmd: [
+            "uv",
+            "run",
+            ...DEMUCS_DEPS.flatMap((dep) => ["--with", dep]),
+            "python",
+            "-c",
+            scriptContent,
+          ],
+          stdin: "pipe",
+          stdout: "pipe",
+          stderr: "inherit",
+          env: { ...process.env, DEMUCS_MODEL },
+        }),
+      isReady(line) {
+        const parsed = parseJsonOrNull(line);
+        if (
+          parsed !== null &&
+          typeof parsed === "object" &&
+          "type" in parsed &&
+          (parsed as Record<string, unknown>)["type"] === "ready"
+        ) {
+          const obj = parsed as Record<string, unknown>;
+          workerInfo = {
+            model: String(obj["model"] ?? DEMUCS_MODEL),
+            device: String(obj["device"] ?? "cpu"),
+            sources: Array.isArray(obj["sources"])
+              ? (obj["sources"] as unknown[]).map(String)
+              : [],
+            samplerate: (() => {
+              const sr = Number(obj["samplerate"]);
+              return Number.isFinite(sr) ? sr : 44100;
+            })(),
+          };
+          return true;
+        }
+        return lineIsReady(line);
+      },
+      readyTimeoutMs: READY_TIMEOUT_MS,
+      encodeRequest: (req, enc, proc) =>
+        writeNdjsonRequest(proc, enc, {
+          id: req.path,
+          path: req.path,
+          output_dir: req.outputDir,
+        }),
+      isResponse: lineHasRequestId,
+      responseTimeoutMs: RESPONSE_TIMEOUT_MS,
+      parse(line, req) {
+        const obj = parseJsonOrNull(line) as Record<string, unknown> | null;
+        if (obj === null || obj["id"] !== req.path) return null;
 
-      if (obj["status"] !== "ok") {
+        if (obj["status"] !== "ok") {
+          return {
+            ok: false as const,
+            error: String(obj["error"] ?? "unknown error"),
+            errorType: String(obj["error_type"] ?? "Unknown"),
+            traceback: String(obj["traceback"] ?? ""),
+          };
+        }
+
+        const stems = obj["stems"];
+        if (stems === null || typeof stems !== "object") return null;
+        const elapsedRaw = Number(obj["elapsed_s"]);
+        const durationRaw = Number(obj["duration_s"]);
+        const bytesRaw = Number(obj["output_bytes"]);
+        const trackRaw = Number(obj["track_number"]);
         return {
-          ok: false as const,
-          error: String(obj["error"] ?? "unknown error"),
-          errorType: String(obj["error_type"] ?? "Unknown"),
-          traceback: String(obj["traceback"] ?? ""),
+          ok: true as const,
+          stems: stems as Record<string, string>,
+          elapsedS: Number.isFinite(elapsedRaw) ? elapsedRaw : 0,
+          durationS: Number.isFinite(durationRaw) ? durationRaw : 0,
+          outputBytes: Number.isFinite(bytesRaw) ? bytesRaw : 0,
+          trackNumber: Number.isFinite(trackRaw) ? trackRaw : 0,
         };
-      }
-
-      const stems = obj["stems"];
-      if (stems === null || typeof stems !== "object") return null;
-      const elapsedRaw = Number(obj["elapsed_s"]);
-      const durationRaw = Number(obj["duration_s"]);
-      const bytesRaw = Number(obj["output_bytes"]);
-      const trackRaw = Number(obj["track_number"]);
-      return {
-        ok: true as const,
-        stems: stems as Record<string, string>,
-        elapsedS: Number.isFinite(elapsedRaw) ? elapsedRaw : 0,
-        durationS: Number.isFinite(durationRaw) ? durationRaw : 0,
-        outputBytes: Number.isFinite(bytesRaw) ? bytesRaw : 0,
-        trackNumber: Number.isFinite(trackRaw) ? trackRaw : 0,
-      };
-    },
-  });
+      },
+    });
 
   if (inner === null) return null;
 
