@@ -92,7 +92,7 @@ describe("preflight (B12)", () => {
     // concern — the matrix OMITS the check, it doesn't fake a pass
     const r = preflightForDrive(
       input({
-        drive: drive({ name: "SHELF1", role: "shelf" }),
+        drive: drive({ name: "GREY FIKWOK", role: "shelf" }),
         snapshot: snap({ pdb_live_rows: 3926, onelibrary_rows: 3053 }),
       }),
     );
@@ -106,7 +106,7 @@ describe("preflight (B12)", () => {
     // as a gig stick. Archive tier omits those checks entirely.
     const r = preflightForDrive(
       input({
-        drive: drive({ name: "SHELF1", role: "shelf" }),
+        drive: drive({ name: "GREY FIKWOK", role: "shelf" }),
         snapshot: snap({ pdb_live_rows: 0, onelibrary_rows: 0, grid_coverage: 0 }),
         players: {
           ok: [],
@@ -133,7 +133,7 @@ describe("preflight (B12)", () => {
   it("SHELF: a FAILED verify still fails (integrity applies to every tier)", () => {
     const r = preflightForDrive(
       input({
-        drive: drive({ name: "SHELF1", role: "shelf" }),
+        drive: drive({ name: "GREY FIKWOK", role: "shelf" }),
         latestVerify: { ran_at: NOW - DAY, ok: false },
       }),
     );

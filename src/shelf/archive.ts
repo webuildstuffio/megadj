@@ -50,7 +50,7 @@ import { DB_PATH } from "../cli-env";
 export interface ShelfArchiveOptions {
   /** Drive mount roots to archive FROM, e.g. /Volumes/BANGERS. */
   volumes: string[];
-  /** Shelf master mount root (volume), e.g. /Volumes/SHELF1. */
+  /** Shelf master mount root (volume), e.g. /Volumes/GREY FIKWOK. */
   shelfVolume?: string | undefined;
   /** Land every copied file flat under Contents/<into>/ (trash rescue). */
   into?: string | undefined;

@@ -142,7 +142,7 @@ describe("surfaces derive from the matrix (derived, not hardcoded)", () => {
   test("badges[shelf] never contain gig-tier signals when verify passes", () => {
     const snap = { ...FULL_SNAP, grid_coverage: 0, db_mtime: 999 };
     const b = driveBadges(
-      drive({ role: "shelf", name: "SHELF1", last_snapshot_json: JSON.stringify(snap) }),
+      drive({ role: "shelf", name: "GREY FIKWOK", last_snapshot_json: JSON.stringify(snap) }),
       { latestVerify: { ran_at: 1, ok: true } },
     );
     expect(b.some((x) => x.label.startsWith("grids"))).toBe(false);

@@ -62,7 +62,7 @@ function shelfLiterals(path: string): { line: number; text: string }[] {
       : isNoSubstitutionTemplateLiteral(node)
         ? node.text
         : null;
-    if (text !== null && /\/Volumes\/SHELF1/u.test(text)) {
+    if (text !== null && /\/Volumes\/(SHELF1|GREY FIKWOK)/u.test(text)) {
       out.push({
         line: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1,
         text: node.getText(sf).slice(0, 90),
@@ -128,7 +128,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
         .split("\n")
         .filter((l) => !/^\s*#/u.test(l));
       for (const [i, line] of executable.entries()) {
-        if (/\/Volumes\/SHELF1/u.test(line))
+        if (/\/Volumes\/(SHELF1|GREY FIKWOK)/u.test(line))
           hits.push(`${p.slice(ROOT.length + 1)}:${i + 1}: ${line.trim()}`);
       }
     }
@@ -163,7 +163,7 @@ describe("shelf volume census (issue #55 regression gate)", () => {
     const rows = JSON.parse(proc.stdout.toString().trim()) as string[];
     expect(rows[0]).toBe("/Volumes/BIGBOX");
     expect(rows[1]).toBe("/abs/path");
-    expect(rows[2]).toBe("/Volumes/SHELF1"); // src/deck config.toml absent → default
+    expect(rows[2]).toBe("/Volumes/GREY FIKWOK"); // src/deck config.toml absent → default
 
     // env beats config when no explicit arg is passed
     const proc2 = Bun.spawnSync({

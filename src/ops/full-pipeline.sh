@@ -29,8 +29,8 @@ if [ ! -f "src/cli.ts" ]; then
   exit 1
 fi
 MAIN_LOG=/tmp/megadj-full-pipeline-$(date +%F).log
-SHELF="${MEGADJ_SHELF:-/Volumes/SHELF1/Contents}"
-DRIVE="${MEGADJ_DRIVE:-/Volumes/SHELF1}"
+SHELF="${MEGADJ_SHELF:-/Volumes/GREY FIKWOK/Contents}"
+DRIVE="${MEGADJ_DRIVE:-/Volumes/GREY FIKWOK}"
 GENRE_GATE=65
 AI_FALLBACK=false
 WITH_SYNC=false

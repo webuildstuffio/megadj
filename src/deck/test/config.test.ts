@@ -18,7 +18,7 @@ describe("config", () => {
     expect(cfg.serverPort).toBe(7742);
     expect(cfg.masterDrive).toBe("DJMASTER");
     expect(cfg.mirrorDrive).toBe("DJMIRROR");
-    expect(cfg.shelfDrive).toBe("SHELF1");
+    expect(cfg.shelfDrive).toBe("GREY FIKWOK");
     expect(cfg.imageProvider).toBe(null);
     // uvPath resolves to SOMETHING on every machine — the launchd server
     // has no ~/.local/bin on PATH, so a bare "uv" spawn 404'd unattended

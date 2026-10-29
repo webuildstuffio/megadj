@@ -15,7 +15,7 @@ const baseCss = readFileSync(join(import.meta.dir, "../../styles/base.css"), "ut
 const drive: Drive = {
   id: "d1",
   volume_uuid: null,
-  name: "SHELF1",
+  name: "GREY FIKWOK",
   nickname: null,
   photo_path: null,
   capacity_bytes: 1_000_000_000_000,
@@ -49,7 +49,7 @@ function renderTab(searchHits: PhotoHit[] | null, driveImages: DriveImage[] | nu
     <PhotoTab
       drive={drive}
       driveId="d1"
-      name="SHELF1"
+      name="GREY FIKWOK"
       photoQuery=""
       setPhotoQuery={() => {}}
       onSearch={() => {}}

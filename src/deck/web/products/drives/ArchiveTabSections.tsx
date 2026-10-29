@@ -153,7 +153,7 @@ export function SyncBreakers(props: {
 /** Card 1b — grid health (GA-05c, #167): shelf triage buckets. Reads the
  *  last run; the card carries its own scan button when none exists. */
 export function GridHealthSection() {
-  return <GridHealthCard drive="SHELF1" />;
+  return <GridHealthCard drive="GREY FIKWOK" />;
 }
 
 /** Card 3 — retry backlog: failed + gone in one actionable count. */

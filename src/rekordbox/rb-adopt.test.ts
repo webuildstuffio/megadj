@@ -81,7 +81,7 @@ function rows(existingPath: string, newPath: string): RekordboxContentRow[] {
 describe("rb-adopt", () => {
   test("top-level apply requires confirmation and snapshots archive.db", () => {
     const { root, state, existingPath, newPath } = fixture();
-    const mount = join(root, "SHELF1");
+    const mount = join(root, "GREY FIKWOK");
     const master = join(mount, "PIONEER", "Master", "master.db");
     mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
     writeFileSync(master, "reader seam fixture");

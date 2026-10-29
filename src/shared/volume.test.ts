@@ -30,7 +30,7 @@ function withRoot<T>(root: string, fn: () => T): T {
 describe("volume seams", () => {
   test("volumePath leaves absolute paths alone, mounts bare names", () => {
     expect(volumePath("/Volumes/X")).toBe("/Volumes/X");
-    expect(volumePath("SHELF1")).toBe("/Volumes/SHELF1");
+    expect(volumePath("GREY FIKWOK")).toBe("/Volumes/GREY FIKWOK");
   });
 
   test("configuredMasterDrive reads config.toml library.master_drive (SSOT)", () => {

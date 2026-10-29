@@ -28,7 +28,7 @@ export interface ShelfSweepRow {
   id: number;
   /** Volume name swept, e.g. "BANGERS". */
   drive: string;
-  /** Shelf volume archived INTO, e.g. "SHELF1". */
+  /** Shelf volume archived INTO, e.g. "GREY FIKWOK". */
   shelf: string;
   /** ISO timestamps. */
   started_at: string;

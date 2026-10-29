@@ -47,7 +47,7 @@ describe("badges", () => {
       pdb_mtime: 10_000,
     };
     const b = driveBadges(
-      drive({ role: "shelf", name: "SHELF1", last_snapshot_json: JSON.stringify(snap) }),
+      drive({ role: "shelf", name: "GREY FIKWOK", last_snapshot_json: JSON.stringify(snap) }),
       { latestVerify: { ran_at: 5_000, ok: false } },
     );
     expect(b.some((x) => x.key === "attn" && x.label === "verify failed")).toBe(true);
@@ -64,7 +64,7 @@ describe("badges", () => {
       pdb_mtime: 0,
     };
     const b = driveBadges(
-      drive({ role: "shelf", name: "SHELF1", last_snapshot_json: JSON.stringify(snap) }),
+      drive({ role: "shelf", name: "GREY FIKWOK", last_snapshot_json: JSON.stringify(snap) }),
       { latestVerify: { ran_at: 5_000, ok: true } },
     );
     expect(b.some((x) => x.label === "archive ready")).toBe(true);

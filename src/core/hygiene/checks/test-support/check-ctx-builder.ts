@@ -20,7 +20,7 @@ export function checkCtx(
   const fpFor = opts.fpFor ?? ((p: string) => `fp:${p.normalize("NFC").toLowerCase()}`);
   const fpForRow = opts.fpForRow ?? ((r: DbContentRow) => `fp:${r.title}`);
   return {
-    volume: "/Volumes/SHELF1",
+    volume: "/Volumes/GREY FIKWOK",
     walkToken: WALK_TOKEN,
     md5: () => null,
     fp: (p) => fpFor(p),

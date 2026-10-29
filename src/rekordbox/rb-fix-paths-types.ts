@@ -46,7 +46,7 @@ export interface RbFixResult {
 }
 
 export interface RbFixPathsOptions {
-  /** Drive mount root, e.g. /Volumes/SHELF1 — master DB lives at
+  /** Drive mount root, e.g. /Volumes/GREY FIKWOK — master DB lives at
    *  <mount>/PIONEER/Master/master.db. */
   mount: string;
   apply?: boolean;

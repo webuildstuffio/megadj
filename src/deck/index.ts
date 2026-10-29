@@ -213,7 +213,7 @@ function serveDriveImage(url: URL): Response {
 const hygieneApi = makeHygieneRoutes({
   reader: hygiene,
   // the A/B compare rail serves audio only from the shelf mount — the
-  // mount point (not Contents) since findings reference /Volumes/SHELF1/…
+  // mount point (not Contents) since findings reference /Volumes/GREY FIKWOK/…
   shelfRoot: `/Volumes/${cfg.shelfDrive}`,
   enqueue: (kind) => {
     const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);

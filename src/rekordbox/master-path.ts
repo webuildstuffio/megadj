@@ -11,7 +11,7 @@
  * variant): explicit path / env wins; a master.db path, Master dir,
  * PIONEER dir, drive root, or bare volume name all resolve to the standard
  * layout. The no-arg default routes through `resolveShelfVolume` (issue
- * #55) — never a hardcoded /Volumes/SHELF1 literal.
+ * #55) — never a hardcoded volume path literal.
  */
 import { resolveShelfVolume } from "../shared/volume.js";
 import { nonEmptyEnv } from "../shared/leaf/guards.js";

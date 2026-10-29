@@ -217,7 +217,7 @@ describe("shelf sweep ledger", () => {
     const sweeps = new ShelfSweeps(db);
     const id = sweeps.start({
       drive: "TESTDRIVE",
-      shelf: "SHELF1",
+      shelf: "GREY FIKWOK",
       deep: true,
       trashes: false,
       into: null,
@@ -241,7 +241,7 @@ describe("shelf sweep ledger", () => {
   test("failures produce a failed verdict, never 'complete'", () => {
     const db = new Database(":memory:");
     const sweeps = new ShelfSweeps(db);
-    const id = sweeps.start({ drive: "X", shelf: "SHELF1" });
+    const id = sweeps.start({ drive: "X", shelf: "GREY FIKWOK" });
     sweeps.finish(
       id,
       { filesSeen: 10, coveredExact: 8, preserved: 0, copied: 1, bytesCopied: 1, failed: 1 },
@@ -253,7 +253,7 @@ describe("shelf sweep ledger", () => {
   test("dry runs record as preview, latestPerDrive keeps one row per drive", () => {
     const db = new Database(":memory:");
     const sweeps = new ShelfSweeps(db);
-    const a = sweeps.start({ drive: "A", shelf: "SHELF1" });
+    const a = sweeps.start({ drive: "A", shelf: "GREY FIKWOK" });
     sweeps.finishPreview(a, {
       filesSeen: 5,
       coveredExact: 5,
@@ -262,7 +262,7 @@ describe("shelf sweep ledger", () => {
       bytesCopied: 0,
       failed: 0,
     });
-    const b = sweeps.start({ drive: "B", shelf: "SHELF1" });
+    const b = sweeps.start({ drive: "B", shelf: "GREY FIKWOK" });
     sweeps.finishPreview(b, {
       filesSeen: 2,
       coveredExact: 1,

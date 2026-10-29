@@ -148,7 +148,7 @@ export interface MegasetQuality {
 
 /** The all-missing signature: every DB row's file path failed the
  *  existence check while rows exist at all. In practice this means the
- *  shelf volume is NOT mounted (paths like /Volumes/SHELF1/... cannot
+ *  shelf volume is NOT mounted (paths like /Volumes/GREY FIKWOK/... cannot
  *  exist) — not that the library is small or unanalyzed. Derived, never
  *  a server flag: the client classifies from the same census numbers the
  *  engine measured, so a drifted wire field cannot lie twice. The steps

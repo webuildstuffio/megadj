@@ -65,7 +65,7 @@ export function inferRole(
   volumeName: string,
   masterName = "DJMASTER",
   mirrorName = "DJMIRROR",
-  shelfName = "SHELF1",
+  shelfName = "GREY FIKWOK",
 ): Drive["role"] {
   const n = volumeName.toUpperCase();
   if (n === masterName.toUpperCase()) return "master";

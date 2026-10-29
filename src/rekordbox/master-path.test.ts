@@ -24,7 +24,7 @@ describe("masterDbPath: env override (the #66 contract)", () => {
   test("explicit env beats every mount form — including drive roots", () => {
     process.env[ENV] = "/tmp/some-other-master.db";
     expect(masterDbPath("/Volumes/SHELF1")).toBe("/tmp/some-other-master.db");
-    expect(masterDbPath("SHELF1")).toBe("/tmp/some-other-master.db");
+    expect(masterDbPath("GREY FIKWOK")).toBe("/tmp/some-other-master.db");
     expect(masterDbPath("/Volumes/SHELF1/PIONEER/Master/master.db")).toBe(
       "/tmp/some-other-master.db",
     );
@@ -32,7 +32,7 @@ describe("masterDbPath: env override (the #66 contract)", () => {
 
   test("no env: bare volume name resolves to the standard layout", () => {
     delete process.env[ENV];
-    expect(masterDbPath("SHELF1")).toBe("/Volumes/SHELF1/PIONEER/Master/master.db");
+    expect(masterDbPath("GREY FIKWOK")).toBe("/Volumes/GREY FIKWOK/PIONEER/Master/master.db");
   });
 
   test("no env: drive root, PIONEER dir, Master dir all resolve", () => {

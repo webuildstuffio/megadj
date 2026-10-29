@@ -37,7 +37,7 @@ import { errMessage as errorText } from "../shared/leaf/fmt";
 import { commandLog } from "../shared/progress";
 
 export interface RbUnmatchedOptions {
-  /** Drive mount root, e.g. /Volumes/SHELF1. */
+  /** Drive mount root, e.g. /Volumes/GREY FIKWOK. */
   mount: string;
   /** Restrict the disk census to these extensions ("mp3" or ".mp3").
    * Default: every audio extension the shelf walk knows. */

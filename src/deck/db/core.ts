@@ -66,7 +66,7 @@ export class DBCore {
   readonly sqlite: Database;
   masterName = "DJMASTER";
   mirrorName = "DJMIRROR";
-  shelfName = "SHELF1";
+  shelfName = "GREY FIKWOK";
   protected readonly ledger: LedgerQueries;
   protected readonly benchStore: BenchLedger;
   protected readonly driveStore: DriveStore;

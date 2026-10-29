@@ -31,7 +31,7 @@ const SYNC_ARTIFACT_RE = /\[archive(?: \d+)?\]|\[BACKUP\d*\]/u;
 export interface ShelfSyncOptions {
   /** Archive root — new music lands here (megadj drop / organize output). */
   musicDir: string;
-  /** Shelf master mount root (volume), e.g. /Volumes/SHELF1. */
+  /** Shelf master mount root (volume), e.g. /Volumes/GREY FIKWOK. */
   shelfVolume?: string;
   /** Extra targets to mirror to after the shelf (mounted sticks). */
   stickVolumes?: string[];

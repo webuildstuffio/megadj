@@ -122,7 +122,7 @@ test("enqueue rejects a persisted traversal name before creating a job", async (
 
 test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects junk kinds", async () => {
   const root = t5.dir();
-  mkdirSync(join(root, "SHELF1")); // resolveMountPoint requires a real dir
+  mkdirSync(join(root, "GREY FIKWOK")); // resolveMountPoint requires a real dir
   const enqueuedKinds: string[] = [];
   // #411: mirror requires role=mirror — use a mirror-role drive for that kind
   let currentRole: DriveRole = "unknown";
@@ -140,7 +140,7 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
         return { id: "job-1" };
       },
     },
-    getDrive: () => ({ ...mountedDrive("SHELF1"), role: currentRole }),
+    getDrive: () => ({ ...mountedDrive("GREY FIKWOK"), role: currentRole }),
     json: (data, status = 200) => Response.json(data, { status }),
   });
   const post = (kind: string) =>
@@ -168,7 +168,7 @@ test("enqueue rejects mirror kind on non-mirror-role drives (#411)", async () =>
   const root = t5.dir();
   const nonMirrorRoles: DriveRole[] = ["unknown", "master", "shelf", "library"];
   for (const testRole of nonMirrorRoles) {
-    const drive = { ...mountedDrive("SHELF1"), role: testRole };
+    const drive = { ...mountedDrive("GREY FIKWOK"), role: testRole };
     const enqueueWithRole = makeEnqueueDriveJob({
       cfg: config(root),
       images: {
@@ -202,7 +202,7 @@ test("enqueue rejects mirror kind on non-mirror-role drives (#411)", async () =>
 // family's contract is 400 "invalid JSON body", never an opaque 500.
 test("enqueue returns 400 (not 500) on a malformed JSON body", async () => {
   const root = t6.dir();
-  mkdirSync(join(root, "SHELF1"));
+  mkdirSync(join(root, "GREY FIKWOK"));
   const enqueue = makeEnqueueDriveJob({
     cfg: config(root),
     images: {
@@ -216,7 +216,7 @@ test("enqueue returns 400 (not 500) on a malformed JSON body", async () => {
         return { id: "job-1" };
       },
     },
-    getDrive: () => mountedDrive("SHELF1"),
+    getDrive: () => mountedDrive("GREY FIKWOK"),
     json: (data, status = 200) => Response.json(data, { status }),
   });
   const r = await enqueue(
