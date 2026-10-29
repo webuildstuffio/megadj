@@ -458,7 +458,7 @@ const genre: CliCommandHandler = async (rest, { state }) => {
       return;
     }
   }
-  const { genre: inferGenre } = await import("../genre/genre");
+  const { genre: inferGenre } = await import("../genre/genre-run");
   await inferGenre({
     state,
     apply: flags.bools.has("apply"),

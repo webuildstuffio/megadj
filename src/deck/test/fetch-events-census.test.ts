@@ -12,7 +12,7 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "..", "..", "..");
 const read = (rel: string): string => readFileSync(join(ROOT, rel), "utf8");
 
-import { parseFetchStart, parseFetchTask, fetchArgs } from "../jobs/job-legs";
+import { parseFetchStart, parseFetchTask, fetchArgs } from "../jobs/job-legs-fetch-protocol";
 import {
   emitFetchStart,
   emitTaskDone,

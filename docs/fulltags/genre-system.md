@@ -382,7 +382,7 @@ Audio-consistency = LOO family agreement, duration-guarded, 95% CIs.
 | Explainability (`genre-why`)                              | `src/fulltags/genre/genre-why.ts`                          |
 | Eval harness + LOO + diagnostics                          | `src/core/similar.ts`                                      |
 | Tier-0 diagnostics engine                                 | `src/fulltags/genre/genre-diagnostics.ts`                  |
-| CLI wiring (`--eval/--refold/--flag/…`)                   | `src/fulltags/genre/genre.ts`                              |
+| CLI wiring (`--eval/--refold/--flag/…`)                   | `src/fulltags/genre/genre-run.ts`                              |
 | Fetch ladder + election write                             | `src/fulltags/fetch/fetch-pipeline.ts` + `fetch-stages.ts` |
 | Imprint prior rung (W7)                                   | `src/fulltags/sources/imprint-prior.ts`                    |
 | SoundCloud search (W2)                                    | `src/fulltags/sources/art-sources.ts`                      |

@@ -85,7 +85,7 @@ export function masterDirFor(mount: string): { db: string; xml: string } {
  * user playlists DB-side only (AutomaticSync=0) — they never get XML
  * NODEs, so a whole-DB diff reports ~180 false "missing twin" rows.
  * Reconcile judges ONLY descendants of these roots (plus any extra roots
- * the caller names); `--all` opts back into the legacy whole-DB diff.
+ * the caller names).
  */
 const AGENT_GROUP_ROOTS: readonly string[] = ["DJ-Imports", "MegaSets"];
 
@@ -176,8 +176,6 @@ export async function rbPlaylistReconcile(opts: {
   yes?: boolean | undefined;
   /** #282: extra agent-managed root group names to reconcile under. */
   group?: string | undefined;
-  /** #282: legacy whole-DB diff (default is scoped to the agent roots). */
-  all?: boolean | undefined;
   json?: boolean | undefined;
   log?: (s: string) => void;
 }): Promise<ReconcileResult> {
@@ -226,16 +224,14 @@ export async function rbPlaylistReconcile(opts: {
   // neither ever gets an XML NODE. Reconcile judges only rows inside the
   // agent-managed subtrees (AGENT_GROUP_ROOTS + --group additions), so a
   // dry-run stays silent about the ~180 RB-managed rows instead of
-  // flagging them as broken twins. `--all` opts into the legacy whole-DB
-  // diff for a manual audit.
-  const roots = new Set<string>(opts.all ? [] : AGENT_GROUP_ROOTS);
+  // flagging them as broken twins.
+  const roots = new Set<string>(AGENT_GROUP_ROOTS);
   const extra = opts.group?.trim() ?? "";
   if (extra.length > 0) roots.add(extra);
   const byId = new Map(dbRows.map((p) => [p.id, { id: p.id, parentId: p.parentId }] as const));
   const dbIds = new Set(dbRows.map((p) => p.id));
   const xmlById = new Map(xmlNodes.map((n) => [n.id, n]));
-  const inScope = (p: { id: string; parentId: string }): boolean =>
-    opts.all === true || inAgentScope(p.id, byId, roots);
+  const inScope = (p: { id: string; parentId: string }): boolean => inAgentScope(p.id, byId, roots);
   const scopedRows = dbRows.filter(inScope);
   const skippedByScope = dbRows.length - scopedRows.length;
   const missingXmlNodes: PlaylistTwin[] = scopedRows
@@ -267,9 +263,7 @@ export async function rbPlaylistReconcile(opts: {
       return false;
     })();
   const orphanXmlNodes = xmlNodes
-    .filter(
-      (n) => n.name !== null && !dbIds.has(n.id) && (opts.all === true || isAgentXmlSubtree(n)),
-    )
+    .filter((n) => n.name !== null && !dbIds.has(n.id) && isAgentXmlSubtree(n))
     .map((n) => ({ id: n.id, name: n.name as string }));
 
   let backedUpTo: string | null = null;
@@ -303,7 +297,7 @@ export async function rbPlaylistReconcile(opts: {
     xml,
     missingXmlNodes,
     orphanXmlNodes,
-    scopeRoots: opts.all === true ? [] : [...roots].toSorted(),
+    scopeRoots: [...roots].toSorted(),
     skippedByScope,
     added,
     appliedMode: apply,
@@ -314,11 +308,9 @@ export async function rbPlaylistReconcile(opts: {
 
 export function printReconcileReport(r: ReconcileResult, log: (s: string) => void): void {
   printResult(log, r, (body) => {
-    if (body.scopeRoots.length > 0)
-      log(
-        `scope: ${body.scopeRoots.join(", ")} · ${body.skippedByScope} RB-managed playlist(s) skipped (rekordbox keeps them DB-side by design)`,
-      );
-    else log("scope: whole DB (--all)");
+    log(
+      `scope: ${body.scopeRoots.join(", ")} · ${body.skippedByScope} RB-managed playlist(s) skipped (rekordbox keeps them DB-side by design)`,
+    );
     log(
       `twins: ${body.missingXmlNodes.length} DB playlist(s) need XML repair · ${body.orphanXmlNodes.length} XML-only orphan(s)`,
     );

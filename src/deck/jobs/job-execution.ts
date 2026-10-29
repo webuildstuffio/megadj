@@ -2,20 +2,18 @@
  *  This module is the kind→leg DISPATCH; the leg bodies + summary
  *  parsers live in job_legs.ts (#89 diet extraction) — the dependency
  *  arrow runs one way (execution → legs). */
+import type { LegArgs } from "./job-legs-types";
+import { runScan, runVerify, runMirror } from "./job-legs-drive";
+import { runIngest } from "./job-legs-intake";
+import { runFetchJob } from "./job-legs-fetch";
 import {
-  runScan,
-  runVerify,
-  runMirror,
-  runIngest,
-  runFetchJob,
   runBenchmark,
   runChecksum,
   runSpeedtest,
   runHygiene,
   runFixes,
   runGridHealth,
-  type LegArgs,
-} from "./job-legs";
+} from "./job-legs-maintenance";
 
 export async function executeJob(args: LegArgs): Promise<unknown> {
   switch (args.job.kind) {

@@ -51,7 +51,7 @@ describe("#159 ingest summary key contract (emit ↔ parse round-trip)", () => {
   });
 
   test("every emitted key parses through cratedeck's parseIngestSummary", async () => {
-    const { parseIngestSummary } = await import("../deck/jobs/job-legs");
+    const { parseIngestSummary } = await import("../deck/jobs/job-legs-parse");
     const summary = { command: "ingest", dryRun: false, ...fullCounterSet() };
     const parsed = parseIngestSummary(summary);
     // No key dropped, no key fabricated: exact SSOT equality both ways.
@@ -59,7 +59,7 @@ describe("#159 ingest summary key contract (emit ↔ parse round-trip)", () => {
   });
 
   test("a key the producer stops emitting fails the parse (named, not silent)", async () => {
-    const { parseIngestSummary } = await import("../deck/jobs/job-legs");
+    const { parseIngestSummary } = await import("../deck/jobs/job-legs-parse");
     const full = fullCounterSet();
     const hole = { ...full };
     delete (hole as Record<string, unknown>).tagged;
