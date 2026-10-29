@@ -14,9 +14,10 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
-import torch
-import torchaudio
+import torch  # type: ignore[import-not-found]
+import torchaudio  # type: ignore[import-not-found]
 
 STEM_NAMES = ("drums", "bass", "other", "vocals")
 
@@ -29,17 +30,17 @@ def detect_device() -> str:
     return "cpu"
 
 
-def load_model(model_name: str, device: str):
-    from demucs.pretrained import get_model
+def load_model(model_name: str, device: str) -> Any:
+    from demucs.pretrained import get_model  # type: ignore[import-not-found]
     model = get_model(model_name)
     model.to(device)
     model.eval()
     return model
 
 
-def separate_track(model, path: str, output_dir: str, device: str) -> dict:
-    from demucs.apply import apply_model
-    from demucs.audio import AudioFile
+def separate_track(model: Any, path: str, output_dir: str, device: str) -> dict[str, Any]:
+    from demucs.apply import apply_model  # type: ignore[import-not-found]
+    from demucs.audio import AudioFile  # type: ignore[import-not-found]
 
     t0 = time.monotonic()
     out = Path(output_dir)
