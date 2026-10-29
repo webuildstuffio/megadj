@@ -586,15 +586,25 @@ describe("duration cap — DJ sets/albums crash RB beat analyzer", () => {
 });
 
 describe("classifyJunk — title-based junk filter", () => {
-  test("DJ sets/full shows/album rips are junk", () => {
+  test("DJ sets and full shows are junk", () => {
     for (const title of [
       "EXIT 2021 | Solomun @ mts Dance Arena FULL SHOW (HQ version)",
-      "Vanilla - Origin (Full Album)",
       "James Hype live from New York 2022 - Full Set",
-      "The Kid LAROI - Best of Unreleased (unreleased album)",
-      "End of The World (concept album) Unreleased (leaked)",
     ]) {
       expect(classifyJunk(testYtdlpInfo({ title }))).toBe(true);
+    }
+  });
+
+  test("albums and AMVs are NOT junk (user-wanted content)", () => {
+    for (const title of [
+      "Vanilla - Origin (Full Album)",
+      "The Kid LAROI - Best of Unreleased (unreleased album)",
+      "End of The World (concept album) Unreleased (leaked)",
+      "Wistoria: Wand and Sword S2 | CAN YOU SEE MY THRONE [AMV]",
+      "MONEY ON THE DASH (SPED UP) - ELLEY DUHE (Official AMV)",
+      "Cool for the Summer (hardstyle remix + SUPER SLOWED)",
+    ]) {
+      expect(classifyJunk(testYtdlpInfo({ title }))).toBe(false);
     }
   });
 

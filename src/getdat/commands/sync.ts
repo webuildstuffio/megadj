@@ -451,9 +451,6 @@ export const MAX_SYNC_DURATION_S = 20 * 60;
 const JUNK_TITLE_PATTERNS = [
   "full set",
   "full show",
-  "full album",
-  "unreleased album",
-  "concept album",
   "subscribers mix",
   "year mix",
   "nonstop",
@@ -471,7 +468,6 @@ const JUNK_TITLE_PATTERNS = [
   "tutorial",
   "how to",
   "deconstructed",
-  "verified",
 ];
 
 const JUNK_TITLE_RE = new RegExp(
