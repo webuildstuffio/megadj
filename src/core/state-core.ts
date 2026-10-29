@@ -46,7 +46,11 @@ export class ArchiveCore {
       CREATE INDEX IF NOT EXISTS idx_tracks_status ON tracks(status);
       CREATE INDEX IF NOT EXISTS idx_tracks_position ON tracks(liked_position);
     `);
-    this.addColumnIfMissing("tracks", "source", "TEXT NOT NULL DEFAULT 'liked'");
+    this.addColumnIfMissing(
+      "tracks",
+      "source",
+      "TEXT NOT NULL DEFAULT 'liked'",
+    );
     this.addColumnIfMissing("tracks", "genre", "TEXT");
     this.addColumnIfMissing("tracks", "genre_flag", "TEXT");
     this.addColumnIfMissing("tracks", "genre_votes", "TEXT");
@@ -55,6 +59,7 @@ export class ArchiveCore {
     this.addColumnIfMissing("tracks", "energy", "REAL");
     this.addColumnIfMissing("tracks", "genre_secondary", "TEXT");
     this.addColumnIfMissing("tracks", "artwork_status", "TEXT");
+    this.addColumnIfMissing("tracks", "mood_status", "TEXT");
     this.addColumnIfMissing("tracks", "content_hash", "TEXT");
     // #256 link-first: the acquisition links surfaced for a track
     // (purchase/free-download/description store links), JSON-encoded.
@@ -62,7 +67,9 @@ export class ArchiveCore {
     // Surfaced-link workflow (Sep 19): the user clicks the link, saves the
     // file into the downloads folder, and checks it off. NULL = not yet.
     this.addColumnIfMissing("tracks", "surfaced_done_at", "TEXT");
-    this.db.exec("CREATE INDEX IF NOT EXISTS idx_tracks_content_hash ON tracks(content_hash)");
+    this.db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_tracks_content_hash ON tracks(content_hash)",
+    );
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS beats (
         video_id TEXT PRIMARY KEY, bpm_raw REAL, bpm_folded REAL,
@@ -104,7 +111,9 @@ export class ArchiveCore {
         source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL
       );
     `);
-    this.db.exec("CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)");
+    this.db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)",
+    );
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS stem_cache (
         video_id TEXT PRIMARY KEY, model TEXT NOT NULL,
@@ -118,7 +127,9 @@ export class ArchiveCore {
   }
 
   private addColumnIfMissing(table: string, column: string, ddl: string): void {
-    const columns = this.db.query(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    const columns = this.db.query(`PRAGMA table_info(${table})`).all() as {
+      name: string;
+    }[];
     if (!columns.some((candidate) => candidate.name === column))
       this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
   }

@@ -28,6 +28,8 @@ export interface TrackRow {
   genre: string | null;
   energy: number | null;
   artwork_status: string | null;
+  /** Mood analysis status: analyzed, over-length-cap, failed, file-missing, or null (not yet tried). */
+  mood_status: string | null;
   year: string | null;
   content_hash: string | null;
   /** #256 link-first: JSON-encoded acquisition links (when surfaced). */
