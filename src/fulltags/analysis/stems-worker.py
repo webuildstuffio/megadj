@@ -54,10 +54,14 @@ def separate_track(model: Any, path: str, output_dir: str, device: str) -> dict[
     ref = audio.mean(0)
     audio_norm = (audio - ref.mean()) / ref.std()
 
+    # shifts=2: average 2 random-offset passes for better boundary quality
+    # (htdemucs_ft default is 1; 2 improves SDR ~0.1-0.3 dB at ~2x cost,
+    #  but per-track wall time stays under 60s on MPS which is fine).
+    # overlap=0.25 is the default for stable segment transitions.
     with torch.inference_mode():
         sources = apply_model(
             model, audio_norm[None].to(device),
-            device=device, progress=False,
+            device=device, shifts=2, overlap=0.25, progress=False,
         )
 
     sources = sources[0] * ref.std() + ref.mean()

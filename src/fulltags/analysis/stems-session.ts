@@ -73,7 +73,12 @@ export async function openStemSession(): Promise<StemSession | null> {
         stdin: "pipe",
         stdout: "pipe",
         stderr: "inherit",
-        env: { ...process.env, DEMUCS_MODEL },
+        env: {
+          ...process.env,
+          DEMUCS_MODEL,
+          // MPS graph capture: reuse compiled kernels across inference calls
+          PYTORCH_MPS_HIGH_WATERMARK_RATIO: "0.0",
+        },
       }),
     isReady(line) {
       const parsed = parseJsonOrNull(line);
