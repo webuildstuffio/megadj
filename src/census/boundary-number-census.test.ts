@@ -211,8 +211,8 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // (megaset-builder + cohorts-view) consolidated into ONE shared copy
     // in products/shared/minutes.ts — audited 65→64, sanctioned 19→18,
     // guarded unchanged; sanction re-keyed, digest shifted below.
-    audited: 64,
-    guarded: 46,
+    audited: 68,
+    guarded: 50,
     sanctioned: 18,
     // Sep 20 (#214 verify/hygiene/report slices): pure re-homes into
     // subdirs; same calls, same guards, counts unchanged, digest shifted.
@@ -244,12 +244,17 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Genre source expansion: discogs-ingest.ts adds 1 Number() site
     // (digits-only regex capture, sanctioned), audited 63→64, sanctioned 18→19.
     // Oct 1 (discogs-api): parseDiscogsApiYear adds 1 guarded Number() call.
-    digest: "a88a06766d16cf15e283b0ca1ff1061dbd6a571129210809e94798bd46f3c076",
+    // Oct 29 (#555/#556): stems pipeline adds 4 guarded Number() calls
+    // (state.ts stemRecord: sampleRate + elapsedS; stems-session.ts:
+    // samplerate + elapsed_s parse) — audited 64→68, guarded 46→50.
+    digest: "0ce419f2721d2824669e8f98cb26b06512b1e12c3d42f6c9815a0cd9d17dbe4e",
   });
 });
 
 test("Number() sanctions carry an audit reason", () => {
-  expect(Object.values(NUMBER_SANCTIONS).every((reason) => reason.length > 20)).toBe(true);
+  expect(
+    Object.values(NUMBER_SANCTIONS).every((reason) => reason.length > 20),
+  ).toBe(true);
 });
 
 test("Number() scanner reports locations and ignores prose", () => {
@@ -299,7 +304,11 @@ const CASES: readonly [name: string, source: string, violations: number][] = [
     "const n=Number(raw); if(!Number.isFinite(n)) throw Error(); consume(n);",
     0,
   ],
-  ["discarded predicate guards nothing", "const n=Number(raw); Number.isFinite(n); consume(n);", 1],
+  [
+    "discarded predicate guards nothing",
+    "const n=Number(raw); Number.isFinite(n); consume(n);",
+    1,
+  ],
   [
     "invalid ternary arm cannot consume n",
     "const n=Number(raw); consume(Number.isFinite(n) ? 0 : n);",
@@ -315,7 +324,11 @@ const CASES: readonly [name: string, source: string, violations: number][] = [
     "const n=Number(raw); consume(Number.isFinite(n) || enabled ? n : 0);",
     1,
   ],
-  ["positive if protects its branch", "const n=Number(raw); if(Number.isFinite(n)) consume(n);", 0],
+  [
+    "positive if protects its branch",
+    "const n=Number(raw); if(Number.isFinite(n)) consume(n);",
+    0,
+  ],
   [
     "negative if cannot consume invalid n",
     "const n=Number(raw); if(!Number.isFinite(n)) consume(n);",

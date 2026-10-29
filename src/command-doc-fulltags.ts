@@ -244,13 +244,26 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
   {
     name: "enrich",
     group: "fulltags",
-    block: ["  megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz"],
+    block: [
+      "  megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz",
+    ],
   },
   {
     name: "organize",
     group: "fulltags",
     block: [
       "  megadj organize [--dry-run] [--json]         sweep loose root files into the dated batch folder (batch intake, never genre)",
+    ],
+  },
+  {
+    name: "stems",
+    group: "fulltags",
+    block: [
+      "  megadj stems   [--limit N] [--jobs N] [--max-seconds S] [--force] [--dry-run] [--json]",
+      "                                               Demucs htdemucs_ft stem separation → DB ledger",
+      "                                               (vocals, drums, bass, other as FLAC; ~30s/track MPS;",
+      "                                               cached in MEGADJ_STEM_DIR or ~/.local/state/megadj/stems/;",
+      "                                               shared by VOX/HOOK, XZ Mods stem export, grid audit)",
     ],
   },
   {

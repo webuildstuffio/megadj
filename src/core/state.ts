@@ -1,4 +1,9 @@
-import type { CueRecord, CueRecordInput, MoodRecord, MoodRecordInput } from "./ledgers";
+import type {
+  CueRecord,
+  CueRecordInput,
+  MoodRecord,
+  MoodRecordInput,
+} from "./ledgers";
 import { ArchiveBeats } from "./state-beats";
 import type { RunRow } from "./state-types";
 
@@ -36,7 +41,13 @@ export class ArchiveState extends ArchiveBeats {
   moodSummary(): {
     available: boolean;
     analyzed: number;
-    avg: { dance: number; valence: number; arousal: number; party: number; electronic: number };
+    avg: {
+      dance: number;
+      valence: number;
+      arousal: number;
+      party: number;
+      electronic: number;
+    };
   } {
     return this.ledgers.moodSummary();
   }
@@ -90,11 +101,18 @@ export class ArchiveState extends ArchiveBeats {
     return this.embeddingsLedger.sectionPreferredCorpus();
   }
 
-  setKeyRecord(record: { videoId: string; key: string; sourcePath: string }): void {
+  setKeyRecord(record: {
+    videoId: string;
+    key: string;
+    sourcePath: string;
+  }): void {
     this.keysLedger.setKeyRecord(record);
   }
 
-  keyRecord(videoId: string, sourcePath: string): { key: string; analyzedAt: string } | null {
+  keyRecord(
+    videoId: string,
+    sourcePath: string,
+  ): { key: string; analyzedAt: string } | null {
     return this.keysLedger.keyRecord(videoId, sourcePath);
   }
 
@@ -105,6 +123,84 @@ export class ArchiveState extends ArchiveBeats {
          WHERE video_id = ? AND source_path = ?`,
       )
       .run(toPath, this.now(), videoId, fromPath);
+  }
+
+  // ---------- stem cache (#555/#556) ----------
+
+  setStemRecord(rec: {
+    videoId: string;
+    model: string;
+    stemDir: string;
+    vocalsPath: string | null;
+    drumsPath: string | null;
+    bassPath: string | null;
+    otherPath: string | null;
+    sampleRate: number;
+    sourcePath: string;
+    elapsedS: number;
+  }): void {
+    this.db
+      .query(
+        `INSERT OR REPLACE INTO stem_cache
+         (video_id, model, stem_dir, vocals_path, drums_path, bass_path, other_path,
+          sample_rate, source_path, analyzed_at, elapsed_s)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        rec.videoId,
+        rec.model,
+        rec.stemDir,
+        rec.vocalsPath,
+        rec.drumsPath,
+        rec.bassPath,
+        rec.otherPath,
+        rec.sampleRate,
+        rec.sourcePath,
+        this.now(),
+        rec.elapsedS,
+      );
+  }
+
+  stemRecord(videoId: string): {
+    model: string;
+    stemDir: string;
+    vocalsPath: string | null;
+    drumsPath: string | null;
+    bassPath: string | null;
+    otherPath: string | null;
+    sampleRate: number;
+    sourcePath: string;
+    analyzedAt: string;
+    elapsedS: number | null;
+  } | null {
+    const row = this.db
+      .query("SELECT * FROM stem_cache WHERE video_id = ?")
+      .get(videoId) as Record<string, unknown> | null;
+    if (row === null) return null;
+    const sampleRate = Number(row["sample_rate"]);
+    if (!Number.isFinite(sampleRate)) return null;
+    const elapsedRaw = Number(row["elapsed_s"]);
+    const elapsedS = Number.isFinite(elapsedRaw) ? elapsedRaw : null;
+    return {
+      model: String(row["model"]),
+      stemDir: String(row["stem_dir"]),
+      vocalsPath:
+        row["vocals_path"] !== null ? String(row["vocals_path"]) : null,
+      drumsPath: row["drums_path"] !== null ? String(row["drums_path"]) : null,
+      bassPath: row["bass_path"] !== null ? String(row["bass_path"]) : null,
+      otherPath: row["other_path"] !== null ? String(row["other_path"]) : null,
+      sampleRate,
+      sourcePath: String(row["source_path"]),
+      analyzedAt: String(row["analyzed_at"]),
+      elapsedS,
+    };
+  }
+
+  stemCacheCount(): number {
+    const row = this.db.query("SELECT COUNT(*) AS n FROM stem_cache").get() as {
+      n: number;
+    };
+    return row.n;
   }
 }
 
