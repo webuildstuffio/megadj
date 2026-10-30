@@ -820,7 +820,6 @@ jobs:
         uses: anthropics/claude-code-action@v1.0.257
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           path_to_claude_code_executable: ${{ steps.claude-bin.outputs.path }}
           path_to_bun_executable: ${{ steps.setup-bun.outputs.bun-path }}
           show_full_output: false
