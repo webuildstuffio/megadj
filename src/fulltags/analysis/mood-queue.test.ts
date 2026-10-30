@@ -1,8 +1,5 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
-import type { ArchiveState } from "../../core/state";
-import { tempState } from "../../test-support/testutil";
-import { writeFakeAudio } from "../../test-support/audio-fixtures";
+import { describe, test, expect } from "bun:test";
+import { moodFixture } from "../test/mood-test-fixtures";
 
 /**
  * Regression for the Sep 10 2026 "mood analyzes nothing" bug: when
@@ -18,37 +15,7 @@ import { writeFakeAudio } from "../../test-support/audio-fixtures";
  * groundTruth return mood=null, which is exactly the pass-2 enqueue path.
  */
 
-let dir: string;
-let state: ArchiveState;
-const ts = tempState("megadj-mood-queue-test-");
-
-beforeEach(() => {
-  ({ dir, state } = ts.next());
-});
-
-afterEach(() => {
-  ts.done({ dir, state });
-});
-
-function addDownloaded(videoId: string): string {
-  const p = writeFakeAudio(
-    join(dir, `)${videoId}.mp3`),
-    "not audio — groundTruth reads no mood stamp from it",
-  );
-  state.upsertTrackFromPlaylist(videoId, 1, "t");
-  state.markDownloaded(videoId, {
-    title: "t",
-    artist: null,
-    album: null,
-    formatId: null,
-    bitrateKbps: null,
-    codec: null,
-    filePath: p,
-    fileSizeBytes: null,
-    durationS: null,
-  });
-  return p;
-}
+const fx = moodFixture("megadj-mood-queue-test-");
 
 describe("mood analysis queue (flagless no-op regression)", () => {
   test("undefined --limit still runs pass 2 on unstamped tracks", async () => {
@@ -61,7 +28,7 @@ describe("mood analysis queue (flagless no-op regression)", () => {
     // loop never ran); a fixed run MUST report `failed: 3` (all three
     // unstamped fake files reached pass 2 and failed analysis there).
     const { mood } = await import("./mood");
-    const paths = ["a", "b", "c"].map(addDownloaded);
+    const paths = ["a", "b", "c"].map((id) => fx.addDownloaded(id));
 
     let captured = "";
     const origLog = console.log.bind(console);
@@ -69,7 +36,7 @@ describe("mood analysis queue (flagless no-op regression)", () => {
       captured += `${String(msg)}\n`;
     };
     try {
-      await mood({ state, musicDir: dir, json: false });
+      await mood({ state: fx.state, musicDir: fx.dir, json: false });
     } finally {
       console.log = origLog;
     }
@@ -82,7 +49,7 @@ describe("mood analysis queue (flagless no-op regression)", () => {
     // all 3 unstamped tracks must have REACHED pass 2
     expect(summary.failed).toBe(3);
     expect(summary.analyzed).toBe(0);
-    const rows = state.allTracks().filter((t) => paths.includes(t.file_path ?? ""));
+    const rows = fx.state.allTracks().filter((t) => paths.includes(t.file_path ?? ""));
     expect(rows.length).toBe(3);
   }, 60000); // the ONNX probe spawn (uv env bootstrap) needs more than bunfig's 15s
 
@@ -118,9 +85,9 @@ describe("mood --embeddings respects the DB ledger (#279 regression)", () => {
     // cheap DB read, not a file scan.
     const { mood } = await import("./mood");
     // two files: one ledgered (mood row exists), one unstamped (no row).
-    const ledgeredPath = addDownloaded("emb-ledgered");
-    addDownloaded("emb-unstamped");
-    state.setMoodRecord({
+    const ledgeredPath = fx.addDownloaded("emb-ledgered");
+    fx.addDownloaded("emb-unstamped");
+    fx.state.setMoodRecord({
       videoId: "emb-ledgered",
       dance: 0.5,
       aggressive: 0.1,
@@ -141,7 +108,7 @@ describe("mood --embeddings respects the DB ledger (#279 regression)", () => {
       // --limit keeps the run bounded even if the fix regressed: the
       // storm shape would try BOTH files (limit 2 not hit); the fixed
       // shape queues only the unstamped one.
-      await mood({ state, musicDir: dir, embeddings: true, limit: 10 });
+      await mood({ state: fx.state, musicDir: fx.dir, embeddings: true, limit: 10 });
     } finally {
       console.log = origLog;
     }
@@ -158,6 +125,6 @@ describe("mood --embeddings respects the DB ledger (#279 regression)", () => {
     // fresh ledger writes; its row already existed and was skipped).
     expect(summary.synced).toBe(0);
     // and the ledger row survives untouched.
-    expect(state.moodRecord("emb-ledgered")).not.toBeNull();
+    expect(fx.state.moodRecord("emb-ledgered")).not.toBeNull();
   }, 60000);
 });
