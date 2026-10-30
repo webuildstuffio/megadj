@@ -124,6 +124,13 @@ export function classifyChain(steps: MegasetStep[]): TransitionClassification[] 
   return result;
 }
 
+/** Classify a chain and zip each transition's type back onto its step —
+ *  the call-site shape shared by the megaset CLI and the API payload. */
+export function classifySteps(steps: MegasetStep[]): MegasetStep[] {
+  const classifications = classifyChain(steps);
+  return steps.map((s, i) => ({ ...s, transitionType: classifications[i]?.type }));
+}
+
 /** Count how many steps in a chain carry a non-hold type.
  *  Used for the 95% coverage gate (M5 acceptance). */
 export function typedCoverage(classifications: TransitionClassification[]): {

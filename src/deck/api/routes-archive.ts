@@ -26,7 +26,7 @@ import {
   type SetSearchOverride,
 } from "../shared/megaset";
 import { setQuality } from "../megaset/set-quality";
-import { classifyChain } from "../megaset/transition-types";
+import { classifySteps } from "../megaset/transition-types";
 import { buildMegasetCandidates, type MegasetVariant } from "../megaset/candidates";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
 import { intakeCandidateDirs } from "../jobs/intake-run";
@@ -165,11 +165,7 @@ function megasetHandler(url: URL, archive: ArchiveReader): Response | Promise<Re
       : {};
 
   const toPayload = (variant: MegasetVariant) => {
-    const classifications = classifyChain(variant.result.steps);
-    const classifiedSteps = variant.result.steps.map((s, i) => ({
-      ...s,
-      transitionType: classifications[i]?.type,
-    }));
+    const classifiedSteps = classifySteps(variant.result.steps);
     return buildMegasetPayload({
       built: variant.result,
       quality: variant.quality,
