@@ -3,50 +3,18 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { __test, HOT_CUE_KIND, LOOP_CUE_KIND, MAX_HOT_CUES } from "./rb-cues.js";
 import { renderKitMarkers } from "./rb-command-kit";
+import { fakeRbRuntime, restampOutput, sequentialSpawn } from "./test-support/rb-cue-fixtures";
 
 /** The RENDERED restamp program — kit markers resolved exactly as
  *  pyUvFileArgv does at spawn time (#194 corpus extraction). */
 const restampScript = () =>
   renderKitMarkers(readFileSync(join(import.meta.dir, "rb-scripts", "cue-restamp.kit.py"), "utf8"));
 
-/** Fake RbCommandRuntime with the green path stubbed; spread overrides in.
- *  One factory instead of seven hand-copied hook objects (jscpd cluster). */
-function fakeRuntime(
-  overrides: Partial<Parameters<typeof __test.run>[1]> = {},
-): Parameters<typeof __test.run>[1] {
-  return {
-    fileExists: () => true,
-    assertClosed: () => {},
-    backup: () => "/tmp/master.db.bak",
-    restore: () => {},
-    sleep: () => {},
-    spawn: () => ({ status: 0, stdout: "", stderr: "" }),
-    ...overrides,
-  };
-}
-
-/** Spawn stub that answers a clean write on call 1 and a malformed
+/** Spawn stub that answers a clean restamp write on call 1 and a malformed
  *  JSON verification report on call 2 — the malformed-verification
- *  failure path (jscpd cluster, issue #223). */
-const writeThenMalformedVerify = () => {
-  let call = 0;
-  return () => {
-    call++;
-    return call === 1
-      ? {
-          status: 0,
-          stdout: JSON.stringify({
-            found: 1,
-            written: 1,
-            protected: 0,
-            written_ids: ["42"],
-            errors: [],
-          }),
-          stderr: "",
-        }
-      : { status: 0, stdout: "not json", stderr: "" };
-  };
-};
+ *  failure path (issue #223). */
+const writeThenMalformedVerify = () =>
+  sequentialSpawn([JSON.stringify(restampOutput()), "not json"]);
 
 describe("rb-cues constants (F4-pinned semantics)", () => {
   test("HOT_CUE_KIND is 1 — DB-side truth from the Sep 13 F4 spike", () => {
@@ -84,7 +52,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     expect(() => __test.parseRestampOutput("not json", true)).toThrow(/malformed JSON/u);
     expect(() =>
       __test.parseRestampOutput(
-        JSON.stringify({ found: 2, written: 1, protected: 0, written_ids: ["42"], errors: [] }),
+        JSON.stringify(restampOutput({ found: 2, written: 1 })),
         true,
       ),
     ).toThrow(/restamped 1\/2 rows/u);
@@ -93,7 +61,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   test("failed dry-run subprocess fails closed", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST" },
-      fakeRuntime({ spawn: () => ({ status: 9, stdout: "", stderr: "boom" }) }),
+      fakeRbRuntime({ spawn: () => ({ status: 9, stdout: "", stderr: "boom" }) }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("census failed (exit 9)");
@@ -102,16 +70,10 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   test("reports non-incident Kind=0 memory cues as protected", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST" },
-      fakeRuntime({
+      fakeRbRuntime({
         spawn: () => ({
           status: 0,
-          stdout: JSON.stringify({
-            found: 1,
-            written: 0,
-            protected: 2,
-            written_ids: [],
-            errors: [],
-          }),
+          stdout: JSON.stringify(restampOutput({ written: 0, protected: 2, written_ids: [] })),
           stderr: "",
         }),
       }),
@@ -128,7 +90,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let restored = false;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      fakeRuntime({
+      fakeRbRuntime({
         assertClosed: () => {
           checks++;
           if (checks === 2) throw new Error("rekordbox reopened");
@@ -151,7 +113,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   test("zero-check failure and malformed verification fail closed", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      fakeRuntime({ spawn: writeThenMalformedVerify() }),
+      fakeRbRuntime({ spawn: writeThenMalformedVerify() }),
     );
     expect(result.ok).toBe(false);
     expect(result.verifyFailures.join(" ")).toContain("malformed JSON");
@@ -159,29 +121,13 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
 
   test("restores the DB family when verification rejects a committed restamp", async () => {
     const restores: [string, string][] = [];
-    let call = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      fakeRuntime({
+      fakeRbRuntime({
         restore: (dbPath, backupPath) => {
           restores.push([dbPath, backupPath]);
         },
-        spawn: () => {
-          call++;
-          return call === 1
-            ? {
-                status: 0,
-                stdout: JSON.stringify({
-                  found: 1,
-                  written: 1,
-                  protected: 0,
-                  written_ids: ["42"],
-                  errors: [],
-                }),
-                stderr: "",
-              }
-            : { status: 0, stdout: "not json", stderr: "" };
-        },
+        spawn: writeThenMalformedVerify(),
       }),
     );
     expect(result.ok).toBe(false);
@@ -194,7 +140,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let restoreCalls = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      fakeRuntime({
+      fakeRbRuntime({
         restore: () => {
           restoreCalls++;
           throw new Error("restore exploded");
@@ -212,7 +158,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let restored = false;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      fakeRuntime({
+      fakeRbRuntime({
         restore: () => {
           restored = true;
         },
