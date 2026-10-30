@@ -1,5 +1,5 @@
 import { describe, expect, test, afterAll } from "bun:test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import {
@@ -10,6 +10,11 @@ import {
   type RbFixPathsRuntime,
 } from "./rb-fix-paths";
 import { tempDir } from "../test-support/testutil";
+import {
+  applyFixturePaths,
+  withRbMasterEnv,
+  writeStubMasterDb,
+} from "./test-support/rb-path-fixtures";
 
 /**
  * rb-fix-paths unit tests. The pyrekordbox leg is NOT exercised here (it
@@ -36,19 +41,12 @@ function makeMount(): string {
 describe("rb-fix-paths", () => {
   test("invalid master DB read returns an honest failure instead of throwing", async () => {
     const mount = makeMount();
-    const dbPath = join(mount, "PIONEER", "Master", "master.db");
-    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
-    writeFileSync(dbPath, "not a rekordbox database");
-    const previous = process.env.MEGADJ_RB_MASTER;
-    process.env.MEGADJ_RB_MASTER = dbPath;
-    try {
+    const dbPath = writeStubMasterDb(mount, "not a rekordbox database");
+    await withRbMasterEnv(dbPath, async () => {
       const r = await rbFixPaths({ mount });
       expect(r.ok).toBe(false);
       expect(r.error).toContain("pyrekordbox read failed");
-    } finally {
-      if (previous === undefined) delete process.env.MEGADJ_RB_MASTER;
-      else process.env.MEGADJ_RB_MASTER = previous;
-    }
+    });
   }, 60_000); // uv cold-start under 16-way parallel workers needs > 5s
 
   test("missing master DB is a visible failure, not a fake pass", async () => {
@@ -101,11 +99,7 @@ describe("rb-fix-paths", () => {
 
   test("successful apply rechecks closed around backup/mutation and delayed rereads", async () => {
     const mount = makeMount();
-    const dbPath = join(mount, "PIONEER", "Master", "master.db");
-    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
-    writeFileSync(dbPath, "stub");
-    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
-    const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
+    const { dbPath, oldPath, livePath } = applyFixturePaths(mount);
     const events: string[] = [];
     let reads = 0;
     const deps: Partial<RbFixPathsRuntime> = {
@@ -150,11 +144,7 @@ describe("rb-fix-paths", () => {
 
   test("partial rewrite is a failed result and restores the backup", async () => {
     const mount = makeMount();
-    const dbPath = join(mount, "PIONEER", "Master", "master.db");
-    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
-    writeFileSync(dbPath, "stub");
-    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
-    const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
+    const { dbPath, oldPath, livePath } = applyFixturePaths(mount);
     const restored: string[] = [];
     const r = await rbFixPaths(
       { mount, apply: true, yes: true },
@@ -175,10 +165,7 @@ describe("rb-fix-paths", () => {
 
   test("a still-broken rewritten target fails delayed verification and restores", async () => {
     const mount = makeMount();
-    const dbPath = join(mount, "PIONEER", "Master", "master.db");
-    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
-    writeFileSync(dbPath, "stub");
-    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
+    const { dbPath, oldPath } = applyFixturePaths(mount);
     let reads = 0;
     let restored = false;
     const r = await rbFixPaths(
@@ -207,11 +194,7 @@ describe("rb-fix-paths", () => {
 
   test("rollback failure is loud and never reports success", async () => {
     const mount = makeMount();
-    const dbPath = join(mount, "PIONEER", "Master", "master.db");
-    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
-    writeFileSync(dbPath, "stub");
-    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
-    const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
+    const { dbPath, oldPath, livePath } = applyFixturePaths(mount);
     const r = await rbFixPaths(
       { mount, apply: true, yes: true },
       {
