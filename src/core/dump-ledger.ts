@@ -48,6 +48,19 @@ export function hydrateDumpRow(r: DumpRow): DumpRecord {
   };
 }
 
+/** The ONE census tally over hydrated dump rows (#572): DumpLedger and the
+ *  deck-side DumpReader both census this table, so the partial/done/pending
+ *  loop lives here — never a drifting twin. */
+export function computeDumpCensus(dumps: DumpRecord[]): DumpCensus["counts"] {
+  const counts = { total: dumps.length, partial: 0, done: 0, pending: 0 };
+  for (const d of dumps) {
+    if (d.status === "partial") counts.partial++;
+    else counts.done++;
+    counts.pending += d.pending;
+  }
+  return counts;
+}
+
 /** Inputs ingest reports per run. `ingested` counts files that LANDED in
  *  the archive (tagged + unchanged + artQueued — anything registered);
  *  the counters derive from the same IngestCounters the --json summary
@@ -131,12 +144,6 @@ export class DumpLedger {
 
   census(limit = 50): DumpCensus {
     const dumps = this.list(limit);
-    const counts = { total: dumps.length, partial: 0, done: 0, pending: 0 };
-    for (const d of dumps) {
-      if (d.status === "partial") counts.partial++;
-      else counts.done++;
-      counts.pending += d.pending;
-    }
-    return { dumps, counts };
+    return { dumps, counts: computeDumpCensus(dumps) };
   }
 }
