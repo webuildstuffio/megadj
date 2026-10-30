@@ -111,11 +111,16 @@ export function tempDir(prefix: string): TempDirHandle {
  * key on them, so "megadj-X-" naming must survive visible):
  *
  *   const [t, t2] = rippledTemps("megadj-x-src-", "megadj-x-vol-");
+ *
+ * The const type parameter preserves the exact prefix tuple so the
+ * destructured handles stay non-optional under noUncheckedIndexedAccess.
  */
-export function rippledTemps(...prefixes: string[]): TempDirHandle[] {
+export function rippledTemps<const P extends readonly string[]>(
+  ...prefixes: P
+): { -readonly [K in keyof P]: TempDirHandle } {
   const handles = prefixes.map((prefix) => tempDir(prefix).rippable());
   afterAll(() => {
     for (const handle of handles) handle.rippleAll();
   });
-  return handles;
+  return handles as { -readonly [K in keyof P]: TempDirHandle };
 }
