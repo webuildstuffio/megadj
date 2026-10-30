@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { __test } from "./rb-comment-sync.js";
 import { renderKitMarkers } from "./rb-command-kit";
+import { commentSyncOutput, fakeRbRuntime, sequentialSpawn } from "./test-support/rb-cue-fixtures";
 import { tempDir } from "../test-support/testutil";
 
 const t = tempDir("megadj-csync-").rippable();
@@ -81,16 +82,7 @@ describe("rb-comment-sync", () => {
     expect(() => __test.parseSyncOutput("not json", true)).toThrow(/malformed JSON/u);
     expect(() =>
       __test.parseSyncOutput(
-        JSON.stringify({
-          scanned: 2,
-          eligible: 2,
-          written: 1,
-          alreadyHad: 0,
-          skipped: [],
-          samples: [],
-          writes: [["42", "11A · E8.8 · Dance"]],
-          errors: [],
-        }),
+        JSON.stringify(commentSyncOutput({ scanned: 2, eligible: 2, written: 1 })),
         true,
       ),
     ).toThrow(/wrote 1\/2 eligible rows/u);
@@ -99,14 +91,7 @@ describe("rb-comment-sync", () => {
   test("parses genre_written/genre_skipped from sync output", () => {
     const out = __test.parseSyncOutput(
       JSON.stringify({
-        scanned: 3,
-        eligible: 0,
-        written: 0,
-        alreadyHad: 3,
-        skipped: [],
-        samples: [],
-        writes: [],
-        errors: [],
+        ...commentSyncOutput({ scanned: 3, eligible: 0, written: 0, alreadyHad: 3, writes: [] }),
         genre_written: 42,
         genre_skipped: 7,
       }),
@@ -118,16 +103,7 @@ describe("rb-comment-sync", () => {
 
   test("defaults genre fields to 0 when absent (backward compat)", () => {
     const out = __test.parseSyncOutput(
-      JSON.stringify({
-        scanned: 1,
-        eligible: 0,
-        written: 0,
-        alreadyHad: 1,
-        skipped: [],
-        samples: [],
-        writes: [],
-        errors: [],
-      }),
+      JSON.stringify(commentSyncOutput({ eligible: 0, written: 0, alreadyHad: 1, writes: [] })),
       false,
     );
     expect(out.genreWritten).toBe(0);
@@ -161,23 +137,19 @@ describe("rb-comment-sync", () => {
     let restored = false;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        exists: () => true,
-        fileExists: () => true,
+      fakeRbRuntime({
         assertClosed: () => {
           checks++;
           if (checks === 2) throw new Error("rekordbox reopened");
         },
-        backup: () => "/tmp/master.db.bak",
         restore: () => {
           restored = true;
         },
-        sleep: () => {},
         spawn: () => {
           spawned = true;
           throw new Error("must not spawn");
         },
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("rekordbox reopened");
@@ -186,93 +158,44 @@ describe("rb-comment-sync", () => {
   });
 
   test("accepts only an exact delayed re-read of every written comment", async () => {
-    let call = 0;
     let slept = false;
+    const spawn = sequentialSpawn([
+      JSON.stringify(commentSyncOutput({ samples: [["track.aiff", "11A · E8.8 · Dance"]] })),
+      JSON.stringify({ total: 1, matched: 1, missing: [], mismatched: [] }),
+    ]);
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        exists: () => true,
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
-        restore: () => {},
+      fakeRbRuntime({
         sleep: () => {
           slept = true;
         },
-        spawn: () => {
-          call++;
-          return call === 1
-            ? {
-                status: 0,
-                stdout: JSON.stringify({
-                  scanned: 1,
-                  eligible: 1,
-                  written: 1,
-                  alreadyHad: 0,
-                  skipped: [],
-                  samples: [["track.aiff", "11A · E8.8 · Dance"]],
-                  writes: [["42", "11A · E8.8 · Dance"]],
-                  errors: [],
-                }),
-                stderr: "",
-              }
-            : {
-                status: 0,
-                stdout: JSON.stringify({ total: 1, matched: 1, missing: [], mismatched: [] }),
-                stderr: "",
-              };
-        },
-      },
+        spawn,
+      }),
     );
     expect(result.ok).toBe(true);
     expect(result.verify.detail).toContain("1/1 intended comments exactly");
     expect(slept).toBe(true);
-    expect(call).toBe(2);
+    expect(spawn.callCount()).toBe(2);
   });
 
   test("restores the DB family when delayed verification rejects a committed mutation", async () => {
     const restores: [string, string][] = [];
-    let call = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        exists: () => true,
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
+      fakeRbRuntime({
         restore: (dbPath, backupPath) => {
           restores.push([dbPath, backupPath]);
         },
-        sleep: () => {},
-        spawn: () => {
-          call++;
-          return call === 1
-            ? {
-                status: 0,
-                stdout: JSON.stringify({
-                  scanned: 1,
-                  eligible: 1,
-                  written: 1,
-                  alreadyHad: 0,
-                  skipped: [],
-                  samples: [],
-                  writes: [["42", "11A · E8.8 · Dance"]],
-                  errors: [],
-                }),
-                stderr: "",
-              }
-            : {
-                status: 0,
-                stdout: JSON.stringify({
-                  total: 1,
-                  matched: 0,
-                  missing: [],
-                  mismatched: [["42", "11A · E8.8 · Dance", "old"]],
-                }),
-                stderr: "",
-              };
-        },
-      },
+        spawn: sequentialSpawn([
+          JSON.stringify(commentSyncOutput()),
+          JSON.stringify({
+            total: 1,
+            matched: 0,
+            missing: [],
+            mismatched: [["42", "11A · E8.8 · Dance", "old"]],
+          }),
+        ]),
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("mismatched ids: 42");
@@ -283,17 +206,12 @@ describe("rb-comment-sync", () => {
   test("surfaces both the original failure and a failed restore", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        exists: () => true,
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
+      fakeRbRuntime({
         restore: () => {
           throw new Error("restore exploded");
         },
-        sleep: () => {},
         spawn: () => ({ status: 0, stdout: "not json", stderr: "" }),
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("malformed JSON");
@@ -303,19 +221,13 @@ describe("rb-comment-sync", () => {
   test("surfaces the guard's stdout refusal when the sync spawn exits 1", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        exists: () => true,
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
-        restore: () => {},
-        sleep: () => {},
+      fakeRbRuntime({
         spawn: () => ({
           status: 1,
           stdout: JSON.stringify({ error: "rekordbox is running — refusing write" }),
           stderr: "",
         }),
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("rekordbox is running — refusing write");
@@ -325,30 +237,16 @@ describe("rb-comment-sync", () => {
     let restored = false;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        exists: () => true,
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
+      fakeRbRuntime({
         restore: () => {
           restored = true;
         },
-        sleep: () => {},
         spawn: () => ({
           status: 0,
-          stdout: JSON.stringify({
-            scanned: 1,
-            eligible: 1,
-            written: 1,
-            alreadyHad: 0,
-            skipped: [],
-            samples: [],
-            writes: [],
-            errors: [],
-          }),
+          stdout: JSON.stringify(commentSyncOutput({ writes: [] })),
           stderr: "",
         }),
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("acknowledgements are incomplete");
