@@ -96,12 +96,16 @@ bun run megadj stem-overcue /Volumes/OTHER --limit 50
 
 ## Performance tuning
 
-| Workers | Eff avg/track | Rate | CPU util | Recommended for |
+Validation rate (17 tracks) vs sustained rate (1000+ tracks) differ — shorter tracks in bulk batches raise throughput.
+
+| Workers | Validation | Sustained | CPU util | Recommended for |
 |---|---|---|---|---|
-| 1 | ~78s | 0.8/min | ~25% | Background, low priority |
-| 2 | ~45s | 1.3/min | ~50% | Normal batch |
-| 3 | ~32s | 1.9/min | ~75% | Default, best throughput |
-| 4 | ~28s | 2.1/min | ~90% | Maximum speed, M4 Pro+ |
+| 1 | ~78s / 0.8/min | ~60s / 1.0/min | ~25% | Background, low priority |
+| 2 | ~45s / 1.3/min | ~30s / 2.0/min | ~50% | Normal batch |
+| 3 | ~32s / 1.9/min | ~12s / **5.0/min** | ~55% | Default, best throughput |
+| 4 | ~28s / 2.1/min | ~10s / 6.0/min | ~75% | M4 Pro+ with thermal headroom |
+
+Measured Oct 30 2026: 3 workers sustained 5.0 tracks/min over 1,100+ tracks (44% CPU idle).
 
 ## USB sync workflow (after OverCue build)
 
