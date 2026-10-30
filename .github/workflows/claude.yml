@@ -1,4 +1,24 @@
-# Claude Code Assistant v5.28.6
+# Claude Code Assistant v5.28.7
+# v5.28.7 - (Oct 30 2026) Drop the explicit
+#          github_token: ${{ secrets.GITHUB_TOKEN }} from the
+#          claude-code-action step. With it passed, the action
+#          operates as github-actions[bot] and GitHub's
+#          anti-recursion rule parks or suppresses the downstream
+#          pull_request runs Claude's pushes create (the CI /
+#          Deploy / review action_required classes). With it
+#          omitted, the action exchanges the job OIDC token for an
+#          official Claude GitHub App installation token and
+#          operates as claude[bot], whose events run downstream
+#          workflows automatically. The Claude app is installed at
+#          org level (repository_selection: all, verified
+#          2026-10-30) and the job already carries id-token: write,
+#          so no new secrets or permissions are needed. Pilot
+#          proof on folio-app: PR 3177 merged, test issue 3178,
+#          PR 3179 opened by claude[bot] with zero action_required
+#          runs. Rollback is re-adding the one line. Same bump:
+#          CLI cache pin 2.1.312 -> 2.1.314 (checksum from
+#          Anthropic's release manifest; the pin check flagged the
+#          drift on this PR, 2.1.314 released after the last run).
 # v5.28.6 - (Oct 28 2026) Remove the Bun download cache from the
 #          template: the actions/cache step on ~/.bun/install/cache
 #          is dropped where present (the bun-kind variants carrying
@@ -794,17 +814,17 @@ jobs:
           path: |
             ~/.local/bin/claude
             ~/.local/share/claude
-          key: claude-cli-2.1.312-${{ runner.os }}-${{ runner.arch }}
+          key: claude-cli-2.1.314-${{ runner.os }}-${{ runner.arch }}
 
       - name: Resolve cached Claude Code CLI
         id: claude-bin
         run: |
           # The cache is agent-writable state, so a restored binary is
           # only used after its SHA256 matches the official Claude Code
-          # 2.1.312 linux-x64 release checksum (Anthropic manifest).
+          # 2.1.314 linux-x64 release checksum (Anthropic manifest).
           # Drift is watched by scripts/check-claude-cli-pin.sh (issue
           # #100); bump version + checksum together when it fires.
-          want="4f4178ce41d83e23341ebfbaecdbcf8ea6bf7baea0690025abe49eeec3a5d01d"
+          want="4487042b4c4f5d88d4568f68ae98aae0b1ffae58864cf57fb868641bc5f84594"
           bin="$HOME/.local/bin/claude"
           hit="${{ steps.claude-cli-cache.outputs.cache-hit }}"
           got="$(sha256sum "$(readlink -f "$bin" 2>/dev/null)" 2>/dev/null | cut -d' ' -f1)"
