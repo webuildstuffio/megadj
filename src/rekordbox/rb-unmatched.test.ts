@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { rbUnmatched, printRbUnmatchedReport, __test } from "./rb-unmatched";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { tempDir } from "../test-support/testutil";
+import { masterDbPath, withRbMasterEnv, writeStubMasterDb } from "./test-support/rb-path-fixtures";
 
 const t = tempDir("megadj-rbunmatched-").rippable();
 afterAll(() => t.rippleAll());
@@ -35,19 +36,12 @@ function makeMount(): string {
 describe("rb-unmatched", () => {
   test("invalid master DB read returns an honest failure instead of throwing", async () => {
     const mount = makeMount();
-    const dbPath = join(mount, "PIONEER", "Master", "master.db");
-    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
-    writeFileSync(dbPath, "not a rekordbox database");
-    const previous = process.env.MEGADJ_RB_MASTER;
-    process.env.MEGADJ_RB_MASTER = dbPath;
-    try {
+    const dbPath = writeStubMasterDb(mount, "not a rekordbox database");
+    await withRbMasterEnv(dbPath, async () => {
       const r = await rbUnmatched({ mount });
       expect(r.ok).toBe(false);
       expect(r.error).toContain("pyrekordbox read failed");
-    } finally {
-      if (previous === undefined) delete process.env.MEGADJ_RB_MASTER;
-      else process.env.MEGADJ_RB_MASTER = previous;
-    }
+    });
   }, 60_000); // uv cold-start under 16-way parallel workers needs > 5s
 
   test("missing master DB is a visible failure, not a fake pass", async () => {
@@ -61,16 +55,11 @@ describe("rb-unmatched", () => {
     const mount = makeMount();
     // fake DB via env override so the flag check (which must precede any
     // read attempt semantically) is what the test observes
-    const prev = process.env.MEGADJ_RB_MASTER;
-    process.env.MEGADJ_RB_MASTER = join(mount, "PIONEER", "Master", "master.db");
-    try {
+    await withRbMasterEnv(masterDbPath(mount), async () => {
       const r = await rbUnmatched({ mount, quarantine: true });
       expect(r.ok).toBe(false);
       expect(r.error).toContain("--quarantine requires --yes");
-    } finally {
-      if (prev === undefined) delete process.env.MEGADJ_RB_MASTER;
-      else process.env.MEGADJ_RB_MASTER = prev;
-    }
+    });
   });
 
   test("classifyUnmatched: matched / twinNamed / unknown buckets", () => {
