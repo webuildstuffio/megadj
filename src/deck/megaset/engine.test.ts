@@ -22,22 +22,11 @@ import {
   MEGASET_BEAM_POOL_MAX,
   megasetReasonClass,
 } from "../shared/types";
-
-const cand = (over: Partial<SetCandidate>): SetCandidate => ({
-  videoId: "x",
-  title: "X",
-  artist: null,
-  durationS: 300,
-  bpm: 128,
-  key: "8A",
-  valence: 5,
-  arousal: 5,
-  dance: 0.7,
-  cues: [],
-  embedding: null,
-  genreFamily: "house",
-  ...over,
-});
+import {
+  expectNoDoubleExclusion,
+  fakeTrack as cand,
+  fakeTrackList,
+} from "../../test-support/megaset-fixtures";
 
 const mkTieOrder = (order: [string, string][]) =>
   buildMegaset({
@@ -47,9 +36,11 @@ const mkTieOrder = (order: [string, string][]) =>
   }).steps.map((s) => s.videoId);
 
 const mkCandidates = (n: number, prefix: string): SetCandidate[] =>
-  Array.from({ length: n }, (_, i) =>
-    cand({ videoId: `${prefix}${String(i).padStart(2, "0")}`, bpm: 126, key: "8A" }),
-  );
+  fakeTrackList(n, (i) => ({
+    videoId: `${prefix}${String(i).padStart(2, "0")}`,
+    bpm: 126,
+    key: "8A",
+  }));
 
 describe("camelotOf", () => {
   test("parses Camelot notation, case-insensitive", () => {
@@ -623,14 +614,7 @@ describe("buildMegaset", () => {
         preset: SET_PRESETS.peak,
         minutes: 8,
       });
-      const ids = r.steps.map((s) => s.videoId);
-      const seen = new Set<string>();
-      for (const e of r.excluded) {
-        expect(seen.has(e.videoId)).toBe(false);
-        expect(ids).not.toContain(e.videoId);
-        seen.add(e.videoId);
-      }
-      expect(ids.length + seen.size).toBe(n);
+      expectNoDoubleExclusion(r, n);
     }
   });
 

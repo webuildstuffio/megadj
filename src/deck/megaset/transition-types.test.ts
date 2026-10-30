@@ -7,23 +7,7 @@ import {
   typedCoverage,
   type TransitionType,
 } from "./transition-types";
-import type { MegasetStep } from "../shared/megaset";
-
-const step = (over: Partial<MegasetStep> = {}): MegasetStep => ({
-  videoId: "x",
-  title: "Track",
-  artist: "DJ",
-  bpm: 128,
-  key: "8A",
-  arousal: 5,
-  atMin: 5,
-  transition: 0.8,
-  evidence: null,
-  landmark: false,
-  mixOutCue: null,
-  mixInCue: null,
-  ...over,
-});
+import { fakeStep as step } from "../../test-support/megaset-fixtures";
 
 describe("classifyTransition (M5 #329)", () => {
   test("opener (null transition) → hold", () => {

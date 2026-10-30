@@ -2,8 +2,8 @@
 // engine (#142): fingerprint loop (never cache a null), group cut, and
 // the apply safety gate (same-size → md5 equality; different-size →
 // name agreement; collisions abort THAT file, never the run).
-import { afterAll, describe, expect, test } from "bun:test";
-import { tempDir } from "../test-support/testutil";
+import { describe, expect, test } from "bun:test";
+import { rippledTemps } from "../test-support/testutil";
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
@@ -16,23 +16,17 @@ import {
   type GroupContext,
 } from "./dupescan-engine";
 
-// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
-const t = tempDir("megadj-engine-fp-").rippable();
-const t2 = tempDir("megadj-engine-fp-null-").rippable();
-const t3 = tempDir("megadj-engine-cut-").rippable();
-const t4 = tempDir("megadj-engine-solo-").rippable();
-const t5 = tempDir("megadj-engine-apply-").rippable();
-const t6 = tempDir("megadj-engine-coll-").rippable();
-const t7 = tempDir("megadj-engine-err-").rippable();
-afterAll(() => {
-  t.rippleAll();
-  t2.rippleAll();
-  t3.rippleAll();
-  t4.rippleAll();
-  t5.rippleAll();
-  t6.rippleAll();
-  t7.rippleAll();
-});
+// #248 fixture seam: rippledTemps owns the mkdtemp lifecycle (ripple
+// teardown registered once for the file).
+const [t, t2, t3, t4, t5, t6, t7] = rippledTemps(
+  "megadj-engine-fp-",
+  "megadj-engine-fp-null-",
+  "megadj-engine-cut-",
+  "megadj-engine-solo-",
+  "megadj-engine-apply-",
+  "megadj-engine-coll-",
+  "megadj-engine-err-",
+);
 
 function group(files: [string, number][], keep?: string): DupGroup {
   const entries = files.map(([path, bytes]) => ({ path, bytes }));

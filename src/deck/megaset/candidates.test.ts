@@ -1,40 +1,21 @@
 // candidates.test.ts — S14 (#288): N-candidates compare mode.
 import { describe, expect, test } from "bun:test";
 import { buildMegasetCandidates, MAX_CANDIDATES, MIN_CANDIDATES } from "./candidates";
-import type { SetCandidate } from "./scoring";
 import { MEGASET_PRESET_DEFS } from "../shared/types";
+import { fakeTrackList } from "../../test-support/megaset-fixtures";
 
-const cand = (over: Partial<SetCandidate>): SetCandidate => ({
-  videoId: "x",
-  title: "X",
-  artist: null,
-  durationS: 300,
-  bpm: 128,
-  key: "8A",
-  valence: 5,
-  arousal: 5,
-  dance: 0.7,
-  cues: [],
-  embedding: null,
-  genreFamily: "house",
-  ...over,
-});
-
-/** Build a pool large enough for meaningful variants. */
-function pool(size: number): SetCandidate[] {
-  const keys = ["8A", "8B", "7A", "9A", "3A", "5B", "10A", "12B"];
-  return Array.from({ length: size }, (_, i) =>
-    cand({
-      videoId: `v${i}`,
-      title: `Track ${i}`,
-      artist: `Artist ${i % 5}`,
-      bpm: 124 + (i % 8),
-      key: keys[i % keys.length]!,
-      arousal: 3 + (i % 5),
-      durationS: 240 + (i % 3) * 30,
-    }),
-  );
-}
+const keys = ["8A", "8B", "7A", "9A", "3A", "5B", "10A", "12B"];
+/** Build a pool large enough for meaningful variants (the varied ladder). */
+const pool = (size: number) =>
+  fakeTrackList(size, (i) => ({
+    videoId: `v${i}`,
+    title: `Track ${i}`,
+    artist: `Artist ${i % 5}`,
+    bpm: 124 + (i % 8),
+    key: keys[i % keys.length]!,
+    arousal: 3 + (i % 5),
+    durationS: 240 + (i % 3) * 30,
+  }));
 
 const preset = MEGASET_PRESET_DEFS[0]!;
 

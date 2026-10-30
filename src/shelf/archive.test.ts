@@ -1,5 +1,5 @@
-import { afterAll, describe, expect, test } from "bun:test";
-import { tempDir } from "../test-support/testutil";
+import { describe, expect, test } from "bun:test";
+import { rippledTemps } from "../test-support/testutil";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { shelfArchive } from "./archive";
@@ -175,41 +175,26 @@ describe("archive", () => {
 import { ShelfSweeps, type ShelfSweepRow } from "../core/sweeps";
 import { Database } from "bun:sqlite";
 
-// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
-const t = tempDir("megadj-sa-shelf-").rippable();
-const t2 = tempDir("megadj-sa-empty-").rippable();
-const t3 = tempDir("megadj-sa-ledger-").rippable();
-const t4 = tempDir("megadj-sa-drive-").rippable();
-const t5 = tempDir("megadj-sa-junk-").rippable();
-const t6 = tempDir("megadj-sa-rerun-").rippable();
-const t7 = tempDir("megadj-sa-case-").rippable();
-const t8 = tempDir("megadj-sa-divergent-").rippable();
-const t9 = tempDir("megadj-sa-samesize-").rippable();
-const t10 = tempDir("megadj-sa-trash-").rippable();
-const t11 = tempDir("megadj-sa-ok-").rippable();
-const t12 = tempDir("megadj-sa-d2-").rippable();
-const t13 = tempDir("megadj-sa-json-").rippable();
-const t14 = tempDir("megadj-sa-ledger2-").rippable();
-const t15 = tempDir("megadj-sa-ledger3-").rippable();
-const t16 = tempDir("megadj-sa-noled-").rippable();
-afterAll(() => {
-  t.rippleAll();
-  t2.rippleAll();
-  t3.rippleAll();
-  t4.rippleAll();
-  t5.rippleAll();
-  t6.rippleAll();
-  t7.rippleAll();
-  t8.rippleAll();
-  t9.rippleAll();
-  t10.rippleAll();
-  t11.rippleAll();
-  t12.rippleAll();
-  t13.rippleAll();
-  t14.rippleAll();
-  t15.rippleAll();
-  t16.rippleAll();
-});
+// #248 fixture seam: rippledTemps owns the mkdtemp lifecycle (ripple
+// teardown registered once for the file).
+const [t, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16] = rippledTemps(
+  "megadj-sa-shelf-",
+  "megadj-sa-empty-",
+  "megadj-sa-ledger-",
+  "megadj-sa-drive-",
+  "megadj-sa-junk-",
+  "megadj-sa-rerun-",
+  "megadj-sa-case-",
+  "megadj-sa-divergent-",
+  "megadj-sa-samesize-",
+  "megadj-sa-trash-",
+  "megadj-sa-ok-",
+  "megadj-sa-d2-",
+  "megadj-sa-json-",
+  "megadj-sa-ledger2-",
+  "megadj-sa-ledger3-",
+  "megadj-sa-noled-",
+);
 
 describe("shelf sweep ledger", () => {
   test("start → finish records a complete verdict with counters", () => {

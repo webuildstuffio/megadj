@@ -17,22 +17,7 @@
 import { describe, expect, test } from "bun:test";
 import { SET_PRESETS, buildMegaset, type SetCandidate } from "./engine";
 import { buildPlan, planPoolProbe } from "./plan";
-
-const cand = (over: Partial<SetCandidate>): SetCandidate => ({
-  videoId: "x",
-  title: "X",
-  artist: null,
-  durationS: 300,
-  bpm: 128,
-  key: "8A",
-  valence: 5,
-  arousal: 5,
-  dance: 0.7,
-  cues: [],
-  embedding: null,
-  genreFamily: "house",
-  ...over,
-});
+import { fakeTrack as cand } from "../../test-support/megaset-fixtures";
 
 /** Deterministic synthetic pool: 60 analyzed tracks spanning the arc —
  *  BPM ladder around the anchor, keys rotating through the compatible

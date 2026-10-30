@@ -1,33 +1,24 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { tempDir } from "../test-support/testutil";
+import { rippledTemps, tempDir } from "../test-support/testutil";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { join } from "node:path";
 import { shelfSync } from "./sync";
 
-// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
-const t = tempDir("megadj-shelf-src-").rippable();
-const t2 = tempDir("megadj-shelf-vol-").rippable();
-const t3 = tempDir("megadj-shelf-vol2-").rippable();
-const t4 = tempDir("megadj-shelf-vol3-").rippable();
-const t5 = tempDir("megadj-shelf-batch-").rippable();
-const t6 = tempDir("megadj-shelf-regroup-").rippable();
-const t7 = tempDir("megadj-shelf-nfc-").rippable();
-const t8 = tempDir("megadj-shelf-nfc-vol-").rippable();
-const t9 = tempDir("megadj-shelf-divergent-src-").rippable();
-const t10 = tempDir("megadj-shelf-divergent-vol-").rippable();
-afterAll(() => {
-  t.rippleAll();
-  t2.rippleAll();
-  t3.rippleAll();
-  t4.rippleAll();
-  t5.rippleAll();
-  t6.rippleAll();
-  t7.rippleAll();
-  t8.rippleAll();
-  t9.rippleAll();
-  t10.rippleAll();
-});
+// #248 fixture seam: rippledTemps owns the mkdtemp lifecycle (ripple
+// teardown registered once for the file).
+const [t, t2, t3, t4, t5, t6, t7, t8, t9, t10] = rippledTemps(
+  "megadj-shelf-src-",
+  "megadj-shelf-vol-",
+  "megadj-shelf-vol2-",
+  "megadj-shelf-vol3-",
+  "megadj-shelf-batch-",
+  "megadj-shelf-regroup-",
+  "megadj-shelf-nfc-",
+  "megadj-shelf-nfc-vol-",
+  "megadj-shelf-divergent-src-",
+  "megadj-shelf-divergent-vol-",
+);
 
 /**
  * sync: the shelf master is append-only. Tests exercise the walk +

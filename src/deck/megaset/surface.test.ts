@@ -5,6 +5,7 @@ import type { ArchiveReader } from "../db/reader";
 import { isMegasetSearchOverride } from "../shared/types";
 import type { CrateConfig } from "../config";
 import type { DB } from "../db";
+import { fakePoolArchive, fakePoolTrack } from "../../test-support/megaset-fixtures";
 
 const originalFetch = globalThis.fetch;
 
@@ -12,39 +13,16 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-/** One-analyzed-track ArchiveReader stub shared by the megaset surface
- *  tests (jscpd cluster, issue #223). `withAvailable` keeps the explore
- *  control's `available()` probe; the export path never calls it. */
-function oneTrackArchive(withAvailable = false): ArchiveReader {
-  const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
-  const archive: Record<string, unknown> = {
-    setCandidates: () => ({
-      available: true,
-      sourceTotal: 1,
-      total: 1,
-      missingFiles: 0,
-      duplicateFiles: 0,
-      keyReads: 0,
-      keyReadFailures: 0,
-      freshness: { beatsAt: null, moodAt: null },
-      candidates: [
-        {
-          videoId: "track-1",
-          title: "Test Track",
-          artist: "Test Artist",
-          durationS: 300,
-          bpm: 128,
-          key: "8A",
-          valence: 5,
-          arousal: 6,
-          dance: 0.8,
-          filePath,
-        },
-      ],
+/** The one-analyzed-track ArchiveReader stub shared by the megaset
+ *  surface tests (#573 seam). The export path never calls `available()`;
+ *  the JSON build path probes it (the stub answers true). */
+function oneTrackArchive(): ArchiveReader {
+  return fakePoolArchive([
+    fakePoolTrack({
+      videoId: "track-1",
+      filePath: "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff",
     }),
-  };
-  if (withAvailable) archive.available = () => true;
-  return archive as unknown as ArchiveReader;
+  ]);
 }
 
 interface MegasetTool {
@@ -137,7 +115,7 @@ describe("megaset_propose candidate-pool contract", () => {
   });
 
   test("an unknown ?search= value falls back to the automatic pick (explore control, not a contract)", async () => {
-    const archive = oneTrackArchive(true);
+    const archive = oneTrackArchive();
 
     const response = await archiveRoutes(
       "/archive/megaset",
@@ -193,47 +171,20 @@ describe("megaset_propose candidate-pool contract", () => {
 
   test("B1 (#104): the M3U8 export skips metadata-only steps (no dead paths) and says so", async () => {
     const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
-    const archive = {
-      setCandidates: () => ({
-        available: true,
-        sourceTotal: 2,
-        total: 2,
-        missingFiles: 1,
-        metadataOnly: 1,
-        duplicateFiles: 0,
-        keyReads: 0,
-        keyReadFailures: 0,
-        freshness: { beatsAt: null, moodAt: null },
-        candidates: [
-          {
-            videoId: "track-1",
-            title: "Test Track",
-            artist: "Test Artist",
-            durationS: 300,
-            bpm: 128,
-            key: "8A",
-            valence: 5,
-            arousal: 6,
-            dance: 0.8,
-            filePath,
-            metadataOnly: false,
-          },
-          {
-            videoId: "meta-1",
-            title: "Mirror Only Track",
-            artist: "Test Artist",
-            durationS: null,
-            bpm: 126,
-            key: null,
-            valence: 5,
-            arousal: 6,
-            dance: 0.8,
-            filePath: null,
-            metadataOnly: true,
-          },
-        ],
-      }),
-    } as unknown as ArchiveReader;
+    const archive = fakePoolArchive(
+      [
+        fakePoolTrack({ videoId: "track-1", filePath }),
+        fakePoolTrack({
+          videoId: "meta-1",
+          title: "Mirror Only Track",
+          durationS: null,
+          bpm: 126,
+          key: null,
+          metadataOnly: true,
+        }),
+      ],
+      { missingFiles: 1, metadataOnly: 1 },
+    );
 
     const response = await archiveRoutes(
       "/archive/megaset",
@@ -258,36 +209,9 @@ describe("megaset_propose candidate-pool contract", () => {
       { bar: 25, position: 45.1 },
       { bar: 57, position: 106.9 },
     ];
-    const archive = {
-      available: () => true,
-      setCandidates: () => ({
-        available: true,
-        sourceTotal: 1,
-        total: 1,
-        missingFiles: 0,
-        metadataOnly: 0,
-        duplicateFiles: 0,
-        keyReads: 0,
-        keyReadFailures: 0,
-        freshness: { beatsAt: null, moodAt: null },
-        candidates: [
-          {
-            videoId: "track-1",
-            title: "Test Track",
-            artist: "Test Artist",
-            durationS: 150,
-            bpm: 128,
-            key: "8A",
-            valence: 5,
-            arousal: 6,
-            dance: 0.8,
-            filePath,
-            cues: cueList,
-            metadataOnly: false,
-          },
-        ],
-      }),
-    } as unknown as ArchiveReader;
+    const archive = fakePoolArchive([
+      fakePoolTrack({ videoId: "track-1", durationS: 150, filePath, cues: cueList }),
+    ]);
 
     // JSON surface: the derived windows are part of the step payload
     const jsonResponse = await archiveRoutes(
@@ -320,36 +244,7 @@ describe("megaset_propose candidate-pool contract", () => {
 
   test("#106 Phase D: a track with no cue row builds with null windows (no invented bars anywhere)", async () => {
     const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
-    const archive = {
-      available: () => true,
-      setCandidates: () => ({
-        available: true,
-        sourceTotal: 1,
-        total: 1,
-        missingFiles: 0,
-        metadataOnly: 0,
-        duplicateFiles: 0,
-        keyReads: 0,
-        keyReadFailures: 0,
-        freshness: { beatsAt: null, moodAt: null },
-        candidates: [
-          {
-            videoId: "track-1",
-            title: "Test Track",
-            artist: "Test Artist",
-            durationS: 300,
-            bpm: 128,
-            key: "8A",
-            valence: 5,
-            arousal: 6,
-            dance: 0.8,
-            filePath,
-            cues: [],
-            metadataOnly: false,
-          },
-        ],
-      }),
-    } as unknown as ArchiveReader;
+    const archive = fakePoolArchive([fakePoolTrack({ videoId: "track-1", filePath })]);
 
     const response = await archiveRoutes(
       "/archive/megaset",
