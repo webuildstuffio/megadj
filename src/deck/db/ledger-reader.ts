@@ -11,7 +11,7 @@
 import { Database } from "bun:sqlite";
 import { errMessage } from "../../shared/leaf/fmt";
 import type { DumpRecord, DumpCensus } from "../shared/dump";
-import { hydrateDumpRow } from "../../core/dump-ledger";
+import { computeDumpCensus, hydrateDumpRow } from "../../core/dump-ledger";
 
 export abstract class ArchiveLedgerReader {
   private db: Database | null = null;
@@ -83,13 +83,7 @@ export class DumpReader extends ArchiveLedgerReader {
       String(limit),
     );
     const dumps: DumpRecord[] = rows.map(hydrateDumpRow);
-    const counts = { total: dumps.length, partial: 0, done: 0, pending: 0 };
-    for (const d of dumps) {
-      if (d.status === "partial") counts.partial++;
-      else counts.done++;
-      counts.pending += d.pending;
-    }
-    return { dumps, counts };
+    return { dumps, counts: computeDumpCensus(dumps) };
   }
 }
 
