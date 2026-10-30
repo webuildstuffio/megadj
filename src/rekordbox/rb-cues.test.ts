@@ -51,10 +51,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   test("rejects malformed and partial restamp summaries", () => {
     expect(() => __test.parseRestampOutput("not json", true)).toThrow(/malformed JSON/u);
     expect(() =>
-      __test.parseRestampOutput(
-        JSON.stringify(restampOutput({ found: 2, written: 1 })),
-        true,
-      ),
+      __test.parseRestampOutput(JSON.stringify(restampOutput({ found: 2, written: 1 })), true),
     ).toThrow(/restamped 1\/2 rows/u);
   });
 

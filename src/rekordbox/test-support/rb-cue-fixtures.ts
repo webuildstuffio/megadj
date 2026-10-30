@@ -7,9 +7,7 @@ import type { RbCommandResult, RbCommandRuntime } from "../rb-command-kit.js";
  *  green-path defaults; spread overrides in. */
 type FakeRbRuntime = RbCommandRuntime & { exists: (path: string) => boolean };
 
-type FakeRbRuntimeOverrides = Partial<RbCommandRuntime> & {
-  exists?: (path: string) => boolean;
-};
+type FakeRbRuntimeOverrides = Partial<RbCommandRuntime> & { exists?: (path: string) => boolean };
 
 export function fakeRbRuntime(overrides: FakeRbRuntimeOverrides = {}): FakeRbRuntime {
   return {
@@ -33,11 +31,7 @@ export function sequentialSpawn(outputs: string[]): SequentialSpawn {
   let call = 0;
   const spawn = (): RbCommandResult => {
     call++;
-    return {
-      status: 0,
-      stdout: outputs[Math.min(call, outputs.length) - 1] ?? "",
-      stderr: "",
-    };
+    return { status: 0, stdout: outputs[Math.min(call, outputs.length) - 1] ?? "", stderr: "" };
   };
   return Object.assign(spawn, { callCount: () => call });
 }
