@@ -19,50 +19,22 @@
 // output, and the chunk line carries the total. No ONNX models are
 // required — the fake-audio fixtures fail analysis fast (failed=N), which
 // is exactly the observable the old flow silenced.
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { join } from "node:path";
-import type { ArchiveState } from "../../core/state";
-import { tempState } from "../../test-support/testutil";
-import { writeFakeAudio } from "../../test-support/audio-fixtures";
+import { describe, test, expect } from "bun:test";
+import { moodFixture } from "../test/mood-test-fixtures";
 
-let dir: string;
-let state: ArchiveState;
-const ts = tempState("megadj-mood-first-chunk-");
-
-beforeEach(() => {
-  ({ dir, state } = ts.next());
-});
-
-afterEach(() => {
-  ts.done({ dir, state });
-});
-
-function addDownloaded(videoId: string): string {
-  const p = writeFakeAudio(
-    join(dir, `${videoId}.mp3`),
-    "not audio — groundTruth reads no mood stamp from it",
-  );
-  state.upsertTrackFromPlaylist(videoId, 1, "t");
-  state.markDownloaded(videoId, {
-    title: "t",
-    artist: null,
-    album: null,
-    formatId: null,
-    bitrateKbps: null,
-    codec: null,
-    filePath: p,
-    fileSizeBytes: null,
-    durationS: null,
-  });
-  return p;
-}
+const fx = moodFixture("megadj-mood-first-chunk-");
 
 describe("#308 mood pre-first-chunk visibility", () => {
   test("an unanalyzed queue announces scan, stamp sync, probe, and chunk stages in order", async () => {
-    for (const id of ["f1", "f2", "f3", "f4"]) addDownloaded(id);
+    for (const id of ["f1", "f2", "f3", "f4"]) fx.addDownloaded(id);
     const { mood } = await import("./mood");
     const lines: string[] = [];
-    await mood({ state, musicDir: dir, json: false, onProgress: (m) => lines.push(m) });
+    await mood({
+      state: fx.state,
+      musicDir: fx.dir,
+      json: false,
+      onProgress: (m) => lines.push(m),
+    });
     const text = lines.join("\n");
     // stage announcements, in pipeline order, all BEFORE the chunk line
     const queueLine = lines.findIndex((l) => l.includes("queue: 4 downloaded"));
@@ -90,7 +62,9 @@ describe("#308 mood pre-first-chunk visibility", () => {
     // worker errored on each — fake audio — and mood-queue.test.ts pins
     // the counters via the console.log capture path). Here the DB-level
     // proof: the 4 tracks exist, none was silently dropped by a stage.
-    const ledgered = state.allTracks().filter((t) => ["f1", "f2", "f3", "f4"].includes(t.video_id));
+    const ledgered = fx.state
+      .allTracks()
+      .filter((t) => ["f1", "f2", "f3", "f4"].includes(t.video_id));
     expect(ledgered.length).toBe(4);
   }, 60000);
 
@@ -99,8 +73,8 @@ describe("#308 mood pre-first-chunk visibility", () => {
     // record, then run: the probe must say "skipping 2 ledgered" and the
     // summary must read as success-with-reasons (the #278 contract).
     for (const id of ["l1", "l2"]) {
-      const p = addDownloaded(id);
-      state.setMoodRecord({
+      const p = fx.addDownloaded(id);
+      fx.state.setMoodRecord({
         videoId: id,
         dance: 0.5,
         aggressive: 0.1,
@@ -114,7 +88,12 @@ describe("#308 mood pre-first-chunk visibility", () => {
     }
     const { mood } = await import("./mood");
     const lines: string[] = [];
-    await mood({ state, musicDir: dir, json: false, onProgress: (m) => lines.push(m) });
+    await mood({
+      state: fx.state,
+      musicDir: fx.dir,
+      json: false,
+      onProgress: (m) => lines.push(m),
+    });
     const probeLine = lines.find((l) => l.includes("analysis probe:"));
     expect(probeLine).toBeDefined();
     expect(probeLine).toContain("skipping 2 ledgered");
