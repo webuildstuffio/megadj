@@ -36,6 +36,10 @@ const rbFixPathsCmd: CliCommandHandler = async (rest) => {
     ...jsonOpts(json),
   });
   await emitResult(json, r, printRbFixReport);
+  if (r.ok && r.appliedMode) {
+    const { syncMasterToLocal } = await import("./master-path");
+    syncMasterToLocal(r.db);
+  }
   if (!r.ok) setExit(1);
 };
 
@@ -201,6 +205,13 @@ const rbCommentSyncCmd: CliCommandHandler = async (rest) => {
     ...jsonOpts(json),
   });
   await emitResult(json, r, printRbCommentSyncReport);
+  if (r.ok && r.appliedMode && r.written > 0) {
+    const { syncMasterToLocal } = await import("./master-path");
+    const local = syncMasterToLocal(r.db);
+    if (local !== null) {
+      console.error(`synced master.db → ${local}`);
+    }
+  }
   if (!r.ok) setExit(1);
 };
 
@@ -217,6 +228,10 @@ const rbTitleRepairCmd: CliCommandHandler = async (rest) => {
     ...jsonOpts(json),
   });
   await emitResult(json, r, printRbTitleRepairReport);
+  if (r.ok && r.applied) {
+    const { syncMasterToLocal } = await import("./master-path");
+    syncMasterToLocal(r.db);
+  }
   if (!r.ok) setExit(1);
 };
 
