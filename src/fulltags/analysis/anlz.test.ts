@@ -15,6 +15,7 @@ import {
   PHRASE_KINDS,
   TRACK_MOOD,
   type AnlzBeat,
+  type AnlzPhrases,
 } from "./anlz";
 
 const grid = (bpmx100: number, n: number): AnlzBeat[] =>
@@ -110,35 +111,48 @@ describe("rewriteAnlzGrid (the #147 Q4 writer)", () => {
   });
 });
 
-const mkPhrases = (
-  entries: { index: number; beat: number; kind: number }[],
-  endBeat = 500,
-  mood: number = TRACK_MOOD.HIGH,
-) => buildAnlz({ path: "/Contents/Artist/Album/track.mp3", phrases: { mood, endBeat, entries } });
+interface PhraseEntry {
+  index: number;
+  beat: number;
+  kind: number;
+}
+
+const { HIGH, MID } = PHRASE_KINDS;
+
+const mkPhrases = (entries: PhraseEntry[], endBeat = 500, mood: number = TRACK_MOOD.HIGH) =>
+  buildAnlz({ path: "/Contents/Artist/Album/track.mp3", phrases: { mood, endBeat, entries } });
+
+const mkParsedPhrases = (entries: PhraseEntry[], endBeat = 500, mood: number = TRACK_MOOD.HIGH) =>
+  parseAnlzPhrases(mkPhrases(entries, endBeat, mood))!;
+
+const expectDropRoll = (parsed: AnlzPhrases, expected: { drop: boolean; roll: boolean }) => {
+  const result = phraseDropRoll(parsed);
+  expect(result.drop).toBe(expected.drop);
+  expect(result.roll).toBe(expected.roll);
+};
+
+// The full high-mood arc: 8-bar intro, then a 32-bar CHORUS (97→225) and a
+// 40-bar CHORUS (289→449) ahead of a 16-bar outro.
+const HIGH_ARC: PhraseEntry[] = [
+  { index: 1, beat: 1, kind: HIGH.INTRO },
+  { index: 2, beat: 33, kind: HIGH.UP },
+  { index: 3, beat: 97, kind: HIGH.CHORUS },
+  { index: 4, beat: 225, kind: HIGH.DOWN },
+  { index: 5, beat: 289, kind: HIGH.CHORUS },
+  { index: 6, beat: 449, kind: HIGH.OUTRO },
+];
 
 describe("parseAnlzPhrases (PSSI phrase structure, #427)", () => {
-  const { HIGH } = PHRASE_KINDS;
-
   test("unmasked round-trip: phrases survive encode/decode", () => {
-    const entries = [
-      { index: 1, beat: 1, kind: HIGH.INTRO },
-      { index: 2, beat: 33, kind: HIGH.UP },
-      { index: 3, beat: 97, kind: HIGH.CHORUS },
-      { index: 4, beat: 225, kind: HIGH.DOWN },
-      { index: 5, beat: 289, kind: HIGH.CHORUS },
-      { index: 6, beat: 449, kind: HIGH.OUTRO },
-    ];
-    const data = mkPhrases(entries, 513);
-    const parsed = parseAnlzPhrases(data);
-    expect(parsed).not.toBeNull();
-    expect(parsed!.mood).toBe(TRACK_MOOD.HIGH);
-    expect(parsed!.endBeat).toBe(513);
-    expect(parsed!.path).toBe("/Contents/Artist/Album/track.mp3");
-    expect(parsed!.phrases).toHaveLength(6);
-    expect(parsed!.phrases[0]!.kind).toBe(HIGH.INTRO);
-    expect(parsed!.phrases[0]!.beat).toBe(1);
-    expect(parsed!.phrases[5]!.kind).toBe(HIGH.OUTRO);
-    expect(parsed!.phrases[5]!.beat).toBe(449);
+    const parsed = mkParsedPhrases(HIGH_ARC, 513);
+    expect(parsed.mood).toBe(TRACK_MOOD.HIGH);
+    expect(parsed.endBeat).toBe(513);
+    expect(parsed.path).toBe("/Contents/Artist/Album/track.mp3");
+    expect(parsed.phrases).toHaveLength(6);
+    expect(parsed.phrases[0]!.kind).toBe(HIGH.INTRO);
+    expect(parsed.phrases[0]!.beat).toBe(1);
+    expect(parsed.phrases[5]!.kind).toBe(HIGH.OUTRO);
+    expect(parsed.phrases[5]!.beat).toBe(449);
   });
 
   test("no PSSI section → null", () => {
@@ -170,8 +184,7 @@ describe("parseAnlzPhrases (PSSI phrase structure, #427)", () => {
   });
 
   test("MID mood phrases parse correctly", () => {
-    const { MID } = PHRASE_KINDS;
-    const data = mkPhrases(
+    const parsed = mkParsedPhrases(
       [
         { index: 1, beat: 1, kind: MID.INTRO },
         { index: 2, beat: 33, kind: MID.VERSE1 },
@@ -181,145 +194,81 @@ describe("parseAnlzPhrases (PSSI phrase structure, #427)", () => {
       200,
       TRACK_MOOD.MID,
     );
-    const parsed = parseAnlzPhrases(data);
-    expect(parsed).not.toBeNull();
-    expect(parsed!.mood).toBe(TRACK_MOOD.MID);
-    expect(parsed!.phrases[3]!.kind).toBe(MID.OUTRO);
+    expect(parsed.mood).toBe(TRACK_MOOD.MID);
+    expect(parsed.phrases[3]!.kind).toBe(MID.OUTRO);
   });
 });
 
 describe("phraseInOutBars (#427 IN/OUT bar computation)", () => {
-  const { HIGH, MID } = PHRASE_KINDS;
-
   test("high mood: 8-bar intro, 16-bar outro", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 513,
-        entries: [
-          { index: 1, beat: 1, kind: HIGH.INTRO },
-          { index: 2, beat: 33, kind: HIGH.UP },
-          { index: 3, beat: 97, kind: HIGH.CHORUS },
-          { index: 4, beat: 225, kind: HIGH.DOWN },
-          { index: 5, beat: 289, kind: HIGH.CHORUS },
-          { index: 6, beat: 449, kind: HIGH.OUTRO },
-        ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { introBars, outroBars } = phraseInOutBars(parsed);
+    const { introBars, outroBars } = phraseInOutBars(mkParsedPhrases(HIGH_ARC, 513));
     expect(introBars).toBe(8); // (33-1)/4 = 8
     expect(outroBars).toBe(16); // (513-449)/4 = 16
   });
 
   test("mid mood: outro kind=10", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.MID,
-        endBeat: 300,
-        entries: [
+    const { introBars, outroBars } = phraseInOutBars(
+      mkParsedPhrases(
+        [
           { index: 1, beat: 1, kind: MID.INTRO },
           { index: 2, beat: 65, kind: MID.VERSE1 },
           { index: 3, beat: 193, kind: MID.CHORUS },
           { index: 4, beat: 257, kind: MID.OUTRO },
         ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { introBars, outroBars } = phraseInOutBars(parsed);
+        300,
+        TRACK_MOOD.MID,
+      ),
+    );
     expect(introBars).toBe(16); // (65-1)/4 = 16
     expect(outroBars).toBe(10); // (300-257)/4 = 10 (floor)
   });
 
   test("no intro → introBars=0, no outro → outroBars=0", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 200,
-        entries: [
-          { index: 1, beat: 1, kind: HIGH.UP },
-          { index: 2, beat: 65, kind: HIGH.CHORUS },
-        ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { introBars, outroBars } = phraseInOutBars(parsed);
+    const { introBars, outroBars } = phraseInOutBars(
+      mkParsedPhrases([
+        { index: 1, beat: 1, kind: HIGH.UP },
+        { index: 2, beat: 65, kind: HIGH.CHORUS },
+      ]),
+    );
     expect(introBars).toBe(0);
     expect(outroBars).toBe(0);
   });
 
   test("3-bar intro rounds to 0 in roundBarsDown", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 200,
-        entries: [
-          { index: 1, beat: 1, kind: HIGH.INTRO },
-          { index: 2, beat: 13, kind: HIGH.CHORUS }, // 12 beats = 3 bars
-          { index: 3, beat: 161, kind: HIGH.OUTRO },
-        ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { introBars } = phraseInOutBars(parsed);
+    const { introBars } = phraseInOutBars(
+      mkParsedPhrases([
+        { index: 1, beat: 1, kind: HIGH.INTRO },
+        { index: 2, beat: 13, kind: HIGH.CHORUS }, // 12 beats = 3 bars
+        { index: 3, beat: 161, kind: HIGH.OUTRO },
+      ]),
+    );
     expect(introBars).toBe(3); // raw bars
   });
 
   test("64-bar outro stays at 64 in roundBarsDown", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 257 + 256, // 64 bars of outro
-        entries: [
+    const { outroBars } = phraseInOutBars(
+      mkParsedPhrases(
+        [
           { index: 1, beat: 1, kind: HIGH.INTRO },
           { index: 2, beat: 33, kind: HIGH.CHORUS },
           { index: 3, beat: 257, kind: HIGH.OUTRO },
         ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { outroBars } = phraseInOutBars(parsed);
+        257 + 256, // 64 bars of outro
+      ),
+    );
     expect(outroBars).toBe(64);
   });
 });
 
 describe("phraseDropRoll (#428 Drop/Roll classification)", () => {
-  const { HIGH, MID } = PHRASE_KINDS;
-
   test("high mood with 16-bar CHORUS → drop", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 513,
-        entries: [
-          { index: 1, beat: 1, kind: HIGH.INTRO },
-          { index: 2, beat: 33, kind: HIGH.UP },
-          { index: 3, beat: 97, kind: HIGH.CHORUS }, // 32 bars
-          { index: 4, beat: 225, kind: HIGH.DOWN },
-          { index: 5, beat: 289, kind: HIGH.CHORUS }, // 40 bars
-          { index: 6, beat: 449, kind: HIGH.OUTRO },
-        ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { drop, roll } = phraseDropRoll(parsed);
-    expect(drop).toBe(true);
-    expect(roll).toBe(false);
+    expectDropRoll(mkParsedPhrases(HIGH_ARC, 513), { drop: true, roll: false });
   });
 
   test("high mood with only UP/DOWN (no CHORUS) → roll", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 400,
-        entries: [
+    expectDropRoll(
+      mkParsedPhrases(
+        [
           { index: 1, beat: 1, kind: HIGH.INTRO },
           { index: 2, beat: 33, kind: HIGH.UP },
           { index: 3, beat: 97, kind: HIGH.DOWN },
@@ -327,21 +276,16 @@ describe("phraseDropRoll (#428 Drop/Roll classification)", () => {
           { index: 5, beat: 225, kind: HIGH.DOWN },
           { index: 6, beat: 353, kind: HIGH.OUTRO },
         ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { drop, roll } = phraseDropRoll(parsed);
-    expect(drop).toBe(false);
-    expect(roll).toBe(true);
+        400,
+      ),
+      { drop: false, roll: true },
+    );
   });
 
   test("small CHORUS (<8 bars) = not a real drop → roll", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 300,
-        entries: [
+    expectDropRoll(
+      mkParsedPhrases(
+        [
           { index: 1, beat: 1, kind: HIGH.INTRO },
           { index: 2, beat: 33, kind: HIGH.UP },
           { index: 3, beat: 97, kind: HIGH.CHORUS }, // only 4 bars
@@ -349,21 +293,16 @@ describe("phraseDropRoll (#428 Drop/Roll classification)", () => {
           { index: 5, beat: 177, kind: HIGH.UP },
           { index: 6, beat: 257, kind: HIGH.OUTRO },
         ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { drop, roll } = phraseDropRoll(parsed);
-    expect(drop).toBe(false);
-    expect(roll).toBe(true);
+        300,
+      ),
+      { drop: false, roll: true },
+    );
   });
 
   test("MID mood with CHORUS kind=9 → drop", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.MID,
-        endBeat: 400,
-        entries: [
+    expectDropRoll(
+      mkParsedPhrases(
+        [
           { index: 1, beat: 1, kind: MID.INTRO },
           { index: 2, beat: 33, kind: MID.VERSE1 },
           { index: 3, beat: 97, kind: MID.CHORUS }, // 32 bars
@@ -371,29 +310,20 @@ describe("phraseDropRoll (#428 Drop/Roll classification)", () => {
           { index: 5, beat: 289, kind: MID.CHORUS }, // 16 bars
           { index: 6, beat: 353, kind: MID.OUTRO },
         ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { drop, roll } = phraseDropRoll(parsed);
-    expect(drop).toBe(true);
-    expect(roll).toBe(false);
+        400,
+        TRACK_MOOD.MID,
+      ),
+      { drop: true, roll: false },
+    );
   });
 
   test("only intro + outro → neither", () => {
-    const data = buildAnlz({
-      path: "/track.mp3",
-      phrases: {
-        mood: TRACK_MOOD.HIGH,
-        endBeat: 200,
-        entries: [
-          { index: 1, beat: 1, kind: HIGH.INTRO },
-          { index: 2, beat: 161, kind: HIGH.OUTRO },
-        ],
-      },
-    });
-    const parsed = parseAnlzPhrases(data)!;
-    const { drop, roll } = phraseDropRoll(parsed);
-    expect(drop).toBe(false);
-    expect(roll).toBe(false);
+    expectDropRoll(
+      mkParsedPhrases([
+        { index: 1, beat: 1, kind: HIGH.INTRO },
+        { index: 2, beat: 161, kind: HIGH.OUTRO },
+      ]),
+      { drop: false, roll: false },
+    );
   });
 });
