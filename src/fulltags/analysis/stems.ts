@@ -102,14 +102,20 @@ const MIN_STEM_SECONDS = 30;
 export async function stems(opts: StemsOptions): Promise<void> {
   const log = commandLog(opts);
   const stemDir = nonEmptyEnv("MEGADJ_STEM_DIR") ?? defaultStemDir();
-  const maxSeconds = opts.maxSeconds === undefined ? DEFAULT_MAX_STEM_SECONDS : opts.maxSeconds;
+  const maxSeconds =
+    opts.maxSeconds === undefined ? DEFAULT_MAX_STEM_SECONDS : opts.maxSeconds;
 
   mkdirSync(stemDir, { recursive: true });
   log(`stems: cache dir ${stemDir}`);
 
   const candidates = opts.state
     .allTracks()
-    .filter((t) => t.status === "downloaded" && t.file_path !== null && existsSync(t.file_path));
+    .filter(
+      (t) =>
+        t.status === "downloaded" &&
+        t.file_path !== null &&
+        existsSync(t.file_path),
+    );
   log(`  queue: ${candidates.length} downloaded file(s) on disk`);
 
   const todo: TrackRow[] = [];
@@ -156,7 +162,14 @@ export async function stems(opts: StemsOptions): Promise<void> {
 
   if (queue.length === 0) {
     if (opts.json)
-      await writeJson({ command: "stems", separated: 0, skipped, tooLong, tooShort, failed: 0 });
+      await writeJson({
+        command: "stems",
+        separated: 0,
+        skipped,
+        tooLong,
+        tooShort,
+        failed: 0,
+      });
     return;
   }
 
@@ -179,7 +192,9 @@ export async function stems(opts: StemsOptions): Promise<void> {
     log("  loading Demucs model…");
     session = await openStemSession();
     if (session === null) {
-      log("  ❌ failed to start Demucs worker (is torch/demucs installed via uv?)");
+      log(
+        "  ❌ failed to start Demucs worker (is torch/demucs installed via uv?)",
+      );
       if (opts.json)
         await writeJson({
           command: "stems",
@@ -207,6 +222,8 @@ export async function stems(opts: StemsOptions): Promise<void> {
   let separated = 0;
   let failed = 0;
   let workerRestarts = 0;
+  let consecutiveErrors = 0;
+  const CONSECUTIVE_ERROR_LIMIT = 5;
   const batchStart = Date.now();
   const elapsedTimes: number[] = [];
   const errors: { label: string; error: string }[] = [];
@@ -226,7 +243,9 @@ export async function stems(opts: StemsOptions): Promise<void> {
       const label = basename(t.file_path ?? t.video_id);
       const remaining = queue.length - i;
       const avgS =
-        elapsedTimes.length > 0 ? elapsedTimes.reduce((a, b) => a + b, 0) / elapsedTimes.length : 0;
+        elapsedTimes.length > 0
+          ? elapsedTimes.reduce((a, b) => a + b, 0) / elapsedTimes.length
+          : 0;
       const etaMin = avgS > 0 ? Math.round((remaining * avgS) / 60) : 0;
       const etaStr = etaMin > 0 ? ` ETA ~${etaMin}min` : "";
       log(`  [${i + 1}/${queue.length}] separating ${label}…${etaStr}`);
@@ -262,24 +281,52 @@ export async function stems(opts: StemsOptions): Promise<void> {
       }
 
       if (!result.ok) {
-        // Worker returned a structured error — session is still alive
         failed++;
+        const errMsg = `${result.errorType}: ${result.error}`;
         const detail = result.traceback !== "" ? ` (${result.traceback})` : "";
-        errors.push({ label, error: `${result.errorType}: ${result.error}` });
+        errors.push({ label, error: errMsg });
         logBatchLine(logPath, {
           type: "track",
           videoId: t.video_id,
           label,
           genre: t.genre,
           status: "error",
-          error: `${result.errorType}: ${result.error}`,
+          error: errMsg,
           n: i + 1,
           total: queue.length,
         });
-        log(`  ❌ ${label} — ${result.errorType}: ${result.error}${detail}`);
+        log(`  ❌ ${label} — ${errMsg}${detail}`);
+
+        consecutiveErrors++;
+
+        // GPU timeout poisons Metal — all subsequent submissions are rejected.
+        // Restart the worker to clear the GPU state (same as a crash).
+        const isGpuError =
+          /kIOGPU|Metal|GPU.*(Timeout|Error|Ignored)|CommandBuffer/i.test(
+            result.error,
+          );
+        const needsRestart =
+          isGpuError || consecutiveErrors >= CONSECUTIVE_ERROR_LIMIT;
+        if (needsRestart) {
+          const reason = isGpuError
+            ? "GPU error"
+            : `${consecutiveErrors} consecutive errors`;
+          log(`  ⚠️  ${reason} — restarting worker`);
+          session.close();
+          session = await openStemSession();
+          workerRestarts++;
+          consecutiveErrors = 0;
+          if (session === null) {
+            log("  ❌ worker died after restart; aborting remaining queue");
+            failed += queue.length - i - 1;
+            break;
+          }
+          log("  ♻️  worker restarted — continuing");
+        }
         continue;
       }
 
+      consecutiveErrors = 0;
       opts.state.setStemRecord({
         videoId: t.video_id,
         model: STEM_MODEL,
@@ -319,7 +366,9 @@ export async function stems(opts: StemsOptions): Promise<void> {
   const batchElapsedMin = Math.round((Date.now() - batchStart) / 60000);
   const avgTrackS =
     elapsedTimes.length > 0
-      ? Math.round(elapsedTimes.reduce((a, b) => a + b, 0) / elapsedTimes.length)
+      ? Math.round(
+          elapsedTimes.reduce((a, b) => a + b, 0) / elapsedTimes.length,
+        )
       : 0;
 
   log(

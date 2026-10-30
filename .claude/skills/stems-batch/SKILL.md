@@ -112,10 +112,13 @@ bun run megadj rb-comment-sync
 
 ## Lessons learned (hardened)
 
-### 1. GPU Timeout (kIOGPUCommandBufferCallbackErrorTimeout)
-**Symptom:** Metal command buffer crashes after ~22 tracks.
-**Root cause:** MLX Metal cache grows unbounded → GPU stalls.
-**Fix (in code):** `mx.set_cache_limit(6GB)` at startup + `mx.clear_cache()` + `gc.collect()` after EVERY track + `batch_size=1`. All three are required.
+### 1. GPU Timeout → cascade failure (FIXED Oct 29)
+**Symptom:** Metal command buffer crashes after ~22 tracks, then ALL subsequent tracks fail with `kIOGPUCommandBufferCallbackErrorSubmissionsIgnored` (997 cascade failures in one batch).
+**Root cause:** MLX Metal cache grows unbounded → GPU timeout → Metal rejects all further submissions. Worker stayed alive but GPU was poisoned.
+**Fix (in code):** Three layers:
+1. Prevention: `mx.set_cache_limit(6GB)` + `mx.clear_cache()` + `gc.collect()` after EVERY track + `batch_size=1`
+2. Detection: regex match on GPU/Metal/kIOGPU errors in worker response → immediate worker restart
+3. Safety net: 5 consecutive errors (any kind) → worker restart even without GPU keyword
 
 ### 2. Drive rename breaks batch
 **Symptom:** `PermissionError` on `/Volumes/SHELF1/stems`.
@@ -134,7 +137,13 @@ XDJ-XZ reads PGZ (zlib-compressed s16le @ 96kHz), not our FLAC stems. FLAC seque
 ### 6. torch Demucs is retired
 uv deps are `demucs-mlx` + `soundfile`. NOT `demucs==4.1.0` + torch. Don't revert to torch — it's 3.6x slower and has no memory management.
 
-### 7. Concurrent CPU usage
+### 7. Orphan DB paths after drive changes
+**Symptom:** 582 stem_cache rows pointed to `/Users/nick/.local/state/megadj/stems/` and `/Volumes/SHELF1/stems/` — files existed on FIKWOK but DB had stale paths.
+**Root cause:** Early batches ran without `MEGADJ_STEM_DIR`, used default local path. Drive rename SHELF1→GREY FIKWOK left 12 more orphans.
+**Fix:** SQL UPDATE to repoint all paths to FIKWOK (verified all files exist). Also cleaned 734 empty dirs from GPU-crash runs.
+**Prevention:** Always set `MEGADJ_STEM_DIR="/Volumes/GREY FIKWOK/stems/"` for every batch run.
+
+### 8. Concurrent CPU usage
 Stems uses GPU (Metal) heavily. Running embeddings/mood (CPU-bound) concurrently is safe but may slow both. For maximum throughput, run stems overnight and CPU work during the day.
 
 ## Future: hierarchical ensemble
