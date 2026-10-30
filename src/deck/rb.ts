@@ -15,7 +15,11 @@ const RB = "rekordbox";
 // The interlock is polled by every job enqueue, every /api/interlock request
 // and every rbSnapshot. pgrep is cheap but not free — cache the verdict for
 // 1s (rekordbox starting mid-job is re-checked at job start regardless).
-let interlockCache: { at: number; running: boolean; pid: number | null } | null = null;
+let interlockCache: {
+  at: number;
+  running: boolean;
+  pid: number | null;
+} | null = null;
 const INTERLOCK_TTL_MS = 1_000;
 
 export function rekordboxRunning(opts?: { fresh?: boolean }): {
@@ -23,12 +27,19 @@ export function rekordboxRunning(opts?: { fresh?: boolean }): {
   pid: number | null;
 } {
   const now = Date.now();
-  if (!opts?.fresh && interlockCache && now - interlockCache.at < INTERLOCK_TTL_MS)
+  if (
+    !opts?.fresh &&
+    interlockCache &&
+    now - interlockCache.at < INTERLOCK_TTL_MS
+  )
     return interlockCache;
   const p = Bun.spawnSync(["pgrep", "-x", RB], { stdout: "pipe" });
   const out = p.stdout.toString().trim();
   const pid = out ? parseInt(out.split("\n")[0] ?? "", 10) : null;
-  const result = { running: Boolean(out), pid: pid !== null && !Number.isNaN(pid) ? pid : null };
+  const result = {
+    running: Boolean(out),
+    pid: pid !== null && !Number.isNaN(pid) ? pid : null,
+  };
   interlockCache = { at: now, ...result };
   return result;
 }
@@ -50,15 +61,31 @@ export async function rbSnapshot(
   // cached verdict here (rekordbox could have started within the TTL window).
   const lock = rekordboxRunning({ fresh: true });
   if (lock.running) {
-    throw new Error(`REKORDBOX_RUNNING (pid ${lock.pid}) — hands off the drives`);
+    throw new Error(
+      `REKORDBOX_RUNNING (pid ${lock.pid}) — hands off the drives`,
+    );
   }
 
-  const dbOnDrive = join(mountPoint, "PIONEER", "rekordbox", "exportLibrary.db");
-  if (!exists(dbOnDrive)) throw new Error(`no rekordbox device DB at ${dbOnDrive}`);
+  const dbOnDrive = join(
+    mountPoint,
+    "PIONEER",
+    "rekordbox",
+    "exportLibrary.db",
+  );
+  if (!exists(dbOnDrive))
+    throw new Error(`no rekordbox device DB at ${dbOnDrive}`);
 
-  const scratch = join(cfg.scratchDir, sanitize(basename(mountPoint)), String(Date.now()));
+  const scratch = join(
+    cfg.scratchDir,
+    sanitize(basename(mountPoint)),
+    String(Date.now()),
+  );
   guard.mkdir(scratch); // dest under data/ — the only allowed write root
-  for (const f of ["exportLibrary.db", "exportLibrary.db-wal", "exportLibrary.db-shm"]) {
+  for (const f of [
+    "exportLibrary.db",
+    "exportLibrary.db-wal",
+    "exportLibrary.db-shm",
+  ]) {
     const src = join(mountPoint, "PIONEER", "rekordbox", f);
     if (exists(src)) {
       const dest = join(scratch, f);
@@ -106,10 +133,15 @@ export async function rbSnapshot(
 }
 
 /** Spawn usb_verify.py / usb_mirror.py as a long-running job process. */
-export function spawnVerify(cfg: CrateConfig, driveNames: string[]): Bun.Subprocess {
+export function spawnVerify(
+  cfg: CrateConfig,
+  driveNames: string[],
+): Bun.Subprocess {
   // Archive-tier (shelf) drives host the master library; pdb parity there
   // is informational, never a fail (usb_verify.py --shelf-drives).
-  const shelfNames = driveNames.filter((n) => n.toUpperCase() === cfg.shelfDrive.toUpperCase());
+  const shelfNames = driveNames.filter(
+    (n) => n.toUpperCase() === cfg.shelfDrive.toUpperCase(),
+  );
   return Bun.spawn(
     [
       cfg.uvPath,
@@ -118,7 +150,16 @@ export function spawnVerify(cfg: CrateConfig, driveNames: string[]): Bun.Subproc
       PYREKORDBOX,
       "python",
       "-u", // unbuffered — piped python output must reach the job log live
-      join(cfg.root, "..", ".claude", "skills", "rekordbox-usb-sync", "scripts", "usb_verify.py"),
+      join(
+        cfg.root,
+        "..",
+        "..",
+        ".claude",
+        "skills",
+        "rekordbox-usb-sync",
+        "scripts",
+        "usb_verify.py",
+      ),
       "--drives",
       ...driveNames,
       ...(shelfNames.length ? ["--shelf-drives", ...shelfNames] : []),
@@ -127,14 +168,26 @@ export function spawnVerify(cfg: CrateConfig, driveNames: string[]): Bun.Subproc
   );
 }
 
-export function spawnMirror(cfg: CrateConfig, extraArgs: string[]): Bun.Subprocess {
+export function spawnMirror(
+  cfg: CrateConfig,
+  extraArgs: string[],
+): Bun.Subprocess {
   return Bun.spawn(
     [
       cfg.uvPath,
       "run",
       "python",
       "-u", // unbuffered — see spawnVerify
-      join(cfg.root, "..", ".claude", "skills", "rekordbox-usb-sync", "scripts", "usb_mirror.py"),
+      join(
+        cfg.root,
+        "..",
+        "..",
+        ".claude",
+        "skills",
+        "rekordbox-usb-sync",
+        "scripts",
+        "usb_mirror.py",
+      ),
       ...extraArgs,
     ],
     { stdout: "pipe", stderr: "pipe", cwd: cfg.root },
