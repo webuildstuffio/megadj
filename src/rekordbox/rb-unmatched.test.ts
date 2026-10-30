@@ -4,11 +4,7 @@ import { join } from "node:path";
 import { rbUnmatched, printRbUnmatchedReport, __test } from "./rb-unmatched";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { tempDir } from "../test-support/testutil";
-import {
-  masterDbPath,
-  withRbMasterEnv,
-  writeStubMasterDb,
-} from "./test-support/rb-path-fixtures";
+import { masterDbPath, withRbMasterEnv, writeStubMasterDb } from "./test-support/rb-path-fixtures";
 
 const t = tempDir("megadj-rbunmatched-").rippable();
 afterAll(() => t.rippleAll());
