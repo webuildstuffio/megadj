@@ -144,6 +144,15 @@ const rbImportCmd: CliCommandHandler = async (rest) => {
     allowDupe: flags.bools.has("allow-dupe"),
   });
   await emitResult(json, r, printRbImportReport);
+  if (r.ok && r.appliedMode && r.inserted > 0) {
+    const { syncMasterToLocal } = await import("./master-path");
+    const { repairArtwork } = await import("./artwork-repair");
+    const artResult = repairArtwork(r.db, mount);
+    if (artResult.extracted > 0) {
+      console.error(`artwork: extracted ${artResult.extracted} covers to PIONEER/Artwork/`);
+    }
+    syncMasterToLocal(r.db);
+  }
   if (!r.ok || r.dupes.length > 0) setExit(1);
 };
 

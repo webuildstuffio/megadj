@@ -15,8 +15,8 @@ import os
 import sys
 
 from pyrekordbox import db6  # type: ignore[import-not-found]
-from pyrekordbox.masterdb.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]
+from pyrekordbox.masterdb.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 
 
 def extract_embedded_art(audio_path: str) -> bytes | None:
@@ -144,9 +144,31 @@ def main() -> None:
             continue
 
         if apply:
-            os.makedirs(os.path.dirname(art_file), exist_ok=True)
-            with open(art_file, "wb") as f:
-                f.write(img)
+            art_dir = os.path.dirname(art_file)
+            os.makedirs(art_dir, exist_ok=True)
+
+            # RB needs THREE files — full + medium (250px) + small (125px)
+            # thumbnails. A directory with only the full-res artwork.jpg
+            # silently shows blank art (pilot-verified 2026-09-04).
+            try:
+                import io
+
+                from PIL import Image  # type: ignore[import-not-found]
+
+                pil_img = Image.open(io.BytesIO(img)).convert("RGB")
+                pil_img.save(os.path.join(art_dir, "artwork.jpg"), "JPEG", quality=90)
+
+                thumb_m = pil_img.copy()
+                thumb_m.thumbnail((250, 250), Image.LANCZOS)
+                thumb_m.save(os.path.join(art_dir, "artwork_m.jpg"), "JPEG", quality=85)
+
+                thumb_s = pil_img.copy()
+                thumb_s.thumbnail((125, 125), Image.LANCZOS)
+                thumb_s.save(os.path.join(art_dir, "artwork_s.jpg"), "JPEG", quality=85)
+            except ImportError:
+                # Pillow not available — fall back to full-size only (blank in RB)
+                with open(art_file, "wb") as f:
+                    f.write(img)
             out["extracted"] += 1
         else:
             out["extracted"] += 1
