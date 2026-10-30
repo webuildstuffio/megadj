@@ -12,7 +12,6 @@ import {
   bpmScore,
   SET_PRESETS,
   withinAnchorBudget,
-  type SetCandidate,
 } from "./engine";
 import { megasetTempoLane, similarityScore, transitionEvidence, transitionScore } from "./scoring";
 import {
@@ -22,24 +21,13 @@ import {
   MEGASET_PRESET_DEFS,
   isMegasetHalfTimePair,
 } from "../shared/types";
+import {
+  expectNoDoubleExclusion,
+  expectTransitionsRecomputeFromScratch,
+  fakeTrack as base,
+} from "../../test-support/megaset-fixtures";
 
 const W = MEGASET_TRANSITION_WEIGHTS;
-
-const base = (over: Partial<SetCandidate>): SetCandidate => ({
-  videoId: "x",
-  title: "X",
-  artist: null,
-  durationS: 300,
-  bpm: 128,
-  key: "8A",
-  valence: 5,
-  arousal: 5,
-  dance: 0.7,
-  cues: [],
-  embedding: null,
-  genreFamily: "house",
-  ...over,
-});
 
 const cand = base;
 
@@ -323,14 +311,7 @@ describe("buildMegaset improvement pass (#107)", () => {
       searchOverride: "greedy",
       landmarkIds: ["pin"],
     });
-    const ids = r.steps.map((s) => s.videoId);
-    const seen = new Set<string>();
-    for (const e of r.excluded) {
-      expect(seen.has(e.videoId)).toBe(false);
-      expect(ids).not.toContain(e.videoId);
-      seen.add(e.videoId);
-    }
-    expect(ids.length + seen.size).toBe(chainPool.length);
+    expectNoDoubleExclusion(r, chainPool.length);
   });
 
   test("F2: repair-pass transitions are position-true — wire scores recompute from scratch", () => {
@@ -364,21 +345,7 @@ describe("buildMegaset improvement pass (#107)", () => {
     // functions score it at — t = elapsed THROUGH the predecessor (its
     // own atMin), the same clock greedy/beam use for the hop. The wire
     // rounds scores to 3 decimals; the comparison uses that precision.
-    const budgetS = 30 * 60;
-    for (let i = 1; i < r.steps.length; i++) {
-      const s = r.steps[i]!;
-      const prev = r.steps[i - 1]!;
-      const t = Math.min(1, (prev.atMin * 60) / budgetS);
-      const fresh = transitionScore(
-        cand({ videoId: prev.videoId, arousal: prev.arousal, bpm: prev.bpm, key: prev.key }),
-        cand({ videoId: s.videoId, arousal: s.arousal, bpm: s.bpm, key: s.key }),
-        SET_PRESETS.peak,
-        t,
-        126,
-        prev.arousal,
-      );
-      expect(s.transition).toBeCloseTo(fresh, 3); // wire rounds to 3 decimals
-    }
+    expectTransitionsRecomputeFromScratch(r.steps, SET_PRESETS.peak, 126, 30);
   });
 
   test("#284: every step carries per-component evidence that sums to the blend", () => {
@@ -594,20 +561,6 @@ describe("#304: direction-wall tripwire (non-monotone preset)", () => {
     );
     // and the wire stays exact: no inserted hop, so transitions recompute
     // clean — the F2 exactness invariant still holds on this build
-    const budgetS = 20 * 60;
-    for (let i = 1; i < r.steps.length; i++) {
-      const s = r.steps[i]!;
-      const prev = r.steps[i - 1]!;
-      const t = Math.min(1, (prev.atMin * 60) / budgetS);
-      const fresh = transitionScore(
-        cand({ videoId: prev.videoId, arousal: prev.arousal, bpm: prev.bpm, key: prev.key }),
-        cand({ videoId: s.videoId, arousal: s.arousal, bpm: s.bpm, key: s.key }),
-        SET_PRESETS.afterhours,
-        t,
-        126,
-        prev.arousal,
-      );
-      expect(s.transition).toBeCloseTo(fresh, 3);
-    }
+    expectTransitionsRecomputeFromScratch(r.steps, SET_PRESETS.afterhours, 126, 20);
   });
 });

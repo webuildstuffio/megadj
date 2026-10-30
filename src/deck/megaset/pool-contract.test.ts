@@ -4,8 +4,8 @@
 // scratch sqlite DB): the admission gate (B1), the cues-ledger join
 // (#106 Phase D), dedupe, mirror fallback, relocation, and the readonly
 // key-cache guarantees.
-import { afterAll, describe, expect, test } from "bun:test";
-import { tempDir } from "../../test-support/testutil";
+import { describe, expect, test } from "bun:test";
+import { rippledTemps } from "../../test-support/testutil";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,27 +14,19 @@ import { setCandidates } from "./pool";
 import { ArchiveReader } from "../db/reader";
 import type { ArchiveQuery } from "../shared/types/archive-reader";
 
-// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
-const t = tempDir("megadj-setbuild-pool-").rippable();
-const t2 = tempDir("megadj-setbuild-cues-").rippable();
-const t3 = tempDir("megadj-setbuild-cues-bad-").rippable();
-const t4 = tempDir("megadj-setbuild-precues-").rippable();
-const t5 = tempDir("megadj-setbuild-dedupe-").rippable();
-const t6 = tempDir("megadj-setbuild-rb-source-").rippable();
-const t7 = tempDir("megadj-setbuild-relocated-").rippable();
-const t8 = tempDir("megadj-setbuild-readonly-").rippable();
-const t9 = tempDir("megadj-setbuild-key-cache-").rippable();
-afterAll(() => {
-  t.rippleAll();
-  t2.rippleAll();
-  t3.rippleAll();
-  t4.rippleAll();
-  t5.rippleAll();
-  t6.rippleAll();
-  t7.rippleAll();
-  t8.rippleAll();
-  t9.rippleAll();
-});
+// #248 fixture seam: rippledTemps owns the mkdtemp lifecycle (ripple
+// teardown registered once for the file).
+const [t, t2, t3, t4, t5, t6, t7, t8, t9] = rippledTemps(
+  "megadj-setbuild-pool-",
+  "megadj-setbuild-cues-",
+  "megadj-setbuild-cues-bad-",
+  "megadj-setbuild-precues-",
+  "megadj-setbuild-dedupe-",
+  "megadj-setbuild-rb-source-",
+  "megadj-setbuild-relocated-",
+  "megadj-setbuild-readonly-",
+  "megadj-setbuild-key-cache-",
+);
 
 /** Megaset pool DB row with the suite's default measured shape; null
  *  overrides still win (jscpd cluster, issue #223). */

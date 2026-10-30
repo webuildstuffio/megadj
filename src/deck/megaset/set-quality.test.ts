@@ -1,23 +1,8 @@
 // set-quality.test.ts — M4 (#328): SetQuality pure function tests.
 import { describe, expect, test } from "bun:test";
 import { setQuality } from "./set-quality";
-import type { MegasetResult, MegasetStep } from "../shared/megaset";
-
-const step = (over: Partial<MegasetStep> = {}): MegasetStep => ({
-  videoId: "x",
-  title: "Track",
-  artist: "DJ",
-  bpm: 128,
-  key: "8A",
-  arousal: 5,
-  atMin: 5,
-  transition: 0.8,
-  evidence: null,
-  landmark: false,
-  mixOutCue: null,
-  mixInCue: null,
-  ...over,
-});
+import type { MegasetResult } from "../shared/megaset";
+import { fakeStep as step } from "../../test-support/megaset-fixtures";
 
 const result = (over: Partial<MegasetResult> = {}): MegasetResult => ({
   preset: "peak",

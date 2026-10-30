@@ -1,5 +1,5 @@
-import { afterAll, describe, expect, test } from "bun:test";
-import { tempDir } from "../test-support/testutil";
+import { describe, expect, test } from "bun:test";
+import { rippledTemps } from "../test-support/testutil";
 import { mkdirSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
@@ -7,23 +7,17 @@ import { shelfDupescan, FpCache, SHELF_FINGERPRINTS_TABLE, parseFpcalcOutput } f
 import { moveLoser } from "./dupescan-shared";
 import { ffmpegTone } from "../test-support/audio-fixtures";
 
-// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
-const t = tempDir("megadj-dupescan-").rippable();
-const t2 = tempDir("megadj-dupescan-db-").rippable();
-const t3 = tempDir("megadj-dupescan-db2-").rippable();
-const t4 = tempDir("megadj-moveloser-ok-").rippable();
-const t5 = tempDir("megadj-moveloser-coll-").rippable();
-const t6 = tempDir("megadj-moveloser-def-").rippable();
-const t7 = tempDir("megadj-moveloser-fail-").rippable();
-afterAll(() => {
-  t.rippleAll();
-  t2.rippleAll();
-  t3.rippleAll();
-  t4.rippleAll();
-  t5.rippleAll();
-  t6.rippleAll();
-  t7.rippleAll();
-});
+// #248 fixture seam: rippledTemps owns the mkdtemp lifecycle (ripple
+// teardown registered once for the file).
+const [t, t2, t3, t4, t5, t6, t7] = rippledTemps(
+  "megadj-dupescan-",
+  "megadj-dupescan-db-",
+  "megadj-dupescan-db2-",
+  "megadj-moveloser-ok-",
+  "megadj-moveloser-coll-",
+  "megadj-moveloser-def-",
+  "megadj-moveloser-fail-",
+);
 
 /**
  * Regression (Sep 11 mass-collision): the fingerprint parser's char
