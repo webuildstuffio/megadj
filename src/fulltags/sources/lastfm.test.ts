@@ -5,7 +5,10 @@ import { describe, expect, test, mock, afterEach } from "bun:test";
 import { mapToFamily } from "../genre/taxonomy-v3";
 import { lastfmCacheReset } from "./lastfm";
 
-type TagShape = { name: string; count: number };
+interface TagShape {
+  name: string;
+  count: number;
+}
 
 /** track.getInfo response body carrying the given toptags. */
 const trackResponse = (tags: TagShape[], name = "Test", artist = "Test Artist") => ({
@@ -27,7 +30,11 @@ async function withMockedFetch<T>(
 }
 
 /** lastfmGenreVote against a mocked response. */
-const voteWith = (respond: () => Response | Promise<Response>, artist = "Test Artist", title = "Test") =>
+const voteWith = (
+  respond: () => Response | Promise<Response>,
+  artist = "Test Artist",
+  title = "Test",
+) =>
   withMockedFetch(respond, async () => {
     const { lastfmGenreVote } = await import("./lastfm");
     return lastfmGenreVote(artist, title, "test-key");
@@ -38,7 +45,11 @@ const voteWithTags = (tags: TagShape[], artist = "Test Artist", title = "Test") 
   voteWith(() => Response.json(trackResponse(tags, title, artist)), artist, title);
 
 /** fetchLastfmTags against a mocked response. */
-const fetchTagsWith = (respond: () => Response | Promise<Response>, artist: string, title: string) =>
+const fetchTagsWith = (
+  respond: () => Response | Promise<Response>,
+  artist: string,
+  title: string,
+) =>
   withMockedFetch(respond, async () => {
     const { fetchLastfmTags } = await import("./lastfm");
     return fetchLastfmTags(artist, title, "key");
@@ -109,7 +120,9 @@ describe("lastfmGenreVote", () => {
     let fetchCount = 0;
     const respond = () => {
       fetchCount++;
-      return Response.json(trackResponse([{ name: "techno", count: 100 }], "CacheTest", "CacheArtist"));
+      return Response.json(
+        trackResponse([{ name: "techno", count: 100 }], "CacheTest", "CacheArtist"),
+      );
     };
     await fetchTagsWith(respond, "CacheArtist", "CacheTest");
     await fetchTagsWith(respond, "CacheArtist", "CacheTest");
