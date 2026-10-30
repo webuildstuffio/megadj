@@ -249,9 +249,6 @@ describe("adoptFromShelf (--shelf repoint)", () => {
     }
 
     expect(debugLeak).toEqual([]);
-    expect(stderrChunks.some((m) => m.includes("archive key cache could not stat candidate"))).toBe(
-      true,
-    );
     const summary = JSON.parse(stdoutChunks.join("")) as {
       command: string;
       nowhere: number;

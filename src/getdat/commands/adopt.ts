@@ -5,7 +5,7 @@
  * the tool.
  */
 
-import { statSync, type Stats } from "node:fs";
+import { existsSync, statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
 import { walkAudioDir } from "../../shared/audio-walk";
 import { groundTruth } from "../../fulltags/write/readers";
@@ -128,6 +128,7 @@ export async function adoptFromShelf(opts: AdoptOptions): Promise<void> {
       if (t.status !== "downloaded") continue;
       const path = t.file_path;
       if (typeof path !== "string" || path.length === 0) continue;
+      if (!existsSync(path)) continue;
       if (opts.state.keyRecord(t.video_id, path) !== null) continue;
       try {
         const key = groundTruth(path).key;
