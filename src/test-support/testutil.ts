@@ -9,6 +9,7 @@
  * so a file's `afterAll(() => t.rippleAll())` can never leak — the
  * #236 class (12.5 GB of `cratedeck-hashcancel-*` staging) died here.
  */
+import { afterAll } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -100,4 +101,21 @@ export function tempDir(prefix: string): TempDirHandle {
     dispose: rip,
   };
   return handle;
+}
+
+/**
+ * rippledTemps — the N-handle suite fixture (#573): a test file's tower
+ * of `const t = tempDir("megadj-X-").rippable();` declarations plus its
+ * hand-copied `afterAll` collapse to one call that registers the
+ * afterAll itself. Prefixes stay caller-owned (the tmp-purge families
+ * key on them, so "megadj-X-" naming must survive visible):
+ *
+ *   const [t, t2] = rippledTemps("megadj-x-src-", "megadj-x-vol-");
+ */
+export function rippledTemps(...prefixes: string[]): TempDirHandle[] {
+  const handles = prefixes.map((prefix) => tempDir(prefix).rippable());
+  afterAll(() => {
+    for (const handle of handles) handle.rippleAll();
+  });
+  return handles;
 }
