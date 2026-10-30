@@ -122,7 +122,7 @@ backups `rb-import`/`rb-adopt` create (AGENTS.md: sacred). Rules:
   ONE dated archive (`rekordbox_bak_<date>-<what>.zip`) plus a `.sha256`
   sidecar.
 - The local `~/Library/Pioneer/rekordbox/master.db` is the rekordbox app's
-  own DB and is stale by design — SHELF1's `PIONEER/Master/master.db` is the
+  own DB and is stale by design — the shelf drive's `PIONEER/Master/master.db` is the
   collection SSOT. Do not "clean up" the local one.
 - The playing USB is user-managed; it appears in no storage inventory here.
 
@@ -141,5 +141,5 @@ downloaded; `pending` ≠ gap). When asked "how big is the library":
    counts — #253 tracks the census command that makes this one command).
    The operational loop for these questions is the
    `storage-intake-census` skill (`.claude/skills/storage-intake-census/SKILL.md`).
-3. If SHELF1 is unmounted, say so — shelf-side bytes are an honest gap, not
+3. If the shelf is unmounted, say so — shelf-side bytes are an honest gap, not
    a zero.

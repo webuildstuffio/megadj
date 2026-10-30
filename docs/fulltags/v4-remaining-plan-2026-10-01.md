@@ -1,6 +1,6 @@
 # v4 Comment — Remaining Work Plan
 
-**Oct 1 2026** · Status: **8/9 tokens shipped** — VOX/HOOK is the last reserved token
+**Oct 1 2026** · Status: **9/9 tokens shipped** — VOX/HOOK shipped via `megadj vocal-zones` (#429, Oct 29 2026)
 
 ## Current state
 

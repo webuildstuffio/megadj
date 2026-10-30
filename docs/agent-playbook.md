@@ -106,7 +106,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 
 ## Rekordbox detail
 
-- **Master DB on the shelf.** rekordbox won't open without SHELF1 attached;
+- **Master DB on the shelf.** rekordbox won't open without the shelf attached;
   exFAT + SQLite mid-write power-loss is the corruption risk.
 - **The `YTMusic Liked` dump** overlaps the artist folders (588 files; ~38%
   dupes) — dedupe is fingerprint-verified + move-to-archive only, never
@@ -114,7 +114,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   files into artist dirs, so "dead row" lists built on exact-numbering
   matching produce false kills — hunt renumbered/scattered twins before
   declaring anything gone (real mixes were rescued that way).
-- **Measure before blaming bandwidth.** `/bin/dd` read SHELF1 at 62 MB/s
+- **Measure before blaming bandwidth.** `/bin/dd` read the shelf at 62 MB/s
   (USB3-class; Homebrew `dd` is shim-blocked) — a "slow drive" was actually
   Auto Relocate's per-track full-volume scans plus a bad/USB-2.0 port, fixed
   by the user's port swap. Auto Relocate matches stale stored paths first
@@ -382,7 +382,7 @@ the ideas catalog (now archived at `docs/archive/ideas-2026-09-15.md`),
   archive fits the page cache, so local harness numbers are ~10×
   fiction. Tracked in the ideas catalog §0f (now archived at
   `docs/archive/ideas-2026-09-15.md`); needs `sudo purge` (TTY) or a
-  borrowed machine. Related: `/bin/dd` measured SHELF1 at 62 MB/s — a
+  borrowed machine. Related: `/bin/dd` measured the shelf at 62 MB/s — a
   bad USB port was the real bottleneck once, not code.
 - **Shebang-less `bun` scripts die under launchd** (51549cd4): a
   tooling-audit fix required explicit shebangs so launchd-spawned
@@ -390,7 +390,7 @@ the ideas catalog (now archived at `docs/archive/ideas-2026-09-15.md`),
   launchd/TCC rule already in AGENTS.md.
 - **Hardware-gated user threads, still open, deliberately un-issued**
   (c74579ab/d34d6f07, 3976f284, d47fde47): these are hands-on-keys
-  steps, not agent work — SHELF1 stale verify re-run after quitting
+  steps, not agent work — shelf stale verify re-run after quitting
   rekordbox; legacy `export.pdb`/OneLibrary drift fix on the sticks;
   WAV-cover spot-check after the next dual-device export (checkbox in
   `docs/usb-sync-log.md`); disable rekordbox Key analysis before the

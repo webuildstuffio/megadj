@@ -1,152 +1,230 @@
-# XZ Mods Test-Drive Plan — 32 GB FAT32 USB
+# XZ Mods Setup — v0.5.0-preview.22
 
-> Created 2026-10-29. Status: **ready to execute**.
+> Updated 2026-10-30. Status: **~905+ OverCue bundles on FIKWOK** (turbo pipeline running, targeting 1000+).
 
-## Overview
-
-Boot XZ Mods on the XDJ-XZ using a dedicated 32 GB test USB.
-Existing drives (SHELF1, FLIP-MASTER) stay untouched.
-
-## Prerequisites
+## Current State
 
 | Item | Status |
 |---|---|
-| XDJ-XZ firmware **1.26** | ✅ verify in Utility → System Info |
+| XZ Mods **v0.5.0-preview.22** Mac app | ✅ `/Applications/XZ Mods Beta.app` (re-signed, full beta) |
 | XZ Mods repos cloned | ✅ `~/github/XZ-Mods` (origin=OpticMystic, fork=webuildstuffio) |
-| XZ Mods Mac app | ✅ `~/github/XZ-Mods/releases/XZ-Mods-Mac-Apple-Silicon.dmg` v0.2.1 |
-| xdj-xz-toolkit | ✅ `~/github/xdj-xz-toolkit` (side-by-side) |
-| `megadj stems` | ✅ shipped (#555, #556) |
-| `megadj stem-export` | ✅ shipped (#555) |
-| `megadj stem-status` | ✅ shipped |
-| 32 GB USB drive | 🔲 plug in |
-| Demucs + PyTorch (uv) | ✅ auto-installed by `megadj stems` via `uv run` |
+| xdj-xz-toolkit | ✅ `~/github/xdj-xz-toolkit` |
+| XDJ-XZ firmware **1.26** | ✅ verify in Utility → System Info |
+| `megadj stems` (demucs-mlx) | ✅ shipped — ~9x realtime on M4 Pro |
+| Stem cache (GREY FIKWOK) | ✅ **2,272** tracks separated, 123 GB |
+| OverCue bundles on FIKWOK | ✅ **905+** tracks (turbo batch running) |
+| `megadj stem-overcue` CLI | ✅ shipped — turbo pipeline, 3.7x speedup |
+| DJLIBRARYM USB | ✅ 930 stemmed tracks, autoexec.bin, 91 GB free |
+| PDB fix needed | ⚠️ re-export from rekordbox (deleted tracks still in PDB) |
 
-## Capacity Budget (32 GB FAT32 ≈ 29.8 GB usable)
+## megadj stem-overcue (Recommended)
 
-| Slice | Estimate |
+The integrated CLI command handles scanning, mapping, and building:
+
+```bash
+# Check status
+bun run megadj stem-overcue --status
+
+# Process all available tracks (auto-scans stem cache + rekordbox DB)
+bun run megadj stem-overcue
+
+# Process with limits and custom worker count
+bun run megadj stem-overcue --limit 100 --workers 4
+
+# Dry run
+bun run megadj stem-overcue --dry-run --json
+```
+
+### Turbo Pipeline Architecture
+
+```
+FIKWOK stems (Demucs FLAC, 44.1 kHz)
+  → overcue-scan.py (scan stem dirs + resolve paths from rekordbox DB)
+  → overcue-turbo.py (N parallel workers):
+      → grouped_stems.py --mode combine (bass+other → harmonics, 7 role mixes)
+      → overcue_flac_pack.py (96 kHz FLAC pages, OVPGZ003) ┐ parallel
+      → stem_waveforms.py (per-stem waveform .2EX/.EXT)     ┘
+      → fast_page_table_sha (header-only verify, ~0.1s vs 62s full)
+      → bundle + index.json update (batch-flushed every 5 tracks)
+  → FIKWOK/CDJMODS/stems/<bundle>/
+```
+
+### Performance
+
+| Pipeline | Speed | Rate | Method |
+|---|---|---|---|
+| v1 (serial, full verify) | 120s/track | 0.5/min | Serial, full page decompression verify |
+| v2 (fast verify) | 78s/track | 0.8/min | Skip verify, parallel flac+waveforms |
+| **v3 turbo (3 workers)** | **32s/track eff** | **1.9/min** | 3 parallel tracks + all v2 optimizations |
+| v3 turbo (4 workers) | ~28s/track eff | 2.1/min | For M4 Pro+ with thermal headroom |
+
+### Source files
+
+| File | Purpose |
 |---|---|
-| Tracks (MP3/FLAC ~8 MB avg) | ~200–400 tracks ≈ 1.5–3 GB |
-| OverCue stems (7 mixes/track, ~20–40 MB compressed per track) | ~4–12 GB for 200 tracks |
-| PIONEER/ (rekordbox export) | ~50 MB |
-| autoexec.bin + CDJMODS metadata | < 1 MB |
-| **Headroom** | comfortable at 200 tracks |
+| `src/fulltags/analysis/stem-overcue.ts` | CLI entry + orchestration |
+| `src/fulltags/analysis/overcue-turbo.py` | Multi-threaded pipeline engine |
+| `src/fulltags/analysis/overcue-scan.py` | Stem dir scanner + rekordbox mapping |
 
-Start with **--limit 50** to validate, then scale to 200.
+### Legacy scripts (in /tmp, pre-integration)
 
-## Step-by-Step
+| Script | Purpose |
+|---|---|
+| `/tmp/xz_sync_to_usb.py` | Copy bundles from FIKWOK → USB + merge index |
+| `/tmp/xz_build_playlists.py` | Generate rekordbox.xml with STEMS folder/playlists |
+| `/tmp/xz_complete_usb_setup.sh` | One-command USB setup (sync + playlists + verify) |
 
-### 1. Format the 32 GB USB as FAT32
-
-```bash
-# Plug in, find its disk identifier
-diskutil list external
-
-# ⚠️  TRIPLE-CHECK the disk number — this erases the drive
-diskutil eraseDisk FAT32 XZTEST MBRFormat /dev/diskN
-```
-
-### 2. Export a test set of tracks to the USB
-
-The simplest path: manually copy ~50 tracks from SHELF1 into
-`/Volumes/XZTEST/Contents/` (any subfolder structure works, Rekordbox
-will see them).
-
-Or Rekordbox → Export to Device: select ~50 tracks, export to XZTEST.
-This creates `PIONEER/rekordbox/export.pdb` which XZ Mods needs.
-
-> **Important:** The USB must have a valid `PIONEER/rekordbox/export.pdb`
-> for XZ Mods to discover tracks. Either Rekordbox-export or use
-> `megadj rb-import` to create one.
-
-### 3. Run Demucs stem separation
+### USB Sync (when USB returns)
 
 ```bash
-cd ~/github/megadj
-
-# First: check current stem cache coverage
-bun run cli stem-status
-
-# Separate 50 tracks (~25 min on MPS)
-bun run cli stems --limit 50
-
-# Verify
-bun run cli stem-status
+cd /Users/nick/github/XZ-Mods && source .venv/bin/activate
+python3 /tmp/xz_sync_to_usb.py          # copies bundles + updates index
+python3 /tmp/xz_build_playlists.py       # regenerates playlists
+# Or: bash /tmp/xz_complete_usb_setup.sh  # all-in-one
 ```
 
-Stems cache at `~/.local/state/megadj/stems/` — shared by all consumers.
-Override with `MEGADJ_STEM_DIR`.
+### Capacity Planning
 
-### 4. Export OverCue stems to the USB
+| USB Size | Music Files | Max Stemmed Tracks | Notes |
+|---|---|---|---|
+| 128 GB (DJLIBRARYM) | ~18 GB (930 files) | ~340 | At 262–317 MB/bundle average |
+| 256 GB | ~18 GB | ~700 | |
+| 512 GB | ~18 GB | ~1,500+ | Full library fits |
 
-```bash
-# Dry run first — see what would be written
-bun run cli stem-export /Volumes/XZTEST --limit 50 --dry-run
+## Two Paths to Stems on USB
 
-# Real export
-bun run cli stem-export /Volumes/XZTEST --limit 50
-```
+### Path A: megadj CLI (Recommended — batch, offline)
 
-This writes:
-- `CDJMODS/stems/<bundle-id>/` — 7 PGZ mixes per track (96 kHz s16le zlib)
-- `CDJMODS/index.json` — maps file paths to bundles
-- Warns if `autoexec.bin` is missing
+1. Run `megadj stems` to separate tracks on FIKWOK (~9x realtime)
+2. Run `megadj stem-overcue` to build OverCue bundles (1.9/min turbo)
+3. Plug USB → run `/tmp/xz_sync_to_usb.py` to copy bundles (~1/sec)
+4. Run `/tmp/xz_build_playlists.py` to create playlists
 
-### 5. Prepare the XZ Mods loader
+### Path B: XZ Mods App (Interactive, single track)
 
-Open the XZ Mods Mac app (from DMG → Applications).
+1. Open `/Applications/XZ Mods Beta.app`
+2. Select USB volume → Stems → Import
+3. Point at FIKWOK stems for each track
 
-1. **System Preferences → Privacy & Security → Open Anyway** (ad-hoc signed)
-2. In the app: select the XZTEST volume
-3. Click **Prepare USB** — writes `autoexec.bin` to the root
-4. Optionally verify stems show as "Prepared" in the track list
+## Quick Start — First Test Drive
 
-### 6. Boot the XDJ-XZ with XZ Mods
+### 1. Fix the PDB (Required)
 
-1. **Power off** the XDJ-XZ
-2. Insert XZTEST into **USB-A slot 1** (left side)
-3. Power on — `autoexec.bin` loads into RAM automatically
-4. XZ Mods controls appear on the display:
-   - **Vocals** mute/solo
-   - **Drums** mute/solo
-   - **Harmonics** (bass+other) mute/solo
-   - **Bypass** (original mix)
+The USB has 930 tracks but the PDB still references 3,926+ (including deleted ones).
+XDJ-XZ shows "E error" when browsing.
 
-### 7. Verify
+**Fix options:**
+1. **Rekordbox re-export** (cleanest): Open rekordbox → right-click USB → Update Collection
+2. **Fresh export**: Create playlist of the 930 stemmed tracks → Export to USB
+3. The `rekordbox.xml` on the USB has the correct STEMS playlists for reference
 
-- [ ] XDJ-XZ boots normally with XZ Mods active
+### 2. Prepare the USB
+
+1. Plug DJLIBRARYM USB into Mac
+2. Run: `bash /tmp/xz_complete_usb_setup.sh`
+3. This syncs OverCue bundles + playlists
+4. Open XZ Mods Beta app to verify the USB is recognized
+
+### 3. Boot the XDJ-XZ
+
+1. **Power off** the XDJ-XZ completely
+2. Insert USB into **USB2 slot** (right USB-A port — for music)
+3. For four-deck: connect USB-B → USB-A loopback cable to **USB1** slot
+4. **Power on** — `autoexec.bin` loads XZ Mods into RAM
+5. Wait for normal boot — stem controls appear automatically
+
+⚠️ **Must cold boot** — hot-plugging USB won't load the mod.
+
+### 4. Using Stems
+
+- Navigate to a stemmed track in the browser
+- Stem button appears when a track with OverCue data loads
+- **Vocals** mute/solo, **Drums** mute/solo, **Harmonics** mute/solo
+- **Bypass** returns to original mix
+- Physical pad assignment: MODS → Controls → choose stem bank
+
+### 5. Verify
+
+- [ ] XDJ-XZ boots with XZ Mods active (check display theme)
 - [ ] Track browser shows tracks from `Contents/`
-- [ ] Stem controls (mute/solo) work on at least one track
-- [ ] Removing USB and rebooting restores stock firmware (RAM-only, no flash)
+- [ ] No E error when browsing
+- [ ] Stem controls work on stemmed tracks
+- [ ] Mute/solo each stem: Vocals, Drums, Harmonics
+- [ ] Bypass returns to original mix
+- [ ] Removing USB and rebooting restores stock firmware
+
+## v0.5.0-preview.22 Features
+
+- **Four-deck standalone** with animated USB-B cable guide and automatic loopback bridge
+- **Two interfaces**: MODERN and CLASSIC (MODS → Appearance → Interface)
+- **21 themes** including Flagship, Liquid Glass, Game Boy, Win95, Aurora
+- **FLAC stem pages** (OVPGZ003/004) — lossless, smaller than 96 kHz zlib
+- **Per-stem waveforms** on XDJ-XZ STEMS scrolling display
+- **Live Streamer** — OBS Browser Source URL for screen capture
+- **DJ Profile 1.0** — per-DJ profiles on USB
+- **Beat Arcade** — Wave Rider, games
+- **Import** Demucs/Suno/UVR stems directly
+- **Library repair** utility
+
+### Beta Limits (preview.22)
+
+- XDJ-XZ firmware 1.26 only
+- Music USB stays in USB2; USB1 for loopback after boot
+- No music USB hot-swap during playback
+- Software jog waveform/artwork incomplete
+- No stem RAM carry between tracks
+- No automatic half/double BPM matching (shown as LIMIT)
 
 ## Safety
 
-- **RAM-only mod** — `autoexec.bin` runs in memory, no firmware changes
+- **RAM-only mod** — `autoexec.bin` runs in memory, no firmware writes
 - **Zero brick risk** — remove USB + reboot = stock XDJ-XZ
-- **All open issues reviewed**: 3 open, none safety-related
-- **No reports** of bricking or hardware damage across all issues/forums
-- **Existing drives untouched**: SHELF1 (HFS+ NVMe, archive), FLIP-MASTER (playing)
+- **Existing drives untouched** — GREY FIKWOK is read-only for stems
 
-## Scale-Up Path
+## File Layout
 
-Once the 50-track test passes:
+### FIKWOK (Master)
 
-```bash
-# Separate more tracks (overnight, ~4-5h for 500)
-bun run cli stems --limit 500
-
-# Export to XZTEST
-bun run cli stem-export /Volumes/XZTEST --limit 200
-
-# Coverage report
-bun run cli stem-status
+```
+/Volumes/GREY FIKWOK/
+  Contents/                     # 1,925 music files (master library)
+  stems/                        # 2,272 Demucs stem folders, 123 GB
+    rb-XXXXXXXX/
+      vocals.flac drums.flac bass.flac other.flac
+  CDJMODS/                      # OverCue bundles (built by megadj stem-overcue)
+    index.json                  # 905+ track entries
+    stems/<bundle-id>/
+      overcue-manifest.json
+      stems-sidecar-vocal.s16le.pgz
+      stems-sidecar-drums.s16le.pgz
+      stems-sidecar-harmonics.s16le.pgz
+      stems-sidecar-instrumental.s16le.pgz
+      stems-sidecar-vocals-drums.s16le.pgz
+      stems-sidecar-vocals-harmonics.s16le.pgz
+      stems-sidecar-full-mix.s16le.pgz
+      stems-drums-waveform.2EX/.EXT
+      stems-harmonics-waveform.2EX/.EXT
+      stems-vocal-waveform.2EX/.EXT
+  rekordbox.xml                 # STEMS playlists
 ```
 
-The 32 GB USB comfortably fits ~200 tracks with stems. For larger
-sets, use a bigger FAT32 USB (≤2 TB, FAT32 limit).
+### USB (DJLIBRARYM)
+
+```
+/Volumes/DJLIBRARYM/
+  autoexec.bin                  # XZ Mods v0.5.0-p22 loader (31 MB)
+  Contents/                     # 930 music files (stemmed subset)
+  CDJMODS/                      # Synced from FIKWOK
+    index.json
+    stems/...
+  PIONEER/rekordbox/export.pdb  # ⚠️ needs re-export (references deleted tracks)
+  DJPROFILE/                    # DJ profile
+  rekordbox.xml                 # STEMS playlists
+```
 
 ## Related
 
-- [FEATURES.md § Stems](../FEATURES.md)
+- [Stems pipeline plan](stems-pipeline-plan-2026-10-29.md)
 - [#555 — stem pipeline](https://github.com/webuildstuffio/megadj/issues/555)
 - [#556 — unified Demucs](https://github.com/webuildstuffio/megadj/issues/556)
 - [XZ Mods repo (fork)](https://github.com/webuildstuffio/XZ-Mods)

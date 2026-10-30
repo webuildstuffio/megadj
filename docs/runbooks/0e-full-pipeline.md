@@ -12,8 +12,8 @@ bash src/ops/full-pipeline.sh --with-sync                # + YouTube sync LAST
 bash src/ops/full-pipeline.sh --ai-fallback --with-sync  # all of the above
 ```
 
-Env knobs: `MEGADJ_SHELF` (default `/Volumes/SHELF1/Contents`),
-`MEGADJ_DRIVE` (default `/Volumes/SHELF1`).
+Env knobs: `MEGADJ_SHELF` (default `/Volumes/GREY FIKWOK/Contents`),
+`MEGADJ_DRIVE` (default `/Volumes/GREY FIKWOK`).
 Log lands in `/tmp/megadj-full-pipeline-<date>.log`.
 
 ## Stage order and why it is serial
@@ -55,7 +55,7 @@ Stage 6 (artwork-extract) is disk-only and safe while RB is open.
   any rb-* step later needs the app closed.
 - `git status` + `git log --oneline -5` — concurrent-agent check; don't
   launch a multi-hour chain on a tree mid-refactor.
-- Free disk / mount health: `df -h /Volumes/SHELF1`.
+- Free disk / mount health: `df -h "/Volumes/GREY FIKWOK"`.
 - **Stale-path check (Sep 20 trap):** rows whose `file_path` died in a
   folder reorg are INVISIBLE to every analysis pass (file-missing skip).
   Run `megadj adopt --shelf` (dry-run) first — any `repointed > 0` means

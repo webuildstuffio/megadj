@@ -89,9 +89,15 @@ the remix's, not the original's.
 mood → cues → organize → tag-check → audit), `megadj fetch`, `megadj
 enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
 structure + booth-text health), `megadj years`, `megadj booth-fix`,
-`megadj beats`, `megadj mood`, `megadj catch-up` (one analysis gap pass:
-beats → mood for new imports), `megadj cues`, `megadj similar`,
-`megadj megaset`, `megadj gold-report`/`regate` (gold-set gate harness)
+`megadj beats`, `megadj mood`, `megadj stems` (Demucs htdemucs_ft →
+FLAC stems cache), `megadj vocal-zones` (VOX/HOOK from vocals stem),
+`megadj stem-export` (OverCue PGZ to USB), `megadj stem-status`,
+`megadj catch-up` (one analysis gap pass: beats → mood → vocal-zones
+for new imports), `megadj cues`, `megadj similar`, `megadj genre`
+(kNN inference from embeddings), `megadj genre-why` (vote ladder
+breakdown), `megadj energy`, `megadj energy-why`, `megadj megaset`,
+`megadj gold-report`/`regate` (gold-set gate harness), `megadj bench`
+(analysis stage benchmarks with answer keys)
 **Also:** FullTags ships standalone in [`src/fulltags/`](../src/fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.
@@ -181,7 +187,7 @@ parts live, via [XZ Mods](https://github.com/OpticMystic/XZ-Mods).
 | **Output**        | 4 stems per track (vocals, drums, bass, other) cached in `stem_cache` table; reusable by VOX/HOOK (#429) and grid audit |
 | **Export**        | `megadj stem-export <drive> [--limit N] [--with-loader]` — writes [OverCue stems format](https://github.com/OverCue-gg/overcue-stems-format) (`CDJMODS/`) to a FAT32 playing USB |
 | **XZ Mods compat**| Vocals = vocals stem · Drums = drums stem · Harmonics = bass + other mixed · FLAC pages at 96 kHz |
-| **Constraints**   | FAT32 playing USB required (SHELF1 is HFS+ NVMe, not bootable); XDJ-XZ firmware exactly 1.26; XZ Mods v0.2.1+ |
+| **Constraints**   | FAT32 playing USB required (the shelf is HFS+ NVMe, not bootable); XDJ-XZ firmware exactly 1.26; XZ Mods v0.2.1+ |
 
 **Commands:**
 `megadj stems --limit 500` (overnight batch, ~4–5 h on MPS) ·
@@ -207,22 +213,24 @@ proposal is retained only as [archive evidence](archive/roadmap-proposal.md).
 ```bash
 megadj sync                    # GetDat: pull new music
 megadj fetch && megadj audit   # FullTags: perfect the metadata
-megadj catch-up                # FullTags: beats + mood gap pass in one (ledgered == analyzed)
+megadj catch-up                # FullTags: beats + mood + vocal-zones gap pass (ledgered == analyzed)
 megadj mood --embeddings       # FullTags: compute embeddings (--jobs 2 for parallel ONNX)
 megadj years                   # FullTags: verify years vs SC page (kills AI 2023 guesses)
+megadj genre                   # FullTags: kNN genre inference from audio embeddings
+megadj stems --limit 500       # Stems: batch Demucs separation (overnight, ~4-5h MPS)
+megadj vocal-zones             # Stems: classify VOX/HOOK from cached vocals stem
 megadj shelf-sync              # shelf: archive → shelf master (new music out)
 megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive intake)
 megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
 megadj shelf-dupescan          # shelf: fingerprint dupes regardless of name/folder
 megadj similar <video_id>      # FullTags: sounds-like kNN over the embeddings ledger
 megadj rb-adopt <drive>        # RB: mirror master.db content → archive ledger
-megadj rb-comment-sync <drive> # RB: write Comment (Key·Energy·Mood) + genre to master.db
+megadj rb-comment-sync <drive> # RB: write Comment (Key·Energy·Mood·VOX/HOOK) + genre to master.db
 megadj rb-import <drive>       # RB: import new tracks → master.db (closed, backup, verify)
 megadj rb-dedup <drive>        # RB: detect/resolve duplicate entries in master.db
-megadj megaset --preset peak  # MegaSet: propose a Camelot/energy-arc mix chain
-megadj megaset-cohorts        # MegaSet: warmup+peak chain PER genre family, one run (#295)
-megadj stems --limit 500      # Stems: batch Demucs separation (overnight, ~4-5h MPS)
-megadj stem-export XZTEST     # Stems: write OverCue CDJMODS + loader to FAT32 USB
+megadj megaset --preset peak   # MegaSet: propose a Camelot/energy-arc mix chain
+megadj megaset-cohorts         # MegaSet: warmup+peak chain PER genre family, one run (#295)
+megadj stem-export <volume>    # Stems: write OverCue CDJMODS to FAT32 USB
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

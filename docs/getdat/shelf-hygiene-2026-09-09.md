@@ -1,19 +1,15 @@
 # Shelf Hygiene & Dedupe — Sep 9 2026 Session
 
-**Status:** 🟡 PARTIAL — the Sep 10 core shipped; the `truncated-name`
-detector (the #9/#37 slice) shipped Sep 17: prefix20 rename ladder +
-pyrekordbox row seam + a real `--kind` filter (was parsed-then-dropped;
-unknown kinds now exit 2). This snapshot previously overstated detector
-and restore-surface coverage. `megadj shelf-hygiene` +
-`deckctl hygiene` + `deck_hygiene` + the Hygiene tab are live; the
-restore loop CLOSED Sep 19 (rev-43, #35/#36): `shelf-restore` /
+**Status:** ✅ COMPLETE — all detectors shipped and #37 closed Sep 30.
+The Sep 10 core, `truncated-name` (Sep 17), and the §4.2 detectors
+(`stale-pointer`, `orphan-audio`, `re-download`) all landed with tests.
+`megadj shelf-hygiene` + `deckctl hygiene` + `deck_hygiene` + the Hygiene
+tab are live; the restore loop closed Sep 19 (#35/#36): `shelf-restore` /
 `shelf-restore-all` / `shelf-quarantine` / `shelf-quarantine-empty --yes`
-plus the QuarantinePanel (`/api/hygiene/*`), and empty flips rows to
-`archived` behind the typed-confirm gate. Remaining detectors
-(`stale-pointer`, `orphan-audio`, `re-download`) stay with #37. The landed
-code is the truth: `src/core/hygiene/` (engine/store/apply),
-`src/deck/hygiene/*.ts` (API/job/reader), parity pinned by
-`src/deck/test/surface-parity.test.ts`; current state lives in
+plus the QuarantinePanel, and empty flips rows to `archived` behind the
+typed-confirm gate. The landed code is the truth: `src/core/hygiene/`
+(engine/store/apply), `src/deck/hygiene/*.ts` (API/job/reader), parity
+pinned by `src/deck/test/surface-parity.test.ts`; current state lives in
 [product-state-2026-09-07.md](../product-state-2026-09-07.md),
 surface rows in [surface-parity.md](../surface-parity.md).**
 

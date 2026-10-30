@@ -285,6 +285,17 @@ export const FULLTAGS_COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "stem-overcue",
+    group: "fulltags",
+    block: [
+      "  megadj stem-overcue [VOLUME] [--volume VOLUME] [--limit N] [--start N] [--workers N] [--status] [--dry-run] [--json]",
+      "                                               build OverCue bundles via XZ Mods turbo pipeline",
+      "                                               (3 parallel workers, ~1.9 tracks/min, 3.7x v1)",
+      "                                               auto-scans stem cache + rekordbox DB for mapping",
+      "                                               default volume: configured shelf",
+    ],
+  },
+  {
     name: "stem-status",
     group: "fulltags",
     block: [

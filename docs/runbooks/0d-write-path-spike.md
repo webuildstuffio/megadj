@@ -15,13 +15,13 @@ rekordbox UI actions called out per question.
 ## Before you start
 
 1. rekordbox **closed** unless a step says otherwise.
-2. Shelf mounted (`/Volumes/SHELF1`; override with `MEGADJ_SHELF_VOLUME`).
+2. Shelf mounted (`/Volumes/GREY FIKWOK`; override with `MEGADJ_SHELF_VOLUME`).
 3. **Full backup, timestamped, before any write** — grid data has no undo:
 
 ```sh
 STAMP=$(date +%Y%m%d-%H%M)
 mkdir -p ~/Music/rekordbox/spike-bak-$STAMP
-cp -R /Volumes/SHELF1/PIONEER/Master ~/Music/rekordbox/spike-bak-$STAMP/Master
+cp -R "/Volumes/GREY FIKWOK/PIONEER/Master" ~/Music/rekordbox/spike-bak-$STAMP/Master
 megadj shelf-sync --dry-run   # confirm nothing in flight
 ```
 
@@ -74,7 +74,7 @@ db = R(sys.argv[1])
 for c in db.get_content():
     print(c.ID, c.Title, getattr(c, 'Analysed', None), c.AnalysisDataPath)
     break
-db.close()" "/Volumes/SHELF1/PIONEER/Master/master.db"
+db.close()" "/Volumes/GREY FIKWOK/PIONEER/Master/master.db"
 ```
 
 Record: master.db row changed? collection ANLZ changed? which sections
@@ -113,17 +113,17 @@ mount-relative path, or an absolute path inside the mount.
 #    PQTZ moved) and read its current grid:
 megadj rb-grid-triage --limit 20 --json
 # 2. DRY RUN — prints the planned edit, writes nothing:
-megadj rb-anlz-spike /Volumes/SHELF1 set-grid --tag q4 \
+megadj rb-anlz-spike "/Volumes/GREY FIKWOK" set-grid --tag q4 \
   --file 'collection/ANLZ0000.DAT' \
   --beats '[{"num":1,"bpmx100":12800,"timeMs":0},{"num":2,"bpmx100":12800,"timeMs":469}]'
 # 3. WRITE — automatic pre-edit backup + whole-file re-verify:
-megadj rb-anlz-spike /Volumes/SHELF1 set-grid --tag q4 --apply --yes \
+megadj rb-anlz-spike "/Volumes/GREY FIKWOK" set-grid --tag q4 --apply --yes \
   --file 'collection/ANLZ0000.DAT' --beats '...'
 #    (beats rows: num 1..4 = beat index in the bar, bpmx100 = BPM×100,
 #     timeMs = absolute time in ms; generate rows from a fitted grid
 #     with jq or the beat-this ledger export)
 # 4. verify from the OTHER side — the spike sees the edit as a hash change:
-megadj rb-anlz-spike /Volumes/SHELF1 compare --tag q4
+megadj rb-anlz-spike "/Volumes/GREY FIKWOK" compare --tag q4
 # rekordbox: reopen, load the track — does the corrected grid show?
 # CDJ: export to a stick, load — does the corrected grid show?
 ```

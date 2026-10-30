@@ -11,7 +11,7 @@ document for the topic you are changing.
 - **GetDat** — the intake pipeline: `megadj sync` pulls new music,
   `megadj drop` runs the one-shot download → ingest → fetch → analyze →
   organize → tag-check chain, `megadj shelf-archive`/`shelf-sync` land
-  everything on the SHELF1 archive master (additive, junk-filtered,
+  everything on the configured shelf drive (additive, junk-filtered,
   MD5-verified). The shelf is the collection SSOT.
 - **FullTags** — the enrichment engine: format-specific atomic tag
   writers, the art/year/genre ladders, beats/mood/cues/embeddings
@@ -95,7 +95,7 @@ tracker is one of those — the recipes stay in the acceptance doc).
 - [SoundCloud downloads plan (SHIPPED Sep 19)](getdat/soundcloud-downloads-plan.md) —
   the link-first acquisition design record; SC is a first-class download
   source (#255–#259, 256k-Plus/160k-anonymous ladder, surface census rev-44–47).
-- [Playing USB boundary](getdat/usb-sync.md) — SHELF1-to-USB handoff rules and
+- [Playing USB boundary](getdat/usb-sync.md) — shelf-to-USB handoff rules and
   user-managed export limits.
 - [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10
   detect/restore record; the quarantine loop closed Sep 19 (#35/#36),
@@ -114,7 +114,7 @@ tracker is one of those — the recipes stay in the acceptance doc).
   map, umbrella abstention, dispute flagging, inference, eval harness
   (≥65% ship gate), module map, measured state (Sep 30). Supersedes the
   three archived docs below.
-- [Embedding model benchmark](fulltags/embedding-models.md) — tower
+- [Embedding model benchmark](fulltags/section-embeddings/embedding-models.md) — tower
   evaluation and decision; v2 rerun (effnet confirmed on both metrics),
   fusion sweep settled (+1.1 pt — not adopted). Feeds MegaSet's similarity
   prior (B10p).
@@ -169,6 +169,18 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 - [Analysis pipeline (Sep 29)](fulltags/analysis-pipeline-2026-09-29.md) —
   current pipeline architecture: parallel ONNX workers, batch-write
   semantics, the mood/beats/embeddings/genre coverage tables.
+- [Booth comment v4 spec (SHIPPED Sep 30)](fulltags/comment-v3-proposal-2026-09-30.md) —
+  the v4 comment format: `E8 IN:32 OUT:16 VOX Drop Dark · MelTechno` —
+  all 9 tokens shipped (VOX/HOOK via vocal-zones, Oct 29).
+- [v4 remaining plan (SHIPPED)](fulltags/v4-remaining-plan-2026-10-01.md) —
+  9/9 comment tokens shipped; VOX/HOOK was the last.
+- [Energy v3.1 plan (SHIPPED Oct 1)](fulltags/energy-v3-plan-2026-10-01.md) —
+  multi-tier composite energy, label-free, training-free.
+- [Energy v3.1 extraction report](fulltags/energy-v31-extraction-report-2026-10-01.md) —
+  full extraction and scoring results.
+- [Genre pipeline 12h sprint (SHIPPED Oct 1)](fulltags/genre-pipeline-12h-sprint-2026-10-01.md) —
+  10-rung genre ladder fully wired: umbrella abstention, dispute flagging,
+  54 commits, 92 files.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
   retained as a reference.
 
@@ -209,6 +221,10 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   bonus-era score, dated drafts with request context, `--genre` visible
   in CLI header + web repro; ordered improve-next list (#284 evidence
   on the wire, #282 reconcile scoping, superseded-set cleanup).
+- [Full report: improvement + super-sure + queue burn-down (Sep 21)](megaset/2026-09-21-full-report.md) —
+  B6 diversity guard, B8 half-time lane, S13 landmark pins, dedupe v4,
+  #284 per-step evidence, #291 budget-fill, #290 genre guard, #294
+  inline score magnitude. Three live sets proved end-to-end.
 - **Embeddings similarity prior (Sep 16, #171)** — `transitionScore`
   gains a capped bonus (`MEGASET_SIMILARITY_WEIGHT` 0.1) from the
   cosine similarity of both tracks' stored embedding vectors,
@@ -224,6 +240,19 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   doesn't transfer, and a ranked top-10 of actions (ledger model
   column, pre-registered A/B, spectral diagnostic).
 
+### Stems and XZ Mods
+
+- [Stems pipeline plan (Oct 29)](stems/stems-pipeline-plan-2026-10-29.md) — the
+  three-phase plan: Phase 1 (demucs-mlx) SHIPPED, Phase 2 (eval harness)
+  and Phase 3 (hierarchical ensemble) PLANNED. Progress dashboard, genre
+  breakdown, running instructions.
+- [XZ Mods test drive](stems/xz-mods-test-drive.md) — end-to-end workflow
+  for getting stems playing on the XDJ-XZ via XZ Mods: stem-export, USB
+  setup, OverCue format, troubleshooting.
+- [TurboQuant embedding findings (Oct 29)](stems/turboquant-embedding-findings-2026-10-29.md) —
+  research into stem-aware embeddings and quantization for the stems
+  pipeline.
+
 ### CrateDeck
 
 - [PRD](deck/02-prd.md) — product requirements.
@@ -234,7 +263,7 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 
 ## Operations and incident references
 
-- [Playing USB boundary](getdat/usb-sync.md) — SHELF1 preparation, user-owned export,
+- [Playing USB boundary](getdat/usb-sync.md) — shelf preparation, user-owned export,
   and read-only verification.
 - [Intake and cue postmortem](fulltags/intake-cue-postmortem.md) — executed incident
   analysis and remaining follow-up.

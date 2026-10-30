@@ -1,6 +1,6 @@
 # Playing USB export boundary
 
-**Status:** ✅ CURRENT — SHELF1 preparation is agent-operated; export to the
+**Status:** ✅ CURRENT — shelf preparation is agent-operated; export to the
 playing USB is user-managed.
 
 This page owns the operational boundary between the shelf collection and the
@@ -10,8 +10,8 @@ playing USB. Historical master/mirror tooling does not override it.
 
 | Surface                     | Role                                                                    | Write owner                                                           |
 | --------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| SHELF1                      | Archive master, collection source of truth, intake source for rekordbox | Repository commands and the user, with rekordbox closed for DB writes |
-| Playing USB (`flip-master`) | Performance media staged from rekordbox                                 | User only                                                             |
+| Shelf drive (configured)    | Archive master, collection source of truth, intake source for rekordbox | Repository commands and the user, with rekordbox closed for DB writes |
+| Playing USB (user-managed)  | Performance media staged from rekordbox                                 | User only                                                             |
 | `archive.db`                | Pipeline and analysis ledger, not a collection copy                     | megadj commands                                                       |
 
 Agents never sync, export, mirror, repair, or write playlists/databases to the
@@ -21,10 +21,10 @@ Configured volume roles win over old example names such as `DJMASTER` and
 
 ## Intake-to-export handoff
 
-1. `megadj shelf-sync` copies archive additions to SHELF1 additively and
+1. `megadj shelf-sync` copies archive additions to the shelf additively and
    verifies them by MD5.
-2. The user imports the dated batch into rekordbox from
-   `/Volumes/SHELF1/Contents/...`, never from local staging.
+2. The user imports the dated batch into rekordbox from the shelf's
+   `Contents/` directory, never from local staging.
 3. Rekordbox analyzes the tracks and the user exports them to the playing USB.
 4. CrateDeck may then verify the mounted USB through read-only checks.
 
@@ -34,7 +34,7 @@ write both or neither through the repository seam.
 
 ## Archive intake from a USB
 
-Use `megadj shelf-archive` to add material from a USB to SHELF1. It ignores
+Use `megadj shelf-archive` to add material from a USB to the shelf. It ignores
 the device database tree, walks `Contents/` and `PIONEER REC/`, filters junk,
 and MD5-verifies individual copies. The shelf is a superset: divergent
 same-name files are preserved rather than overwritten.

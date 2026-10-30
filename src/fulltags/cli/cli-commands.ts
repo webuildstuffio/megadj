@@ -17,6 +17,7 @@ import {
 import { isMegasetSearchOverride } from "../../deck/shared/types";
 import { finishCommandError, setExit, writeJson } from "../../shared/cli-output";
 import { isSimilarSpace } from "../../shared/leaf/vector-space";
+import { resolveShelfVolume } from "../../shared/volume";
 import { FETCH_TARGETS, type FetchTarget } from "../fetch/fetch";
 
 const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
@@ -746,6 +747,35 @@ const stemExportCommand: CliCommandHandler = async (rest, { state }) => {
   await stemExport({ state, volume, limit, dryRun: flags.bools.has("dry-run"), json });
 };
 
+const stemOvercueCommand: CliCommandHandler = async (rest, _context) => {
+  const flags = parseFlags(
+    rest,
+    ["limit", "start", "volume", "workers"],
+    ["dry-run", "json", "status"],
+  );
+  const json = flags.bools.has("json");
+  if (nonNegOptInvalid(flags, "limit", "stem-overcue", json)) return;
+  if (nonNegOptInvalid(flags, "start", "stem-overcue", json)) return;
+  if (nonNegOptInvalid(flags, "workers", "stem-overcue", json)) return;
+  const limit = nonNegOpt(flags, "limit", "stem-overcue", json);
+  const start = nonNegOpt(flags, "start", "stem-overcue", json);
+  const workers = nonNegOpt(flags, "workers", "stem-overcue", json);
+  const volume =
+    firstPositional(rest, "stem-overcue", ["limit", "start", "volume", "workers"]) ??
+    flags.strings.get("volume") ??
+    resolveShelfVolume();
+  const { stemOvercue } = await import("../analysis/stem-overcue");
+  await stemOvercue({
+    volume,
+    limit: limit ?? undefined,
+    start: start ?? 0,
+    workers: workers ?? 3,
+    dryRun: flags.bools.has("dry-run"),
+    json,
+    status: flags.bools.has("status"),
+  });
+};
+
 const stemStatusCommand: CliCommandHandler = async (_rest, { state }) => {
   const flags = parseFlags(_rest, [], ["json"]);
   const json = flags.bools.has("json");
@@ -807,5 +837,6 @@ export const FULLTAGS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   stems: stemsCommand,
   "vocal-zones": vocalZonesCommand,
   "stem-export": stemExportCommand,
+  "stem-overcue": stemOvercueCommand,
   "stem-status": stemStatusCommand,
 };

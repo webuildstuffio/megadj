@@ -1,49 +1,51 @@
 # 0b — Cold backup of the master library — runbook
 
-**Status:** ✅ LOCAL COLD BACKUP ACTIVE (Oct 29, 2026) — SHELF1 migrated
-from Toshiba 4 TB ExFAT HDD to Fikwok 2 TB NVMe (HFS+). The old HDD is
-now `SHELF1-COLD`, stored unpowered and synced monthly via rsync.
+**Status:** ✅ LOCAL COLD BACKUP ACTIVE (Oct 29, 2026) — shelf migrated
+from Toshiba 4 TB ExFAT HDD to Fikwot FP80 2 TB NVMe (HFS+, volume
+`GREY FIKWOK`). The old HDD is now `TOSH HDD`, stored unpowered and
+synced monthly via rsync.
 
 Cloud backup remains SHELVED (owner call, Sep 19; issue #2 closed
 NOT_PLANNED Sep 20). The local cold backup gives two physical copies.
 
-## Local cold backup — HDD (SHELF1-COLD)
+## Local cold backup — HDD (`TOSH HDD`)
 
 The old Toshiba 4 TB ExFAT HDD was the shelf master until Oct 29, 2026.
 After the NVMe migration it holds a verified 1:1 copy of the archive.
-Its permanent label is `SHELF1-COLD` (renamed from `SHELF1` on Oct 29).
+Its volume name is `TOSH HDD` (renamed from `SHELF1-COLD` on Oct 29).
 
 ### Pre-flight (EVERY time you plug in the cold backup)
 
 ```sh
 # 1. BEFORE plugging in: quit Rekordbox (it will see the drive mount)
 # 2. Plug in the Toshiba HDD
-# 3. Verify its label is SHELF1-COLD — NOT SHELF1
-diskutil info /Volumes/SHELF1-COLD | grep "Volume Name"
-# Expected: "Volume Name: SHELF1-COLD"
-# If it mounted as "SHELF1 1" or "SHELF1 2" → name collision!
-# Fix: diskutil rename diskXs2 "SHELF1-COLD"
+# 3. Verify its label is TOSH HDD — NOT GREY FIKWOK
+diskutil info "/Volumes/TOSH HDD" | grep "Volume Name"
+# Expected: "Volume Name: TOSH HDD"
+# If it mounted as "TOSH HDD 1" → name collision!
+# Fix: diskutil rename diskXs2 "TOSH HDD"
 ```
 
-**Why this matters:** two drives named `SHELF1` simultaneously causes
-macOS to mount the second as `SHELF1 1`, and Rekordbox gets confused
-about which drive owns the library paths (Oct 29 2026 incident).
+**Why this matters:** two drives with the same name simultaneously causes
+macOS to mount the second with a numeric suffix, and Rekordbox gets confused
+about which drive owns the library paths (Oct 29 2026 incident with two
+`SHELF1*` drives mounted simultaneously).
 
 ### Sync
 
 ```sh
 # Monthly incremental sync — NVMe → HDD
 rsync -avH --delete --exclude='._*' --exclude='.Trashes' \
-  /Volumes/SHELF1/ /Volumes/SHELF1-COLD/
+  "/Volumes/GREY FIKWOK/" "/Volumes/TOSH HDD/"
 
 # Spot-check: 10 random files, MD5 comparison
-find /Volumes/SHELF1/Contents -type f | sort -R | head -10 | while read src; do
-  rel="${src#/Volumes/SHELF1/}"
-  echo "$(md5 -q "$src") $(md5 -q "/Volumes/SHELF1-COLD/$rel") $rel"
+find "/Volumes/GREY FIKWOK/Contents" -type f | sort -R | head -10 | while read src; do
+  rel="${src#/Volumes/GREY FIKWOK/}"
+  echo "$(md5 -q "$src") $(md5 -q "/Volumes/TOSH HDD/$rel") $rel"
 done
 
 # Eject when done — never leave it plugged in
-diskutil eject /Volumes/SHELF1-COLD
+diskutil eject "/Volumes/TOSH HDD"
 ```
 
 Schedule: monthly, or after any major import batch. Log each run in
@@ -72,7 +74,7 @@ expected retention and restore pattern. Run `rclone config` interactively
 ```sh
 # 1. contents — versioned: changed/deleted files move to backup-dir,
 #    the bucket always holds the current tree
-rclone sync /Volumes/SHELF1/Contents/ <remote>:megadj-cold/contents \
+rclone sync "/Volumes/GREY FIKWOK/Contents/" <remote>:megadj-cold/contents \
   --backup-dir <remote>:megadj-cold-archive/$(date +%Y-%m-%d) \
   --transfers 8 --checkers 16 --fast-list -P
 
@@ -85,12 +87,12 @@ rclone copy ~/Documents/rekordbox-recovery/ <remote>:megadj-cold/recovery-kit/
 ```
 
 Never `--delete` on the main path (the `--backup-dir` IS the versioning);
-never write to a drive DB in place; the whole pass is read-only on SHELF1.
+never write to a drive DB in place; the whole pass is read-only on the shelf.
 
 ## Verify (a backup that never restored is a hope, not a backup)
 
 ```sh
-rclone check /Volumes/SHELF1/Contents/ <remote>:megadj-cold/contents --download
+rclone check "/Volumes/GREY FIKWOK/Contents/" <remote>:megadj-cold/contents --download
 # spot-restore one random file to /tmp and shasum it against the source
 ```
 
