@@ -112,10 +112,10 @@ export function tempDir(prefix: string): TempDirHandle {
  *
  *   const [t, t2] = rippledTemps("megadj-x-src-", "megadj-x-vol-");
  *
- * The const type parameter preserves the exact prefix tuple so the
+ * The tuple type parameter preserves the prefix count so the
  * destructured handles stay non-optional under noUncheckedIndexedAccess.
  */
-export function rippledTemps<const P extends readonly string[]>(
+export function rippledTemps<P extends readonly string[]>(
   ...prefixes: P
 ): { -readonly [K in keyof P]: TempDirHandle } {
   const handles = prefixes.map((prefix) => tempDir(prefix).rippable());
