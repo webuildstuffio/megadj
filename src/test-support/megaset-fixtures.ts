@@ -12,10 +12,7 @@
 import { expect } from "bun:test";
 import { transitionScore, type SetCandidate, type SetPreset } from "../deck/megaset/scoring";
 import type { MegasetResult, MegasetStep } from "../deck/shared/megaset";
-import type {
-  ArchiveSetCandidate,
-  ArchiveSetCandidates,
-} from "../deck/shared/archive-wire";
+import type { ArchiveSetCandidate, ArchiveSetCandidates } from "../deck/shared/archive-wire";
 import type { ArchiveReader } from "../deck/db/reader";
 
 /** The analyzed-track default every megaset suite builds from. Null

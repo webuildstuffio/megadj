@@ -22,7 +22,11 @@ import {
   MEGASET_BEAM_POOL_MAX,
   megasetReasonClass,
 } from "../shared/types";
-import { expectNoDoubleExclusion, fakeTrack as cand, fakeTrackList } from "../../test-support/megaset-fixtures";
+import {
+  expectNoDoubleExclusion,
+  fakeTrack as cand,
+  fakeTrackList,
+} from "../../test-support/megaset-fixtures";
 
 const mkTieOrder = (order: [string, string][]) =>
   buildMegaset({

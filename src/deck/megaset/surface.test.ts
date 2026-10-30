@@ -244,9 +244,7 @@ describe("megaset_propose candidate-pool contract", () => {
 
   test("#106 Phase D: a track with no cue row builds with null windows (no invented bars anywhere)", async () => {
     const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
-    const archive = fakePoolArchive([
-      fakePoolTrack({ videoId: "track-1", filePath }),
-    ]);
+    const archive = fakePoolArchive([fakePoolTrack({ videoId: "track-1", filePath })]);
 
     const response = await archiveRoutes(
       "/archive/megaset",

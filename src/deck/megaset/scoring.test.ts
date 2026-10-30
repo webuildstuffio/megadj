@@ -7,12 +7,7 @@
 // pairing, S13 landmark pins — engine-level behavior tests moved here from
 // engine.test.ts to stay under the file-length hook (900-line limit).
 import { describe, expect, test } from "bun:test";
-import {
-  buildMegaset,
-  bpmScore,
-  SET_PRESETS,
-  withinAnchorBudget,
-} from "./engine";
+import { buildMegaset, bpmScore, SET_PRESETS, withinAnchorBudget } from "./engine";
 import { megasetTempoLane, similarityScore, transitionEvidence, transitionScore } from "./scoring";
 import {
   MEGASET_SIMILARITY_WEIGHT,
