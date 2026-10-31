@@ -1,6 +1,11 @@
 import type { DriveCardData, InterlockState, SearchResult } from "../../shared/types";
 import type { ComponentChildren } from "preact";
-import { PRODUCT_TABS, PRODUCTS, LEDE } from "../products/shared";
+// The shell imports product-meta DIRECTLY, not through the shared/ barrel
+// (#552): the barrel re-exports beat-sync, whose ui/data → data-table graph
+// drags the whole tanstack table (~62 KB gz) into the entry chunk even
+// though the shell renders no grid. Pages keep the barrel — the
+// products-shared-dir census pins this seam.
+import { PRODUCT_TABS, PRODUCTS, LEDE } from "../products/shared/product-meta";
 import { Icon } from "../ui/icons";
 import { Onboard } from "../ui/Onboard";
 import { navigate, navigateProduct, type Route } from "./router";

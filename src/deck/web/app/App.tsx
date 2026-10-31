@@ -2,6 +2,12 @@
 // strip (four products + scope tabs) + drive rail + canvas. The old modal
 // drawer is gone: selecting a drive swaps the main canvas and the URL hash
 // (#/drives/:id/:tab), so back/forward and deep links work.
+//
+// Product canvases and the ⌘K palette are LAZY (#552): the entry chunk pays
+// only for the shell (rail, header, jobs dock, welcome); each product page
+// loads on first navigation, so the tanstack table and fuse.js ride their
+// consumers' chunks instead of the first paint.
+import { lazy, Suspense } from "preact/compat";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type {
   DriveCardData,
@@ -12,19 +18,47 @@ import type {
   SearchResult,
 } from "../../shared/types";
 import { DriveRail } from "../products/drives/DriveRail";
-import { DrivePage } from "../products/drives/DrivePage";
-import { FleetPage } from "../products/drives/FleetPage";
-import { GetDatPage } from "../products/getdat/GetDatPage";
-import { FullTagsPage } from "../products/fulltags/FullTagsPage";
-import { MegasetPage } from "../products/megaset/MegasetPage";
 import { JobsDock } from "../ui/JobsDock";
 import { Toaster, api, toast } from "../ui/toast";
 import { navigate, useRoute } from "./router";
 import { errMessage } from "../../../shared/leaf/fmt";
-import { Palette } from "../ui/Palette";
 import { bindGlobalKeys } from "../ui/keys";
 import { useJobEvents } from "./useJobEvents";
 import { AppHeader, AppNav, Welcome } from "./AppChrome";
+
+const DrivePage = lazy(() =>
+  import("../products/drives/DrivePage").then((m) => ({ default: m.DrivePage })),
+);
+const FleetPage = lazy(() =>
+  import("../products/drives/FleetPage").then((m) => ({ default: m.FleetPage })),
+);
+const GetDatPage = lazy(() =>
+  import("../products/getdat/GetDatPage").then((m) => ({ default: m.GetDatPage })),
+);
+const FullTagsPage = lazy(() =>
+  import("../products/fulltags/FullTagsPage").then((m) => ({ default: m.FullTagsPage })),
+);
+const MegasetPage = lazy(() =>
+  import("../products/megaset/MegasetPage").then((m) => ({ default: m.MegasetPage })),
+);
+const Palette = lazy(() => import("../ui/Palette").then((m) => ({ default: m.Palette })));
+
+/** Canvas placeholder while a product chunk streams in (LAN-fast, but a
+ *  blank flash reads as a hang without it). */
+const CanvasFallback = () => (
+  <div
+    style={{
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      opacity: 0.6,
+    }}
+    role="status">
+    Loading…
+  </div>
+);
 
 export function App() {
   const route = useRoute();
@@ -229,30 +263,36 @@ export function App() {
           ports={ports}
         />
         <main class="canvas-wrap" style={{ flex: 1, minWidth: 0, display: "flex" }}>
-          {route.product === "fleet" ? (
-            <FleetPage key="fleet" tab={route.tab} interlock={interlock} />
-          ) : route.product === "getdat" ? (
-            <GetDatPage key="getdat" tab={route.tab} />
-          ) : route.product === "megaset" ? (
-            <MegasetPage key="megaset" tab={route.tab} />
-          ) : route.product === "fulltags" ? (
-            <FullTagsPage key="fulltags" tab={route.tab} />
-          ) : route.product === "drives" && route.driveId ? (
-            <DrivePage
-              key={route.driveId}
-              driveId={route.driveId}
-              tab={route.tab}
-              interlock={interlock}
-            />
-          ) : (
-            <Welcome drives={drives} locked={locked} onPick={openDrive} />
-          )}
+          <Suspense fallback={<CanvasFallback />}>
+            {route.product === "fleet" ? (
+              <FleetPage key="fleet" tab={route.tab} interlock={interlock} />
+            ) : route.product === "getdat" ? (
+              <GetDatPage key="getdat" tab={route.tab} />
+            ) : route.product === "megaset" ? (
+              <MegasetPage key="megaset" tab={route.tab} />
+            ) : route.product === "fulltags" ? (
+              <FullTagsPage key="fulltags" tab={route.tab} />
+            ) : route.product === "drives" && route.driveId ? (
+              <DrivePage
+                key={route.driveId}
+                driveId={route.driveId}
+                tab={route.tab}
+                interlock={interlock}
+              />
+            ) : (
+              <Welcome drives={drives} locked={locked} onPick={openDrive} />
+            )}
+          </Suspense>
         </main>
       </div>
 
       <JobsDock jobs={jobs} drives={drives} focusDrive={(id) => openDrive(id)} />
       <Toaster />
-      {paletteOpen && <Palette drives={drives} onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <Palette drives={drives} onClose={() => setPaletteOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

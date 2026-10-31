@@ -18,7 +18,11 @@
 import type { ComponentChildren } from "preact";
 import { Icon } from "../../ui/icons";
 
-export { DRIVE_TABS, LEDE, PRODUCTS, PRODUCT_TABS, ProductIntro } from "./product-meta";
+// LEDE/PRODUCTS are NOT re-exported here: their only reader is the app
+// shell, which must import product-meta directly (#552 — a barrel import
+// would pull this file's beat-sync sibling, and its tanstack table graph,
+// into the entry chunk).
+export { DRIVE_TABS, PRODUCT_TABS, ProductIntro } from "./product-meta";
 export type { GridBreaker } from "./beat-sync";
 export { ScanApplyActions, ScanApplyGate, useScanApply } from "./scan-apply";
 export { collectBreakers, BeatSyncBreakersCard } from "./beat-sync";

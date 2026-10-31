@@ -55,9 +55,14 @@ test("pages import shared surface through the barrel only (no member leaks)", ()
     if (!product.isDirectory() || product.name === "shared") continue;
     walk(join(productsDir, product.name));
   }
-  // the app shell imports through the same seam
+  // the app shell is the ONE sanctioned barrel bypass: AppChrome needs only
+  // the nav SSOT, and importing the barrel would drag beat-sync's
+  // ui/data → data-table graph (the tanstack table) into the entry chunk
+  // (#552). The shell must name the member module; any other app/ import of
+  // products/shared re-leaks the table into first paint.
   const appChrome = read(join(import.meta.dir, "..", "app", "AppChrome.tsx"));
-  expect(appChrome).toContain('from "../products/shared"');
+  expect(appChrome).toContain('from "../products/shared/product-meta"');
+  expect(appChrome).not.toContain('from "../products/shared"');
   expect(
     offenders,
     `direct member imports re-split the barrel seam:\n  ${offenders.join("\n  ")}`,
