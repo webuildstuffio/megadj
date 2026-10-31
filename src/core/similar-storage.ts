@@ -1,3 +1,4 @@
+import type { Database } from "bun:sqlite";
 import { isFiniteNumberArray } from "../shared/leaf/guards";
 import { vecFromF32Blob, vecToF32Blob } from "../shared/leaf/vector-space";
 import { RecordLedger } from "./record-ledger";
@@ -16,6 +17,62 @@ export function parseEmbeddingVector(vecBlob: Uint8Array | null, context: string
     throw new Error(`${context} has invalid vec_f32: expected a non-empty array of finite numbers`);
   }
   return vec;
+}
+
+/** #562 one-time backfill: encode legacy `vec_json` rows into `vec_f32`
+ * blobs. A row whose JSON is corrupt keeps a NULL blob — the read-side
+ * poison-row guard then treats it as absent, exactly like every ledger
+ * read. */
+function backfillVecF32(
+  db: Database,
+  table: "embeddings" | "section_embeddings",
+  keyColumns: readonly string[],
+): void {
+  const rows = db
+    .query(
+      `SELECT ${keyColumns.join(", ")}, vec_json FROM ${table}
+       WHERE vec_f32 IS NULL AND vec_json IS NOT NULL`,
+    )
+    .all() as (Record<string, unknown> & { vec_json: string })[];
+  if (rows.length === 0) return;
+  const where = keyColumns.map((c) => `${c} = ?`).join(" AND ");
+  const update = db.query(`UPDATE ${table} SET vec_f32 = ? WHERE ${where}`);
+  db.transaction(() => {
+    for (const row of rows) {
+      let vec: unknown;
+      try {
+        vec = JSON.parse(row.vec_json) as unknown;
+      } catch {
+        console.warn(`${table} backfill: unparseable vec_json — leaving vec_f32 NULL`);
+        continue;
+      }
+      if (!isFiniteNumberArray(vec) || vec.length === 0) {
+        console.warn(`${table} backfill: non-finite vec_json — leaving vec_f32 NULL`);
+        continue;
+      }
+      update.run(vecToF32Blob(vec), ...keyColumns.map((c) => String(row[c])));
+    }
+  })();
+}
+
+/** Ensure both embedding tables carry `vec_f32` and backfill legacy
+ * `vec_json` rows. ArchiveCore runs this at open; standalone readers that
+ * bypass ArchiveState (the section bench opens the archive read-only
+ * directly) run it on a writable connection first, so a legacy archive
+ * never surfaces as "no such column: vec_f32". A missing table is a no-op
+ * — the caller's own queries report it. */
+export function ensureVecF32Schema(db: Database): void {
+  const tables = [
+    ["embeddings", ["video_id"]],
+    ["section_embeddings", ["video_id", "model"]],
+  ] as const;
+  for (const [table, keyColumns] of tables) {
+    const columns = db.query(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (columns.length === 0) continue;
+    if (!columns.some((candidate) => candidate.name === "vec_f32"))
+      db.exec(`ALTER TABLE ${table} ADD COLUMN vec_f32 BLOB`);
+    backfillVecF32(db, table, keyColumns);
+  }
 }
 
 export class EmbeddingsLedger extends RecordLedger {

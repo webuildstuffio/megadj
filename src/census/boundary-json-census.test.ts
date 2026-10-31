@@ -246,14 +246,16 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // guarded unchanged.
     // Oct 31 (#562 BLOB embeddings): parseEmbeddingVector's guarded
     // JSON.parse retires (similar-storage.ts reads vec_f32 blobs now) and
-    // state-core.ts backfillVecF32 adds one GUARDED parse (legacy vec_json
-    // → BLOB migration, try/catch + warn, poison rows keep NULL blob);
+    // the vec_f32 backfill adds one GUARDED parse (legacy vec_json → BLOB
+    // migration, try/catch + warn, poison rows keep NULL blob; the seam
+    // then moved state-core.ts → similar-storage.ts so the standalone
+    // bench can migrate before its read-only open);
     // audited 89, guarded 56, sanctioned 33 — counts unchanged, digest
     // shifted (parse moved files).
     audited: 89,
     guarded: 56,
     sanctioned: 33,
-    digest: "363399f2bbcb58ac25615a2938ab59705fefb2834d0b412b1661e4c77de0043e",
+    digest: "dbe148f59484fe59ca931da7ee5f6d611f7e7f3b37b4f6a3dbac1b4b203a2ecc",
   });
 });
 

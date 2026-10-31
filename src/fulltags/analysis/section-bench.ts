@@ -14,7 +14,7 @@
 
 import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
-import { parseEmbeddingVector } from "../../core/similar-storage";
+import { ensureVecF32Schema, parseEmbeddingVector } from "../../core/similar-storage";
 import { inferGenre, genreFamily, type GenreSeed } from "../../core/similar";
 import { findDropCandidates } from "./drop-finder";
 import { analyzeMoods } from "./models";
@@ -327,6 +327,14 @@ async function main() {
   console.log(`║  Section Embedding Bench — Rigorous Statistical Analysis  ║`);
   console.log(`╚═══════════════════════════════════════════════════════════╝\n`);
 
+  // #562: a legacy archive (opened by an older build, no vec_f32 yet)
+  // must be migrated before this read-only connection can query the blob
+  // column — the bench never depends on another command having run first.
+  if (existsSync(DB_PATH)) {
+    const migrate = new Database(DB_PATH);
+    ensureVecF32Schema(migrate);
+    migrate.close();
+  }
   const db = new Database(DB_PATH, { readonly: true });
   const sample = loadSample(db, sampleSize);
   const allSeeds = loadAllSeeds(db);

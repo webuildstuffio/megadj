@@ -1,10 +1,9 @@
 import { openLedger } from "../shared/sqlite-ledger";
 import type { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
-import { isFiniteNumberArray } from "../shared/leaf/guards";
-import { vecToF32Blob } from "../shared/leaf/vector-space";
 import { Ledgers } from "./ledgers";
 import { EmbeddingsLedger } from "./similar";
+import { ensureVecF32Schema } from "./similar-storage";
 import { ShelfSweeps } from "./sweeps";
 
 /** Connection, schema, and delegated ledger ownership for archive state. */
@@ -103,10 +102,7 @@ export class ArchiveCore {
     // JSON.parse); `vec_json` stays populated by the write seam for the
     // debugging tools and the readers that still speak JSON. This backfill
     // runs before any read: every legacy row gets its blob at open time.
-    this.addColumnIfMissing("embeddings", "vec_f32", "BLOB");
-    this.addColumnIfMissing("section_embeddings", "vec_f32", "BLOB");
-    this.backfillVecF32("embeddings", ["video_id"]);
-    this.backfillVecF32("section_embeddings", ["video_id", "model"]);
+    ensureVecF32Schema(this.db);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS track_keys (
         video_id TEXT PRIMARY KEY, key TEXT NOT NULL,
@@ -130,38 +126,6 @@ export class ArchiveCore {
     const columns = this.db.query(`PRAGMA table_info(${table})`).all() as { name: string }[];
     if (!columns.some((candidate) => candidate.name === column))
       this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
-  }
-
-  /** #562 one-time backfill: encode legacy `vec_json` rows into `vec_f32`
-   * blobs. A row whose JSON is corrupt keeps a NULL blob — the read-side
-   * poison-row guard then treats it as absent, exactly like every ledger
-   * read. */
-  private backfillVecF32(table: "embeddings" | "section_embeddings", keyColumns: string[]): void {
-    const rows = this.db
-      .query(
-        `SELECT ${keyColumns.join(", ")}, vec_json FROM ${table}
-         WHERE vec_f32 IS NULL AND vec_json IS NOT NULL`,
-      )
-      .all() as (Record<string, unknown> & { vec_json: string })[];
-    if (rows.length === 0) return;
-    const where = keyColumns.map((c) => `${c} = ?`).join(" AND ");
-    const update = this.db.query(`UPDATE ${table} SET vec_f32 = ? WHERE ${where}`);
-    this.db.transaction(() => {
-      for (const row of rows) {
-        let vec: unknown;
-        try {
-          vec = JSON.parse(row.vec_json) as unknown;
-        } catch {
-          console.warn(`${table} backfill: unparseable vec_json — leaving vec_f32 NULL`);
-          continue;
-        }
-        if (!isFiniteNumberArray(vec) || vec.length === 0) {
-          console.warn(`${table} backfill: non-finite vec_json — leaving vec_f32 NULL`);
-          continue;
-        }
-        update.run(vecToF32Blob(vec), ...keyColumns.map((c) => String(row[c])));
-      }
-    })();
   }
 
   close(): void {

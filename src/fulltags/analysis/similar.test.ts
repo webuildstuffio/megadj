@@ -6,6 +6,7 @@ import { Database } from "bun:sqlite";
 import { afterAll, describe, expect, test } from "bun:test";
 import { stateIn, tempDir, tempState } from "../../test-support/testutil";
 import { cosineSimilarity, similarTracks } from "../../core/state";
+import { ensureVecF32Schema, parseEmbeddingVector } from "../../core/similar-storage";
 
 const ts = tempState("megadj-similar-");
 const { dir, state } = ts.next();
@@ -158,6 +159,27 @@ describe("embeddings ledger round-trip", () => {
       expect(legacyState.embeddingRecord("poison")).toBeNull();
     } finally {
       legacyState.close();
+      legacy.dispose(legacyDir);
+    }
+  });
+  test("ensureVecF32Schema migrates a legacy DB without ArchiveState (standalone-reader path)", () => {
+    // the section bench opens the archive read-only and never builds an
+    // ArchiveState — it runs the migration seam itself on a writable handle
+    const legacy = tempDir("megadj-similar-benchmig-");
+    const legacyDir = legacy.dir();
+    try {
+      const raw = new Database(join(legacyDir, "archive.db"));
+      raw.exec(`CREATE TABLE embeddings (
+        video_id TEXT PRIMARY KEY, dim INTEGER NOT NULL,
+        vec_json TEXT NOT NULL, source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL)`);
+      raw.exec(`INSERT INTO embeddings VALUES ('legacy', 2, '[5,6]', '/tmp/l', 'now')`);
+      ensureVecF32Schema(raw);
+      const row = raw.query("SELECT vec_f32 FROM embeddings WHERE video_id = 'legacy'").get() as {
+        vec_f32: Uint8Array | null;
+      };
+      expect(parseEmbeddingVector(row.vec_f32, "legacy")).toEqual([5, 6]);
+      raw.close();
+    } finally {
       legacy.dispose(legacyDir);
     }
   });
