@@ -291,13 +291,16 @@ def main() -> None:
 
             conn.execute(
                 """INSERT OR REPLACE INTO section_embeddings
-                   (video_id, model, dim, vec_json, source_path, analyzed_at, section_start, section_end)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (video_id, model, dim, vec_json, vec_f32, source_path, analyzed_at, section_start, section_end)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     video_id,
                     model_tag,
                     len(vec),
                     json.dumps(vec.tolist()),
+                    # little-endian float32, byte-identical to the TS
+                    # vecToF32Blob write seam — hot readers select vec_f32
+                    np.asarray(vec, dtype="<f4").tobytes(),
                     file_path,
                     now,
                     start,

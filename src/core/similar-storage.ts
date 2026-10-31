@@ -19,40 +19,54 @@ export function parseEmbeddingVector(vecBlob: Uint8Array | null, context: string
   return vec;
 }
 
-/** #562 one-time backfill: encode legacy `vec_json` rows into `vec_f32`
- * blobs. A row whose JSON is corrupt keeps a NULL blob — the read-side
- * poison-row guard then treats it as absent, exactly like every ledger
- * read. */
+/** #562 backfill: encode legacy `vec_json` rows into `vec_f32` blobs, in
+ * bounded batches — each row carries ~13–25 KB of JSON text, so one
+ * `.all()` over a large archive is a multi-GB transient allocation. The
+ * cursor is rowid keyset pagination: a poison row keeps its NULL blob
+ * forever, so a bare `LIMIT` re-query would hand the same batch back
+ * every iteration and wedge the loop. A poison row's blob stays NULL —
+ * the read-side poison-row guard then treats it as absent, exactly like
+ * every ledger read. */
+const BACKFILL_BATCH = 1000;
+
 function backfillVecF32(
   db: Database,
   table: "embeddings" | "section_embeddings",
   keyColumns: readonly string[],
 ): void {
-  const rows = db
-    .query(
-      `SELECT ${keyColumns.join(", ")}, vec_json FROM ${table}
-       WHERE vec_f32 IS NULL AND vec_json IS NOT NULL`,
-    )
-    .all() as (Record<string, unknown> & { vec_json: string })[];
-  if (rows.length === 0) return;
   const where = keyColumns.map((c) => `${c} = ?`).join(" AND ");
+  const select = db.query(
+    `SELECT rowid AS rid, ${keyColumns.join(", ")}, vec_json FROM ${table}
+     WHERE vec_f32 IS NULL AND vec_json IS NOT NULL AND rowid > ?
+     ORDER BY rowid
+     LIMIT ${BACKFILL_BATCH}`,
+  );
   const update = db.query(`UPDATE ${table} SET vec_f32 = ? WHERE ${where}`);
-  db.transaction(() => {
-    for (const row of rows) {
-      let vec: unknown;
-      try {
-        vec = JSON.parse(row.vec_json) as unknown;
-      } catch {
-        console.warn(`${table} backfill: unparseable vec_json — leaving vec_f32 NULL`);
-        continue;
+  let cursor = 0;
+  for (;;) {
+    const rows = select.all(cursor) as (Record<string, unknown> & {
+      rid: number;
+      vec_json: string;
+    })[];
+    if (rows.length === 0) return;
+    db.transaction(() => {
+      for (const row of rows) {
+        let vec: unknown;
+        try {
+          vec = JSON.parse(row.vec_json) as unknown;
+        } catch {
+          console.warn(`${table} backfill: unparseable vec_json — leaving vec_f32 NULL`);
+          continue;
+        }
+        if (!isFiniteNumberArray(vec) || vec.length === 0) {
+          console.warn(`${table} backfill: non-finite vec_json — leaving vec_f32 NULL`);
+          continue;
+        }
+        update.run(vecToF32Blob(vec), ...keyColumns.map((c) => String(row[c])));
       }
-      if (!isFiniteNumberArray(vec) || vec.length === 0) {
-        console.warn(`${table} backfill: non-finite vec_json — leaving vec_f32 NULL`);
-        continue;
-      }
-      update.run(vecToF32Blob(vec), ...keyColumns.map((c) => String(row[c])));
-    }
-  })();
+    })();
+    cursor = rows[rows.length - 1]!.rid;
+  }
 }
 
 /** #562 schema marker: once the backfill has run, `user_version` records
@@ -60,8 +74,14 @@ function backfillVecF32(
  * unindexable `vec_f32 IS NULL` walk over the two largest tables, and
  * re-running it on every open just to find zero rows costs O(rows) per
  * CLI invocation. Bump for future one-time migrations; each version N
- * re-runs only when the stored version is below N. */
-export const VEC_F32_USER_VERSION = 1;
+ * re-runs only when the stored version is below N.
+ *
+ * v2: one repair pass on archives already at v1, to backfill
+ * blob-less section rows written by the pre-fix python cache tool
+ * (`tools/cache_section_embeddings.py` INSERT OR REPLACE'd without
+ * vec_f32, also erasing backfilled blobs on re-run); the tool now
+ * stores the blob itself. */
+export const VEC_F32_USER_VERSION = 2;
 
 /** Ensure both embedding tables carry `vec_f32` and backfill legacy
  * `vec_json` rows — at most once per database, gated on a
@@ -80,8 +100,16 @@ export function ensureVecF32Schema(db: Database): void {
   for (const [table, keyColumns] of tables) {
     const columns = db.query(`PRAGMA table_info(${table})`).all() as { name: string }[];
     if (columns.length === 0) continue;
-    if (!columns.some((candidate) => candidate.name === "vec_f32"))
-      db.exec(`ALTER TABLE ${table} ADD COLUMN vec_f32 BLOB`);
+    if (!columns.some((candidate) => candidate.name === "vec_f32")) {
+      try {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN vec_f32 BLOB`);
+      } catch (error) {
+        // concurrent first opens of the same legacy archive both pass the
+        // table_info check before either ALTER lands; the loser's
+        // duplicate-column error is the winner's success
+        if (!String(error).includes("duplicate column name")) throw error;
+      }
+    }
     backfillVecF32(db, table, keyColumns);
   }
   db.exec(`PRAGMA user_version = ${VEC_F32_USER_VERSION}`);
