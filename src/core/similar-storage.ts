@@ -55,13 +55,24 @@ function backfillVecF32(
   })();
 }
 
+/** #562 schema marker: once the backfill has run, `user_version` records
+ * it and later opens skip the scan entirely — the backfill SELECT is an
+ * unindexable `vec_f32 IS NULL` walk over the two largest tables, and
+ * re-running it on every open just to find zero rows costs O(rows) per
+ * CLI invocation. Bump for future one-time migrations; each version N
+ * re-runs only when the stored version is below N. */
+export const VEC_F32_USER_VERSION = 1;
+
 /** Ensure both embedding tables carry `vec_f32` and backfill legacy
- * `vec_json` rows. ArchiveCore runs this at open; standalone readers that
- * bypass ArchiveState (the section bench opens the archive read-only
- * directly) run it on a writable connection first, so a legacy archive
- * never surfaces as "no such column: vec_f32". A missing table is a no-op
- * — the caller's own queries report it. */
+ * `vec_json` rows — at most once per database, gated on a
+ * `PRAGMA user_version` marker. ArchiveCore runs this at open;
+ * standalone readers that bypass ArchiveState (the section bench opens
+ * the archive read-only directly) run it on a writable connection first,
+ * so a legacy archive never surfaces as "no such column: vec_f32". A
+ * missing table is a no-op — the caller's own queries report it. */
 export function ensureVecF32Schema(db: Database): void {
+  const version = (db.query("PRAGMA user_version").get() as { user_version: number }).user_version;
+  if (version >= VEC_F32_USER_VERSION) return;
   const tables = [
     ["embeddings", ["video_id"]],
     ["section_embeddings", ["video_id", "model"]],
@@ -73,6 +84,7 @@ export function ensureVecF32Schema(db: Database): void {
       db.exec(`ALTER TABLE ${table} ADD COLUMN vec_f32 BLOB`);
     backfillVecF32(db, table, keyColumns);
   }
+  db.exec(`PRAGMA user_version = ${VEC_F32_USER_VERSION}`);
 }
 
 export class EmbeddingsLedger extends RecordLedger {

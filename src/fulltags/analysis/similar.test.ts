@@ -6,7 +6,11 @@ import { Database } from "bun:sqlite";
 import { afterAll, describe, expect, test } from "bun:test";
 import { stateIn, tempDir, tempState } from "../../test-support/testutil";
 import { cosineSimilarity, similarTracks } from "../../core/state";
-import { ensureVecF32Schema, parseEmbeddingVector } from "../../core/similar-storage";
+import {
+  ensureVecF32Schema,
+  parseEmbeddingVector,
+  VEC_F32_USER_VERSION,
+} from "../../core/similar-storage";
 
 const ts = tempState("megadj-similar-");
 const { dir, state } = ts.next();
@@ -178,6 +182,37 @@ describe("embeddings ledger round-trip", () => {
         vec_f32: Uint8Array | null;
       };
       expect(parseEmbeddingVector(row.vec_f32, "legacy")).toEqual([5, 6]);
+      raw.close();
+    } finally {
+      legacy.dispose(legacyDir);
+    }
+  });
+  test("ensureVecF32Schema gates the backfill on user_version — at most once per DB", () => {
+    // the backfill SELECT is an unindexable full walk of both embedding
+    // tables; after the marker is written, later opens must skip it
+    const legacy = tempDir("megadj-similar-migrate-once-");
+    const legacyDir = legacy.dir();
+    try {
+      const raw = new Database(join(legacyDir, "archive.db"));
+      raw.exec(`CREATE TABLE embeddings (
+        video_id TEXT PRIMARY KEY, dim INTEGER NOT NULL,
+        vec_json TEXT NOT NULL, source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL)`);
+      raw.exec(`INSERT INTO embeddings VALUES ('legacy', 2, '[7,8]', '/tmp/l', 'now')`);
+      ensureVecF32Schema(raw);
+      expect(
+        (raw.query("PRAGMA user_version").get() as { user_version: number }).user_version,
+      ).toBe(VEC_F32_USER_VERSION);
+      // a json-only row appearing AFTER the marker is not re-scanned —
+      // no in-repo writer produces json-without-blob rows anymore
+      raw.exec(
+        `INSERT INTO embeddings (video_id, dim, vec_json, source_path, analyzed_at)
+         VALUES ('late', 2, '[9,10]', '/tmp/l', 'now')`,
+      );
+      ensureVecF32Schema(raw);
+      const late = raw.query("SELECT vec_f32 FROM embeddings WHERE video_id = 'late'").get() as {
+        vec_f32: Uint8Array | null;
+      };
+      expect(late.vec_f32).toBeNull();
       raw.close();
     } finally {
       legacy.dispose(legacyDir);
