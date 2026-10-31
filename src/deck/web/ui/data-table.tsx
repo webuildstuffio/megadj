@@ -46,8 +46,12 @@ export interface DataTableRowAction<T> {
 }
 
 // one static feature set for every DataTable instance — registered once so
-// the row-model pipeline (filter → sort → paginate) is memoized per table
-const dtFeatures = tableFeatures({
+// the row-model pipeline (filter → sort → paginate) is memoized per table.
+// /*#__PURE__*/ lets rollup drop the whole tanstack graph when no reachable
+// module renders DataTable — without it the registration call keeps the
+// table in the entry chunk via the products/shared barrel even when the
+// shell never renders a grid (#552).
+const dtFeatures = /*#__PURE__*/ tableFeatures({
   rowSortingFeature,
   columnFilteringFeature,
   globalFilteringFeature,
