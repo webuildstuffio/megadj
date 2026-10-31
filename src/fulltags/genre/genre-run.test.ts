@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { ArchiveState } from "../../core/state";
+import { vecToF32Blob } from "../../shared/leaf/vector-space";
 import { genreEvalRow } from "../../test-support/genre-row";
 import { genre } from "./genre-run";
 
@@ -37,25 +38,35 @@ describe("genre command JSON boundary", () => {
     const updates: string[] = [];
     const state = {
       genreSeeds: () => ({
-        seeds: [{ video_id: "seed", genre: "House", vec_json: "[1,0]" }],
+        seeds: [{ video_id: "seed", genre: "House", vec_f32: vecToF32Blob([1, 0]) }],
         queries: [
-          { video_id: "would-write", title: "First", vec_json: "[1,0]", section_vecs: [] },
-          { video_id: "corrupt", title: "Second", vec_json: "not-json", section_vecs: [] },
+          {
+            video_id: "would-write",
+            title: "First",
+            vec_f32: vecToF32Blob([1, 0]),
+            section_vecs: [],
+          },
+          {
+            video_id: "corrupt",
+            title: "Second",
+            vec_f32: new Uint8Array([1, 2, 3]),
+            section_vecs: [],
+          },
         ],
       }),
       updateGenre: (videoId: string) => updates.push(videoId),
     } as unknown as ArchiveState;
 
     await expect(genre({ state, apply: true })).rejects.toThrow(
-      "genre query corrupt has invalid vec_json",
+      "genre query corrupt has invalid vec_f32",
     );
     expect(updates).toEqual([]);
   });
 
-  test("rejects syntactically valid non-vector JSON with row context", async () => {
+  test("rejects a readable blob holding non-finite values with row context", async () => {
     const state = {
       genreSeeds: () => ({
-        seeds: [{ video_id: "bad-seed", genre: "House", vec_json: '[1,"x"]' }],
+        seeds: [{ video_id: "bad-seed", genre: "House", vec_f32: vecToF32Blob([1, NaN]) }],
         queries: [],
       }),
       updateGenre: () => {
@@ -64,16 +75,16 @@ describe("genre command JSON boundary", () => {
     } as unknown as ArchiveState;
 
     await expect(genre({ state, apply: true })).rejects.toThrow(
-      "genre seed bad-seed has invalid vec_json: expected a non-empty array of finite numbers",
+      "genre seed bad-seed has invalid vec_f32: expected a non-empty array of finite numbers",
     );
   });
 
   test("genre --eval sets exit code 1 when agreement is below target", async () => {
     const state = {
       evalPopulation: () => [
-        genreEvalRow("a", "House", "[1,0]"),
-        genreEvalRow("b", "House", "[1,0]"),
-        genreEvalRow("c", "Bass", "[0,1]"),
+        genreEvalRow("a", "House", [1, 0]),
+        genreEvalRow("b", "House", [1, 0]),
+        genreEvalRow("c", "Bass", [0, 1]),
       ],
     } as unknown as ArchiveState;
 
@@ -85,9 +96,9 @@ describe("genre command JSON boundary", () => {
   test("genre --eval sets exit code 0 when agreement passes the gate", async () => {
     const state = {
       evalPopulation: () => [
-        genreEvalRow("a", "House", "[1,0]"),
-        genreEvalRow("b", "House", "[1,0]"),
-        genreEvalRow("c", "House", "[1,0]"),
+        genreEvalRow("a", "House", [1, 0]),
+        genreEvalRow("b", "House", [1, 0]),
+        genreEvalRow("c", "House", [1, 0]),
       ],
     } as unknown as ArchiveState;
 
@@ -99,9 +110,9 @@ describe("genre command JSON boundary", () => {
   test("--eval --artist-disjoint adds the artist_disjoint block", async () => {
     const state = {
       evalPopulation: () => [
-        genreEvalRow("a", "House", "[1,0]", { artist: "X" }),
-        genreEvalRow("b", "House", "[1,0]", { artist: "Y" }),
-        genreEvalRow("c", "House", "[1,0]", { artist: "Z" }),
+        genreEvalRow("a", "House", [1, 0], { artist: "X" }),
+        genreEvalRow("b", "House", [1, 0], { artist: "Y" }),
+        genreEvalRow("c", "House", [1, 0], { artist: "Z" }),
       ],
     } as unknown as ArchiveState;
     const parsed = await captureGenreJson(state, { eval: true, artistDisjoint: true });
@@ -113,9 +124,9 @@ describe("genre command JSON boundary", () => {
   test("--eval --probe adds the probe block with delta vs kNN", async () => {
     const state = {
       evalPopulation: () => [
-        genreEvalRow("a", "House", "[1,0]", { artist: "X" }),
-        genreEvalRow("b", "House", "[1,0]", { artist: "Y" }),
-        genreEvalRow("c", "Bass", "[0,1]", { artist: "Z" }),
+        genreEvalRow("a", "House", [1, 0], { artist: "X" }),
+        genreEvalRow("b", "House", [1, 0], { artist: "Y" }),
+        genreEvalRow("c", "Bass", [0, 1], { artist: "Z" }),
       ],
     } as unknown as ArchiveState;
     const parsed = await captureGenreJson(state, { eval: true, probe: true });
@@ -129,9 +140,27 @@ describe("genre command JSON boundary", () => {
   test("--eval --diagnostics adds the Tier-0 block", async () => {
     const state = {
       evalPopulation: () => [
-        { video_id: "a", genre: "House", vec_json: "[1,0]", duration_s: 300, artist: "X" },
-        { video_id: "b", genre: "House", vec_json: "[1,0]", duration_s: 300, artist: "X" },
-        { video_id: "c", genre: "Bass", vec_json: "[0,1]", duration_s: 300, artist: "Y" },
+        {
+          video_id: "a",
+          genre: "House",
+          vec_f32: vecToF32Blob([1, 0]),
+          duration_s: 300,
+          artist: "X",
+        },
+        {
+          video_id: "b",
+          genre: "House",
+          vec_f32: vecToF32Blob([1, 0]),
+          duration_s: 300,
+          artist: "X",
+        },
+        {
+          video_id: "c",
+          genre: "Bass",
+          vec_f32: vecToF32Blob([0, 1]),
+          duration_s: 300,
+          artist: "Y",
+        },
       ],
     } as unknown as ArchiveState;
     const logged: string[] = [];
@@ -156,11 +185,11 @@ describe("genre command JSON boundary", () => {
     // are a coherent cluster either way.
     const state = {
       evalPopulation: () => [
-        genreEvalRow("a", "House", "[1,0]"),
-        genreEvalRow("b", "House", "[1,0]"),
-        genreEvalRow("c", "House", "[0.99,0.02]"),
-        genreEvalRow("u", "Dance", "[1,0]"),
-        genreEvalRow("v", "House", "[0,1]"),
+        genreEvalRow("a", "House", [1, 0]),
+        genreEvalRow("b", "House", [1, 0]),
+        genreEvalRow("c", "House", [0.99, 0.02]),
+        genreEvalRow("u", "Dance", [1, 0]),
+        genreEvalRow("v", "House", [0, 1]),
       ],
     } as unknown as ArchiveState;
     const parsed = await captureGenreJson(state, { eval: true, refold: true });
@@ -242,13 +271,13 @@ describe("genre command JSON boundary", () => {
     // the EDM row's 2 nearest are both house (agreement 1.0).
     const state = {
       evalPopulation: () => [
-        { video_id: "bad", genre: "EDM", vec_json: "[1,0]", duration_s: 300 },
-        { video_id: "h1", genre: "House", vec_json: "[1,0.01]", duration_s: 300 },
-        { video_id: "h2", genre: "House", vec_json: "[1,0.02]", duration_s: 300 },
-        { video_id: "h3", genre: "House", vec_json: "[0.99,0.03]", duration_s: 300 },
+        { video_id: "bad", genre: "EDM", vec_f32: vecToF32Blob([1, 0]), duration_s: 300 },
+        { video_id: "h1", genre: "House", vec_f32: vecToF32Blob([1, 0.01]), duration_s: 300 },
+        { video_id: "h2", genre: "House", vec_f32: vecToF32Blob([1, 0.02]), duration_s: 300 },
+        { video_id: "h3", genre: "House", vec_f32: vecToF32Blob([0.99, 0.03]), duration_s: 300 },
         // far corner: split neighbourhood, no quorum
-        { video_id: "mixed", genre: "Bass", vec_json: "[0,1]", duration_s: 300 },
-        { video_id: "mixed2", genre: "Techno", vec_json: "[0,0.9]", duration_s: 300 },
+        { video_id: "mixed", genre: "Bass", vec_f32: vecToF32Blob([0, 1]), duration_s: 300 },
+        { video_id: "mixed2", genre: "Techno", vec_f32: vecToF32Blob([0, 0.9]), duration_s: 300 },
       ],
       setGenreFlag: (videoId: string, flag: "disputed" | null) => flags.set(videoId, flag),
     } as unknown as ArchiveState;
@@ -301,11 +330,11 @@ describe("genre command JSON boundary", () => {
     // arbitration arm: umbrella rows out, remaining population agrees.
     const state = {
       evalPopulation: () => [
-        genreEvalRow("a", "House", "[1,0]"),
-        genreEvalRow("b", "House", "[1,0]"),
-        genreEvalRow("c", "House", "[0.99,0.02]"),
-        genreEvalRow("u", "Dance", "[0,1]"),
-        genreEvalRow("v", "House", "[0,1]"),
+        genreEvalRow("a", "House", [1, 0]),
+        genreEvalRow("b", "House", [1, 0]),
+        genreEvalRow("c", "House", [0.99, 0.02]),
+        genreEvalRow("u", "Dance", [0, 1]),
+        genreEvalRow("v", "House", [0, 1]),
       ],
     } as unknown as ArchiveState;
     const parsed = await captureGenreJson(state, { eval: true, refold: true });

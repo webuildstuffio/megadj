@@ -4,7 +4,7 @@
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { afterAll, describe, expect, test } from "bun:test";
-import { tempState } from "../../test-support/testutil";
+import { stateIn, tempDir, tempState } from "../../test-support/testutil";
 import { cosineSimilarity, similarTracks } from "../../core/state";
 
 const ts = tempState("megadj-similar-");
@@ -100,13 +100,13 @@ describe("embeddings ledger round-trip", () => {
     expect(hits[0]!.videoId).toBe("t2");
     expect(hits[0]!.score).toBeGreaterThan(0.99);
   });
-  test("embeddingRecord on a corrupt JSON row reads as absent", () => {
+  test("embeddingRecord on a corrupt vec_f32 blob reads as absent", () => {
     // simulate a corrupt write via raw SQL on the same underlying file
     const raw = new Database(join(dir, "archive.db"));
     raw.exec(
-      `INSERT INTO embeddings (video_id, dim, vec_json, source_path, analyzed_at)
-       VALUES ('bad', 3, '{not json', '/tmp/x', 'now')
-       ON CONFLICT(video_id) DO UPDATE SET vec_json = excluded.vec_json`,
+      `INSERT INTO embeddings (video_id, dim, vec_json, vec_f32, source_path, analyzed_at)
+       VALUES ('bad', 3, '{not json', X'00', '/tmp/x', 'now')
+       ON CONFLICT(video_id) DO UPDATE SET vec_f32 = excluded.vec_f32`,
     );
     raw.close();
     expect(state.embeddingRecord("bad")).toBeNull();
@@ -116,10 +116,11 @@ describe("embeddings ledger round-trip", () => {
   test("structurally invalid vectors are rejected with the row id", () => {
     track("bad-shape", "Bad shape");
     const raw = new Database(join(dir, "archive.db"));
+    // two little-endian float32 NaNs: readable blob, non-finite payload
     raw.exec(
-      `INSERT INTO embeddings (video_id, dim, vec_json, source_path, analyzed_at)
-       VALUES ('bad-shape', 3, '[1,"oops",3]', '/tmp/x', 'now')
-       ON CONFLICT(video_id) DO UPDATE SET vec_json = excluded.vec_json`,
+      `INSERT INTO embeddings (video_id, dim, vec_json, vec_f32, source_path, analyzed_at)
+       VALUES ('bad-shape', 2, '[1,"oops",3]', X'0000C07F0000C07F', '/tmp/x', 'now')
+       ON CONFLICT(video_id) DO UPDATE SET vec_f32 = excluded.vec_f32`,
     );
     raw.close();
     const diagnostics: string[] = [];
@@ -133,6 +134,32 @@ describe("embeddings ledger round-trip", () => {
     }
     expect(diagnostics.some((line) => line.includes("bad-shape"))).toBe(true);
     expect(diagnostics.some((line) => line.includes("finite numbers"))).toBe(true);
+  });
+  test("schema migration backfills vec_f32 from legacy vec_json rows (#562)", () => {
+    const legacy = tempDir("megadj-similar-legacy-");
+    const legacyDir = legacy.dir();
+    // old-schema DB: embeddings predates vec_f32 — one analyzable row,
+    // one poison row (its blob must stay NULL and read as absent)
+    const raw = new Database(join(legacyDir, "archive.db"));
+    raw.exec(`CREATE TABLE embeddings (
+      video_id TEXT PRIMARY KEY, dim INTEGER NOT NULL,
+      vec_json TEXT NOT NULL, source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL)`);
+    raw.exec(`INSERT INTO embeddings VALUES ('legacy', 2, '[3,4]', '/tmp/l', 'now')`);
+    raw.exec(`INSERT INTO embeddings VALUES ('poison', 2, '[1,"x"]', '/tmp/l', 'now')`);
+    raw.close();
+    const legacyState = stateIn(legacyDir);
+    try {
+      expect(legacyState.embeddingRecord("legacy")?.vec).toEqual([3, 4]);
+      // vec_json stays populated — the debugging tools still read it
+      const kept = new Database(join(legacyDir, "archive.db"), { readonly: true })
+        .query("SELECT vec_json FROM embeddings WHERE video_id = 'legacy'")
+        .get() as { vec_json: string };
+      expect(JSON.parse(kept.vec_json)).toEqual([3, 4]);
+      expect(legacyState.embeddingRecord("poison")).toBeNull();
+    } finally {
+      legacyState.close();
+      legacy.dispose(legacyDir);
+    }
   });
   test("non-downloaded tracks stay out of the corpus", () => {
     state.upsertTrackFromPlaylist("gone", 0, "Gone", "test");

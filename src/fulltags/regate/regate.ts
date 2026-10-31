@@ -43,7 +43,7 @@ export function genreEvalSeeds(state: ArchiveState): {
     seeds.push({
       videoId: row.video_id,
       genre: row.genre,
-      vec: parseEmbeddingVector(row.vec_json, `regate ${row.video_id}`),
+      vec: parseEmbeddingVector(row.vec_f32, `regate ${row.video_id}`),
     });
     durations.push({ videoId: row.video_id, durationS: row.duration_s });
   }

@@ -1,31 +1,30 @@
 import { isFiniteNumberArray } from "../shared/leaf/guards";
+import { vecFromF32Blob, vecToF32Blob } from "../shared/leaf/vector-space";
 import { RecordLedger } from "./record-ledger";
 
-/** Parse one persisted embedding vector. Syntactically valid JSON is not
- * enough: every downstream cosine operation requires a non-empty vector of
+/** Parse one persisted embedding vector (#562: `vec_f32 BLOB` — raw
+ * float32 bytes, not JSON). Structural validity is not enough to trust:
+ * every downstream cosine operation requires a non-empty vector of
  * finite numbers. The caller supplies row context so corruption is
  * actionable instead of disappearing behind a cast. */
-export function parseEmbeddingVector(vecJson: string, context: string): number[] {
-  let value: unknown;
-  try {
-    value = JSON.parse(vecJson) as unknown;
-  } catch (error) {
-    const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(`${context} has invalid vec_json: malformed JSON${detail}`, { cause: error });
+export function parseEmbeddingVector(vecBlob: Uint8Array | null, context: string): number[] {
+  if (vecBlob === null || vecBlob.length === 0 || vecBlob.length % 4 !== 0) {
+    throw new Error(`${context} has invalid vec_f32: expected a non-empty float32 byte blob`);
   }
-  if (!isFiniteNumberArray(value) || value.length === 0) {
-    throw new Error(
-      `${context} has invalid vec_json: expected a non-empty array of finite numbers`,
-    );
+  const vec = vecFromF32Blob(vecBlob);
+  if (!isFiniteNumberArray(vec) || vec.length === 0) {
+    throw new Error(`${context} has invalid vec_f32: expected a non-empty array of finite numbers`);
   }
-  return value;
+  return vec;
 }
 
 export class EmbeddingsLedger extends RecordLedger {
   /** Upsert one embedding. Idempotent by video_id: a re-run replaces the
    * row (fresh timestamps) — the SQL plumbing is RecordLedger's.
    * M1 (#325): `model` is required on new writes (nullable in the DDL for
-   * backfill, but the write seam refuses to omit it). */
+   * backfill, but the write seam refuses to omit it).
+   * #562: hot paths read `vec_f32` (BLOB); `vec_json` stays populated for
+   * the debugging tools and non-migrated readers (megaset, bench, probes). */
   setEmbeddingRecord(rec: {
     videoId: string;
     vec: number[];
@@ -35,13 +34,21 @@ export class EmbeddingsLedger extends RecordLedger {
     this.upsert(
       "embeddings",
       rec.videoId,
-      ["dim", "vec_json", "source_path", "analyzed_at", "model"],
-      [rec.vec.length, JSON.stringify(rec.vec), rec.sourcePath, this.now(), rec.model],
+      ["dim", "vec_json", "vec_f32", "source_path", "analyzed_at", "model"],
+      [
+        rec.vec.length,
+        JSON.stringify(rec.vec),
+        vecToF32Blob(rec.vec),
+        rec.sourcePath,
+        this.now(),
+        rec.model,
+      ],
     );
   }
 
-  /** One embedding (by video id), null when never analyzed. Corrupt JSON
-   * reads as absent — a corrupt row can never poison a similarity query. */
+  /** One embedding (by video id), null when never analyzed. A row without
+   * a readable `vec_f32` reads as absent — a corrupt row can never poison
+   * a similarity query. */
   embeddingRecord(
     videoId: string,
   ): {
@@ -53,19 +60,19 @@ export class EmbeddingsLedger extends RecordLedger {
   } | null {
     const row = this.db
       .query(
-        `SELECT video_id, vec_json, source_path, analyzed_at, model
+        `SELECT video_id, vec_f32, source_path, analyzed_at, model
          FROM embeddings WHERE video_id = ?`,
       )
       .get(videoId) as {
       video_id: string;
-      vec_json: string;
+      vec_f32: Uint8Array | null;
       source_path: string;
       analyzed_at: string;
       model: string | null;
     } | null;
     if (!row) return null;
     try {
-      const vec = parseEmbeddingVector(row.vec_json, `embedding ${row.video_id}`);
+      const vec = parseEmbeddingVector(row.vec_f32, `embedding ${row.video_id}`);
       return {
         videoId: row.video_id,
         vec,
@@ -99,7 +106,7 @@ export class EmbeddingsLedger extends RecordLedger {
     const params = modelFilter !== undefined ? [modelFilter] : [];
     const rows = this.db
       .query(
-        `SELECT e.video_id, t.title, t.artist, e.vec_json, e.model
+        `SELECT e.video_id, t.title, t.artist, e.vec_f32, e.model
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          ${whereClause}`,
       )
@@ -107,12 +114,12 @@ export class EmbeddingsLedger extends RecordLedger {
       video_id: string;
       title: string | null;
       artist: string | null;
-      vec_json: string;
+      vec_f32: Uint8Array | null;
       model: string | null;
     }[];
     return rows.flatMap((r) => {
       try {
-        const vec = parseEmbeddingVector(r.vec_json, `embedding ${r.video_id}`);
+        const vec = parseEmbeddingVector(r.vec_f32, `embedding ${r.video_id}`);
         return [{ videoId: r.video_id, title: r.title, artist: r.artist, vec, model: r.model }];
       } catch (error) {
         this.absorbParseFailure(error, `embedding ${r.video_id}`, console.error);
@@ -135,11 +142,12 @@ export class EmbeddingsLedger extends RecordLedger {
     this.db
       .query(
         `INSERT INTO section_embeddings
-           (video_id, model, dim, vec_json, source_path, analyzed_at,
+           (video_id, model, dim, vec_json, vec_f32, source_path, analyzed_at,
             section_start, section_end)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(video_id, model) DO UPDATE SET
            dim = excluded.dim, vec_json = excluded.vec_json,
+           vec_f32 = excluded.vec_f32,
            source_path = excluded.source_path,
            analyzed_at = excluded.analyzed_at,
            section_start = excluded.section_start,
@@ -150,6 +158,7 @@ export class EmbeddingsLedger extends RecordLedger {
         rec.model,
         rec.vec.length,
         JSON.stringify(rec.vec),
+        vecToF32Blob(rec.vec),
         rec.sourcePath,
         this.now(),
         rec.sectionStart ?? null,
@@ -164,18 +173,18 @@ export class EmbeddingsLedger extends RecordLedger {
   ): { vec: number[]; sectionStart: number | null; sectionEnd: number | null } | null {
     const row = this.db
       .query(
-        `SELECT vec_json, section_start, section_end
+        `SELECT vec_f32, section_start, section_end
          FROM section_embeddings WHERE video_id = ? AND model = ?`,
       )
       .get(videoId, model) as {
-      vec_json: string;
+      vec_f32: Uint8Array | null;
       section_start: number | null;
       section_end: number | null;
     } | null;
     if (!row) return null;
     try {
       return {
-        vec: parseEmbeddingVector(row.vec_json, `sec-emb ${videoId}`),
+        vec: parseEmbeddingVector(row.vec_f32, `sec-emb ${videoId}`),
         sectionStart: row.section_start,
         sectionEnd: row.section_end,
       };
@@ -200,8 +209,8 @@ export class EmbeddingsLedger extends RecordLedger {
     const rows = this.db
       .query(
         `SELECT e.video_id, t.title, t.artist,
-                COALESCE(se.vec_json, e.vec_json) AS vec_json,
-                CASE WHEN se.vec_json IS NOT NULL THEN 1 ELSE 0 END AS is_section
+                COALESCE(se.vec_f32, e.vec_f32) AS vec_f32,
+                CASE WHEN se.video_id IS NOT NULL THEN 1 ELSE 0 END AS is_section
          FROM embeddings e
          JOIN tracks t ON t.video_id = e.video_id
          LEFT JOIN section_embeddings se
@@ -212,7 +221,7 @@ export class EmbeddingsLedger extends RecordLedger {
       video_id: string;
       title: string | null;
       artist: string | null;
-      vec_json: string;
+      vec_f32: Uint8Array | null;
       is_section: number;
     }[];
     return rows.flatMap((r) => {
@@ -222,7 +231,7 @@ export class EmbeddingsLedger extends RecordLedger {
             videoId: r.video_id,
             title: r.title,
             artist: r.artist,
-            vec: parseEmbeddingVector(r.vec_json, `corpus ${r.video_id}`),
+            vec: parseEmbeddingVector(r.vec_f32, `corpus ${r.video_id}`),
             isSection: r.is_section === 1,
           },
         ];

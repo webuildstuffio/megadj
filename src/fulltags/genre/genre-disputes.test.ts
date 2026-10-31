@@ -5,6 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import { collectDisputes, resolveDispute } from "./genre-disputes";
 import type { ArchiveState } from "../../core/state";
+import { vecToF32Blob } from "../../shared/leaf/vector-space";
 import { genreEvalRow } from "../../test-support/genre-row";
 
 describe("genre --disputes (#64 review surface)", () => {
@@ -23,26 +24,26 @@ describe("genre --disputes (#64 review surface)", () => {
         flagged: [
           {
             video_id: "bad",
-            vec_json: "[1,0]",
+            vec_f32: vecToF32Blob([1, 0]),
             analyzed_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
           },
           {
             video_id: "split",
-            vec_json: "[0,1]",
+            vec_f32: vecToF32Blob([0, 1]),
             analyzed_at: new Date(Date.now() - 5 * 86_400_000).toISOString(),
           },
         ],
         seeds: [
-          genreEvalRow("h1", "House", "[1,0.01]"),
-          genreEvalRow("h2", "House", "[1,0.02]"),
-          genreEvalRow("h3", "House", "[0.99,0.03]"),
+          genreEvalRow("h1", "House", [1, 0.01]),
+          genreEvalRow("h2", "House", [1, 0.02]),
+          genreEvalRow("h3", "House", [0.99, 0.03]),
           // a techno corner for the "split" row to sit in: with k=5 the
           // split row's 5 nearest include 2 house (h1/h3 are near it too
           // in 2-d) — make the split real by keeping its neighbours
           // balanced: 2 house + 2 techno + 1 groove → no 60% quorum
-          genreEvalRow("t1", "Techno", "[0,0.95]"),
-          genreEvalRow("t2", "Techno", "[0.02,0.97]"),
-          genreEvalRow("g1", "Groove", "[0.4,0.9]"),
+          genreEvalRow("t1", "Techno", [0, 0.95]),
+          genreEvalRow("t2", "Techno", [0.02, 0.97]),
+          genreEvalRow("g1", "Groove", [0.4, 0.9]),
         ],
       }),
     } as unknown as ArchiveState;
@@ -87,11 +88,17 @@ describe("genre --disputes (#64 review surface)", () => {
     const state = {
       disputedRows: () => [{ video_id: "rb-2", title: "T", artist: "A", genre: "Dance" }],
       disputeVoteInputs: () => ({
-        flagged: [{ video_id: "rb-2", vec_json: "[1,0]", analyzed_at: new Date().toISOString() }],
+        flagged: [
+          {
+            video_id: "rb-2",
+            vec_f32: vecToF32Blob([1, 0]),
+            analyzed_at: new Date().toISOString(),
+          },
+        ],
         seeds: [
-          { video_id: "h1", genre: "House", vec_json: "[1,0.01]" },
-          { video_id: "h2", genre: "House", vec_json: "[1,0.02]" },
-          { video_id: "h3", genre: "House", vec_json: "[0.99,0.03]" },
+          { video_id: "h1", genre: "House", vec_f32: vecToF32Blob([1, 0.01]) },
+          { video_id: "h2", genre: "House", vec_f32: vecToF32Blob([1, 0.02]) },
+          { video_id: "h3", genre: "House", vec_f32: vecToF32Blob([0.99, 0.03]) },
         ],
       }),
       agreeDispute: (id: string, resolvedGenre: string) => {
@@ -115,11 +122,17 @@ describe("genre --disputes (#64 review surface)", () => {
     const state = {
       disputedRows: () => [{ video_id: "rb-3", title: "T", artist: "A", genre: "EDM" }],
       disputeVoteInputs: () => ({
-        flagged: [{ video_id: "rb-3", vec_json: "[1,0]", analyzed_at: new Date().toISOString() }],
+        flagged: [
+          {
+            video_id: "rb-3",
+            vec_f32: vecToF32Blob([1, 0]),
+            analyzed_at: new Date().toISOString(),
+          },
+        ],
         seeds: [
           // split neighbourhood: house vs techno → no quorum
-          { video_id: "h1", genre: "House", vec_json: "[1,0.01]" },
-          { video_id: "t1", genre: "Techno", vec_json: "[0,1]" },
+          { video_id: "h1", genre: "House", vec_f32: vecToF32Blob([1, 0.01]) },
+          { video_id: "t1", genre: "Techno", vec_f32: vecToF32Blob([0, 1]) },
         ],
       }),
       agreeDispute: () => {
@@ -146,13 +159,19 @@ describe("genre --disputes (#64 review surface)", () => {
 const SPLIT_ROW_STATE = {
   disputedRows: () => [{ video_id: "rb-4", title: "T", artist: "A", genre: "EDM" }],
   disputeVoteInputs: () => ({
-    flagged: [{ video_id: "rb-4", vec_json: "[0.9,0.1]", analyzed_at: new Date().toISOString() }],
+    flagged: [
+      {
+        video_id: "rb-4",
+        vec_f32: vecToF32Blob([0.9, 0.1]),
+        analyzed_at: new Date().toISOString(),
+      },
+    ],
     seeds: [
-      { video_id: "h1", genre: "House", vec_json: "[1,0]" },
-      { video_id: "h2", genre: "House", vec_json: "[0.95,0.05]" },
-      { video_id: "t1", genre: "Techno", vec_json: "[0.3,0.9]" },
-      { video_id: "t2", genre: "Techno", vec_json: "[0.2,0.95]" },
-      { video_id: "g1", genre: "Groove", vec_json: "[0.5,0.8]" },
+      { video_id: "h1", genre: "House", vec_f32: vecToF32Blob([1, 0]) },
+      { video_id: "h2", genre: "House", vec_f32: vecToF32Blob([0.95, 0.05]) },
+      { video_id: "t1", genre: "Techno", vec_f32: vecToF32Blob([0.3, 0.9]) },
+      { video_id: "t2", genre: "Techno", vec_f32: vecToF32Blob([0.2, 0.95]) },
+      { video_id: "g1", genre: "Groove", vec_f32: vecToF32Blob([0.5, 0.8]) },
     ],
   }),
 } as unknown as ArchiveState;

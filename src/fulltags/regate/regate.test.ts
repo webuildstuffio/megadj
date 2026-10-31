@@ -5,6 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import { GENRE_GATE_PERCENT, genreEvalSeeds, regate, regateEffnet, regateGenre } from "./regate";
 import type { ArchiveState } from "../../core/state";
+import { vecToF32Blob } from "../../shared/leaf/vector-space";
 
 /** Minimal ArchiveState double: only evalPopulation() is read. */
 function stateWith(
@@ -13,14 +14,14 @@ function stateWith(
     genre: string;
     duration_s: number | null;
     artist: string | null;
-    vec_json: string;
+    vec_f32: Uint8Array | null;
   }[],
 ): ArchiveState {
   return { evalPopulation: () => rows } as unknown as ArchiveState;
 }
 
-const vec = (seed: number, dims = 4): string =>
-  JSON.stringify(
+const vec = (seed: number, dims = 4): Uint8Array =>
+  vecToF32Blob(
     Array.from({ length: dims }, (_, i) =>
       Math.sin(seed * 0.7 + i) >= 0 ? 0.5 + seed * 0.01 : -0.5,
     ),
@@ -41,7 +42,7 @@ describe("regate genre (#169)", () => {
     // junk labels with no scoring family count as unevaluable, not measurable
     const junkOnly = regateGenre(
       stateWith([
-        { video_id: "a", genre: "dj tools", duration_s: 200, artist: null, vec_json: vec(1) },
+        { video_id: "a", genre: "dj tools", duration_s: 200, artist: null, vec_f32: vec(1) },
       ]),
     );
     expect(junkOnly.unavailable).toBe(true);
@@ -63,7 +64,7 @@ describe("regate genre (#169)", () => {
       genre: r.genre,
       duration_s: 200,
       artist: null,
-      vec_json: vec(r.seed),
+      vec_f32: vec(r.seed),
     }));
     const r = regateGenre(stateWith(rows));
     expect(r.unavailable).toBe(false);
@@ -77,8 +78,8 @@ describe("regate genre (#169)", () => {
 
   test("duration guard rides the same harness rule (out-of-band rows drop)", () => {
     const rows = [
-      { video_id: "in", genre: "House", duration_s: 200, artist: null, vec_json: vec(1) },
-      { video_id: "ad", genre: "Techno", duration_s: 5, artist: null, vec_json: vec(9) },
+      { video_id: "in", genre: "House", duration_s: 200, artist: null, vec_f32: vec(1) },
+      { video_id: "ad", genre: "Techno", duration_s: 5, artist: null, vec_f32: vec(9) },
     ];
     const seeds = genreEvalSeeds(stateWith(rows));
     // both rows enter the seed list; the harness's band drops the ad
