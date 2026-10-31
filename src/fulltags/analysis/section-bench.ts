@@ -14,7 +14,7 @@
 
 import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
-import { parseEmbeddingVector } from "../../core/similar-storage";
+import { ensureVecF32Schema, parseEmbeddingVector } from "../../core/similar-storage";
 import { inferGenre, genreFamily, type GenreSeed } from "../../core/similar";
 import { findDropCandidates } from "./drop-finder";
 import { analyzeMoods } from "./models";
@@ -116,7 +116,7 @@ function loadSample(db: Database, sampleSize: number): SampleTrack[] {
   const rows = db
     .query(
       `SELECT t.video_id, t.title, t.genre, t.file_path, t.duration_s,
-              e.vec_json, b.downbeats_json,
+              e.vec_f32, b.downbeats_json,
               COALESCE(
                 (SELECT COUNT(*) FROM json_each(t.genre_votes) WHERE json_extract(value, '$.genre') IS NOT NULL),
                 0
@@ -137,14 +137,14 @@ function loadSample(db: Database, sampleSize: number): SampleTrack[] {
     genre: string;
     file_path: string;
     duration_s: number | null;
-    vec_json: string;
+    vec_f32: Uint8Array | null;
     downbeats_json: string;
     vote_count: number;
   }[];
 
   return rows.flatMap((r) => {
     try {
-      const wholeVec = parseEmbeddingVector(r.vec_json, r.video_id);
+      const wholeVec = parseEmbeddingVector(r.vec_f32, r.video_id);
       const downbeats: unknown = JSON.parse(r.downbeats_json);
       if (!Array.isArray(downbeats) || downbeats.length < 16) return [];
       if (!existsSync(r.file_path)) return [];
@@ -172,15 +172,15 @@ function loadSample(db: Database, sampleSize: number): SampleTrack[] {
 function loadAllSeeds(db: Database): GenreSeed[] {
   const rows = db
     .query(
-      `SELECT e.video_id, t.genre, e.vec_json
+      `SELECT e.video_id, t.genre, e.vec_f32
        FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
        WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''`,
     )
-    .all() as { video_id: string; genre: string; vec_json: string }[];
+    .all() as { video_id: string; genre: string; vec_f32: Uint8Array | null }[];
   return rows.flatMap((r) => {
     try {
       return [
-        { videoId: r.video_id, genre: r.genre, vec: parseEmbeddingVector(r.vec_json, r.video_id) },
+        { videoId: r.video_id, genre: r.genre, vec: parseEmbeddingVector(r.vec_f32, r.video_id) },
       ];
     } catch {
       return [];
@@ -327,6 +327,14 @@ async function main() {
   console.log(`║  Section Embedding Bench — Rigorous Statistical Analysis  ║`);
   console.log(`╚═══════════════════════════════════════════════════════════╝\n`);
 
+  // #562: a legacy archive (opened by an older build, no vec_f32 yet)
+  // must be migrated before this read-only connection can query the blob
+  // column — the bench never depends on another command having run first.
+  if (existsSync(DB_PATH)) {
+    const migrate = new Database(DB_PATH);
+    ensureVecF32Schema(migrate);
+    migrate.close();
+  }
   const db = new Database(DB_PATH, { readonly: true });
   const sample = loadSample(db, sampleSize);
   const allSeeds = loadAllSeeds(db);

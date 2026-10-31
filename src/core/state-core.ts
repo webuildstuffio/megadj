@@ -3,6 +3,7 @@ import type { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { Ledgers } from "./ledgers";
 import { EmbeddingsLedger } from "./similar";
+import { ensureVecF32Schema } from "./similar-storage";
 import { ShelfSweeps } from "./sweeps";
 
 /** Connection, schema, and delegated ledger ownership for archive state. */
@@ -85,18 +86,23 @@ export class ArchiveCore {
       );
       CREATE TABLE IF NOT EXISTS embeddings (
         video_id TEXT PRIMARY KEY, dim INTEGER NOT NULL,
-        vec_json TEXT NOT NULL, source_path TEXT NOT NULL,
+        vec_json TEXT NOT NULL, vec_f32 BLOB, source_path TEXT NOT NULL,
         analyzed_at TEXT NOT NULL
       );`);
     this.addColumnIfMissing("embeddings", "model", "TEXT");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS section_embeddings (
         video_id TEXT NOT NULL, model TEXT NOT NULL,
-        dim INTEGER NOT NULL, vec_json TEXT NOT NULL,
+        dim INTEGER NOT NULL, vec_json TEXT NOT NULL, vec_f32 BLOB,
         source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL,
         section_start REAL, section_end REAL,
         PRIMARY KEY (video_id, model)
       );`);
+    // #562: hot paths read `vec_f32` (raw float32 BLOB — one memcpy, no
+    // JSON.parse); `vec_json` stays populated by the write seam for the
+    // debugging tools and the readers that still speak JSON. This backfill
+    // runs before any read: every legacy row gets its blob at open time.
+    ensureVecF32Schema(this.db);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS track_keys (
         video_id TEXT PRIMARY KEY, key TEXT NOT NULL,

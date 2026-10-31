@@ -251,24 +251,24 @@ export class ArchiveTracks extends ArchiveCore {
    *  this accessor only supplies the raw rows (seeds + the flagged
    *  queries), keeping the state layer engine-free. */
   disputeVoteInputs(): {
-    flagged: { video_id: string; vec_json: string; analyzed_at: string }[];
-    seeds: { video_id: string; genre: string; vec_json: string }[];
+    flagged: { video_id: string; vec_f32: Uint8Array | null; analyzed_at: string }[];
+    seeds: { video_id: string; genre: string; vec_f32: Uint8Array | null }[];
   } {
     const flagged = this.db
       .query(
-        `SELECT e.video_id, e.vec_json, e.analyzed_at
+        `SELECT e.video_id, e.vec_f32, e.analyzed_at
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          WHERE t.genre_flag = 'disputed' AND t.status = 'downloaded'`,
       )
-      .all() as { video_id: string; vec_json: string; analyzed_at: string }[];
+      .all() as { video_id: string; vec_f32: Uint8Array | null; analyzed_at: string }[];
     const seeds = this.db
       .query(
-        `SELECT e.video_id, t.genre, e.vec_json
+        `SELECT e.video_id, t.genre, e.vec_f32
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''
            AND (t.genre_flag IS NULL OR t.genre_flag != 'disputed')`,
       )
-      .all() as { video_id: string; genre: string; vec_json: string }[];
+      .all() as { video_id: string; genre: string; vec_f32: Uint8Array | null }[];
     return { flagged, seeds };
   }
 
@@ -292,43 +292,48 @@ export class ArchiveTracks extends ArchiveCore {
   }
 
   genreSeeds(): {
-    seeds: { video_id: string; genre: string; vec_json: string }[];
-    queries: { video_id: string; title: string | null; vec_json: string; section_vecs: string[] }[];
+    seeds: { video_id: string; genre: string; vec_f32: Uint8Array | null }[];
+    queries: {
+      video_id: string;
+      title: string | null;
+      vec_f32: Uint8Array | null;
+      section_vecs: (Uint8Array | null)[];
+    }[];
   } {
     // Seeds use whole-track embeddings: their genres are trusted labels,
     // and whole-track gives maximum coverage (section embeddings are sparse).
     const seeds = this.db
       .query(
-        `SELECT e.video_id, t.genre, e.vec_json
+        `SELECT e.video_id, t.genre, e.vec_f32
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''
            AND (t.genre_flag IS NULL OR t.genre_flag != 'disputed')`,
       )
-      .all() as { video_id: string; genre: string; vec_json: string }[];
+      .all() as { video_id: string; genre: string; vec_f32: Uint8Array | null }[];
     // Queries get whole-track vec + all section embeddings. The caller runs
     // kNN with each and picks the best (best-of-3, bench-validated Sep 30).
     const queryRows = this.db
       .query(
-        `SELECT e.video_id, t.title, e.vec_json
+        `SELECT e.video_id, t.title, e.vec_f32
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          WHERE t.status = 'downloaded' AND (t.genre IS NULL OR t.genre = '')`,
       )
-      .all() as { video_id: string; title: string | null; vec_json: string }[];
+      .all() as { video_id: string; title: string | null; vec_f32: Uint8Array | null }[];
     const sectionRows = this.db
       .query(
-        `SELECT video_id, model, vec_json FROM section_embeddings
+        `SELECT video_id, model, vec_f32 FROM section_embeddings
          WHERE model LIKE 'effnet-discogs-1280-section-%'
          ORDER BY video_id, model`,
       )
-      .all() as { video_id: string; model: string; vec_json: string }[];
-    const sectionsByVid = new Map<string, string[]>();
+      .all() as { video_id: string; model: string; vec_f32: Uint8Array | null }[];
+    const sectionsByVid = new Map<string, (Uint8Array | null)[]>();
     for (const r of sectionRows) {
       let arr = sectionsByVid.get(r.video_id);
       if (arr === undefined) {
         arr = [];
         sectionsByVid.set(r.video_id, arr);
       }
-      arr.push(r.vec_json);
+      arr.push(r.vec_f32);
     }
     const queries = queryRows.map((r) => ({
       ...r,
@@ -349,11 +354,11 @@ export class ArchiveTracks extends ArchiveCore {
     genre: string;
     duration_s: number | null;
     artist: string | null;
-    vec_json: string;
+    vec_f32: Uint8Array | null;
   }[] {
     return this.db
       .query(
-        `SELECT e.video_id, t.genre, t.duration_s, t.artist, e.vec_json
+        `SELECT e.video_id, t.genre, t.duration_s, t.artist, e.vec_f32
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''`,
       )
@@ -362,7 +367,7 @@ export class ArchiveTracks extends ArchiveCore {
       genre: string;
       duration_s: number | null;
       artist: string | null;
-      vec_json: string;
+      vec_f32: Uint8Array | null;
     }[];
   }
 

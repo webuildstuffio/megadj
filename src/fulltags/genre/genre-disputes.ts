@@ -80,17 +80,17 @@ export function collectDisputes(
   const seedVecs = seeds.map((s) => ({
     videoId: s.video_id,
     genre: s.genre,
-    vec: parseEmbeddingVector(s.vec_json, `dispute seed ${s.video_id}`),
+    vec: parseEmbeddingVector(s.vec_f32, `dispute seed ${s.video_id}`),
   }));
-  const vecById = new Map(voteRows.map((r) => [r.video_id, r.vec_json] as const));
+  const vecById = new Map(voteRows.map((r) => [r.video_id, r.vec_f32] as const));
   const ageById = new Map(voteRows.map((r) => [r.video_id, r.analyzed_at] as const));
 
   const rows: DisputeRow[] = flagged.map((r) => {
-    const vecJson = vecById.get(r.video_id);
+    const vecBlob = vecById.get(r.video_id);
     let consensus: string | null = null;
     let agreement: number | null = null;
-    if (vecJson) {
-      const vec = parseEmbeddingVector(vecJson, `dispute query ${r.video_id}`);
+    if (vecBlob) {
+      const vec = parseEmbeddingVector(vecBlob, `dispute query ${r.video_id}`);
       const vote = inferGenre(seedVecs, vec, k, CONSENSUS_MIN_AGREEMENT);
       if (vote.inferred !== null) {
         consensus = vote.inferred;
@@ -170,14 +170,14 @@ function collectDisputesRow(
   videoId: string,
 ): { consensus: string | null; agreement: number | null } {
   const { flagged: voteRows, seeds } = state.disputeVoteInputs();
-  const vecJson = voteRows.find((r) => r.video_id === videoId)?.vec_json;
-  if (!vecJson) return { consensus: null, agreement: null };
+  const vecBlob = voteRows.find((r) => r.video_id === videoId)?.vec_f32;
+  if (!vecBlob) return { consensus: null, agreement: null };
   const seedVecs = seeds.map((s) => ({
     videoId: s.video_id,
     genre: s.genre,
-    vec: parseEmbeddingVector(s.vec_json, `dispute seed ${s.video_id}`),
+    vec: parseEmbeddingVector(s.vec_f32, `dispute seed ${s.video_id}`),
   }));
-  const vec = parseEmbeddingVector(vecJson, `dispute query ${videoId}`);
+  const vec = parseEmbeddingVector(vecBlob, `dispute query ${videoId}`);
   const vote = inferGenre(seedVecs, vec, DEFAULT_CONSENSUS_K, CONSENSUS_MIN_AGREEMENT);
   return vote.inferred !== null
     ? { consensus: vote.inferred, agreement: vote.agreement }

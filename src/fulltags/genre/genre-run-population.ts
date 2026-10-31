@@ -36,7 +36,7 @@ export function parseEvalPopulation(
   const artists = new Map<string, string>();
   const probeRows: ProbeRow[] = [];
   for (const row of sourceRows) {
-    const vec = parseEmbeddingVector(row.vec_json, `genre ${purpose} ${row.video_id}`);
+    const vec = parseEmbeddingVector(row.vec_f32, `genre ${purpose} ${row.video_id}`);
     seeds.push({ videoId: row.video_id, genre: row.genre, vec });
     durations.push({ videoId: row.video_id, durationS: row.duration_s });
     if (row.artist) artists.set(row.video_id, row.artist);
@@ -52,13 +52,13 @@ export function parseInferencePopulation(state: ArchiveState): ParsedInferencePo
   const seeds: GenreSeed[] = rows.seeds.map((row) => ({
     videoId: row.video_id,
     genre: row.genre!,
-    vec: parseEmbeddingVector(row.vec_json, `genre seed ${row.video_id}`),
+    vec: parseEmbeddingVector(row.vec_f32, `genre seed ${row.video_id}`),
   }));
   const queries = rows.queries.map((row) => {
     const sectionVecs: number[][] = [];
-    for (const svj of row.section_vecs) {
+    for (const svb of row.section_vecs) {
       try {
-        sectionVecs.push(parseEmbeddingVector(svj, `section ${row.video_id}`));
+        sectionVecs.push(parseEmbeddingVector(svb, `section ${row.video_id}`));
       } catch {
         // skip corrupt section embedding
       }
@@ -66,7 +66,7 @@ export function parseInferencePopulation(state: ArchiveState): ParsedInferencePo
     return {
       videoId: row.video_id,
       title: row.title,
-      vec: parseEmbeddingVector(row.vec_json, `genre query ${row.video_id}`),
+      vec: parseEmbeddingVector(row.vec_f32, `genre query ${row.video_id}`),
       sectionVecs,
     };
   });

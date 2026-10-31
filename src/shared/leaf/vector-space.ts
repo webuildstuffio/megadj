@@ -176,6 +176,23 @@ export function cslsQueryPenalty(queryVec: number[], corpusVecs: number[][], r =
   return roundedMeanTop(sims, r);
 }
 
+// ---- Float32 BLOB codec (#562): embedding vectors persist as raw
+// little-endian float32 bytes (`vec_f32 BLOB`) so a load is one memcpy
+// instead of a JSON.parse. Same machine class writes and reads (macOS
+// ARM64), so platform endianness is safe by construction. ------
+
+export function vecToF32Blob(vec: number[]): Uint8Array {
+  const f32 = new Float32Array(vec.length);
+  for (let i = 0; i < vec.length; i++) f32[i] = vec[i]!;
+  return new Uint8Array(f32.buffer);
+}
+
+export function vecFromF32Blob(bytes: Uint8Array): number[] {
+  // the Uint8Array constructor copy guarantees an offset-0 buffer (an
+  // aligned Float32Array view), whatever alignment the driver hands back
+  return [...new Float32Array(new Uint8Array(bytes).buffer)];
+}
+
 // ---- cosine similarity (was similarity.ts, 21L — merged per #221; same
 // pure-math leaf, one import surface for the archive↔CrateDeck seam) ------
 
