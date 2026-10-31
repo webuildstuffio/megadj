@@ -30,6 +30,30 @@ EFFNET_PATH = MODEL_DIR / "discogs-effnet-bsdynamic-1.onnx"
 MODEL_TAG = "effnet-discogs-1280"
 
 
+def ensure_vec_f32_column(conn: sqlite3.Connection) -> None:
+    """Add vec_f32 to section_embeddings when missing (#562).
+
+    The section INSERT names vec_f32, so on a legacy archive (pre-#562
+    schema, never opened by the updated megadj build) the first write dies
+    with sqlite3.OperationalError outside the per-track guard and aborts
+    the whole run. Mirrors the guarded ALTER in ensureVecF32Schema
+    (src/core/similar-storage.ts): a concurrent migration's duplicate-
+    column error is the winner's success. A missing table is a no-op —
+    the INSERT reports it, exactly as pre-#562.
+    """
+    columns = {
+        str(row[1]) for row in conn.execute("PRAGMA table_info(section_embeddings)")
+    }
+    if not columns or "vec_f32" in columns:
+        return
+    try:
+        conn.execute("ALTER TABLE section_embeddings ADD COLUMN vec_f32 BLOB")
+    except sqlite3.OperationalError as exc:
+        if "duplicate column name" not in str(exc):
+            raise
+    conn.commit()
+
+
 def load_audio_section(path: str, start: float, end: float) -> FloatArray | None:
     """Load audio section at 16kHz mono."""
     try:
@@ -195,6 +219,7 @@ def main() -> None:
         sys.exit(1)
 
     conn = sqlite3.connect(args.db)
+    ensure_vec_f32_column(conn)
 
     # Find tracks needing section embeddings
     existing_ids: set[str] = set()
